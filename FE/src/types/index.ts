@@ -1,0 +1,42 @@
+export type UserRole = 'admin' | 'lecturer' | 'student'
+
+export interface NavItem {
+  id: string
+  label: string
+  path: string
+  icon: string
+  badge?: string
+}
+
+export interface BreadcrumbItem {
+  label: string
+  path?: string
+}
+
+export interface StatMetric {
+  id: string
+  label: string
+  value: string | number
+  hint?: string
+  trend?: 'up' | 'down' | 'neutral'
+  trendLabel?: string
+}
+
+import type { ReactNode } from 'react'
+
+export interface TableColumn<T> {
+  key: keyof T | string
+  header: string
+  render?: (row: T) => ReactNode
+  className?: string
+}
+
+export interface TabItem {
+  id: string
+  label: string
+}
+
+export interface FilterOption {
+  value: string
+  label: string
+}

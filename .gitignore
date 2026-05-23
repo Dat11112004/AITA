@@ -1,0 +1,27 @@
+# Root
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+
+# Backend
+be/node_modules/
+be/dist/
+be/.env
+be/prisma/*.sqlite
+be/prisma/*.sqlite-journal
+
+# Frontend
+FE/node_modules/
+FE/dist/
+FE/dist-ssr/
+FE/.env
+FE/*.local
+
+# AI
+ai/venv/
+ai/.env
+ai/__pycache__/
+ai/*.pyc
