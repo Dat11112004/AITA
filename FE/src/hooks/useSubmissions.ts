@@ -8,7 +8,7 @@ const SUBMISSIONS_QUERY_KEY = ['submissions']
  */
 export function useSubmissions(params?: Record<string, string>) {
   return useQuery({
-    queryKey: [...SUBMISSIONS_QUERY_KEY, params],
+    queryKey: [...SUBMISSIONS_QUERY_KEY, params ? JSON.stringify(params) : null],
     queryFn: () => submissionService.getSubmissions(params),
     staleTime: 3 * 60 * 1000, // 3 minutes - submissions change frequently
     gcTime: 10 * 60 * 1000,

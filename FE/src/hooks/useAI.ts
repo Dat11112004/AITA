@@ -20,7 +20,11 @@ export function useAIReviews() {
  */
 export function useGenerateExercise() {
   return useMutation({
-    mutationFn: (data: unknown) => aiService.generateExercise(data),
+    mutationFn: (data: { classId?: string; type: string; topic: string; difficulty: string; extra?: string }) =>
+      aiService.generateExercise(data),
+    onError: (error) => {
+      console.error('Failed to generate exercise:', error)
+    },
   })
 }
 
@@ -31,12 +35,14 @@ export function useSaveAIAssignment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: unknown) => aiService.saveAIAssignment(data),
+    mutationFn: (data: { classId: string; title: string; description?: string; type: string; content: unknown; publish?: boolean; jobId?: string }) =>
+      aiService.saveAIAssignment(data),
     onSuccess: () => {
-      // Invalidate assignments to reflect new AI assignment
       queryClient.invalidateQueries({ queryKey: ['assignments'] })
-      // Invalidate reviews since one was just approved
       queryClient.invalidateQueries({ queryKey: AI_REVIEWS_QUERY_KEY })
+    },
+    onError: (error) => {
+      console.error('Failed to save AI assignment:', error)
     },
   })
 }
@@ -51,6 +57,9 @@ export function useAssessSubmission() {
     mutationFn: (submissionId: string) => aiService.assessSubmission(submissionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
+    },
+    onError: (error) => {
+      console.error('Failed to assess submission:', error)
     },
   })
 }
@@ -73,6 +82,9 @@ export function useReviewAIJob() {
     }) => aiService.reviewAIJob(jobId, approved, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AI_REVIEWS_QUERY_KEY })
+    },
+    onError: (error) => {
+      console.error('Failed to review AI job:', error)
     },
   })
 }
@@ -98,6 +110,9 @@ export function useUpdateAIConfig() {
     mutationFn: (config: Record<string, string>) => aiService.updateAIConfig(config),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AI_CONFIG_QUERY_KEY })
+    },
+    onError: (error) => {
+      console.error('Failed to update AI config:', error)
     },
   })
 }

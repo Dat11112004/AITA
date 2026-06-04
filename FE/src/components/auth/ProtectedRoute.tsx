@@ -30,7 +30,8 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   }
 
   if (user.role !== allowedRole) {
-    return <Navigate to={rolePath[user.role]} replace />
+    const defaultPath = rolePath[user.role as UserRole] || '/'
+    return <Navigate to={defaultPath} replace />
   }
 
   return <>{children}</>

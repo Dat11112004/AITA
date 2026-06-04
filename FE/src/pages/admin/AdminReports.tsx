@@ -15,9 +15,16 @@ export function AdminReports() {
   const [tab, setTab] = useState('usage')
   const [period, setPeriod] = useState('30d')
   const [report, setReport] = useState<{ summary?: Record<string, number> } | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    api.getAdminReport(period).then((r) => setReport(r as { summary?: Record<string, number> })).catch(console.error)
+    setError('')
+    api
+      .getAdminReport(period)
+      .then((r) => setReport(r as { summary?: Record<string, number> }))
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Lỗi tải báo cáo')
+      })
   }, [period])
 
   return (
@@ -37,6 +44,11 @@ export function AdminReports() {
             onChange={(e) => setPeriod(e.target.value)}
           />
         </div>
+        {error && (
+          <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+            ⚠️ {error}
+          </div>
+        )}
         <div className="mt-6">
           <h3 className="text-base font-semibold">Báo cáo: {REPORT_TABS.find((t) => t.id === tab)?.label}</h3>
         </div>
