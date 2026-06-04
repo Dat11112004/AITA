@@ -8,7 +8,7 @@ const ASSIGNMENTS_QUERY_KEY = ['assignments']
  */
 export function useAssignments(params?: Record<string, string>) {
   return useQuery({
-    queryKey: [...ASSIGNMENTS_QUERY_KEY, params],
+    queryKey: [...ASSIGNMENTS_QUERY_KEY, params ? JSON.stringify(params) : null],
     queryFn: () => assignmentService.getAssignments(params),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,

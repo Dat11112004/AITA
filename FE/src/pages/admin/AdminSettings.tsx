@@ -15,14 +15,29 @@ const SETTINGS_TABS = [
 export function AdminSettings() {
   const [tab, setTab] = useState('general')
   const [settings, setSettings] = useState<Record<string, string>>({})
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(console.error)
+    setError('')
+    api
+      .getSettings()
+      .then(setSettings)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Lỗi tải cài đặt')
+      })
   }, [])
 
   const save = async () => {
-    await api.updateSettings(settings)
-    alert('Đã lưu cài đặt')
+    setError('')
+    setSuccess('')
+    try {
+      await api.updateSettings(settings)
+      setSuccess('Đã lưu cài đặt')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Lỗi lưu cài đặt')
+    }
   }
 
   return (
@@ -30,6 +45,16 @@ export function AdminSettings() {
       <PageHeader title="Cài đặt hệ thống" breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Cài đặt' }]} />
       <Tabs items={SETTINGS_TABS} activeId={tab} onChange={setTab} />
       <Card className="mt-6">
+        {error && (
+          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+            ⚠️ {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-xl p-3">
+            ✓ {success}
+          </div>
+        )}
         {tab === 'general' && (
           <div className="grid gap-4 max-w-xl">
             <Input label="Tên hệ thống" value={settings.appName ?? ''} onChange={(e) => setSettings({ ...settings, appName: e.target.value })} />

@@ -24,6 +24,7 @@ export function LecturerAIGenerate() {
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<unknown>(null)
   const [assignmentId, setAssignmentId] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     api.getClassOptions().then(setClasses).catch(console.error)
@@ -51,17 +52,25 @@ export function LecturerAIGenerate() {
 
   const handlePublish = async () => {
     if (!classId || !result) return alert('Chọn lớp và tạo nội dung trước')
+    setError('')
     const r = result as { title?: string; description?: string; content?: unknown }
-    await api.saveAIAssignment({
-      classId,
-      title: r.title ?? `Bài ${topic}`,
-      description: r.description,
-      type: tab,
-      content: r.content ?? r,
-      publish: true,
-      jobId: assignmentId ?? undefined,
-    })
-    alert('Đã giao bài cho sinh viên')
+    try {
+      await api.saveAIAssignment({
+        classId,
+        title: r.title ?? `Bài ${topic}`,
+        description: r.description,
+        type: tab,
+        content: r.content ?? r,
+        publish: true,
+        jobId: assignmentId ?? undefined,
+      })
+      alert('Đã giao bài cho sinh viên')
+      setResult(null)
+      setAssignmentId(null)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Lỗi khi giao bài'
+      setError(msg)
+    }
   }
 
   return (
@@ -92,6 +101,11 @@ export function LecturerAIGenerate() {
         </Card>
         <Card>
           <CardHeader title="Kết quả AI" action={<Badge variant="warning">Chờ duyệt</Badge>} />
+          {error && (
+            <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+              ⚠️ {error}
+            </div>
+          )}
           {result ? (
             <pre className="max-h-96 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
               {JSON.stringify(result, null, 2)}

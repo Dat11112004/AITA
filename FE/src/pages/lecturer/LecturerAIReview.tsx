@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
@@ -8,16 +8,29 @@ import { api, type AIReviewRow } from '@/lib/api'
 
 export function LecturerAIReview() {
   const [rows, setRows] = useState<AIReviewRow[]>([])
+  const [error, setError] = useState('')
 
-  const load = () => api.getAIReviews().then(setRows).catch(console.error)
+  const load = useCallback(() => {
+    api
+      .getAIReviews()
+      .then(setRows)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Lỗi tải dữ liệu')
+      })
+  }, [])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const review = async (id: string, approved: boolean) => {
-    await api.reviewAIJob(id, approved)
-    load()
+    try {
+      setError('')
+      await api.reviewAIJob(id, approved)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Lỗi duyệt kết quả')
+    }
   }
 
   return (
@@ -25,6 +38,11 @@ export function LecturerAIReview() {
       <PageHeader title="Duyệt kết quả AI" breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Duyệt AI' }]} />
       <Card>
         <CardHeader title="Hàng đợi duyệt" />
+        {error && (
+          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+            ⚠️ {error}
+          </div>
+        )}
         <DataTable
           columns={[
             { key: 'type', header: 'Loại' },
