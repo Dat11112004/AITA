@@ -13,7 +13,7 @@ export async function classOptions(req: Request, res: Response) {
       where: { studentId: user.id },
       select: { classId: true },
     })
-    where = { id: { in: enrolled.map((e) => e.classId) } }
+    where = { id: { in: enrolled.map((e: any) => e.classId) } }
   }
 
   const classes = await prisma.class.findMany({
@@ -23,7 +23,7 @@ export async function classOptions(req: Request, res: Response) {
 
   ok(
     res,
-    classes.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
+    classes.map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
   )
 }
 
@@ -37,7 +37,7 @@ export async function assignmentOptions(req: Request, res: Response) {
   if (user.role === 'LECTURER') {
     const myIds = (
       await prisma.class.findMany({ where: { lecturerId: user.id }, select: { id: true } })
-    ).map((c) => c.id)
+    ).map((c: any) => c.id)
     where.classId = classId ? classId : { in: myIds }
   }
 
@@ -47,12 +47,12 @@ export async function assignmentOptions(req: Request, res: Response) {
       where: { studentId: user.id },
       select: { classId: true },
     })
-    const ids = enrolled.map((e) => e.classId)
+    const ids = enrolled.map((e: any) => e.classId)
     where.classId = classId ? classId : { in: ids }
   }
 
   const list = await prisma.assignment.findMany({ where, orderBy: { title: 'asc' } })
-  ok(res, list.map((a) => ({ value: a.id, label: a.title })))
+  ok(res, list.map((a: any) => ({ value: a.id, label: a.title })))
 }
 
 export async function lecturerOptions(_req: Request, res: Response) {
@@ -60,5 +60,5 @@ export async function lecturerOptions(_req: Request, res: Response) {
     where: { role: 'LECTURER', status: 'ACTIVE' },
     orderBy: { fullName: 'asc' },
   })
-  ok(res, lecturers.map((u) => ({ value: u.id, label: mapUser(u).name })))
+  ok(res, lecturers.map((u: any) => ({ value: u.id, label: mapUser(u).name })))
 }

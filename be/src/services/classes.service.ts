@@ -11,7 +11,7 @@ export const classesService = {
     if (user.role === 'LECTURER') where = { lecturerId: user.id }
     if (user.role === 'STUDENT') {
       const enrolled = await enrollmentRepository.findMany({ studentId: user.id })
-      where = { id: { in: enrolled.map((e) => e.classId) } }
+      where = { id: { in: enrolled.map((e: any) => e.classId) } }
     }
 
     const classes = await classRepository.findMany(where)
@@ -42,7 +42,7 @@ export const classesService = {
     if (user.role === 'LECTURER' && cls.lecturerId !== user.id) throw forbidden()
 
     const enrollments = await enrollmentRepository.findMany({ classId })
-    return enrollments.map((e) => ({
+    return enrollments.map((e: any) => ({
       id: e.student.id,
       studentId: e.student.externalId ?? e.student.id,
       name: e.student.fullName,

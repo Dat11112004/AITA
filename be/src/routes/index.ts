@@ -11,6 +11,10 @@ import * as stats from '../controllers/stats.controller.js'
 import * as settings from '../controllers/settings.controller.js'
 import * as options from '../controllers/options.controller.js'
 import * as reports from '../controllers/reports.controller.js'
+import * as subjects from '../controllers/subjects.controller.js'
+import * as contents from '../controllers/contents.controller.js'
+import * as notifications from '../controllers/notifications.controller.js'
+import * as discussions from '../controllers/discussions.controller.js'
 
 const router = Router()
 
@@ -30,6 +34,16 @@ router.get('/classes', authenticate, asyncHandler(classes.list))
 router.post('/classes', authenticate, requireRoles('ADMIN'), asyncHandler(classes.create))
 router.get('/classes/:id/students', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(classes.getStudents))
 router.post('/classes/:id/enroll', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(classes.enroll))
+
+router.get('/subjects', authenticate, asyncHandler(subjects.list))
+router.post('/subjects', authenticate, requireRoles('ADMIN'), asyncHandler(subjects.create))
+router.patch('/subjects/:id', authenticate, requireRoles('ADMIN'), asyncHandler(subjects.update))
+router.delete('/subjects/:id', authenticate, requireRoles('ADMIN'), asyncHandler(subjects.remove))
+
+router.get('/contents', authenticate, asyncHandler(contents.list))
+router.post('/contents', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(contents.create))
+router.patch('/contents/:id', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(contents.update))
+router.delete('/contents/:id', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(contents.remove))
 
 router.get('/assignments', authenticate, asyncHandler(assignments.list))
 router.get('/assignments/:id', authenticate, asyncHandler(assignments.getOne))
@@ -58,9 +72,24 @@ router.get('/reports/admin', authenticate, requireRoles('ADMIN'), asyncHandler(r
 router.get('/reports/lecturer', authenticate, requireRoles('LECTURER'), asyncHandler(stats.lecturerReport))
 router.get('/system/health', authenticate, requireRoles('ADMIN'), asyncHandler(reports.systemHealth))
 
+router.get('/security/logs', authenticate, requireRoles('ADMIN'), asyncHandler(stats.activityLogs))
+
+router.get('/notifications', authenticate, asyncHandler(notifications.list))
+router.post('/notifications', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler(notifications.create))
+router.patch('/notifications/:id/read', authenticate, asyncHandler(notifications.markRead))
+
+router.get('/discussions', authenticate, asyncHandler(discussions.listThreads))
+router.get('/discussions/:id', authenticate, asyncHandler(discussions.getThread))
+router.post('/discussions', authenticate, asyncHandler(discussions.createThread))
+router.post('/discussions/:threadId/replies', authenticate, asyncHandler(discussions.reply))
+
+router.get('/teamwork', authenticate, requireRoles('LECTURER', 'ADMIN'), asyncHandler(stats.teamwork))
+
 router.get('/student/progress', authenticate, requireRoles('STUDENT'), asyncHandler(stats.studentProgress))
 router.get('/student/feedback', authenticate, requireRoles('STUDENT'), asyncHandler(stats.studentFeedbackList))
 router.get('/student/learning', authenticate, requireRoles('STUDENT'), asyncHandler(stats.studentLearning))
+router.get('/student/history', authenticate, requireRoles('STUDENT'), asyncHandler(stats.studentHistory))
+router.get('/student/teamwork', authenticate, requireRoles('STUDENT'), asyncHandler(stats.studentTeamwork))
 
 router.get('/settings', authenticate, requireRoles('ADMIN'), asyncHandler(settings.getAll))
 router.put('/settings', authenticate, requireRoles('ADMIN'), asyncHandler(settings.update))

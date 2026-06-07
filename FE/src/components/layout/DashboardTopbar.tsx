@@ -1,58 +1,204 @@
-import { Bell, Search, User, LogOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
+import { useState, useRef, useEffect } from 'react'
+import { Bell, Search, LogOut, Sun, Moon, ChevronDown, LayoutDashboard } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
+import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 
-interface DashboardTopbarProps {
-  title?: string
-  sidebarCollapsed: boolean
+interface Props { title?: string; sidebarCollapsed: boolean }
+
+function initials(name?: string) {
+  if (!name) return 'U'
+  const p = name.trim().split(/\s+/)
+  return p.length === 1 ? p[0][0].toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase()
 }
 
-export function DashboardTopbar({ title, sidebarCollapsed }: DashboardTopbarProps) {
+const roleLabel: Record<string, string> = {
+  admin: 'Quản trị viên',
+  lecturer: 'Giảng viên',
+  student: 'Sinh viên',
+}
+
+/* avatar gradient per role */
+const roleAvatar: Record<string, string> = {
+  admin:    'from-slate-600 to-slate-800',
+  lecturer: 'from-brand-500 to-brand-700',
+  student:  'from-emerald-500 to-emerald-700',
+}
+
+export function DashboardTopbar({ sidebarCollapsed }: Props) {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const handleLogout = () => { logout(); navigate('/login') }
+  const avatarGradient = roleAvatar[user?.role ?? ''] ?? roleAvatar.admin
 
   return (
     <header
-      className={`sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 transition-[margin] ${sidebarCollapsed ? 'ml-[72px]' : 'ml-64'}`}
+      className={`
+        sticky top-0 z-30 flex h-16 items-center gap-3
+        border-b border-slate-200/80 bg-bg-light-orange/95 backdrop-blur-xl
+        px-4 sm:px-6
+        dark:border-slate-800 dark:bg-[#0f1117]/95
+        shadow-sm shadow-slate-200/40 dark:shadow-black/20
+        transition-[margin] duration-300 ease-in-out
+        ${sidebarCollapsed ? 'ml-[68px]' : 'ml-64'}
+      `}
     >
-      {title && <p className="hidden text-sm font-medium text-slate-500 sm:block">{title}</p>}
-
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      {/* Search */}
+      <div className="relative flex-1 max-w-xs">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
           placeholder="Tìm kiếm..."
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          className="
+            h-9 w-full rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 text-sm
+            text-slate-800 placeholder:text-slate-400
+            transition-all duration-150
+            focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/20
+            dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:placeholder:text-slate-500
+            dark:focus:border-brand-500 dark:focus:bg-slate-800 dark:focus:ring-brand-500/20
+          "
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Right */}
+      <div className="flex items-center gap-1 ml-auto">
+
+        {/* Language dropdown */}
+        <LanguageDropdown />
+
+        {/* Theme */}
         <button
           type="button"
-          className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-100"
-          aria-label="Thông báo"
+          onClick={toggleTheme}
+          title={theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng'}
+          className="
+            h-9 w-9 flex items-center justify-center rounded-xl
+            text-slate-500 hover:bg-slate-100 hover:text-slate-700
+            dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200
+            transition-all duration-150
+          "
         >
-          <Bell size={20} />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent-500" />
+          {theme === 'light'
+            ? <Moon size={17} />
+            : <Sun size={17} className="text-amber-400" />
+          }
         </button>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <User size={16} />
-          </span>
-          <span className="hidden sm:inline">{user?.fullName ?? 'Tài khoản'}</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            logout()
-            navigate('/login')
-          }}
-          title="Đăng xuất"
+
+        {/* Bell */}
+        <button
+          type="button"
+          className="
+            relative h-9 w-9 flex items-center justify-center rounded-xl
+            text-slate-500 hover:bg-slate-100 hover:text-slate-700
+            dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200
+            transition-all duration-150
+          "
         >
-          <LogOut size={18} />
-        </Button>
+          <Bell size={17} />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand-500 ring-[1.5px] ring-white dark:ring-[#0f1117]" />
+        </button>
+
+        {/* Divider */}
+        <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-800" />
+
+        {/* User menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(o => !o)}
+            className="
+              flex items-center gap-2 rounded-xl pl-1.5 pr-2.5 py-1.5
+              hover:bg-slate-100 dark:hover:bg-slate-800
+              transition-colors duration-150
+            "
+          >
+            {/* Avatar */}
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient} text-[12px] font-bold text-white shadow-sm`}>
+              {initials(user?.fullName)}
+            </div>
+            <div className="hidden sm:block text-left min-w-0">
+              <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-none truncate max-w-[110px]">
+                {user?.fullName ?? 'Tài khoản'}
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500 leading-none">
+                {roleLabel[user?.role ?? ''] ?? '—'}
+              </p>
+            </div>
+            <ChevronDown
+              size={13}
+              className={`hidden sm:block text-slate-400 transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {/* Dropdown */}
+          {menuOpen && (
+            <div className="
+              absolute right-0 top-full mt-2 z-50 w-52
+              rounded-2xl border border-slate-200 bg-bg-light-orange
+              shadow-xl shadow-slate-200/60
+              dark:border-slate-800 dark:bg-[#161b27]
+              dark:shadow-black/40
+              overflow-hidden animate-fade-in-up
+            ">
+              {/* User info */}
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient} text-[13px] font-bold text-white`}>
+                  {initials(user?.fullName)}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate">{user?.fullName}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-500 truncate">{user?.email}</p>
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="p-1.5 space-y-0.5">
+                <Link
+                  to={`/${user?.role}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="
+                    flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium
+                    text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800
+                    transition-colors
+                  "
+                >
+                  <LayoutDashboard size={15} className="text-slate-400" />
+                  Trang tổng quan
+                </Link>
+              </div>
+
+              {/* Logout */}
+              <div className="p-1.5 pt-0">
+                <div className="h-px bg-slate-100 dark:bg-slate-800 mb-1.5" />
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="
+                    flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium
+                    text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10
+                    transition-colors
+                  "
+                >
+                  <LogOut size={15} />
+                  Đăng xuất
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

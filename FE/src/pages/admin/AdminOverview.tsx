@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatCard } from '@/components/ui/StatCard'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { api, type ActivityLog } from '@/lib/api'
-import { Server } from 'lucide-react'
+import { type StatMetric } from '@/types'
+import { Server, Users, BookOpen, Brain, Shield, Bell, Settings, Activity, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react'
 
 export function AdminOverview() {
   const [stats, setStats] = useState<Record<string, string | number>>({})
@@ -18,67 +20,134 @@ export function AdminOverview() {
     api.getSystemHealth().then(setHealth).catch(console.error)
   }, [])
 
-  const statCards = [
-    { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—' },
-    { id: 'classes', label: 'Lớp học', value: stats.classes ?? '—' },
-    { id: 'ai-jobs', label: 'Yêu cầu AI (24h)', value: stats['ai-jobs'] ?? '—' },
-    { id: 'uptime', label: 'Uptime hệ thống', value: stats.uptime ?? '—' },
+  const statCards: StatMetric[] = [
+    { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—', icon: Users },
+    { id: 'classes', label: 'Lớp hoạt động', value: stats.classes ?? '—', icon: BookOpen },
+    { id: 'ai-jobs', label: 'Yêu cầu AI (24h)', value: stats['ai-jobs'] ?? '—', icon: Brain },
+    { id: 'uptime', label: 'Uptime hệ thống', value: stats.uptime ?? '—', icon: Server },
+  ]
+
+  const quickActions = [
+    { label: 'Người dùng', path: '/admin/users', icon: Users, cls: 'text-brand-700 bg-brand-50 border-brand-100 dark:text-brand-400 dark:bg-brand-500/10 dark:border-brand-500/20' },
+    { label: 'Môn học', path: '/admin/subjects', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
+    { label: 'Module AI', path: '/admin/ai-modules', icon: Brain, cls: 'text-purple-700 bg-purple-50 border-purple-100 dark:text-purple-400 dark:bg-purple-500/10 dark:border-purple-500/20' },
+    { label: 'Bảo mật', path: '/admin/security-logs', icon: Shield, cls: 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
+    { label: 'Thông báo', path: '/admin/notifications', icon: Bell, cls: 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20' },
   ]
 
   return (
-    <div>
-      <PageHeader
-        title="Tổng quan hệ thống"
-        description="Quản trị viên theo dõi người dùng, lớp học, module AI và sức khỏe hệ thống."
-        actions={
-          <>
-            <Link to="/admin/users">
-              <Button variant="outline" size="sm">Quản lý người dùng</Button>
-            </Link>
-            <Link to="/admin/settings">
-              <Button size="sm">Cài đặt</Button>
-            </Link>
-          </>
-        }
-      />
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <PageHeader
+          title="Tổng quan hệ thống"
+          description="Theo dõi người dùng, trạng thái dịch vụ và module AI."
+          breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Tổng quan' }]}
+        />
+        <Link to="/admin/settings">
+          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+            <Settings size={14} /> Cài đặt
+          </Button>
+        </Link>
+      </div>
 
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((s) => (
-          <StatCard key={s.id} {...s} />
+        {statCards.map((s, i) => (
+          <div key={s.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+            <StatCard {...s} />
+          </div>
         ))}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Hoạt động gần đây" />
-          {logs.length === 0 ? (
-            <p className="text-sm text-slate-500">Chưa có nhật ký</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {logs.map((log) => (
-                <li key={log.id} className="flex justify-between border-b border-slate-100 py-2">
-                  <span>
-                    <strong>{log.user}</strong> — {log.action}
-                  </span>
-                  <span className="text-slate-400">{new Date(log.createdAt).toLocaleString('vi')}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <Card>
-          <CardHeader title="Trạng thái dịch vụ" />
-          <ul className="space-y-2 text-sm">
-            {Object.entries(health).map(([key, val]) => (
-              <li key={key} className="flex items-center gap-2">
-                <Server size={16} className="text-brand-600" />
-                <span className="capitalize">{key}</span>
-                <span className={`ml-auto font-medium ${val.status === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {val.status}
-                </span>
-              </li>
+      {/* Quick access */}
+      <div>
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">
+          Truy cập nhanh
+        </p>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          {quickActions.map((a) => (
+            <Link
+              key={a.path} to={a.path}
+              className={`group flex items-center gap-3 rounded-2xl border ${a.cls} bg-white dark:bg-[#161b27] p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
+            >
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${a.cls}`}>
+                <a.icon size={17} />
+              </div>
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{a.label}</span>
+              <ArrowRight size={13} className="ml-auto shrink-0 text-slate-300 group-hover:text-slate-500 dark:text-slate-700 dark:group-hover:text-slate-400 transition-colors" />
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Activity + Health */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Activity */}
+        <Card padding="none" className="overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
+            <Activity size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Hoạt động gần đây</span>
+            <Link to="/admin/security-logs" className="ml-auto">
+              <Button variant="ghost" size="sm">Xem tất cả</Button>
+            </Link>
+          </div>
+          <div className="p-4">
+            {logs.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-600">Chưa có nhật ký hoạt động.</p>
+            ) : logs.slice(0, 6).map((log) => (
+              <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{log.user}</span>
+                    <span className="mx-1 text-slate-300 dark:text-slate-700">·</span>
+                    {log.action}
+                  </p>
+                </div>
+                <p className="shrink-0 text-xs font-mono text-slate-400 dark:text-slate-600">
+                  {new Date(log.createdAt).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
             ))}
-          </ul>
+          </div>
+        </Card>
+
+        {/* Health */}
+        <Card padding="none" className="overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
+            <Server size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Trạng thái dịch vụ</span>
+            <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+            </span>
+          </div>
+          <div className="p-4">
+            {Object.keys(health).length === 0 ? (
+              <div className="space-y-3 py-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="h-4 w-28 skeleton" /><div className="h-5 w-16 skeleton rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : Object.entries(health).map(([key, val]) => (
+              <div key={key} className="flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${val.status === 'up' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>
+                    <Server size={14} />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">{key}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {val.status === 'up' ? <CheckCircle size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-red-500" />}
+                  <Badge variant={val.status === 'up' ? 'success' : 'danger'} dot size="sm">
+                    {val.status === 'up' ? 'Online' : 'Lỗi'}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
     </div>

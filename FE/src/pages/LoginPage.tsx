@@ -1,499 +1,391 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, BookOpen, Brain, Users, IdCard } from 'lucide-react'
+import {
+  GraduationCap, Mail, Lock, User, Eye, EyeOff,
+  ArrowRight, BookOpen, Brain, Users, IdCard,
+  CheckCircle2, Sparkles, ShieldCheck, Sun, Moon,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
 import type { UserRole } from '@/types'
+import { useLanguage } from '@/context/LanguageContext'
+import { useTheme } from '@/context/ThemeContext'
 
 const roleRedirect: Record<UserRole, string> = {
-  admin: '/admin',
-  lecturer: '/lecturer',
-  student: '/student',
+  admin: '/admin', lecturer: '/lecturer', student: '/student',
 }
+type Mode = 'login' | 'register'
 
-type AuthMode = 'login' | 'register'
-
+/* ────────────────────────────────────────────────── */
 export function LoginPage() {
+  const { t, language, setLanguage } = useLanguage()
+  const { theme, toggleTheme } = useTheme()
   const { login, register } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [mode, setMode] = useState<AuthMode>('login')
+  const [mode, setMode] = useState<Mode>('login')
 
-  /* Login state */
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  /* Register state */
-  const [regFullName, setRegFullName] = useState('')
+  const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
-  const [regPassword, setRegPassword] = useState('')
+  const [regPw, setRegPw] = useState('')
   const [regConfirm, setRegConfirm] = useState('')
-  const [regExternalId, setRegExternalId] = useState('')
+  const [regId, setRegId] = useState('')
 
-  const [error, setError] = useState('')
+  const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPw, setShowPw] = useState(false)
-  const [showPwConfirm, setShowPwConfirm] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
-  const navigateByRole = (role: UserRole) => {
-    const redirect = params.get('redirect')
-    if (redirect && redirect.startsWith(`/${role}`)) {
-      navigate(redirect)
-    } else {
-      navigate(roleRedirect[role])
-    }
+  const go = (role: UserRole) => {
+    const r = params.get('redirect')
+    navigate(r?.startsWith(`/${role}`) ? r : roleRedirect[role])
   }
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const role = await login(email, password)
-      navigateByRole(role)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Đăng nhập thất bại')
-    } finally {
-      setLoading(false)
-    }
+    e.preventDefault(); setErr(''); setLoading(true)
+    try { go(await login(email, password)) }
+    catch (e) { setErr(e instanceof ApiError ? e.message : t('auth.failed.login')) }
+    finally { setLoading(false) }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (!regEmail.toLowerCase().endsWith('@gmail.com')) {
-      setError('Vui lòng sử dụng email Gmail (@gmail.com)')
-      return
-    }
-    if (regPassword.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự')
-      return
-    }
-    if (regPassword !== regConfirm) {
-      setError('Mật khẩu xác nhận không khớp')
-      return
-    }
-
+    e.preventDefault(); setErr('')
+    if (!regEmail.toLowerCase().endsWith('@gmail.com')) { setErr(t('auth.email_hint')); return }
+    if (regPw.length < 6) { setErr(t('auth.password_min')); return }
+    if (regPw !== regConfirm) { setErr('Mật khẩu xác nhận không khớp'); return }
     setLoading(true)
-    try {
-      const role = await register({
-        email: regEmail,
-        password: regPassword,
-        fullName: regFullName,
-        externalId: regExternalId || undefined,
-      })
-      navigateByRole(role)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Đăng ký thất bại')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const switchMode = (m: AuthMode) => {
-    setMode(m)
-    setError('')
+    try { go(await register({ email: regEmail, password: regPw, fullName: regName, externalId: regId || undefined })) }
+    catch (e) { setErr(e instanceof ApiError ? e.message : t('auth.failed.register')) }
+    finally { setLoading(false) }
   }
 
   return (
-    <div className="flex min-h-screen" id="auth-page">
-      {/* ====== LEFT: Hero / Branding Panel ====== */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] flex-col justify-between relative overflow-hidden"
-        style={{
-          background: 'linear-gradient(160deg, #0f172a 0%, #1e3a5f 35%, #1e40af 70%, #3b82f6 100%)',
-        }}
-      >
-        {/* Animated background shapes */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full opacity-10"
-            style={{
-              background: 'radial-gradient(circle, #60a5fa 0%, transparent 70%)',
-              animation: 'float 8s ease-in-out infinite',
-            }}
-          />
-          <div className="absolute top-1/3 -right-16 w-56 h-56 rounded-full opacity-8"
-            style={{
-              background: 'radial-gradient(circle, #818cf8 0%, transparent 70%)',
-              animation: 'float 10s ease-in-out infinite reverse',
-            }}
-          />
-          <div className="absolute bottom-20 left-10 w-40 h-40 rounded-full opacity-10"
-            style={{
-              background: 'radial-gradient(circle, #38bdf8 0%, transparent 70%)',
-              animation: 'float 6s ease-in-out infinite 2s',
-            }}
-          />
-        </div>
+    <div className="flex min-h-screen bg-white dark:bg-[#0f1117]">
 
-        {/* Logo + title */}
-        <div className="relative z-10 p-10 pt-12">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="flex items-center justify-center w-11 h-11 rounded-xl"
-              style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
-            >
-              <GraduationCap size={24} className="text-white" />
+      {/* ══ LEFT PANEL ══════════════════════════════════════════ */}
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] flex-col relative overflow-hidden">
+        {/* BG */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#fb8c00] via-[#ffa726] to-[#ffcc80]" />
+        {/* Pattern */}
+        <div className="absolute inset-0 opacity-[0.07]"
+          style={{ backgroundImage: 'radial-gradient(#fff 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }} />
+        {/* Glow blobs */}
+        <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-white/10 blur-3xl animate-float" />
+        <div className="absolute bottom-0 -right-20 h-96 w-96 rounded-full bg-orange-300/15 blur-3xl animate-float" style={{ animationDelay: '3s' }} />
+
+        <div className="relative z-10 flex flex-col h-full px-10 py-12">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-3 w-fit">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/40 border border-white/50 backdrop-blur-sm">
+              <GraduationCap size={24} className="text-orange-900" />
             </div>
-            <span className="text-2xl font-bold text-white tracking-tight">AITA</span>
+            <div>
+              <p className="text-xl font-black text-orange-950 tracking-tight leading-none">AITA</p>
+              <p className="text-[11px] text-orange-900/60 leading-none mt-0.5">AI Teaching Assistant</p>
+            </div>
+          </Link>
+
+          {/* Hero text */}
+          <div className="mt-14 space-y-4">
+            <h2 className="text-4xl font-black text-white leading-tight drop-shadow-sm">
+              Nền tảng học tập<br />
+              <span className="text-orange-900/80">thông minh</span>
+            </h2>
+            <p className="text-sm text-orange-950/60 leading-relaxed max-w-xs">
+              Tự động hóa chấm bài, sinh đề cá nhân hóa và theo dõi tiến độ sinh viên theo thời gian thực tại ĐH FPT.
+            </p>
           </div>
-          <p className="text-blue-200/80 text-sm mt-1 ml-0.5">AI Teaching Assistant</p>
-        </div>
 
-        {/* Feature highlights */}
-        <div className="relative z-10 px-10 pb-6 space-y-5">
-          <FeatureItem icon={<Brain size={20} />} title="AI Chấm điểm thông minh" desc="Tự động đánh giá bài tập với phản hồi chi tiết" />
-          <FeatureItem icon={<BookOpen size={20} />} title="Quản lý lớp học" desc="Theo dõi tiến độ sinh viên theo thời gian thực" />
-          <FeatureItem icon={<Users size={20} />} title="Phân tích học tập" desc="Insight cá nhân hóa cho từng sinh viên" />
-        </div>
+          {/* Features */}
+          <div className="mt-10 space-y-5">
+            {[
+              { icon: <Brain size={18} />, title: 'AI chấm điểm thông minh', desc: 'Phản hồi chi tiết tức thì trong vài giây' },
+              { icon: <BookOpen size={18} />, title: 'Quản lý lớp học', desc: 'Theo dõi tiến độ học tập real-time' },
+              { icon: <Users size={18} />, title: 'Phân tích cá nhân hóa', desc: 'Insight học tập riêng cho từng sinh viên' },
+            ].map((f) => (
+              <div key={f.title} className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/30 border border-white/40">
+                  <span className="text-orange-900">{f.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white drop-shadow-sm">{f.title}</p>
+                  <p className="text-xs text-orange-950/55 mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Footer */}
-        <div className="relative z-10 px-10 pb-8">
-          <div className="h-px w-full mb-5" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' }} />
-          <p className="text-blue-300/60 text-xs">© 2026 AITA — FPT University</p>
+          {/* Testimonial */}
+          <div className="mt-auto">
+            <div className="rounded-2xl border border-white/30 bg-white/25 backdrop-blur-sm p-5">
+              <div className="flex gap-0.5 mb-3">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="h-4 w-4 fill-orange-800/80" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <p className="text-sm text-orange-950/70 italic leading-relaxed">
+                "AITA giúp tôi tiết kiệm 60% thời gian chấm bài, tập trung nhiều hơn vào việc hỗ trợ sinh viên."
+              </p>
+              <div className="mt-3 flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-full bg-orange-800/20 border border-orange-900/20 flex items-center justify-center text-xs font-bold text-orange-900">NG</div>
+                <div>
+                  <p className="text-xs font-bold text-orange-950">Nguyễn Thanh Giang</p>
+                  <p className="text-[10px] text-orange-900/50">Giảng viên Khoa CNTT — FPT HN</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-6 text-[11px] text-orange-900/40">© {new Date().getFullYear()} AITA — FPT University</p>
         </div>
       </div>
 
-      {/* ====== RIGHT: Auth Form ====== */}
-      <div className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8"
-        style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f1f5f9 100%)' }}
-      >
-        <div className="w-full max-w-[440px]">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-brand-700">
-              <GraduationCap size={22} className="text-white" />
+      {/* ══ RIGHT PANEL ═════════════════════════════════════════ */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-8 bg-slate-50 dark:bg-[#0f1117] relative">
+
+        {/* Top controls - Language & Theme */}
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
+          {/* Language dropdown - COMPACT */}
+          <div className="relative group">
+            {/* Compact inline language selector */}
+            <div className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800 text-xs font-semibold">
+              <span className="text-sm">{(() => {
+                const langs = { 'vi': '🇻🇳', 'en': '🇬🇧', 'ja': '🇯🇵' };
+                return langs[language as keyof typeof langs];
+              })()}</span>
+              <select 
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as any)}
+                className="bg-transparent outline-none cursor-pointer text-slate-700 dark:text-slate-300 text-xs font-semibold"
+              >
+                <option value="vi">VI</option>
+                <option value="en">EN</option>
+                <option value="ja">JA</option>
+              </select>
             </div>
-            <span className="text-xl font-bold text-slate-900">AITA</span>
           </div>
 
-          {/* Glass card */}
-          <div
-            className="rounded-3xl border p-7 sm:p-8"
-            style={{
-              background: 'rgba(255, 255, 255, 0.75)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              borderColor: 'rgba(255, 255, 255, 0.5)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04)',
-            }}
+          {/* Theme toggle button - PROMINENT */}
+          <button type="button" onClick={toggleTheme}
+            className="h-10 w-10 flex items-center justify-center rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-amber-500 dark:text-amber-400 hover:bg-slate-50 hover:border-slate-300 dark:hover:bg-slate-700 dark:hover:border-slate-500 transition-all shadow-sm hover:shadow-md"
+            aria-label="Toggle theme"
+            title="Toggle light/dark mode"
           >
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} className="text-amber-400" />}
+          </button>
+        </div>
+
+        {/* Mobile logo */}
+        <Link to="/" className="lg:hidden flex items-center gap-2 mb-8">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600">
+            <GraduationCap size={20} className="text-white" />
+          </div>
+          <span className="text-lg font-black text-slate-900 dark:text-white">AITA</span>
+        </Link>
+
+        <div className="w-full max-w-[420px] min-h-screen flex flex-col justify-center">
+
+          {/* Title */}
+          <div className="mb-7">
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white">
+              {mode === 'login' ? t('auth.welcome_back') : t('auth.create_account')}
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+              {mode === 'login'
+                ? t('auth.login_desc')
+                : t('auth.register_desc')}
+            </p>
+          </div>
+
+          {/* Card */}
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/50 dark:border-slate-800 dark:bg-[#161b27] dark:shadow-black/30 overflow-hidden">
+
             {/* Tab switcher */}
-            <div className="flex rounded-2xl p-1 mb-7" style={{ background: '#f1f5f9' }}>
-              <button
-                id="tab-login"
-                onClick={() => switchMode('login')}
-                className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300"
-                style={{
-                  background: mode === 'login' ? '#ffffff' : 'transparent',
-                  color: mode === 'login' ? '#1e40af' : '#64748b',
-                  boxShadow: mode === 'login' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                }}
-              >
-                Đăng nhập
-              </button>
-              <button
-                id="tab-register"
-                onClick={() => switchMode('register')}
-                className="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300"
-                style={{
-                  background: mode === 'register' ? '#ffffff' : 'transparent',
-                  color: mode === 'register' ? '#1e40af' : '#64748b',
-                  boxShadow: mode === 'register' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-                }}
-              >
-                Đăng ký sinh viên
-              </button>
+            <div className="flex bg-slate-100/80 dark:bg-slate-800/60 p-1.5">
+              {(['login', 'register'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setMode(m); setErr('') }}
+                  className={`
+                    flex-1 rounded-2xl py-2.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap
+                    ${mode === m
+                      ? 'bg-white text-brand-700 shadow-md dark:bg-[#1e2535] dark:text-brand-500 dark:shadow-black/30'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-400'
+                    }
+                  `}
+                >
+                  {m === 'login' ? t('auth.tab.login') : t('auth.tab.register')}
+                </button>
+              ))}
             </div>
 
-            {/* Heading */}
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900">
-                {mode === 'login' ? 'Chào mừng trở lại' : 'Tạo tài khoản'}
-              </h1>
-              <p className="mt-1.5 text-sm text-slate-500">
-                {mode === 'login'
-                  ? 'Đăng nhập để truy cập hệ thống AITA'
-                  : 'Đăng ký tài khoản sinh viên bằng email Gmail'}
+            <div className="p-7">
+              {/* Error */}
+              {err && (
+                <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-400 animate-slide-in">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0 fill-current" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {err}
+                </div>
+              )}
+
+              {/* ── LOGIN ── */}
+              {mode === 'login' && (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <AuthField id="l-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
+                  <AuthField id="l-pw" icon={<Lock size={16} />} label={t('auth.password')} type={showPw ? 'text' : 'password'} value={password} onChange={setPassword} placeholder={t('auth.password_placeholder')} required
+                    suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
+                  />
+
+                  <SubmitButton loading={loading} color="orange" text={t('auth.tab.login')} />
+                </form>
+              )}
+
+              {/* ── REGISTER ── */}
+              {mode === 'register' && (
+                <form onSubmit={handleRegister} className="space-y-3.5">
+                  <AuthField id="r-name" icon={<User size={16} />} label={t('auth.name')} type="text" value={regName} onChange={setRegName} placeholder={t('auth.name_placeholder')} required />
+                  <AuthField id="r-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={regEmail} onChange={setRegEmail} placeholder="yourname@gmail.com" required hint={t('auth.email_hint')} />
+                  <AuthField id="r-id" icon={<IdCard size={16} />} label={t('auth.studentid')} type="text" value={regId} onChange={setRegId} placeholder={t('auth.studentid_placeholder')} />
+                  <AuthField id="r-pw" icon={<Lock size={16} />} label={t('auth.password')} type={showPw ? 'text' : 'password'} value={regPw} onChange={setRegPw} placeholder={t('auth.password_min')} required
+                    suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
+                  />
+                  <AuthField id="r-confirm" icon={<Lock size={16} />} label={t('auth.confirm_password')} type={showConfirm ? 'text' : 'password'} value={regConfirm} onChange={setRegConfirm} placeholder={t('auth.confirm_placeholder')} required
+                    suffix={<EyeToggle show={showConfirm} toggle={() => setShowConfirm(p => !p)} />}
+                  />
+
+                  <SubmitButton loading={loading} color="green" text={t('auth.create_account')} isRegister />
+
+                  {/* Perks */}
+                  <div className="flex flex-wrap justify-center gap-3 pt-1">
+                    {[t('auth.free'), t('auth.instant_ai'), t('auth.secure')].map(b => (
+                      <span key={b} className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />{b}
+                      </span>
+                    ))}
+                  </div>
+                </form>
+              )}
+
+              {/* Switch */}
+              <p className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 text-center text-sm text-slate-500 dark:text-slate-400">
+                {mode === 'login' ? (
+                  <>{t('auth.no_account')} {' '}
+                    <button type="button" onClick={() => { setMode('register'); setErr('') }} className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">{t('auth.register_now')}</button>
+                  </>
+                ) : (
+                  <>{t('auth.has_account')} {' '}
+                    <button type="button" onClick={() => { setMode('login'); setErr('') }} className="font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">{t('auth.tab.login')}</button>
+                  </>
+                )}
               </p>
             </div>
-
-            {/* Error message */}
-            {error && (
-              <div className="mb-5 flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
-                style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
-                  <circle cx="8" cy="8" r="8" fill="#ef4444" fillOpacity="0.15"/>
-                  <path d="M8 4.5v4M8 10.5v.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-                {error}
-              </div>
-            )}
-
-            {/* ====== LOGIN FORM ====== */}
-            {mode === 'login' && (
-              <form onSubmit={handleLogin} className="space-y-4" id="login-form">
-                <AuthInput
-                  id="login-email"
-                  icon={<Mail size={18} />}
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  placeholder="you@email.com"
-                  required
-                />
-                <AuthInput
-                  id="login-password"
-                  icon={<Lock size={18} />}
-                  label="Mật khẩu"
-                  type={showPw ? 'text' : 'password'}
-                  value={password}
-                  onChange={setPassword}
-                  placeholder="••••••••"
-                  required
-                  suffix={
-                    <button type="button" onClick={() => setShowPw(!showPw)}
-                      className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                      tabIndex={-1}
-                    >
-                      {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  }
-                />
-                <button
-                  id="login-submit"
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    background: loading
-                      ? '#94a3b8'
-                      : 'linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%)',
-                    boxShadow: loading ? 'none' : '0 4px 14px rgba(37, 99, 235, 0.35)',
-                  }}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <Spinner /> Đang đăng nhập...
-                    </span>
-                  ) : (
-                    <>
-                      Đăng nhập <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* ====== REGISTER FORM ====== */}
-            {mode === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4" id="register-form">
-                <AuthInput
-                  id="register-fullname"
-                  icon={<User size={18} />}
-                  label="Họ và tên"
-                  type="text"
-                  value={regFullName}
-                  onChange={setRegFullName}
-                  placeholder="Nguyễn Văn A"
-                  required
-                />
-                <AuthInput
-                  id="register-email"
-                  icon={<Mail size={18} />}
-                  label="Email Gmail"
-                  type="email"
-                  value={regEmail}
-                  onChange={setRegEmail}
-                  placeholder="yourname@gmail.com"
-                  required
-                  hint="Chỉ chấp nhận email @gmail.com"
-                />
-                <AuthInput
-                  id="register-studentid"
-                  icon={<IdCard size={18} />}
-                  label="Mã sinh viên"
-                  type="text"
-                  value={regExternalId}
-                  onChange={setRegExternalId}
-                  placeholder="VD: HE170001 (không bắt buộc)"
-                />
-                <AuthInput
-                  id="register-password"
-                  icon={<Lock size={18} />}
-                  label="Mật khẩu"
-                  type={showPw ? 'text' : 'password'}
-                  value={regPassword}
-                  onChange={setRegPassword}
-                  placeholder="Ít nhất 6 ký tự"
-                  required
-                  suffix={
-                    <button type="button" onClick={() => setShowPw(!showPw)}
-                      className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                      tabIndex={-1}
-                    >
-                      {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  }
-                />
-                <AuthInput
-                  id="register-confirm"
-                  icon={<Lock size={18} />}
-                  label="Xác nhận mật khẩu"
-                  type={showPwConfirm ? 'text' : 'password'}
-                  value={regConfirm}
-                  onChange={setRegConfirm}
-                  placeholder="Nhập lại mật khẩu"
-                  required
-                  suffix={
-                    <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)}
-                      className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                      tabIndex={-1}
-                    >
-                      {showPwConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  }
-                />
-                <button
-                  id="register-submit"
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    background: loading
-                      ? '#94a3b8'
-                      : 'linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)',
-                    boxShadow: loading ? 'none' : '0 4px 14px rgba(16, 185, 129, 0.35)',
-                  }}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <Spinner /> Đang đăng ký...
-                    </span>
-                  ) : (
-                    <>
-                      Đăng ký tài khoản <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* Bottom note */}
-            <div className="mt-6 pt-5" style={{ borderTop: '1px solid #e2e8f0' }}>
-              {mode === 'login' ? (
-                <p className="text-center text-sm text-slate-500">
-                  Sinh viên chưa có tài khoản?{' '}
-                  <button onClick={() => switchMode('register')}
-                    className="font-semibold text-brand-600 hover:text-brand-700 transition-colors"
-                  >
-                    Đăng ký ngay
-                  </button>
-                </p>
-              ) : (
-                <p className="text-center text-sm text-slate-500">
-                  Đã có tài khoản?{' '}
-                  <button onClick={() => switchMode('login')}
-                    className="font-semibold text-brand-600 hover:text-brand-700 transition-colors"
-                  >
-                    Đăng nhập
-                  </button>
-                </p>
-              )}
-            </div>
           </div>
 
-          {/* Back to home */}
-          <Link to="/" className="mt-5 flex items-center justify-center gap-1 text-sm text-slate-400 hover:text-slate-600 transition-colors">
-            ← Về trang chủ
+          {/* Trust badges */}
+          <div className="mt-5 flex items-center justify-center gap-5">
+            {[
+              { icon: <ShieldCheck size={13} />, label: 'Bảo mật SSL' },
+              { icon: <CheckCircle2 size={13} />, label: 'FPT Verified' },
+              { icon: <Sparkles size={13} />, label: 'AI Powered' },
+            ].map(b => (
+              <div key={b.label} className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-600">
+                <span className="text-slate-400 dark:text-slate-600">{b.icon}</span>
+                {b.label}
+              </div>
+            ))}
+          </div>
+
+          <Link to="/" className="mt-7 flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-all shadow-sm">
+            {t('auth.back_home')}
           </Link>
         </div>
       </div>
-
-      {/* Animation keyframes */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-20px) scale(1.05); }
-        }
-      `}</style>
     </div>
   )
 }
 
-/* ============================================================
-   Sub-components
-   ============================================================ */
+/* ── Sub-components ──────────────────────────────── */
 
-function AuthInput({
-  id,
-  icon,
-  label,
-  type,
-  value,
-  onChange,
-  placeholder,
-  required,
-  hint,
-  suffix,
-}: {
-  id: string
-  icon: React.ReactNode
-  label: string
-  type: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  required?: boolean
-  hint?: string
-  suffix?: React.ReactNode
+function AuthField({ id, icon, label, type, value, onChange, placeholder, required, hint, suffix }: {
+  id: string; icon: React.ReactNode; label: string; type: string
+  value: string; onChange: (v: string) => void; placeholder?: string
+  required?: boolean; hint?: string; suffix?: React.ReactNode
 }) {
   const [focused, setFocused] = useState(false)
-
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">{label}</label>
-      <div
-        className="flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 transition-all duration-200"
-        style={{
-          borderColor: focused ? '#3b82f6' : '#e2e8f0',
-          boxShadow: focused ? '0 0 0 3px rgba(59, 130, 246, 0.12)' : 'none',
-          background: '#ffffff',
-        }}
-      >
-        <span className="shrink-0" style={{ color: focused ? '#3b82f6' : '#94a3b8' }}>{icon}</span>
+    <div className="min-h-[74px] flex flex-col justify-between">
+      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 dark:text-slate-300 h-5 overflow-hidden">
+        {label}
+      </label>
+      <div className={`
+        flex items-center gap-2.5 rounded-xl border h-11 px-3.5 bg-white dark:bg-slate-900
+        transition-all duration-150
+        ${focused
+          ? 'border-brand-500 ring-3 ring-brand-500/15 dark:border-brand-500 dark:ring-brand-400/20'
+          : 'border-slate-200 dark:border-slate-700'
+        }
+      `}>
+        <span className={`shrink-0 transition-colors duration-150 ${focused ? 'text-brand-500 dark:text-brand-400' : 'text-slate-400 dark:text-slate-600'}`}>
+          {icon}
+        </span>
         <input
-          id={id}
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          id={id} type={type} value={value}
+          onChange={e => onChange(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={placeholder}
-          required={required}
-          className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent"
+          placeholder={placeholder} required={required}
+          className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
         />
         {suffix}
       </div>
-      {hint && <p className="text-xs text-slate-400 ml-0.5">{hint}</p>}
+      {hint && <p className="text-[11px] text-slate-400 dark:text-slate-500 h-4 overflow-hidden">{hint}</p>}
     </div>
   )
 }
 
-function FeatureItem({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+function EyeToggle({ show, toggle }: { show: boolean; toggle: () => void }) {
   return (
-    <div className="flex items-start gap-3.5">
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
-        style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(4px)' }}
-      >
-        <span className="text-blue-300">{icon}</span>
-      </div>
-      <div>
-        <p className="text-white/90 text-sm font-semibold">{title}</p>
-        <p className="text-blue-200/60 text-xs mt-0.5">{desc}</p>
-      </div>
-    </div>
+    <button type="button" tabIndex={-1} onClick={toggle}
+      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+    >
+      {show ? <EyeOff size={15} /> : <Eye size={15} />}
+    </button>
+  )
+}
+
+function SubmitButton({ loading, color, text, isRegister = false }: {
+  loading: boolean; color: 'orange' | 'green'; text: string; isRegister?: boolean
+}) {
+  const cls = color === 'orange'
+    ? 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 shadow-brand-500/30'
+    : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 shadow-emerald-600/30'
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className={`
+        mt-1 w-full flex items-center justify-center gap-2 min-h-[44px]
+        rounded-xl py-2.5 text-sm font-bold text-white
+        shadow-lg transition-all duration-200
+        disabled:opacity-50 disabled:cursor-not-allowed
+        hover:-translate-y-0.5 active:translate-y-0
+        focus:outline-none focus:ring-2 focus:ring-offset-2
+        ${color === 'orange' ? 'focus:ring-brand-500/40' : 'focus:ring-emerald-500/40'}
+        ${cls}
+      `}
+    >
+      {loading
+        ? <><Spinner /> <span className="ml-1 opacity-90">Processing...</span></>
+        : <>{isRegister ? <Sparkles size={15} /> : null} {text} {!isRegister ? <ArrowRight size={16} /> : null}</>
+      }
+    </button>
   )
 }
 

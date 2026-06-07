@@ -1,5 +1,4 @@
-import { prisma } from '../database/prisma.js'
-import type { Prisma } from '@prisma/client'
+import { prisma, Prisma } from '../database/prisma.js'
 
 export const userRepository = {
   findByEmail: (email: string) => prisma.user.findUnique({ where: { email } }),

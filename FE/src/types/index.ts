@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export type UserRole = 'admin' | 'lecturer' | 'student'
 
 export interface NavItem {
@@ -20,9 +22,9 @@ export interface StatMetric {
   hint?: string
   trend?: 'up' | 'down' | 'neutral'
   trendLabel?: string
+  icon?: any
+  status?: 'up' | 'down' | 'warning'
 }
-
-import type { ReactNode } from 'react'
 
 export interface TableColumn<T> {
   key: keyof T | string
@@ -37,6 +39,11 @@ export interface TabItem {
 }
 
 export interface FilterOption {
+  value: string
+  label: string
+}
+
+export interface Option {
   value: string
   label: string
 }

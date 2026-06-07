@@ -70,6 +70,9 @@ model User {
   activityLogs  ActivityLog[]
   aiJobs        AIJob[]             @relation("AIJobCreator")
   aiReviews     AIReview[]          @relation("AIReviewer")
+  contents      Content[]           @relation("UserContent")
+  threads       DiscussionThread[]  @relation("ThreadAuthor")
+  replies       DiscussionReply[]   @relation("ReplyAuthor")
 }
 
 model Class {
@@ -87,6 +90,7 @@ model Class {
   lecturer    User              @relation("LecturerClasses", fields: [lecturerId], references: [id])
   enrollments ClassEnrollment[]
   assignments Assignment[]
+  threads     DiscussionThread[]
 }
 
 model ClassEnrollment {
@@ -189,6 +193,68 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 }
 
+model Subject {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  difficulty   String
+  description  String
+  codeExamples String?
+  curriculum   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Content {
+  id        String   @id @default(cuid())
+  title     String
+  category  String
+  body      String
+  status    String   @default("draft")
+  authorId  String
+  publishAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation("UserContent", fields: [authorId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String
+  target    String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model DiscussionThread {
+  id        String   @id @default(cuid())
+  classId   String
+  title     String
+  content   String
+  authorId  String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class   Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  author  User              @relation("ThreadAuthor", fields: [authorId], references: [id])
+  replies DiscussionReply[]
+}
+
+model DiscussionReply {
+  id        String   @id @default(cuid())
+  threadId  String
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  thread DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User             @relation("ReplyAuthor", fields: [authorId], references: [id])
+}
+
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String?
@@ -196,6 +262,9 @@ model ActivityLog {
   entity    String?
   entityId  String?
   metadata  String?
+  ip        String?
+  detail    String?
+  level     String   @default("info")
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)

@@ -25,14 +25,14 @@ export const submissionsService = {
 
     let submissions = await submissionRepository.findMany(where)
     if (user.role === 'LECTURER') {
-      const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c) => c.id)
-      submissions = submissions.filter((s) => myClassIds.includes(s.assignment.classId))
+      const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c: any) => c.id)
+      submissions = submissions.filter((s: any) => myClassIds.includes(s.assignment.classId))
     }
     return submissions.map(mapSubmission)
   },
 
   async recent(user: AuthUser, limit: number) {
-    const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c) => c.id)
+    const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c: any) => c.id)
     const submissions = await submissionRepository.findRecent({ assignment: { classId: { in: myClassIds } } }, limit)
     return submissions.map(mapSubmission)
   },

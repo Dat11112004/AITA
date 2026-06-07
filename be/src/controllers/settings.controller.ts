@@ -14,7 +14,7 @@ const DEFAULTS: Record<string, string> = {
 
 export async function getAll(_req: Request, res: Response) {
   const rows = await prisma.systemSetting.findMany()
-  const settings = { ...DEFAULTS, ...Object.fromEntries(rows.map((r) => [r.key, r.value])) }
+  const settings = { ...DEFAULTS, ...Object.fromEntries(rows.map((r: any) => [r.key, r.value])) }
   ok(res, settings)
 }
 

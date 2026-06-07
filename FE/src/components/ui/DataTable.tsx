@@ -28,25 +28,25 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200">
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <thead className="bg-slate-50">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+      <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+        <thead className="bg-slate-50 dark:bg-slate-800/80">
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-left font-semibold text-slate-600 ${col.className ?? ''}`}
+                className={`px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300 ${col.className ?? ''}`}
               >
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-700/50 dark:bg-slate-800">
           {data.map((row) => (
-            <tr key={keyExtractor(row)} className="hover:bg-slate-50/80">
+            <tr key={keyExtractor(row)} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors">
               {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 text-slate-700 ${col.className ?? ''}`}>
+                <td key={col.key} className={`px-4 py-3 text-slate-700 dark:text-slate-300 ${col.className ?? ''}`}>
                   {col.render
                     ? col.render(row)
                     : String((row as Record<string, unknown>)[col.key] ?? '—')}

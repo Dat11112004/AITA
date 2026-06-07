@@ -170,7 +170,7 @@ export async function listReviews(_req: Request, res: Response) {
     take: 50,
   })
 
-  const pending = jobs.filter((j) => !j.review || j.review.approved === null)
+  const pending = jobs.filter((j: any) => !j.review || j.review.approved === null)
   ok(res, pending.map(mapAIReview))
 }
 
@@ -212,7 +212,7 @@ export async function reviewJob(req: Request, res: Response) {
 
 export async function getConfig(_req: Request, res: Response) {
   const settings = await prisma.systemSetting.findMany()
-  const map = Object.fromEntries(settings.map((s) => [s.key, s.value]))
+  const map = Object.fromEntries(settings.map((s: any) => [s.key, s.value]))
   ok(res, {
     aiEndpoint: map.aiEndpoint ?? '',
     aiModel: map.aiModel ?? 'stub',

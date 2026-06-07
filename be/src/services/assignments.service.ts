@@ -30,27 +30,27 @@ export const assignmentsService = {
     let list = await assignmentRepository.findMany(where as any)
 
     if (user.role === 'LECTURER') {
-      const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c) => c.id)
-      list = list.filter((a) => myClassIds.includes(a.classId))
+      const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c: any) => c.id)
+      list = list.filter((a: any) => myClassIds.includes(a.classId))
     }
 
     if (user.role === 'STUDENT') {
       const enrolled = await enrollmentRepository.findMany({ studentId: user.id })
-      const ids = new Set(enrolled.map((e) => e.classId))
-      list = list.filter((a) => ids.has(a.classId) && a.status === 'PUBLISHED')
+      const ids = new Set(enrolled.map((e: any) => e.classId))
+      list = list.filter((a: any) => ids.has(a.classId) && a.status === 'PUBLISHED')
 
       if (tab === 'submitted' || tab === 'graded') {
         const subs = await prisma.submission.findMany({ where: { studentId: user.id } })
-        const subMap = new Map(subs.map((s) => [s.assignmentId, s]))
-        list = list.filter((a) => {
-          const sub = subMap.get(a.id)
+        const subMap = new Map(subs.map((s: any) => [s.assignmentId, s]))
+        list = list.filter((a: any) => {
+          const sub = subMap.get(a.id) as any
           if (tab === 'submitted') return sub && sub.status === 'SUBMITTED'
           if (tab === 'graded') return sub && (sub.status === 'AI_GRADED' || sub.status === 'PUBLISHED')
           return true
         })
       }
       if (tab === 'overdue') {
-        list = list.filter((a) => a.dueAt && a.dueAt < new Date())
+        list = list.filter((a: any) => a.dueAt && a.dueAt < new Date())
       }
     }
 

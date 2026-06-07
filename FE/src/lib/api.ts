@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || '/api'
+const BASE = (import.meta as any).env.VITE_API_URL || '/api'
 
 export class ApiError extends Error {
   constructor(
@@ -120,7 +120,78 @@ export const api = {
   getAssignmentOptions: (classId?: string) =>
     request<Option[]>(`/options/assignments${classId ? `?classId=${classId}` : ''}`),
   getLecturerOptions: () => request<Option[]>(`/options/lecturers`),
+
+  // ─── Admin: User CRUD ───
+  updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string }) =>
+    request<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteUser: (id: string) =>
+    request<void>(`/users/${id}`, { method: 'DELETE' }),
+  toggleUserLock: (id: string, locked: boolean) =>
+    request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
+
+  // ─── Admin: Subjects ───
+  getSubjects: () => request<SubjectRow[]>('/subjects'),
+  createSubject: (body: CreateSubjectBody) =>
+    request<SubjectRow>('/subjects', { method: 'POST', body: JSON.stringify(body) }),
+  updateSubject: (id: string, body: Partial<CreateSubjectBody>) =>
+    request<SubjectRow>(`/subjects/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteSubject: (id: string) =>
+    request<void>(`/subjects/${id}`, { method: 'DELETE' }),
+
+  // ─── Admin: Content Management ───
+  getContents: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString()
+    return request<ContentRow[]>(`/contents${q ? `?${q}` : ''}`)
+  },
+  createContent: (body: CreateContentBody) =>
+    request<ContentRow>('/contents', { method: 'POST', body: JSON.stringify(body) }),
+  updateContent: (id: string, body: Partial<CreateContentBody>) =>
+    request<ContentRow>(`/contents/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteContent: (id: string) =>
+    request<void>(`/contents/${id}`, { method: 'DELETE' }),
+
+  // ─── Admin: Security Logs ───
+  getSecurityLogs: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString()
+    return request<SecurityLog[]>(`/security/logs${q ? `?${q}` : ''}`)
+  },
+
+  // ─── Admin: Notifications ───
+  getNotifications: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString()
+    return request<NotificationRow[]>(`/notifications${q ? `?${q}` : ''}`)
+  },
+  sendNotification: (body: SendNotificationBody) =>
+    request<NotificationRow>('/notifications', { method: 'POST', body: JSON.stringify(body) }),
+  markNotificationRead: (id: string) =>
+    request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+
+  // ─── Lecturer: Teamwork ───
+  getTeamworkData: (classId?: string) => {
+    const q = classId ? `?classId=${classId}` : ''
+    return request<TeamworkData>(`/teamwork${q}`)
+  },
+
+  // ─── Student: Discussion ───
+  getDiscussionThreads: (classId?: string) => {
+    const q = classId ? `?classId=${classId}` : ''
+    return request<DiscussionThread[]>(`/discussions${q}`)
+  },
+  createDiscussionThread: (body: { classId: string; title: string; content: string }) =>
+    request<DiscussionThread>('/discussions', { method: 'POST', body: JSON.stringify(body) }),
+  replyToThread: (threadId: string, body: { content: string }) =>
+    request<DiscussionReply>(`/discussions/${threadId}/replies`, { method: 'POST', body: JSON.stringify(body) }),
+
+  // ─── Student: Assignment History ───
+  getSubmissionHistory: () => request<SubmissionHistoryRow[]>('/student/history'),
+
+  // ─── Student: Teamwork ───
+  getStudentTeamwork: () => request<StudentTeamData>('/student/teamwork'),
 }
+
+/* ═══════════════════════════════════════════
+   Type Definitions
+   ═══════════════════════════════════════════ */
 
 export interface AuthUser {
   id: string
@@ -255,4 +326,142 @@ export interface StudentProgress {
 export interface LearningData {
   skills: { topic: string; level: string; suggestion?: string | null }[]
   recommendations: { type: string; title: string }[]
+}
+
+// ─── New types ───
+
+export interface SubjectRow {
+  id: string
+  code: string
+  name: string
+  difficulty: string
+  description: string
+  codeExamples?: string
+  curriculum?: string
+  createdAt: string
+}
+
+export interface CreateSubjectBody {
+  code: string
+  name: string
+  difficulty: string
+  description: string
+  codeExamples?: string
+  curriculum?: string
+}
+
+export interface ContentRow {
+  id: string
+  title: string
+  category: string
+  body: string
+  status: 'draft' | 'published' | 'archived'
+  author: string
+  publishAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateContentBody {
+  title: string
+  category: string
+  body: string
+  status?: 'draft' | 'published'
+  publishAt?: string | null
+}
+
+export interface SecurityLog {
+  id: string
+  action: string
+  user: string
+  ip: string
+  detail: string
+  level: 'info' | 'warning' | 'danger'
+  createdAt: string
+}
+
+export interface NotificationRow {
+  id: string
+  title: string
+  message: string
+  type: 'info' | 'warning' | 'urgent' | 'grade' | 'deadline'
+  target: string
+  read: boolean
+  createdAt: string
+}
+
+export interface SendNotificationBody {
+  title: string
+  message: string
+  type: string
+  targetRole?: string
+  targetClassId?: string
+}
+
+export interface TeamworkData {
+  teams: TeamInfo[]
+}
+
+export interface TeamInfo {
+  id: string
+  name: string
+  assignment: string
+  members: TeamMember[]
+}
+
+export interface TeamMember {
+  id: string
+  name: string
+  commits: number
+  linesAdded: number
+  linesRemoved: number
+  contributionPercent: number
+  lastActive: string
+}
+
+export interface DiscussionThread {
+  id: string
+  classId: string
+  className?: string
+  title: string
+  content: string
+  author: string
+  authorRole: string
+  replies: DiscussionReply[]
+  resolved: boolean
+  createdAt: string
+}
+
+export interface DiscussionReply {
+  id: string
+  content: string
+  author: string
+  authorRole: string
+  createdAt: string
+}
+
+export interface SubmissionHistoryRow {
+  id: string
+  assignment: string
+  className: string
+  submittedAt: string
+  score: number | null
+  aiScore: number | null
+  status: string
+  feedback?: string
+  language?: string
+}
+
+export interface StudentTeamData {
+  teams: StudentTeamInfo[]
+}
+
+export interface StudentTeamInfo {
+  id: string
+  name: string
+  assignment: string
+  className: string
+  members: { id: string; name: string; role: string; contributionPercent: number }[]
+  myContribution: number
+  status: string
 }

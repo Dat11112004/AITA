@@ -1,4 +1,4 @@
-import type { User, Class, Assignment, Submission, AIJob, ActivityLog } from '@prisma/client'
+import type { User, Class, Assignment, Submission, AIJob, ActivityLog, Subject, Content, Notification, DiscussionThread, DiscussionReply } from '@prisma/client'
 
 export function mapUser(u: User) {
   return {
@@ -100,6 +100,71 @@ export function mapActivity(log: ActivityLog & { user?: { fullName: string; emai
     user: log.user?.fullName ?? 'Hệ thống',
     email: log.user?.email,
     createdAt: log.createdAt.toISOString(),
+  }
+}
+
+export function mapSubject(s: Subject) {
+  return {
+    id: s.id,
+    code: s.code,
+    name: s.name,
+    difficulty: s.difficulty,
+    description: s.description,
+    codeExamples: s.codeExamples,
+    curriculum: s.curriculum,
+    createdAt: s.createdAt.toISOString(),
+  }
+}
+
+export function mapContent(c: Content & { author?: { fullName: string } }) {
+  return {
+    id: c.id,
+    title: c.title,
+    category: c.category,
+    body: c.body,
+    status: c.status,
+    author: c.author?.fullName ?? 'Hệ thống',
+    publishAt: c.publishAt?.toISOString() ?? null,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+  }
+}
+
+export function mapNotification(n: Notification) {
+  return {
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    type: n.type,
+    target: n.target,
+    read: n.read,
+    createdAt: n.createdAt.toISOString(),
+  }
+}
+
+export function mapDiscussionThread(t: DiscussionThread & { author?: { fullName: string; role: string }; class?: { name: string }; _count?: { replies: number }; replies?: any[] }) {
+  return {
+    id: t.id,
+    classId: t.classId,
+    className: t.class?.name,
+    title: t.title,
+    content: t.content,
+    author: t.author?.fullName ?? 'Hệ thống',
+    authorRole: t.author?.role.toLowerCase() ?? 'system',
+    resolved: t.resolved,
+    createdAt: t.createdAt.toISOString(),
+    replyCount: t._count?.replies ?? 0,
+    replies: t.replies?.map(mapDiscussionReply) ?? [],
+  }
+}
+
+export function mapDiscussionReply(r: DiscussionReply & { author?: { fullName: string; role: string } }) {
+  return {
+    id: r.id,
+    content: r.content,
+    author: r.author?.fullName ?? 'Hệ thống',
+    authorRole: r.author?.role.toLowerCase() ?? 'system',
+    createdAt: r.createdAt.toISOString(),
   }
 }
 

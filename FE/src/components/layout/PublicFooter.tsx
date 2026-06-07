@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import { PORTAL_LINKS } from '@/constants/navigation'
+import { useLanguage } from '@/context/LanguageContext'
 
 export function PublicFooter() {
+  const { t } = useLanguage()
   return (
-    <footer className="border-t border-slate-200 bg-slate-900 text-slate-300">
+    <footer className="border-t border-slate-200 bg-slate-900 text-slate-300 dark:border-slate-800 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-3">
           <div>
@@ -13,28 +15,27 @@ export function PublicFooter() {
               AITA
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              AI-powered Teaching Assistant System — Hỗ trợ giảng viên FPT trong giảng dạy
-              Software Engineering.
+              {t('footer.desc')}
             </p>
           </div>
           <div>
-            <h4 className="font-semibold text-white">Cổng hệ thống</h4>
+            <h4 className="font-semibold text-white">{t('footer.portal')}</h4>
             <ul className="mt-3 space-y-2 text-sm">
               {PORTAL_LINKS.map((p) => (
                 <li key={p.path}>
-                  <Link to={p.path} className="hover:text-white">
-                    {p.label}
+                  <Link to={p.path} className="hover:text-white transition-colors">
+                    {t(`nav.${p.role}` as any)}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-white">Liên hệ</h4>
+            <h4 className="font-semibold text-white">{t('footer.contact')}</h4>
             <p className="mt-3 text-sm text-slate-400">
-              FPT University — Dự án đồ án / Capstone
+              {t('footer.contact_info')}
               <br />
-              Phiên bản giao diện: 0.1.0
+              {t('footer.contact_email')}
             </p>
           </div>
         </div>

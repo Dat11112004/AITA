@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { prisma } from '../database/prisma.js'
 import { ok } from '../utils/response.js'
 import { mapActivity } from '../utils/mappers.js'
+import type { Class, Assignment, Submission, ClassEnrollment } from '@prisma/client'
 
 export async function overview(req: Request, res: Response) {
   const { role, id } = req.user!
@@ -24,9 +25,9 @@ export async function overview(req: Request, res: Response) {
 
   if (role === 'LECTURER') {
     const myClasses = await prisma.class.findMany({ where: { lecturerId: id } })
-    const classIds = myClasses.map((c) => c.id)
+    const classIds = myClasses.map((c: Class) => c.id)
     const assignments = await prisma.assignment.findMany({ where: { classId: { in: classIds } } })
-    const assignmentIds = assignments.map((a) => a.id)
+    const assignmentIds = assignments.map((a: Assignment) => a.id)
     const [pendingGrading, aiReview, students] = await Promise.all([
       prisma.submission.count({
         where: { assignmentId: { in: assignmentIds }, status: 'SUBMITTED' },
@@ -49,7 +50,7 @@ export async function overview(req: Request, res: Response) {
   }
 
   const enrolled = await prisma.classEnrollment.findMany({ where: { studentId: id } })
-  const classIds = enrolled.map((e) => e.classId)
+  const classIds = enrolled.map((e: ClassEnrollment) => e.classId)
   const [assignments, dueSoon, subs] = await Promise.all([
     prisma.assignment.count({ where: { classId: { in: classIds }, status: 'PUBLISHED' } }),
     prisma.assignment.count({
@@ -66,18 +67,123 @@ export async function overview(req: Request, res: Response) {
     classes: classIds.length,
     due: dueSoon,
     assignments,
-    graded: subs.filter((s) => s.status === 'PUBLISHED').length,
-    feedback: subs.filter((s) => s.aiFeedback).length,
+    graded: subs.filter((s: Submission) => s.status === 'PUBLISHED').length,
+    feedback: subs.filter((s: Submission) => s.aiFeedback).length,
   })
 }
 
-export async function activityLogs(_req: Request, res: Response) {
+export async function activityLogs(req: Request, res: Response) {
+  const { level, action } = req.query
+  const where: any = {}
+  if (level) where.level = level
+  if (action) where.action = action
+
   const logs = await prisma.activityLog.findMany({
-    take: 20,
+    take: 50,
+    where,
     orderBy: { createdAt: 'desc' },
     include: { user: { select: { fullName: true, email: true } } },
   })
   ok(res, logs.map(mapActivity))
+}
+
+export async function studentHistory(req: Request, res: Response) {
+  const studentId = req.user!.id
+  const subs = await prisma.submission.findMany({
+    where: { studentId },
+    include: { assignment: { include: { class: true } } },
+    orderBy: { submittedAt: 'desc' },
+  })
+
+  ok(
+    res,
+    subs.map((s: any) => ({
+      id: s.id,
+      assignment: s.assignment.title,
+      className: s.assignment.class.name,
+      submittedAt: s.submittedAt?.toISOString(),
+      score: s.score,
+      aiScore: s.aiScore,
+      status: s.status.toLowerCase(),
+      language: s.language,
+    })),
+  )
+}
+
+export async function teamwork(req: Request, res: Response) {
+  const lecturerId = req.user!.id
+  const { classId } = req.query
+
+  const classes = await prisma.class.findMany({
+    where: { lecturerId, ...(classId ? { id: classId as string } : {}) },
+    select: { id: true, name: true }
+  })
+  const classIds = classes.map((c: any) => c.id)
+
+  const submissions = await prisma.submission.findMany({
+    where: { 
+      assignment: { classId: { in: classIds } },
+      groupCode: { not: null }
+    },
+    include: { 
+      student: { select: { fullName: true } },
+      assignment: { select: { title: true } }
+    }
+  })
+
+  // Group by groupCode
+  const groups: Record<string, any> = {}
+  submissions.forEach((s: any) => {
+    const key = `${s.assignmentId}-${s.groupCode}`
+    if (!groups[key]) {
+      groups[key] = {
+        id: key,
+        name: `Nhóm ${s.groupCode}`,
+        assignment: s.assignment.title,
+        members: []
+      }
+    }
+    groups[key].members.push({
+      id: s.studentId,
+      name: s.student.fullName,
+      contributionPercent: 100 / (submissions.filter((sub: any) => sub.assignmentId === s.assignmentId && sub.groupCode === s.groupCode).length),
+      lastActive: s.submittedAt?.toISOString()
+    })
+  })
+
+  ok(res, { teams: Object.values(groups) })
+}
+
+export async function studentTeamwork(req: Request, res: Response) {
+  const studentId = req.user!.id
+  const mySubmissions = await prisma.submission.findMany({
+    where: { studentId, groupCode: { not: null } },
+    include: { 
+      assignment: { include: { class: { select: { name: true } } } }
+    }
+  })
+
+  const teams = await Promise.all(mySubmissions.map(async (s: any) => {
+    const members = await prisma.submission.findMany({
+      where: { assignmentId: s.assignmentId, groupCode: s.groupCode },
+      include: { student: { select: { fullName: true, id: true } } }
+    })
+
+    return {
+      id: `${s.assignmentId}-${s.groupCode}`,
+      name: `Nhóm ${s.groupCode}`,
+      assignment: s.assignment.title,
+      className: s.assignment.class.name,
+      members: members.map((m: any) => ({
+        id: m.student.id,
+        name: m.student.fullName,
+        role: m.student.id === studentId ? 'Me' : 'Member'
+      })),
+      status: 'active'
+    }
+  }))
+
+  ok(res, { teams })
 }
 
 export async function lecturerReport(req: Request, res: Response) {
@@ -87,20 +193,20 @@ export async function lecturerReport(req: Request, res: Response) {
   const classes = await prisma.class.findMany({
     where: { lecturerId, ...(classId ? { id: classId } : {}) },
   })
-  const classIds = classes.map((c) => c.id)
+  const classIds = classes.map((c: any) => c.id)
 
   const submissions = await prisma.submission.findMany({
     where: { assignment: { classId: { in: classIds } }, status: 'PUBLISHED' },
     select: { score: true, aiScore: true },
   })
 
-  const scores = submissions.map((s) => s.score ?? s.aiScore ?? 0).filter((n) => n > 0)
-  const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+  const scores = submissions.map((s: any) => s.score ?? s.aiScore ?? 0).filter((n: any) => n > 0)
+  const avg = scores.length ? scores.reduce((a: any, b: any) => a + b, 0) / scores.length : 0
 
   ok(res, {
     avgScore: Math.round(avg * 100) / 100,
     submitRate: submissions.length ? '78%' : '—',
-    passRate: scores.length ? `${Math.round((scores.filter((s) => s >= 5).length / scores.length) * 100)}%` : '—',
+    passRate: scores.length ? `${Math.round((scores.filter((s: any) => s >= 5).length / scores.length) * 100)}%` : '—',
   })
 }
 
@@ -111,15 +217,15 @@ export async function studentProgress(req: Request, res: Response) {
     include: { assignment: true },
   })
 
-  const scores = subs.map((s) => s.score ?? 0).filter((n) => n > 0)
-  const gpa = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+  const scores = subs.map((s: any) => s.score ?? 0).filter((n: any) => n > 0)
+  const gpa = scores.length ? scores.reduce((a: any, b: any) => a + b, 0) / scores.length : 0
 
   ok(res, {
     gpa: Math.round(gpa * 100) / 100,
     done: subs.length,
     rank: '—',
     streak: subs.length > 0 ? String(subs.length) : '0',
-    history: subs.map((s) => ({
+    history: subs.map((s: any) => ({
       assignment: s.assignment.title,
       score: s.score,
       date: s.submittedAt?.toISOString(),
@@ -140,7 +246,7 @@ export async function studentFeedbackList(req: Request, res: Response) {
 
   ok(
     res,
-    subs.map((s) => ({
+    subs.map((s: any) => ({
       id: s.id,
       title: s.assignment.title,
       aiScore: s.aiScore,
@@ -158,7 +264,7 @@ export async function studentLearning(req: Request, res: Response) {
   })
 
   const recommendations =
-    insights.filter((i) => i.level === 'weak').length > 0
+    insights.filter((i: any) => i.level === 'weak').length > 0
       ? [
           { type: 'reading', title: 'Ôn tập chủ đề yếu' },
           { type: 'practice', title: 'Làm bài Lab bổ sung' },
@@ -166,7 +272,7 @@ export async function studentLearning(req: Request, res: Response) {
       : []
 
   ok(res, {
-    skills: insights.map((i) => ({
+    skills: insights.map((i: any) => ({
       topic: i.topic,
       level: i.level,
       suggestion: i.suggestion,
