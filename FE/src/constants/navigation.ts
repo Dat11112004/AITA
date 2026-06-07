@@ -37,8 +37,7 @@ export const PUBLIC_NAV = [
   { label: 'Trang chủ', href: '/' },
   { label: 'Giới thiệu', href: '/about' },
   { label: 'Tính năng', href: '/features' },
-  { label: 'Trụ cột', href: '/pillars' },
-  { label: 'Tầm nhìn', href: '/vision' },
+  { label: 'Demo', href: '/pillars' },
 ]
 
 export const PORTAL_LINKS = [

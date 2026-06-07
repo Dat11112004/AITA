@@ -3,7 +3,7 @@ import {
   Monitor,
   GraduationCap,
   Bot,
-  Lightbulb,
+  Play,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 
@@ -14,6 +14,7 @@ const PILLARS = [
     title: 'Lecturer Web Dashboard',
     subtitle: 'Cổng quản lý giảng viên',
     color: 'orange',
+    videoSrc: '',
     description:
       'Cung cấp toàn bộ hạ tầng Web Dashboard cho giảng viên — quản lý lớp học, tạo bài tập bằng AI, duyệt nội dung, hỗ trợ chấm bài và theo dõi tiến độ sinh viên. Giảng viên truy cập từ một bảng điều khiển tập trung để vận hành toàn bộ quy trình giảng dạy.',
     longDesc:
@@ -32,6 +33,7 @@ const PILLARS = [
     title: 'Student Learning Portal',
     subtitle: 'Cổng học tập sinh viên',
     color: 'blue',
+    videoSrc: '',
     description:
       'Nền tảng học tập trực tuyến giúp sinh viên truy cập bài tập, nộp source code, nhận phản hồi AI chi tiết về kiến trúc và logic code, theo dõi tiến độ cá nhân, và tham gia thảo luận với bạn bè và giảng viên.',
     longDesc:
@@ -52,6 +54,7 @@ const PILLARS = [
     title: 'AI Engine',
     subtitle: 'Động cơ trí tuệ nhân tạo',
     color: 'purple',
+    videoSrc: '',
     description:
       'Lõi AI trung tâm tích hợp 3 module: Exercise Generation AI, AI-assisted Assessment, và Learning Feedback AI — điều khiển toàn bộ khả năng tự động hóa của nền tảng, từ tạo đề bài đến đánh giá ngữ nghĩa mã nguồn.',
     longDesc:
@@ -63,69 +66,6 @@ const PILLARS = [
       { name: 'Difficulty Calibration', desc: 'Điều chỉnh độ khó phù hợp mục tiêu và trình độ' },
       { name: 'Human Verification', desc: 'Giảng viên duyệt mọi AI output trước khi công bố' },
     ],
-  },
-]
-
-const COMPARISON_DATA = [
-  {
-    feature: 'Tạo bài tập tự động (AI)',
-    moodle: false,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Đánh giá mã nguồn theo ngữ nghĩa',
-    moodle: false,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Phản hồi AI 24/7',
-    moodle: false,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'CI/CD Autograding (Unit Test)',
-    moodle: false,
-    github: true,
-    aita: true,
-  },
-  {
-    feature: 'Quản lý tài liệu khóa học',
-    moodle: true,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Trắc nghiệm & quiz chuẩn hóa',
-    moodle: true,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Phân tích đóng góp nhóm (Git)',
-    moodle: false,
-    github: true,
-    aita: true,
-  },
-  {
-    feature: 'Adaptive Learning Path',
-    moodle: false,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Code Architecture Analysis',
-    moodle: false,
-    github: false,
-    aita: true,
-  },
-  {
-    feature: 'Active Platform (2026+)',
-    moodle: true,
-    github: false,
-    aita: true,
   },
 ]
 
@@ -147,16 +87,16 @@ export function PillarsPage() {
         <div className="relative mx-auto max-w-7xl px-6 sm:px-8 z-10">
           <div className="max-w-3xl space-y-6">
             <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-[#F37021] uppercase border border-orange-500/20 bg-orange-500/5 px-3 py-1 rounded">
-              PRODUCT PILLARS
+              DEMO
             </span>
             <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl leading-[1.1]">
-              Ba trụ cột{' '}
+              Demo{' '}
               <span className="bg-gradient-to-r from-[#F37021] to-purple-500 bg-clip-text text-transparent">
-                của hệ thống
+                hệ thống
               </span>
             </h1>
             <p className="text-base sm:text-lg leading-relaxed text-slate-600 dark:text-slate-400 font-light max-w-2xl">
-              AITA được xây dựng trên 3 trụ cột kiến trúc: Lecturer Web Dashboard, Student Learning Portal, và AI Engine — tạo thành hệ sinh thái giáo dục thông minh toàn diện phục vụ ĐH FPT.
+              Xem demo thực tế của AITA — từ Lecturer Web Dashboard, Student Learning Portal đến AI Engine. Trải nghiệm trực quan toàn bộ quy trình giảng dạy và học tập thông minh.
             </p>
           </div>
         </div>
@@ -207,13 +147,46 @@ export function PillarsPage() {
                 </p>
               </div>
 
-              {/* Features Column */}
+              {/* Video Column */}
               <div className={`lg:col-span-7 ${idx % 2 === 1 ? 'lg:order-1' : ''}`}>
-                <div className="grid gap-3 sm:grid-cols-2">
+                {pillar.videoSrc ? (
+                  <video
+                    src={pillar.videoSrc}
+                    controls
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg"
+                  />
+                ) : (
+                  <div className={`relative w-full aspect-video rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center ${
+                    pillar.color === 'orange' ? 'bg-orange-50/50 dark:bg-orange-900/5' :
+                    pillar.color === 'blue' ? 'bg-blue-50/50 dark:bg-blue-900/5' :
+                    'bg-purple-50/50 dark:bg-purple-900/5'
+                  }`}>
+                    <div className="text-center space-y-3">
+                      <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center ${
+                        pillar.color === 'orange' ? 'bg-orange-100 dark:bg-orange-900/20' :
+                        pillar.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/20' :
+                        'bg-purple-100 dark:bg-purple-900/20'
+                      }`}>
+                        <Play size={28} className={
+                          pillar.color === 'orange' ? 'text-[#F37021]' :
+                          pillar.color === 'blue' ? 'text-blue-500' :
+                          'text-purple-500'
+                        } />
+                      </div>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Video demo — {pillar.title}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-600">Sắp ra mắt</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Features below video */}
+                <div className="grid gap-3 sm:grid-cols-2 mt-4">
                   {pillar.features.map((feat, fIdx) => (
                     <Card
                       key={feat.name}
-                      className={`${fIdx === pillar.features.length - 1 && pillar.features.length % 2 !== 0 ? 'sm:col-span-2' : ''} border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 rounded-xl transition-all duration-500 hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-[0_20px_40px_rgba(0,0,0,0.03)] group`}
+                      className={`${fIdx === pillar.features.length - 1 && pillar.features.length % 2 !== 0 ? 'sm:col-span-2' : ''} border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 rounded-xl transition-all duration-300 hover:border-slate-200 dark:hover:border-slate-700 group`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`mt-0.5 p-1.5 rounded-lg ${
@@ -221,7 +194,7 @@ export function PillarsPage() {
                           pillar.color === 'blue' ? 'bg-blue-50 dark:bg-blue-900/10' :
                           'bg-purple-50 dark:bg-purple-900/10'
                         }`}>
-                          <CheckCircle2 size={14} className={
+                          <CheckCircle2 size={13} className={
                             pillar.color === 'orange' ? 'text-[#F37021]' :
                             pillar.color === 'blue' ? 'text-blue-500' :
                             'text-purple-500'
@@ -229,7 +202,7 @@ export function PillarsPage() {
                         </div>
                         <div>
                           <h4 className="text-sm font-bold text-slate-900 dark:text-white">{feat.name}</h4>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-light">{feat.desc}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-light">{feat.desc}</p>
                         </div>
                       </div>
                     </Card>
@@ -241,84 +214,6 @@ export function PillarsPage() {
         </section>
       ))}
 
-      {/* ============ COMPARISON TABLE ============ */}
-      <section className="py-24 border-t border-slate-200/50 dark:border-slate-800/50">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8">
-          <div className="max-w-2xl space-y-4 mb-16">
-            <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-[#F37021] uppercase border border-orange-500/20 bg-orange-500/5 px-3 py-1 rounded">
-              COMPARISON MATRIX
-            </span>
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-              So sánh với hệ thống hiện tại
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-light">
-              AITA kết hợp ưu điểm của cả hai nền tảng phổ biến, đồng thời bổ sung khả năng AI mà không hệ thống nào hiện có.
-            </p>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/60">
-                  <th className="text-left py-4 px-6 font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">Tính năng</th>
-                  <th className="text-center py-4 px-4 font-bold text-xs uppercase tracking-wider">
-                    <span className="text-orange-600 dark:text-orange-400">Moodle</span>
-                  </th>
-                  <th className="text-center py-4 px-4 font-bold text-xs uppercase tracking-wider">
-                    <span className="text-blue-600 dark:text-blue-400">GitHub Classroom</span>
-                  </th>
-                  <th className="text-center py-4 px-4 font-bold text-xs uppercase tracking-wider">
-                    <span className="text-[#F37021]">AITA</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARISON_DATA.map((row, i) => (
-                  <tr
-                    key={row.feature}
-                    className={`border-t border-slate-100 dark:border-slate-800 ${
-                      i % 2 === 0 ? 'bg-white dark:bg-slate-900/30' : 'bg-slate-50/50 dark:bg-slate-900/10'
-                    }`}
-                  >
-                    <td className="py-3.5 px-6 text-xs text-slate-700 dark:text-slate-300 font-medium">{row.feature}</td>
-                    <td className="text-center py-3.5 px-4">
-                      {row.moodle ? (
-                        <CheckCircle2 size={16} className="inline text-emerald-500" />
-                      ) : (
-                        <span className="inline-block w-4 h-0.5 bg-slate-300 dark:bg-slate-700 rounded" />
-                      )}
-                    </td>
-                    <td className="text-center py-3.5 px-4">
-                      {row.github ? (
-                        <CheckCircle2 size={16} className="inline text-emerald-500" />
-                      ) : (
-                        <span className="inline-block w-4 h-0.5 bg-slate-300 dark:bg-slate-700 rounded" />
-                      )}
-                    </td>
-                    <td className="text-center py-3.5 px-4">
-                      {row.aita ? (
-                        <CheckCircle2 size={16} className="inline text-[#F37021]" />
-                      ) : (
-                        <span className="inline-block w-4 h-0.5 bg-slate-300 dark:bg-slate-700 rounded" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Bottom callout */}
-          <div className="mt-8 flex items-center gap-4 px-6 py-4 rounded-xl border border-orange-200/30 dark:border-orange-900/20 bg-orange-50/30 dark:bg-orange-900/5">
-            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-orange-200/50 dark:border-slate-700">
-              <Lightbulb size={16} className="text-[#F37021]" />
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-light">
-              <span className="font-bold text-slate-900 dark:text-white">Lưu ý:</span> GitHub Classroom đã chính thức thông báo ngừng hoạt động vào tháng 5/2026, tạo ra khoảng trống công nghệ lớn mà AITA được thiết kế để lấp đầy.
-            </p>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

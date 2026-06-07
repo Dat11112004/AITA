@@ -6,7 +6,6 @@ import { HomePage } from '@/pages/home/HomePage'
 import { AboutPage } from '@/pages/home/AboutPage'
 import { FeaturesPage } from '@/pages/home/FeaturesPage'
 import { PillarsPage } from '@/pages/home/PillarsPage'
-import { VisionPage } from '@/pages/home/VisionPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { ADMIN_NAV, LECTURER_NAV, STUDENT_NAV } from '@/constants/navigation'
 import { AdminOverview } from '@/pages/admin/AdminOverview'
@@ -42,7 +41,6 @@ export default function App() {
         <Route path="about" element={<AboutPage />} />
         <Route path="features" element={<FeaturesPage />} />
         <Route path="pillars" element={<PillarsPage />} />
-        <Route path="vision" element={<VisionPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
