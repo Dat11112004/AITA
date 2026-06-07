@@ -185,7 +185,7 @@ export function LoginPage() {
           </div>
 
           {/* Trust badges */}
-     {/* <div className="mt-5 flex items-center justify-center gap-5">
+     <div className="mt-5 flex items-center justify-center gap-5">
   {[
     { icon: <ShieldCheck size={13} />, label: 'Bảo mật SSL' },
     { icon: <CheckCircle2 size={13} />, label: 'FPT Verified' },
@@ -199,7 +199,7 @@ export function LoginPage() {
       {b.label}
     </div>
   ))}
-</div> */}
+</div>
 
           <Link to="/" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#F37021] hover:bg-orange-600 px-4 py-3 text-sm font-bold text-white transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">
             ← {t('auth.back_home').replace('← ', '')}
