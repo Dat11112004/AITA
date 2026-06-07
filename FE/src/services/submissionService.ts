@@ -15,7 +15,7 @@ export const submissionService = {
    * Get recent submissions
    */
   getRecentSubmissions: async (limit = 5): Promise<SubmissionRow[]> => {
-    return api.getRecentSubmissions(limit)
+    return api.getRecentSubmissions(limit),
   },
 
   /**
@@ -28,11 +28,11 @@ export const submissionService = {
   /**
    * Submit work for an assignment
    */
-  submitWork: async (data: { 
+  submitWork: async (data: {
     assignmentId: string
     content?: string
     language?: string
-    groupCode?: string 
+    groupCode?: string
   }): Promise<SubmissionRow> => {
     return api.submitWork(data)
   },
