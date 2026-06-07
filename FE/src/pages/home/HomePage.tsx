@@ -63,7 +63,7 @@ export function HomePage() {
                 <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 dark:from-white dark:via-slate-200 dark:to-orange-500 bg-clip-text text-transparent">
                   AI Teaching Assistant
                 </span>
-                <span className="text-[#F37021] inline-block ml-1 animate-pulse">_</span>
+                <span className="text-[#F37021] inline-block ml-1 animate-pulse"></span>
               </h1>
 
               <p className="max-w-xl text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-400 mx-auto lg:mx-0 font-normal tracking-wide">
