@@ -121,7 +121,7 @@ export function PublicHeader() {
             <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
 
             <Link to="/login">
-              <Button variant="ghost" size="sm" className="min-w-[100px]">{t('nav.login')}</Button>
+              <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.login')}</Button>
             </Link>
             <Link to="/login?tab=register">
               <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.register')}</Button>
