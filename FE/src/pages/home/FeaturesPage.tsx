@@ -154,7 +154,7 @@ export function FeaturesPage() {
               </span>
             </h1>
             <p className="text-base leading-relaxed text-slate-600 dark:text-slate-400 font-light max-w-xl">
-              Cung cấp bộ tính năng tối ưu cho 3 vai trò: Sinh viên, Giảng viên, và Quản trị viên. Giảm thiểu thao tác thừa, tối đa hóa trải nghiệm học thuật.
+              Cung cấp bộ tính năng tối ưu cho 2 vai trò: Sinh viên, Giảng viên, giảm thiểu thao tác thừa, tối đa hóa trải nghiệm học thuật.
             </p>
           </div>
         </div>

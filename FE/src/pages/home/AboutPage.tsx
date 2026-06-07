@@ -74,7 +74,7 @@ export function AboutPage() {
                 Vì sao cần AITA?
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-light">
-                Kiểm thử mã nguồn, đánh giá kiến trúc và sửa lỗi logic ngốn tới 70% quỹ thời gian của giảng viên, gây ảnh hưởng đến chất lượng đào tạo chung.
+               Hoạt động kiểm thử mã nguồn, đánh giá kiến trúc hệ thống và rà soát lỗi logic hiện chiếm khoảng 70% thời gian làm việc của giảng viên, làm giảm nguồn lực dành cho các hoạt động giảng dạy, hướng dẫn và hỗ trợ học tập chuyên sâu.
               </p>
             </div>
 
