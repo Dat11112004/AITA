@@ -10,62 +10,53 @@ import { useLanguage } from '@/context/LanguageContext'
 export function PublicHeader() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [visible, setVisible] = useState(true)
+  const [opacity, setOpacity] = useState(1)
+  const [hovered, setHovered] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const { t } = useLanguage()
   const location = useLocation()
-
   const lastScrollY = useRef(0)
-  const headerRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      const delta = currentY - lastScrollY.current
-
       setScrolled(currentY > 10)
 
-      // Ẩn khi scroll xuống quá 80px, hiện lại khi scroll lên
-      if (currentY > 80) {
-        if (delta > 8) {
-          setVisible(false)
-          setOpen(false)
-        } else if (delta < -5) {
-          setVisible(true)
-        }
-      } else {
-        setVisible(true)
+      if (!hovered) {
+        // Tính opacity: bắt đầu mờ từ scroll 80px, min là 0.2 tại 400px
+        const fade = Math.max(0.2, 1 - (currentY - 80) / 320)
+        setOpacity(currentY > 80 ? fade : 1)
       }
 
       lastScrollY.current = currentY
     }
 
-    // Hiện lại khi hover vào vùng top 60px
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY < 60) {
-        setVisible(true)
-      }
-    }
-
     window.addEventListener('scroll', handleScroll, { passive: true })
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('mousemove', handleMouseMove)
-    }
-  }, [])
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [hovered])
 
   useEffect(() => { setOpen(false) }, [location])
 
+  const handleMouseEnter = () => {
+    setHovered(true)
+    setOpacity(1)
+  }
+
+  const handleMouseLeave = () => {
+    setHovered(false)
+    // Tính lại opacity theo scroll hiện tại
+    const currentY = window.scrollY
+    const fade = Math.max(0.2, 1 - (currentY - 80) / 320)
+    setOpacity(currentY > 80 ? fade : 1)
+  }
+
   return (
     <>
-      {/* Hover trigger zone — invisible strip at top of page */}
-      <div className="fixed top-0 left-0 right-0 h-4 z-[60]" />
-
       <header
-        ref={headerRef}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300
-          ${visible ? 'translate-y-0' : '-translate-y-full'}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{ opacity, transition: 'opacity 0.3s ease, transform 0.3s ease' }}
+        className={`fixed top-0 left-0 right-0 z-50
           ${scrolled
             ? 'border-b border-amber-100 bg-bg-light-orange/95 backdrop-blur-xl shadow-sm dark:border-slate-800/80 dark:bg-[#0f1117]/95'
             : 'border-b border-transparent bg-bg-light-orange/80 backdrop-blur-sm dark:bg-[#0f1117]/80'
@@ -123,9 +114,6 @@ export function PublicHeader() {
             <Link to="/login">
               <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.login')}</Button>
             </Link>
-            <Link to="/login?tab=register">
-              <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.register')}</Button>
-            </Link>
           </div>
 
           {/* Hamburger */}
@@ -175,10 +163,7 @@ export function PublicHeader() {
               <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
               <div className="space-y-2">
                 <Link to="/login">
-                  <Button variant="outline" size="sm" fullWidth>{t('nav.login')}</Button>
-                </Link>
-                <Link to="/login?tab=register">
-                  <Button variant="primary" size="sm" fullWidth>{t('nav.register')}</Button>
+                  <Button variant="primary" size="sm" fullWidth>{t('nav.login')}</Button>
                 </Link>
               </div>
             </nav>
@@ -186,7 +171,7 @@ export function PublicHeader() {
         )}
       </header>
 
-      {/* Spacer để nội dung không bị header fixed che */}
+      {/* Spacer */}
       <div className="h-[57px]" />
     </>
   )
