@@ -184,7 +184,7 @@ export function HomePage() {
             </h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 max-w-2xl mx-auto">
             {PORTAL_LINKS.map((p, index) => {
               const hoverBorders = [
                 'hover:border-orange-500',

@@ -23,7 +23,7 @@ export function LoginPage() {
   const { login, register } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(() => params.get('tab') === 'register' ? 'register' : 'login')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

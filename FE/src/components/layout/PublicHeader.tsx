@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X, Sun, Moon } from 'lucide-react'
-import { PUBLIC_NAV, PORTAL_LINKS } from '@/constants/navigation'
+import { PUBLIC_NAV } from '@/constants/navigation'
 import { Button } from '@/components/ui/Button'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 import { useTheme } from '@/context/ThemeContext'
@@ -79,13 +79,11 @@ export function PublicHeader() {
 
           <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
 
-          {PORTAL_LINKS.map((p) => (
-            <Link key={p.path} to={p.path}>
-              <Button variant="ghost" size="sm" className="min-w-[110px]">{t(`nav.${p.role}` as any)}</Button>
-            </Link>
-          ))}
           <Link to="/login">
-            <Button variant="primary" size="sm" className="min-w-[110px]">{t('nav.login')}</Button>
+            <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.login')}</Button>
+          </Link>
+          <Link to="/login?tab=register">
+            <Button variant="primary" size="sm" className="min-w-[100px]">{t('nav.register')}</Button>
           </Link>
         </div>
 
@@ -136,12 +134,12 @@ export function PublicHeader() {
             </button>
             <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
             <div className="space-y-2">
-              {PORTAL_LINKS.map((p) => (
-                <Link key={p.path} to={p.path}>
-                  <Button variant="outline" size="sm" fullWidth>{t(`nav.${p.role}` as any)}</Button>
-                </Link>
-              ))}
-              <Link to="/login"><Button variant="primary" size="sm" fullWidth>{t('nav.login')}</Button></Link>
+              <Link to="/login">
+                <Button variant="outline" size="sm" fullWidth>{t('nav.login')}</Button>
+              </Link>
+              <Link to="/login?tab=register">
+                <Button variant="primary" size="sm" fullWidth>{t('nav.register')}</Button>
+              </Link>
             </div>
           </nav>
         </div>
