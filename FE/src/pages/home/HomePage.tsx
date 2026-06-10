@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PORTAL_LINKS } from '@/constants/navigation'
-import { useLanguage } from '@/context/LanguageContext'
+import { useLanguage } from '@/store/LanguageContext'
 
 export function HomePage() {
   const { t } = useLanguage()

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, Search, LogOut, Sun, Moon, ChevronDown, LayoutDashboard } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
-import { useTheme } from '@/context/ThemeContext'
+import { useAuth } from '@/store/AuthContext'
+import { useTheme } from '@/store/ThemeContext'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 
 interface Props { title?: string; sidebarCollapsed: boolean }

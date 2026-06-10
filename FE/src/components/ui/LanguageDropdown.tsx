@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
-import { useLanguage, LANGUAGES, type Language } from '@/context/LanguageContext'
+import { useLanguage, LANGUAGES, type Language } from '@/store/LanguageContext'
 
 interface Props {
   /** 'full' shows flag + label + chevron; 'compact' shows only flag + code */

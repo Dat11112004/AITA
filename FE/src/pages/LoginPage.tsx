@@ -5,11 +5,11 @@ import {
   ArrowRight, Sparkles, ShieldCheck, CheckCircle2, Sun, Moon,
   Brain, BookOpen, Users,
 } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/store/AuthContext'
 import { ApiError } from '@/lib/api'
 import type { UserRole } from '@/types'
-import { useLanguage } from '@/context/LanguageContext'
-import { useTheme } from '@/context/ThemeContext'
+import { useLanguage } from '@/store/LanguageContext'
+import { useTheme } from '@/store/ThemeContext'
 
 const roleRedirect: Record<UserRole, string> = {
   admin: '/admin', lecturer: '/lecturer', student: '/student',

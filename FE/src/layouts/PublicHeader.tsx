@@ -4,8 +4,8 @@ import { Menu, X, Sun, Moon } from 'lucide-react'
 import { PUBLIC_NAV } from '@/constants/navigation'
 import { Button } from '@/components/ui/Button'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
-import { useTheme } from '@/context/ThemeContext'
-import { useLanguage } from '@/context/LanguageContext'
+import { useTheme } from '@/store/ThemeContext'
+import { useLanguage } from '@/store/LanguageContext'
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false)

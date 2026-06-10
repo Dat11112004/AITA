@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import { PORTAL_LINKS } from '@/constants/navigation'
-import { useLanguage } from '@/context/LanguageContext'
+import { useLanguage } from '@/store/LanguageContext'
 
 export function PublicFooter() {
   const { t } = useLanguage()

@@ -7,4 +7,4 @@ export * from './useAI'
 export * from './useReports'
 
 // Keep existing auth hook
-export { useAuth } from '@/context/AuthContext'
+export { useAuth } from '@/store/AuthContext'
