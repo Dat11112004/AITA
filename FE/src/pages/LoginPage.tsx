@@ -5,6 +5,7 @@ import {
   ArrowRight, Sparkles, ShieldCheck, CheckCircle2, Sun, Moon,
   Brain, BookOpen, Users,
 } from 'lucide-react'
+import { LiveClock } from '@/components/ui/LiveClock'
 import { useAuth } from '@/store/AuthContext'
 import { ApiError } from '@/lib/api'
 import type { UserRole } from '@/types'
@@ -121,6 +122,7 @@ export function LoginPage() {
 
         {/* Top controls */}
         <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
+          <LiveClock />
           <div className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800 text-xs font-semibold">
             <span className="text-sm">{({ vi: '🇻🇳', en: '🇬🇧', ja: '🇯🇵' } as Record<string, string>)[language]}</span>
             <select
@@ -185,21 +187,21 @@ export function LoginPage() {
           </div>
 
           {/* Trust badges */}
-     <div className="mt-5 flex items-center justify-center gap-5">
-  {[
-    { icon: <ShieldCheck size={13} />, label: 'Bảo mật SSL' },
-    { icon: <CheckCircle2 size={13} />, label: 'FPT Verified' },
-    { icon: <Sparkles size={13} />, label: 'AI Powered' },
-  ].map(b => (
-    <div
-      key={b.label}
-      className="flex items-center gap-1.5 text-[11px] font-medium text-orange-500 dark:text-orange-400"
-    >
-      <span>{b.icon}</span>
-      {b.label}
-    </div>
-  ))}
-</div>
+          <div className="mt-5 flex items-center justify-center gap-5">
+            {[
+              { icon: <ShieldCheck size={13} />, label: 'Bảo mật SSL' },
+              { icon: <CheckCircle2 size={13} />, label: 'FPT Verified' },
+              { icon: <Sparkles size={13} />, label: 'AI Powered' },
+            ].map(b => (
+              <div
+                key={b.label}
+                className="flex items-center gap-1.5 text-[11px] font-medium text-orange-500 dark:text-orange-400"
+              >
+                <span>{b.icon}</span>
+                {b.label}
+              </div>
+            ))}
+          </div>
 
           <Link to="/" className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[#F37021] hover:bg-orange-600 px-4 py-3 text-sm font-bold text-white transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0">
             ← {t('auth.back_home').replace('← ', '')}

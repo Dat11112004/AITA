@@ -34,54 +34,16 @@ export function HomePage() {
         {/* Top Floating Glass Header */}
         <div className="relative border-b border-orange-200/50 dark:border-white/[0.06] bg-white/60 dark:bg-[#07090e]/60 backdrop-blur-xl z-20 transition-colors duration-300">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 text-[11px] font-mono tracking-[0.15em] text-slate-400 sm:px-8">
-       <span className="flex items-center gap-2.5">
-  <span
-    className="
-      h-2.5 w-2.5
-    rounded-full
-    bg-[#F37021]
-    shadow-[0_0_15px_#F37021]
-    animate-pulse
-    "
-  />
-
-  <span
-    className="
-      font-medium
-      text-slate-900
-
-      dark:text-yellow-400
-      dark:drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]
-
-      transition-all duration-300
-    "
-  >
-    FPT UNIVERSITY
-  </span>
-</span>
-     <span
-  className="
-    hidden md:flex
-    items-center gap-2
-    font-semibold
-    tracking-wide
-    text-slate-900
-    dark:text-yellow-400
-    dark:drop-shadow-[0_0_10px_rgba(250,204,21,0.7)]
-    transition-all duration-300
-    cursor-default
-  "
->
-  <Bot
-    size={14}
-    className="
-      text-slate-900
-      dark:text-yellow-400
-      dark:drop-shadow-[0_0_12px_rgba(250,204,21,0.9)]
-    "
-  />
-  AI TEACHING ASSISTANT
-</span>
+            <span className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#F37021] shadow-[0_0_15px_#F37021] animate-pulse" />
+              <span className="font-medium text-slate-900 dark:text-yellow-400 dark:drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] transition-all duration-300">
+                FPT UNIVERSITY
+              </span>
+            </span>
+            <span className="hidden md:flex items-center gap-2 font-semibold tracking-wide text-slate-900 dark:text-yellow-400 dark:drop-shadow-[0_0_10px_rgba(250,204,21,0.7)] transition-all duration-300 cursor-default">
+              <Bot size={14} className="text-slate-900 dark:text-yellow-400 dark:drop-shadow-[0_0_12px_rgba(250,204,21,0.9)]" />
+              AI TEACHING ASSISTANT
+            </span>
           </div>
         </div>
 

@@ -16,7 +16,8 @@ import {
   FileCode,
   AlertTriangle,
   BrainCircuit,
-  Terminal
+  Terminal,
+  Server
 } from 'lucide-react'
 
 const GEN_TABS = [
@@ -94,210 +95,203 @@ export function LecturerAIGenerate() {
   }
 
   return (
-    <div className="space-y-8 p-1 selection:bg-brand-500 selection:text-white min-h-screen bg-slate-50/50 dark:bg-slate-900/50">
+    <div className="space-y-8 animate-fade-in-up">
 
-      {/* Premium Studio Header */}
-      <div className="relative rounded-2xl overflow-hidden bg-[#07090e] text-white p-2 border border-white/[0.08] dark:border-white/[0.05] shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-500/10 via-transparent to-blue-500/5 pointer-events-none" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between pr-4">
+      {/* Header Section */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
           <PageHeader
-            title="Tạo bài tập bằng AI"
+            title="Tạo Bài Tập Bằng AI"
+            description="Tự động sinh bộ câu hỏi, bài tập lập trình hoặc dự án nhóm theo cấu trúc tiêu chuẩn."
             breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Tạo bài (AI)' }]}
           />
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border border-brand-500/30 bg-brand-500/10 text-brand-400 self-start sm:self-center mt-2 sm:mt-0">
-            CORE_ENGINE_v2.6
-          </div>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 shadow-sm">
+          <Server size={14} className="text-brand-500" />
+          <span className="uppercase tracking-widest">AITA_Core_Engine_v2</span>
         </div>
       </div>
 
-      {/* Main Studio Grid Workspace */}
-      <div className="grid gap-8 lg:grid-cols-12 items-start">
+      {/* Main Grid Workspace */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
 
         {/* LEFT COLUMN: PARAMETERS CONSOLE */}
-        <div className="lg:col-span-5">
-          <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-              <CardHeader title="Tham số cấu hình" />
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/5 text-brand-500 border border-brand-500/10">
-                <BrainCircuit size={14} />
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <Card padding="none" className="overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821]">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800/80 dark:bg-slate-800/20 flex flex-col items-center sm:flex-row sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-brand-600 dark:bg-orange-500/10 dark:text-brand-400">
+                  <BrainCircuit size={18} strokeWidth={2} />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Tham số đầu vào</h3>
               </div>
             </div>
 
             <div className="p-6 space-y-6">
-
-              {/* Custom High-Tech Tab Integration Area */}
-              <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200/40 dark:border-slate-700/50 relative">
+              {/* Type Selection Tabs */}
+              <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 shadow-inner border border-slate-200/50 dark:bg-[#0f1117] dark:border-slate-800/50">
                 <Tabs items={GEN_TABS} activeId={tab} onChange={setTab} />
               </div>
 
-              {/* Form Input Control Suite */}
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <Select
-                    label="Lớp / Môn học chuyên ngành"
-                    options={classes}
-                    value={classId}
-                    onChange={(e) => setClassId(e.target.value)}
-                    className="w-full rounded-xl border-slate-200/80 dark:border-slate-700 shadow-sm focus:border-slate-900 dark:focus:border-brand-500 focus:ring-slate-900 dark:focus:ring-brand-500 text-sm"
-                  />
-                </div>
+              {/* Form Controls */}
+              <div className="space-y-4">
+                <Select
+                  label="Lớp / Môn học"
+                  options={classes}
+                  value={classId}
+                  onChange={(e) => setClassId(e.target.value)}
+                  className="w-full text-sm"
+                />
 
-                <div className="space-y-1.5">
-                  <Input
-                    label="Chủ đề bài tập"
-                    placeholder="Ví dụ: Triển khai Clean Architecture, Viết REST API với NestJS..."
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="w-full rounded-xl border-slate-200/80 dark:border-slate-700 shadow-sm focus:border-slate-900 dark:focus:border-brand-500 text-sm"
-                  />
-                </div>
+                <Input
+                  label="Chủ đề bài tập"
+                  placeholder="Ví dụ: Cấu trúc dữ liệu Tree..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="w-full text-sm"
+                />
 
-                <div className="space-y-1.5">
-                  <Select
-                    label="Độ khó thuật toán"
-                    options={[
-                      { value: 'easy', label: '🟢 Dễ (Cơ bản / Hiểu biết)' },
-                      { value: 'medium', label: '🟡 Trung bình (Vận dụng nâng cao)' },
-                      { value: 'hard', label: '🔴 Khó (Tối ưu kiến trúc)' },
-                    ]}
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full rounded-xl border-slate-200/80 dark:border-slate-700 shadow-sm focus:border-slate-900 dark:focus:border-brand-500 text-sm"
-                  />
-                </div>
+                <Select
+                  label="Độ khó yêu cầu"
+                  options={[
+                    { value: 'easy', label: 'Cơ bản (Understand)' },
+                    { value: 'medium', label: 'Trung bình (Apply & Analyze)' },
+                    { value: 'hard', label: 'Khó (Evaluate & Create)' },
+                  ]}
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full text-sm"
+                />
 
-                <div className="space-y-1.5">
-                  <Textarea
-                    label="Yêu cầu bổ sung (Prompt đặc biệt)"
-                    placeholder="Ví dụ: Bổ sung câu hỏi bẫy về Memory Leak, yêu cầu sinh viên tối ưu hóa độ phức tạp thời gian O(n)..."
-                    value={extra}
-                    onChange={(e) => setExtra(e.target.value)}
-                    rows={4}
-                    className="w-full rounded-xl border-slate-200/80 dark:border-slate-700 shadow-sm focus:border-slate-900 dark:focus:border-brand-500 text-sm resize-none"
-                  />
-                </div>
+                <Textarea
+                  label="Prompt bổ sung"
+                  placeholder="Bổ sung yêu cầu chi tiết..."
+                  value={extra}
+                  onChange={(e) => setExtra(e.target.value)}
+                  rows={3}
+                  className="w-full text-sm resize-none"
+                />
               </div>
 
-              {/* Primary High-Action AI Button */}
+              {/* Generate Button Wrapper */}
               <div className="pt-2">
                 <Button
-                  variant="accent"
+                  variant="primary"
                   fullWidth
                   onClick={handleGenerate}
                   disabled={generating}
-                  className={`w-full font-bold text-sm h-12 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden ${generating
-                    ? 'bg-slate-900 dark:bg-slate-800 text-white cursor-not-allowed border-0'
-                    : 'bg-brand-500 text-white hover:bg-brand-600 shadow-[0_10px_30px_rgba(243,112,33,0.2)] hover:shadow-[0_15px_35px_rgba(243,112,33,0.3)] hover:-translate-y-0.5 border-none'
-                    }`}
+                  className={`h-12 w-full font-bold text-sm tracking-wide gap-2 transition-all ${
+                    generating ? 'opacity-80 cursor-not-allowed' : 'hover:shadow-lg hover:shadow-brand-500/25 hover:-translate-y-0.5'
+                  }`}
                 >
                   {generating ? (
                     <>
-                      <Loader2 size={16} className="animate-spin text-brand-400" />
-                      <span className="font-mono tracking-wider">COMPUTING_NEURAL_LOGIC...</span>
+                      <Loader2 size={18} className="animate-spin" />
+                      SYSTEM_PROCESSING...
                     </>
                   ) : (
                     <>
-                      <Sparkles size={16} className="animate-pulse" />
-                      <span>Kích hoạt AI tạo nội dung</span>
+                      <Sparkles size={18} />
+                      Khởi tạo AI
                     </>
                   )}
                 </Button>
               </div>
-
             </div>
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: AI PREVIEW PLATFORM */}
-        <div className="lg:col-span-7">
-          <Card className="border border-slate-900 dark:border-white/[0.1] bg-[#07090e] rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.15)] overflow-hidden text-white flex flex-col min-h-[580px]">
-
-            {/* Dark Mode Terminal Header */}
-            <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0c1017]/80 backdrop-blur-md flex items-center justify-between shrink-0">
+        {/* RIGHT COLUMN: PREVIEW TERMINAL PLATFORM */}
+        <div className="lg:col-span-8 flex flex-col h-full min-h-[600px]">
+          <Card padding="none" className="flex flex-col flex-1 overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-slate-900 border-x border-y">
+            
+            {/* Terminal Header Bar */}
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-800 dark:bg-[#0c1017]">
               <div className="flex items-center gap-4">
                 <div className="flex gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/40 border border-red-500/20" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/40 border border-yellow-500/20" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/40 border border-green-500/20" />
+                  <span className="w-3 h-3 rounded-full bg-red-400 border border-red-500/20" />
+                  <span className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500/20" />
+                  <span className="w-3 h-3 rounded-full bg-green-400 border border-green-500/20" />
                 </div>
-                <div className="h-4 w-px bg-white/[0.08]" />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-2">
                   {getTabIcon(tab)}
-                  <span className="text-xs font-mono tracking-wider text-slate-400 uppercase">OUTPUT_STREAM</span>
+                  <span className="text-xs font-mono font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+                    OUTPUT_CONSOLE
+                  </span>
                 </div>
               </div>
-
-              <Badge variant="warning" className="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                Chờ duyệt dữ liệu
+              <Badge variant="neutral" className="bg-white dark:bg-slate-800 font-mono text-[10px] uppercase font-bold tracking-widest shadow-sm border border-slate-200 dark:border-slate-700">
+                Chờ dữ liệu
               </Badge>
             </div>
 
-            {/* Error Notification Layer */}
-            {error && (
-              <div className="m-4 mx-6 text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1">
-                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold uppercase">[CRITICAL_ERROR]:</span> {error}
+            {/* Content Area */}
+            <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 dark:bg-[#0c1017]/50 relative">
+              
+              {/* Error Output */}
+              {error && (
+                <div className="m-4 rounded-lg bg-red-50 border border-red-200 p-4 shrink-0 shadow-sm dark:border-red-900/50 dark:bg-red-500/10">
+                  <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold uppercase tracking-wide text-xs mb-1">
+                    <AlertTriangle size={16} /> <span>System Error</span>
+                  </div>
+                  <p className="font-mono text-sm text-red-600 dark:text-red-300 ml-6">{error}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Main Dynamic Content Box */}
-            <div className="p-6 flex-1 flex flex-col justify-between min-h-0">
-
-              <div className="flex-1 overflow-auto rounded-xl border border-white/[0.04] bg-[#0c1017]/40 p-5 font-mono text-xs text-slate-300 leading-relaxed relative min-h-[300px]">
+              {/* Viewport content */}
+              <div className="flex-1 overflow-y-auto p-6 relative">
                 {result ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 pb-3 border-b border-white/[0.05] text-[11px] text-slate-400">
-                      <Terminal size={12} className="text-slate-500" />
-                      <span>Payload Matrix Loaded Object Structure:</span>
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 font-mono text-xs leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-[#0f1117] dark:text-slate-300 shadow-sm">
+                    <div className="flex items-center gap-2 pb-4 mb-4 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      <Terminal size={14} className="text-brand-500" />
+                      Payload Object Tree
                     </div>
-                    <pre className="text-emerald-400 selection:bg-emerald-500 selection:text-black">
+                    <pre className="whitespace-pre-wrap word-break-all text-slate-700 dark:text-emerald-400">
                       {JSON.stringify(result, null, 2)}
                     </pre>
                   </div>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 space-y-4 pointer-events-none">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
                     {generating ? (
-                      <div className="space-y-3 flex flex-col items-center">
-                        <div className="h-10 w-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 animate-pulse">
-                          <BrainCircuit size={20} className="animate-spin duration-10000" />
+                      <div className="flex flex-col items-center gap-5">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-md border border-slate-100 text-brand-500 dark:bg-[#0f1117] dark:border-slate-800 dark:text-brand-400 animate-pulse">
+                          <BrainCircuit size={28} className="animate-spin duration-[4s]" />
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-slate-400 font-mono tracking-widest uppercase animate-pulse">Synthesizing Datasets...</p>
-                          <p className="text-[10px] text-slate-500 font-mono">Lõi AI đang bóc tách cấu trúc tài liệu bộ môn</p>
+                        <div>
+                          <p className="font-mono text-sm font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                            Synthesizing Data
+                          </p>
+                          <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-1">Đang truy xuất phân tích cấu trúc lớp học...</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2 max-w-xs">
-                        <FileCode size={32} className="mx-auto text-slate-600 stroke-[1.5]" />
-                        <p className="text-xs text-slate-400 font-bold tracking-wide">Bảng điều khiển trống</p>
-                        <p className="text-[11px] text-slate-500 leading-normal">
-                          Thiết lập các tham số ở bảng điều khiển bên trái và bấm nút để khởi tạo kiến trúc đề bài tự động.
+                      <div className="flex flex-col items-center gap-3 opacity-60 transition-opacity hover:opacity-100">
+                        <div className="rounded-full bg-slate-200/50 p-4 dark:bg-slate-800/50">
+                          <FileCode size={32} className="text-slate-400 dark:text-slate-500" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mt-2">Bảng điều khiển trống</p>
+                        <p className="text-xs max-w-xs text-center text-slate-500 dark:text-slate-500">
+                          Chọn cấu hình tham số phía bên trái để AI tự động thiết lập và sinh khung đề bài tập.
                         </p>
                       </div>
                     )}
                   </div>
                 )}
               </div>
-
-              {/* Action Buttons Interface Footer Area */}
-              <div className="mt-6 pt-4 border-t border-white/[0.06] flex items-center justify-end">
-                <Button
-                  variant="primary"
-                  onClick={handlePublish}
-                  disabled={!result || !classId}
-                  className={`h-11 px-6 rounded-xl font-bold text-xs font-mono tracking-wider uppercase transition-all duration-300 flex items-center gap-2 ${(!result || !classId)
-                    ? 'bg-white/[0.02] border border-white/[0.06] text-slate-600 cursor-not-allowed'
-                    : 'bg-white text-black hover:bg-brand-500 hover:text-white border border-transparent shadow-[0_20px_40px_rgba(255,255,255,0.02)] hover:shadow-[0_0_30px_rgba(243,112,33,0.2)] hover:-translate-y-0.5'
-                    }`}
-                >
-                  <Send size={13} className="stroke-[2.5]" />
-                  Phê duyệt & Giao bài
-                </Button>
-              </div>
-
             </div>
+
+            {/* Bottom Form Actions */}
+            <div className="shrink-0 flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#151821]">
+              <Button
+                variant={result ? "primary" : "secondary"}
+                onClick={handlePublish}
+                disabled={!result || !classId}
+                className={`min-w-[160px] font-bold shadow-sm transition-all text-sm gap-2 uppercase tracking-wide ${(!result || !classId) ? 'opacity-50' : 'hover:scale-[1.02]'}`}
+              >
+                <Send size={16} /> Phê duyệt & Ra đề
+              </Button>
+            </div>
+            
           </Card>
         </div>
 

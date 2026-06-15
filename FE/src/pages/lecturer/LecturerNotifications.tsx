@@ -31,7 +31,7 @@ export function LecturerNotifications() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.title || !form.message || !form.targetClassId) {
-      setMsg({ text: 'Vui lòng điền đầy đủ thông tin và chọn lớp đích.', type: 'error' })
+      setMsg({ text: 'Vui lòng điền đầy đủ thông tin và chọn lớp.', type: 'error' })
       return
     }
 
@@ -50,54 +50,54 @@ export function LecturerNotifications() {
   }
 
   return (
-    <div className="space-y-8 p-1 selection:bg-brand-500 selection:text-white min-h-screen bg-slate-50/50 dark:bg-slate-900/50">
+    <div className="space-y-8 animate-fade-in-up">
 
-      {/* Premium Studio Page Header */}
-      <div className="relative rounded-2xl overflow-hidden bg-[#07090e] text-white p-2 border border-white/[0.08] dark:border-white/[0.05] shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-500/10 via-transparent to-blue-500/5 pointer-events-none" />
-        <div className="relative pr-2">
+      {/* Header Section */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
           <PageHeader
             title="Thông báo & Nhắc nhở"
-            description="Gửi tin nhắn tức thì, nhắc nhở deadline và thông báo kết quả cho sinh viên các lớp bạn đang phụ trách (FE-A-05)."
+            description="Soạn tin nhắn tức thì, nhắc deadline cho các lớp do bạn phụ trách."
             breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Thông báo' }]}
-            actions={
-              <Button
-                size="sm"
-                onClick={() => setShowForm(!showForm)}
-                className="font-bold tracking-wide shadow-[0_4px_12px_rgba(243,112,33,0.2)] bg-slate-950 dark:bg-brand-500 hover:bg-brand-600 border-0 transition-all duration-200"
-              >
-                <Bell size={14} className="mr-1.5 animate-bounce" /> Gửi thông báo
-              </Button>
-            }
           />
+        </div>
+        <div className="flex shrink-0">
+          <Button
+            size="md"
+            onClick={() => setShowForm(!showForm)}
+            className="font-bold gap-2 text-white bg-brand-600 hover:bg-brand-700 shadow-sm border-0 transition-transform hover:-translate-y-0.5"
+          >
+            <Bell size={16} className="animate-bounce" /> Gửi thông báo
+          </Button>
         </div>
       </div>
 
-      {/* Modern Status Feedback Toast Layout */}
+      {/* Toast message display */}
       {msg.text && (
-        <div className={`p-4 rounded-xl border text-xs font-mono flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 ${msg.type === 'success'
-          ? 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
-          : 'bg-red-500/10 dark:bg-red-500/20 border-red-500/20 dark:border-red-500/30 text-red-700 dark:text-red-400'
+        <div className={`p-4 rounded-xl border text-sm font-semibold flex items-center gap-3 shadow-sm animate-in fade-in transition-all ${
+          msg.type === 'success'
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+          : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
           }`}>
-          <Info size={14} className="shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold uppercase">[{msg.type === 'success' ? 'SUCCESS' : 'ERROR'}]:</span> {msg.text}
-          </div>
+          <Info size={18} className="shrink-0" />
+          <span>{msg.text}</span>
         </div>
       )}
 
-      {/* Advanced Drawer/Form Composer Area */}
+      {/* Form Composer */}
       {showForm && (
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <CardHeader title="Soạn thông báo mới" />
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
-              <Megaphone size={13} />
+        <Card padding="none" className="border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821] animate-in fade-in zoom-in-95 duration-200">
+          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center justify-center rounded-xl bg-orange-50 text-brand-600 dark:bg-orange-500/10 dark:text-brand-400 h-9 w-9">
+                <Megaphone size={16} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Soạn thông báo</h3>
             </div>
           </div>
 
           <form onSubmit={handleSend} className="p-6 space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <Select
                 label="Lớp nhận thông báo"
                 options={classes}
@@ -106,136 +106,115 @@ export function LecturerNotifications() {
                 required
               />
               <Select
-                label="Loại thông báo"
+                label="Mức độ / Loại thông báo"
                 options={NOTIF_TYPES}
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               />
             </div>
-
             <Input
-              label="Tiêu đề"
-              placeholder="VD: Nhắc nhở nộp bài Assignment 1"
+              label="Tiêu đề thông báo"
+              placeholder="Nhập tiêu đề..."
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               required
             />
-
             <Textarea
-              label="Nội dung chi tiết"
-              placeholder="Nhập nội dung thông báo cho sinh viên..."
+              label="Nội dung truyền đạt"
+              placeholder="Nhập nội dung đầy đủ..."
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
               rows={4}
+              className="resize-none"
               required
             />
-
-            <div className="flex gap-2 pt-2 justify-end border-t border-slate-100 dark:border-slate-800">
-              {/* Giữ nguyên nút mặc định không chứa variant bừa bãi */}
+            <div className="flex gap-3 pt-4 justify-end border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="font-bold border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Hủy bỏ
+              </Button>
               <Button
                 type="submit"
                 disabled={sending}
-                className="h-9 px-4 rounded-xl bg-slate-950 dark:bg-brand-500 font-bold text-white text-xs hover:bg-brand-600 transition-all duration-200 flex items-center gap-1.5 border-none"
+                className="font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-sm transition-transform gap-2"
               >
-                <Send size={12} />
-                <span>{sending ? 'Đang gửi...' : 'Gửi ngay'}</span>
-              </Button>
-
-              {/* Giữ nguyên variant="ghost" gốc */}
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="h-9 px-4 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs transition-all duration-200"
-              >
-                Hủy
+                <Send size={14} />
+                {sending ? 'Đang gửi...' : 'Gửi hoàn tất'}
               </Button>
             </div>
           </form>
         </Card>
       )}
 
-      {/* Main Notification Audit Trail Card */}
-      <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-          {/* Giữ nguyên variant="neutral" gốc bảo vệ core */}
-          <CardHeader
-            title="Lịch sử thông báo"
-            action={<Badge variant="neutral" className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-[11px] px-2.5 py-0.5 rounded-md">{history.length} đã gửi</Badge>}
-          />
+      {/* Audit Trail Card */}
+      <Card padding="none" className="overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821]">
+        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800/80 dark:bg-slate-800/20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+             <h3 className="text-base font-bold text-slate-900 dark:text-white">Lịch sử thông báo ({history.length})</h3>
+          </div>
         </div>
 
-        {/* Studio Core DataTable Viewport */}
-        <div className="p-4 sm:p-6 overflow-x-auto">
-          <DataTable
-            columns={[
-              {
-                key: 'title',
-                header: 'Tiêu đề',
-                render: (r: any) => (
-                  <div className="py-1 max-w-xs sm:max-w-md">
-                    <span className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight block truncate">{r.title}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5 block truncate">{r.message?.slice(0, 60)}...</span>
-                  </div>
-                )
-              },
-              {
-                key: 'type',
-                header: 'Loại',
-                render: (r: any) => (
-                  <div className="py-1">
-                    {/* Giữ nguyên hệ thống variant gốc: danger, warning, info */}
-                    <Badge variant={r.type === 'urgent' ? 'danger' : r.type === 'deadline' ? 'warning' : 'info'} className="font-medium text-[11px] px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      {NOTIF_TYPES.find(t => t.value === r.type)?.label || r.type}
-                    </Badge>
-                  </div>
-                )
-              },
-              {
-                key: 'target',
-                header: 'Gửi đến lớp',
-                render: (r: any) => (
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 py-1">
-                    <Users size={13} className="text-slate-400 dark:text-slate-500" />
-                    <span>{r.target}</span>
-                  </div>
-                )
-              },
-              {
-                key: 'createdAt',
-                header: 'Thời gian',
-                render: (r: any) => (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-mono py-1">
-                    <Calendar size={13} className="text-slate-400 dark:text-slate-500" />
-                    <span>{new Date(r.createdAt).toLocaleString('vi')}</span>
-                  </div>
-                )
-              },
-              {
-                key: 'status',
-                header: 'Trạng thái',
-                render: () => (
-                  <div className="py-1">
-                    {/* Giữ nguyên variant="success" gốc */}
-                    <Badge variant="success" className="font-medium text-[11px] px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                      Hoàn thành
-                    </Badge>
-                  </div>
-                )
-              }
-            ]}
-            data={history}
-            keyExtractor={(r) => r.id}
-            emptyDescription="Bạn chưa gửi thông báo nào cho các lớp học."
-          />
-
-          {/* Empty Fallback State Area */}
-          {history.length === 0 && (
-            <div className="py-16 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/40 my-2">
-              <Inbox size={28} className="mx-auto text-slate-300 dark:text-slate-600 stroke-[1.5] mb-2" />
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono uppercase tracking-wider">Hộp thư rỗng</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-light mt-1">Bạn chưa gửi thông báo nào cho các lớp học hiện hành.</p>
+        <div className="p-6 overflow-x-auto">
+          {history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="rounded-full bg-slate-50 p-5 dark:bg-slate-800/50">
+                <Inbox size={36} className="text-slate-300 dark:text-slate-600" />
+              </div>
+              <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-200">Chưa có thông báo nào</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Bạn chưa gửi thông báo nào cho sổ liên lạc hệ thống.</p>
             </div>
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  key: 'title',
+                  header: 'Nội dung thông báo',
+                  render: (r: any) => (
+                    <div className="py-2 max-w-xs sm:max-w-md pr-4">
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-[13px] tracking-tight block truncate">{r.title}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 block truncate">{r.message}</span>
+                    </div>
+                  )
+                },
+                {
+                  key: 'type',
+                  header: 'Tính chất',
+                  render: (r: any) => (
+                    <div className="py-2">
+                       <Badge variant={r.type === 'urgent' ? 'danger' : r.type === 'deadline' ? 'warning' : 'info'} className="font-bold text-[10px] uppercase tracking-wider rounded-md border-none px-2 py-1 shadow-sm">
+                        {NOTIF_TYPES.find(t => t.value === r.type)?.label || r.type}
+                      </Badge>
+                    </div>
+                  )
+                },
+                {
+                  key: 'target',
+                  header: 'Mục tiêu',
+                  render: (r: any) => (
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 py-2">
+                      <Users size={14} className="text-brand-500 dark:text-brand-400" />
+                      <span>{r.target}</span>
+                    </div>
+                  )
+                },
+                {
+                  key: 'createdAt',
+                  header: 'Đã gửi lúc',
+                  render: (r: any) => (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-mono py-2">
+                      <Calendar size={14} className="text-slate-400 dark:text-slate-500" />
+                      <span>{new Date(r.createdAt).toLocaleString('vi')}</span>
+                    </div>
+                  )
+                }
+              ]}
+              data={history}
+              keyExtractor={(r) => r.id}
+            />
           )}
         </div>
       </Card>

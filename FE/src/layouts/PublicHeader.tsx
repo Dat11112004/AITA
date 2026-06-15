@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 import { useTheme } from '@/store/ThemeContext'
 import { useLanguage } from '@/store/LanguageContext'
+import { LiveClock } from '@/components/ui/LiveClock'
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false)
@@ -100,6 +101,10 @@ export function PublicHeader() {
 
           {/* Desktop actions */}
           <div className="hidden items-center gap-2 md:flex">
+            <div className="mr-2 hidden lg:block">
+              <LiveClock />
+            </div>
+            
             <LanguageDropdown />
 
             <button type="button" onClick={toggleTheme}
@@ -145,6 +150,12 @@ export function PublicHeader() {
                   </Link>
                 )
               })}
+              <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
+              
+              <div className="px-3 py-2">
+                <LiveClock />
+              </div>
+
               <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
 
               <div className="px-1 py-1">

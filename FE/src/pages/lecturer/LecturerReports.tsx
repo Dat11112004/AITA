@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card, /*CardHeader*/ } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Input'
 import { StatCard } from '@/components/ui/StatCard'
 import { api, type Option } from '@/lib/api'
-import { BarChart3, GraduationCap, Percent, TrendingUp, Presentation } from 'lucide-react'
+import { BarChart3, GraduationCap, Percent, TrendingUp, /*Presentation,*/ HelpCircle } from 'lucide-react'
 
 export function LecturerReports() {
   const [classId, setClassId] = useState('')
@@ -20,81 +20,69 @@ export function LecturerReports() {
   }, [classId])
 
   return (
-    <div className="space-y-8 p-1 selection:bg-brand-500 selection:text-white min-h-screen bg-slate-50/50 dark:bg-slate-900/50">
+    <div className="space-y-8 animate-fade-in-up">
 
-      {/* Premium Studio Page Header */}
-      <div className="relative rounded-2xl overflow-hidden bg-[#07090e] text-white p-2 border border-white/[0.08] dark:border-white/[0.05] shadow-[0_30px_60px_rgba(0,0,0,0.08)]">
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-500/10 via-transparent to-blue-500/5 pointer-events-none" />
-        <div className="relative">
-          <PageHeader title="Báo cáo học tập" breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Báo cáo' }]} />
+      {/* Header Section */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <PageHeader
+            title="Báo Cáo Học Tập"
+            description="Phân tích phổ điểm, đánh giá hiệu suất của lớp với hệ thống biểu đồ hỗ trợ."
+            breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Báo cáo' }]}
+          />
         </div>
-      </div>
-
-      {/* Control Selector Layer */}
-      <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.02)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-brand-500/10 border border-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
-            <Presentation size={16} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">Bộ lọc dữ liệu</h3>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-light">Lựa chọn phân lớp để nạp ma trận thống kê</p>
-          </div>
-        </div>
-
-        <div className="w-full sm:max-w-xs">
-          {/* GIỮ NGUYÊN HOÀN TOÀN cấu trúc props Select cũ */}
+        <div className="flex shrink-0">
           <Select
-            label="Lớp học"
-            options={[{ value: '', label: 'Tất cả lớp' }, ...classes]}
+            label=""
+            options={[{ value: '', label: 'Chung tất cả lớp' }, ...classes]}
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
-            className="w-full"
+            className="w-full sm:min-w-[200px]"
           />
         </div>
       </div>
 
-      {/* Analytics Stat Cards Dashboard Track */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {/* GIỮ NGUYÊN HOÀN TOÀN id và props nguyên bản để không lỗi core logic */}
-        <div className="transition-all duration-200 hover:translate-y-[-2px]">
-          <StatCard id="avg" label="Điểm trung bình lớp" value={report.avgScore} icon={GraduationCap} />
+      {/* Analytics Stat Cards */}
+      <div className="grid gap-5 sm:grid-cols-3">
+        <div className="transition-all duration-300 hover:-translate-y-1">
+          <StatCard id="avg" label="Điểm trung bình hệ thống" value={report.avgScore} icon={GraduationCap} />
         </div>
-        <div className="transition-all duration-200 hover:translate-y-[-2px]">
-          <StatCard id="submit" label="Tỷ lệ nộp bài" value={report.submitRate} icon={Percent} />
+        <div className="transition-all duration-300 hover:-translate-y-1">
+          <StatCard id="submit" label="Tỷ lệ sinh viên nộp bài" value={report.submitRate} icon={Percent} />
         </div>
-        <div className="transition-all duration-200 hover:translate-y-[-2px]">
-          <StatCard id="pass" label="Tỷ lệ đạt" value={report.passRate} icon={TrendingUp} />
+        <div className="transition-all duration-300 hover:-translate-y-1">
+          <StatCard id="pass" label="Tỷ lệ đạt chuẩn" value={report.passRate} icon={TrendingUp} />
         </div>
       </div>
 
       {/* Visual Analytics Workspace Section */}
-      <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 mt-8">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-          <CardHeader title="Biểu đồ" description="Tích hợp chart khi có thêm dữ liệu analytics" />
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
-            <BarChart3 size={14} />
+      <Card padding="none" className="overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821]">
+        <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800/80 dark:bg-slate-800/20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-brand-600 dark:bg-orange-500/10 dark:text-brand-400">
+              <BarChart3 size={18} strokeWidth={2} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Biểu đồ phổ điểm</h3>
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="p-8 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/40 text-center flex flex-col items-center justify-center min-h-[220px]">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/50 text-slate-400 dark:text-slate-500 flex items-center justify-center mb-3 shadow-inner">
-              <BarChart3 size={18} className="stroke-[1.5]" />
+        <div className="p-6 lg:p-8">
+          <div className="py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/40 dark:bg-slate-900/40 text-center flex flex-col items-center justify-center">
+            <div className="rounded-full bg-slate-100 dark:bg-slate-800 p-5 mb-4 shadow-inner text-slate-400 dark:text-slate-500">
+              <HelpCircle size={32} className="stroke-[1.5]" />
             </div>
 
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-mono uppercase tracking-wider">Analytics Telemetry Canvas</p>
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-200">Không hỗ trợ module vẽ đồ thị tĩnh</p>
 
-            {/* Điểm số trực quan hóa dưới dạng Code Badging Layout */}
-            <div className="mt-3 px-4 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Điểm TB hiện tại:</span>
-              <span className="text-sm font-mono font-bold text-brand-500 dark:text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/10">
+            <div className="mt-4 p-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm inline-flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Chỉ số Median:</span>
+              <span className="text-base font-mono font-black text-brand-600 dark:text-brand-400 bg-brand-50  dark:bg-brand-500/10 px-2 py-0.5 border border-brand-100 dark:border-brand-500/20 rounded">
                 {report.avgScore}/10
               </span>
             </div>
 
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-light mt-2 max-w-sm">
-              Vùng hiển thị đồ thị phân phối tần suất điểm số và xu hướng nộp bài. Hệ thống sẵn sàng kết nối với Recharts Component.
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-3 max-w-sm">
+              Sẵn sàng hook data realtime cho các thư viện Recharts/ChartJS trong tương lai.
             </p>
           </div>
         </div>

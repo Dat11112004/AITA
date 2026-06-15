@@ -16,11 +16,11 @@
     "clsx": "^2.1.1",
     "i18next": "^23.0.0",
     "i18next-browser-languagedetector": "^7.0.1",
-    "react-i18next": "^14.0.1",
     "lucide-react": "^0.511.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.77.0",
+    "react-i18next": "^14.0.1",
     "react-router-dom": "^7.6.2",
     "zod": "^4.4.3"
   },
@@ -30,7 +30,7 @@
     "@types/node": "^22.15.29",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.5.2",
+    "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9.28.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -38,6 +38,6 @@
     "tailwindcss": "^4.1.8",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.33.1",
-    "vite": "^6.3.5"
+    "vite": "^8.0.16"
   }
 }

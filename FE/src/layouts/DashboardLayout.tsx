@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import type { NavItem, UserRole } from '@/types'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardTopbar } from './DashboardTopbar'
+import { DashboardFooter } from './DashboardFooter'
 
 interface Props {
   navItems: NavItem[]
@@ -23,11 +24,12 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(c => !c)}
       />
-      <div className={`transition-[margin] duration-300 ease-in-out ${collapsed ? 'ml-[68px]' : 'ml-64'}`}>
+      <div className={`flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out ${collapsed ? 'ml-[68px]' : 'ml-64'}`}>
         <DashboardTopbar title={portalTitle} sidebarCollapsed={collapsed} />
-        <main className="min-h-[calc(100vh-64px)] p-4 sm:p-6 lg:p-8 animate-fade-in-up">
+        <main className="flex-1 min-h-[calc(100vh-130px)] p-4 sm:p-6 lg:p-8 animate-fade-in-up">
           <Outlet />
         </main>
+        <DashboardFooter />
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/store/AuthContext'
 import { useTheme } from '@/store/ThemeContext'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
+import { LiveClock } from '@/components/ui/LiveClock'
 
 interface Props { title?: string; sidebarCollapsed: boolean }
 
@@ -73,8 +74,12 @@ export function DashboardTopbar({ sidebarCollapsed }: Props) {
         />
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-1 ml-auto">
+      {/* Right Navbar Actions */}
+      <div className="flex items-center gap-2 ml-auto">
+        {/* Live Date and Time Widget */}
+        <div className="mr-2">
+          <LiveClock />
+        </div>
 
         {/* Language dropdown */}
         <LanguageDropdown />
