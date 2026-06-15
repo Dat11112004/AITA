@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type StudentRow } from '@/lib/api'
-import { Users, Award, ClipboardCheck, GraduationCap, CheckCircle2 } from 'lucide-react'
+import { Users, Award, ClipboardCheck, CheckCircle2 } from 'lucide-react'
 
 export function LecturerGrading() {
   const [classes, setClasses] = useState<ClassRow[]>([])

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type StudentRow } from '@/lib/api'
 import { GraduationCap, Users, BookOpen, UserCheck, Activity, Award, CheckCircle2 } from 'lucide-react'

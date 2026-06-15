@@ -3,7 +3,6 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
-import { Badge } from '@/components/ui/Badge'
 import { api, type Option, type TeamworkData, type TeamInfo } from '@/lib/api'
 import { GitBranch, Calendar, Cpu, Inbox, Loader2, Users } from 'lucide-react'
 

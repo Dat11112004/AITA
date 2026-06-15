@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
