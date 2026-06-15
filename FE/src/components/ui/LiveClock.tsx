@@ -4,58 +4,6 @@ import { useNotes } from '@/hooks/useNotes'
 
 const DAY_NAMES = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
-/* ── Battery SVG Component ──────────────────────────────────── */
-function BatteryIndicator({ level, urgency, flash }: { 
-  level: number // 0-100 percent 
-  urgency: 'critical' | 'imminent' | 'warning' | 'normal'
-  flash: boolean 
-}) {
-  const barColor = urgency === 'critical' ? '#ef4444'
-    : urgency === 'imminent' ? '#f97316'
-    : urgency === 'warning' ? '#f59e0b'
-    : '#22c55e'
-
-  const bgGlow = urgency === 'critical' ? 'drop-shadow(0 0 6px rgba(239,68,68,0.6))'
-    : urgency === 'imminent' ? 'drop-shadow(0 0 4px rgba(249,115,22,0.5))'
-    : urgency === 'warning' ? 'drop-shadow(0 0 3px rgba(245,158,11,0.4))'
-    : 'none'
-
-  return (
-    <div 
-      className={`relative flex items-center ${flash ? 'animate-battery-flash' : ''}`}
-      style={{ filter: bgGlow }}
-    >
-      <svg width="38" height="18" viewBox="0 0 38 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Battery body */}
-        <rect x="0.5" y="0.5" width="32" height="17" rx="3.5" 
-          stroke={urgency === 'normal' ? '#94a3b8' : barColor} 
-          strokeWidth="1.2" 
-          fill="none"
-          className="transition-colors duration-300"
-        />
-        {/* Battery tip */}
-        <rect x="33.5" y="5" width="3" height="8" rx="1.5" 
-          fill={urgency === 'normal' ? '#94a3b8' : barColor}
-          className="transition-colors duration-300"
-        />
-        {/* Battery fill - animated */}
-        <rect x="3" y="3" width={Math.max(0, (level / 100) * 27)} height="12" rx="1.5" 
-          fill={barColor}
-          className="transition-all duration-700 ease-out"
-        />
-        {/* Lightning bolt for charging/urgent */}
-        {urgency !== 'normal' && (
-          <path d="M18 3L14 9.5H18L16 15L22 8.5H18L20 3Z" 
-            fill="white" 
-            opacity="0.9"
-            className="origin-center"
-          />
-        )}
-      </svg>
-    </div>
-  )
-}
-
 /* ── Urgency Pill Component ─────────────────────────────────── */
 function UrgencyPill({ urgency, nearestMinutes, totalPending }: {
   urgency: string
@@ -259,23 +207,34 @@ export function LiveClock() {
     .filter(n => n.status === 'pending')
     .sort((a, b) => `${a.dateStr} ${a.timeStr}`.localeCompare(`${b.dateStr} ${b.timeStr}`))
 
+  // Compute fill color stops based on urgency
+  const fillColor = urgencyLevel === 'critical'
+    ? 'rgba(239,68,68,0.82)'
+    : urgencyLevel === 'imminent'
+      ? 'rgba(249,115,22,0.78)'
+      : urgencyLevel === 'warning'
+        ? 'rgba(234,179,8,0.70)'
+        : 'rgba(34,197,94,0.72)'
+
+  const borderColor = urgencyLevel === 'critical'
+    ? 'rgba(239,68,68,0.60)'
+    : urgencyLevel === 'imminent'
+      ? 'rgba(249,115,22,0.55)'
+      : urgencyLevel === 'warning'
+        ? 'rgba(234,179,8,0.50)'
+        : isOpen
+          ? 'rgba(249,115,22,0.60)'
+          : 'rgba(203,213,225,0.60)'
+
+  const glowStyle = urgencyLevel === 'critical'
+    ? '0 0 16px -2px rgba(239,68,68,0.40)'
+    : urgencyLevel === 'imminent'
+      ? '0 0 12px -2px rgba(249,115,22,0.35)'
+      : '0 2px 10px -4px rgba(0,0,0,0.10)'
+
   return (
     <div className="relative flex items-center gap-2" ref={wrapperRef}>
       
-      {/* ── Battery Widget ─────────────────────────────── */}
-      <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all duration-300 ${
-        urgencyLevel === 'critical'
-          ? 'border-red-400/70 dark:border-red-500/50 bg-red-50/80 dark:bg-red-950/30 shadow-[0_0_20px_-4px_rgba(239,68,68,0.3)]'
-          : urgencyLevel === 'imminent'
-            ? 'border-orange-300/70 dark:border-orange-500/50 bg-orange-50/80 dark:bg-orange-950/30 shadow-[0_0_15px_-4px_rgba(249,115,22,0.25)]'
-            : urgencyLevel === 'warning'
-              ? 'border-amber-300/60 dark:border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20'
-              : 'border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50'
-      }`}>
-        <BatteryIndicator level={batteryLevel} urgency={urgencyLevel} flash={shouldFlash} />
-        <UrgencyPill urgency={urgencyLevel} nearestMinutes={nearestMinutes} totalPending={totalPending} />
-      </div>
-
       {/* ── Quick Notes Button ─────────────────────────── */}
       <button
         onClick={() => {
@@ -302,33 +261,71 @@ export function LiveClock() {
         )}
       </button>
 
-      {/* ── Clock & Calendar Trigger ───────────────────── */}
+      {/* ── Battery-Clock Trigger ──────────────────────── */}
+      {/*
+        Thiết kế: khung button là "vỏ pin", fill màu (div tuyệt đối) lan từ trái
+        sang phải theo batteryLevel%, chữ nằm trên z-index cao hơn nên luôn đọc được.
+        Khi shouldFlash = true, toàn bộ button nhấp nháy.
+      */}
       <button
         onClick={() => {
           setIsOpen(!isOpen)
           setShowQuickNotes(false)
           if (isOpen) setSelectedDate(null)
         }}
-        className={`relative flex items-center gap-3 px-3 py-1.5 rounded-xl border transition-all duration-200 ${
-           isOpen 
-             ? 'border-brand-300 dark:border-brand-500 bg-brand-50/50 dark:bg-brand-500/10 ring-2 ring-brand-500/20' 
-             : 'border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:-translate-y-0.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)]'
-        }`}
+        style={{
+          borderColor,
+          boxShadow: glowStyle,
+        }}
+        className={[
+          'relative flex items-center gap-3 px-3 py-1.5 rounded-xl border overflow-hidden',
+          'transition-all duration-300',
+          isOpen ? 'ring-2 ring-brand-500/20' : 'hover:-translate-y-0.5',
+          // Dark mode base bg so fill sits on top
+          'bg-white/50 dark:bg-slate-900/60',
+          shouldFlash ? 'animate-battery-flash' : '',
+        ].join(' ')}
+        title="Mở lịch"
       >
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm border transition-colors ${
+        {/* ── Battery fill layer (z-0) ── */}
+        <span
+          aria-hidden="true"
+          style={{
+            width: `${batteryLevel}%`,
+            backgroundColor: fillColor,
+            transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1), background-color 0.5s ease',
+          }}
+          className="pointer-events-none absolute inset-y-0 left-0 rounded-xl"
+        />
+
+        {/* ── Tip nub bên phải của pin ── */}
+        <span
+          aria-hidden="true"
+          style={{ backgroundColor: fillColor, transition: 'background-color 0.5s ease' }}
+          className="pointer-events-none absolute -right-[3px] top-1/2 -translate-y-1/2 h-3 w-[5px] rounded-r-sm"
+        />
+
+        {/* ── Content (z above fill) ── */}
+        <div className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm border transition-colors ${
           isOpen 
             ? 'bg-brand-500 text-white border-brand-600 dark:bg-brand-500/80 dark:border-brand-500' 
-            : 'bg-white text-brand-600 border-slate-100 dark:bg-[#0f1117] dark:border-slate-800 dark:text-brand-400'
+            : 'bg-white/80 text-brand-600 border-white/60 dark:bg-slate-800/80 dark:border-slate-700 dark:text-brand-400'
         }`}>
           <CalendarIcon size={14} />
         </div>
-        <div className="flex flex-col items-start justify-center">
-          <span className="text-[13px] font-bold font-mono tracking-wide tabular-nums leading-none text-slate-800 dark:text-slate-100">
+
+        <div className="relative z-10 flex flex-col items-start justify-center">
+          <span className="text-[13px] font-bold font-mono tracking-wide tabular-nums leading-none text-slate-800 dark:text-slate-100 drop-shadow-[0_1px_2px_rgba(255,255,255,0.6)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             {formatterTime.format(time)}
           </span>
-          <span className="text-[9px] font-bold uppercase mt-1 leading-none tracking-wider text-slate-400 dark:text-slate-500">
+          <span className="text-[9px] font-bold uppercase mt-1 leading-none tracking-wider text-slate-600 dark:text-slate-300 drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
             {dateStr}
           </span>
+        </div>
+
+        {/* ── Urgency badge ── */}
+        <div className="relative z-10">
+          <UrgencyPill urgency={urgencyLevel} nearestMinutes={nearestMinutes} totalPending={totalPending} />
         </div>
       </button>
 
