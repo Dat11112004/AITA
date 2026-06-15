@@ -27,7 +27,7 @@ const roleAvatar: Record<string, string> = {
   student:  'from-emerald-500 to-emerald-700',
 }
 
-export function DashboardTopbar({ sidebarCollapsed }: Props) {
+export function DashboardTopbar({}: Props) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -53,8 +53,7 @@ export function DashboardTopbar({ sidebarCollapsed }: Props) {
         px-4 sm:px-6
         dark:border-slate-800 dark:bg-[#0f1117]/95
         shadow-sm shadow-slate-200/40 dark:shadow-black/20
-        transition-[margin] duration-300 ease-in-out
-        ${sidebarCollapsed ? 'ml-[68px]' : 'ml-64'}
+        transition-colors duration-300
       `}
     >
       {/* Search */}

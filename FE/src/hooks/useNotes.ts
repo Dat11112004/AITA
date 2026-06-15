@@ -55,28 +55,55 @@ export function useNotes() {
     return notes.filter(n => n.dateStr === dateStr).sort((a, b) => a.timeStr.localeCompare(b.timeStr))
   }, [notes])
 
-  // Get overdue/pending notes
-  // Current datetime comparison
+  // Get overdue/pending/approaching notes with urgency levels
   const getCurrentStatus = useCallback((now: Date) => {
     let hasPending = false;
     let hasOverdue = false;
+    let pendingCount = 0;
+    let overdueCount = 0;
+    let nearestMinutes = Infinity;
+    let nearestContent = '';
     
-    // Create a comparable string for current time YYYY-MM-DD HH:mm
     const nowIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
     const currentComparable = nowIso.replace('T', ' ').substring(0, 16);
+    const nowMs = now.getTime();
 
     notes.forEach(note => {
       if (note.status === 'pending') {
         const noteComparable = `${note.dateStr} ${note.timeStr}`;
+        const [y, m, d] = note.dateStr.split('-').map(Number);
+        const [h, min] = note.timeStr.split(':').map(Number);
+        const noteDate = new Date(y, m - 1, d, h, min);
+        const diffMs = noteDate.getTime() - nowMs;
+        const diffMin = diffMs / 60000;
+
         if (currentComparable > noteComparable) {
           hasOverdue = true;
+          overdueCount++;
         } else {
           hasPending = true;
+          pendingCount++;
+          if (diffMin < nearestMinutes) {
+            nearestMinutes = diffMin;
+            nearestContent = note.content;
+          }
         }
       }
     });
 
-    return { hasPending, hasOverdue };
+    // urgencyLevel: 'critical' (overdue), 'imminent' (<10min), 'warning' (<30min), 'normal'
+    let urgencyLevel: 'critical' | 'imminent' | 'warning' | 'normal' = 'normal';
+    if (hasOverdue) urgencyLevel = 'critical';
+    else if (nearestMinutes <= 10) urgencyLevel = 'imminent';
+    else if (nearestMinutes <= 30) urgencyLevel = 'warning';
+
+    return { 
+      hasPending, hasOverdue, pendingCount, overdueCount,
+      nearestMinutes: nearestMinutes === Infinity ? -1 : Math.round(nearestMinutes),
+      nearestContent,
+      urgencyLevel,
+      totalPending: pendingCount + overdueCount
+    };
   }, [notes])
 
   return {

@@ -17,9 +17,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    
-    // ❌ XÓA DÒNG "baseUrl": ".", Ở ĐÂY ĐI
-    
     "paths": {
       "@/*": ["./src/*"]
     }

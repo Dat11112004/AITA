@@ -132,6 +132,18 @@
     background-size: 200% 100%;
   }
 
+  /* Battery deadline warning flash */
+  @keyframes battery-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .animate-battery-flash { animation: battery-flash 1s ease-in-out infinite; }
+  .animate-pulse-subtle  { animation: pulse-subtle 2s ease-in-out infinite; }
+
   /* Stagger delays */
   .delay-75  { animation-delay:  75ms; }
   .delay-150 { animation-delay: 150ms; }
