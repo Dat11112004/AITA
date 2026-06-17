@@ -40,10 +40,10 @@ export const usersService = {
     })
 
     await activityRepository.create({
-      userId: actorId, 
-      action: 'USER_CREATE', 
-      entity: 'User', 
-      entityId: user.id 
+      userId: actorId,
+      action: 'USER_CREATE',
+      entity: 'User',
+      entityId: user.id,
     })
 
     return mapUser(user)
@@ -58,7 +58,22 @@ export const usersService = {
       externalId: payload.externalId,
       status: payload.status ? (payload.status.toUpperCase() as UserStatus) : undefined,
     })
-    
+
     return mapUser(updated)
-  }
+  },
+
+  async delete(id: string) {
+    const user = await userRepository.findById(id)
+    if (!user) throw notFound('Người dùng không tồn tại')
+    await userRepository.delete(id)
+  },
+
+  async toggleLock(id: string, locked: boolean) {
+    const user = await userRepository.findById(id)
+    if (!user) throw notFound('Người dùng không tồn tại')
+
+    const status = locked ? 'BANNED' : 'ACTIVE'
+    const updated = await userRepository.update(id, { status: status as UserStatus })
+    return mapUser(updated)
+  },
 }

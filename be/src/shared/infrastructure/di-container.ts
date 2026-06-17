@@ -21,6 +21,9 @@ import { UpdateAssignmentUseCase } from '../../modules/assignments/application/u
 import { DeleteAssignmentUseCase } from '../../modules/assignments/application/use-cases/delete-assignment.use-case.js'
 import { AssignmentController } from '../../modules/assignments/presentation/controllers/assignment.controller.js'
 
+import { UsersController } from '../../controllers/users.controller.js'
+
+
 import { signToken } from '../../middleware/auth.js'
 import { logger } from './logger.js'
 
@@ -126,6 +129,9 @@ export class DIContainer {
         updateAssignmentUseCase
       )
       this.services.set('AssignmentController', assignmentController)
+
+      const usersController = new UsersController()
+      this.services.set('UsersController', usersController)
 
       logger.info('DI Container initialized successfully with all modules')
     } catch (error) {

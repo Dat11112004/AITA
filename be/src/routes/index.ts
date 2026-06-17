@@ -33,4 +33,12 @@ router.post('/assignments', asyncHandler((req: any, res: any) => assignmentContr
 router.get('/assignments', asyncHandler((req: any, res: any) => assignmentController.list(req, res)))
 router.put('/assignments/:id', asyncHandler((req: any, res: any) => assignmentController.update(req, res)))
 
+// Users routes (Admin management)
+const usersController = container.get<any>('UsersController')
+router.get('/users', authenticate, asyncHandler((req: any, res: any) => usersController.list(req, res)))
+router.post('/users', authenticate, asyncHandler((req: any, res: any) => usersController.create(req, res)))
+router.patch('/users/:id', authenticate, asyncHandler((req: any, res: any) => usersController.update(req, res)))
+router.delete('/users/:id', authenticate, asyncHandler((req: any, res: any) => usersController.delete(req, res)))
+router.patch('/users/:id/lock', authenticate, asyncHandler((req: any, res: any) => usersController.toggleLock(req, res)))
+
 export default router

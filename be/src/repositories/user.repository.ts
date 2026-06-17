@@ -6,5 +6,7 @@ export const userRepository = {
   findMany: (where?: Prisma.UserWhereInput) => prisma.user.findMany({ where, orderBy: { createdAt: 'desc' } }),
   create: (data: Prisma.UserCreateInput) => prisma.user.create({ data }),
   update: (id: string, data: Prisma.UserUpdateInput) => prisma.user.update({ where: { id }, data }),
+  delete: (id: string) => prisma.user.delete({ where: { id } }),
   count: () => prisma.user.count(),
 }
+
