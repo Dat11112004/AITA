@@ -1,0 +1,28 @@
+# Enforce consistent line endings across all platforms.
+#
+# Why: this repo is developed on both Windows and WSL/Linux. Without these
+# rules the working tree can drift to CRLF on Windows while the repo stores
+# LF, making every file appear modified (CRLF<->LF churn) even with no real
+# changes. Declaring files as text with `eol=lf` makes git normalize on
+# commit and check files out with LF everywhere, so diffs only ever show
+# real content changes.
+
+# Default: auto-detect text vs binary; store and check out text as LF.
+* text=auto eol=lf
+
+# --- Binary assets: never normalize, never diff as text ---
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.bmp   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
