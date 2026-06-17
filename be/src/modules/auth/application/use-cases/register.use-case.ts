@@ -44,6 +44,7 @@ export class RegisterUseCase implements IUseCase<RegisterRequestDTO, LoginRespon
     const token = this.tokenGenerator({
       id: savedUser.id,
       email: savedUser.email,
+      fullName: savedUser.fullName,
       role: savedUser.role,
     })
 

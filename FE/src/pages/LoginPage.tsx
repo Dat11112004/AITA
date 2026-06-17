@@ -12,7 +12,7 @@ import type { UserRole } from '@/types'
 import { useLanguage } from '@/store/LanguageContext'
 import { useTheme } from '@/store/ThemeContext'
 
-const roleRedirect: Record<UserRole, string> = {
+const roleRedirect: Record<string, string> = {
   admin: '/admin', lecturer: '/lecturer', student: '/student',
 }
 
@@ -36,7 +36,8 @@ export function LoginPage() {
 
   const go = (role: UserRole) => {
     const r = params.get('redirect')
-    navigate(r?.startsWith(`/${role}`) ? r : roleRedirect[role])
+    const lowerRole = role.toLowerCase()
+    navigate(r?.startsWith(`/${lowerRole}`) ? r : roleRedirect[lowerRole])
   }
 
   const handleLogin = async (e: React.FormEvent) => {

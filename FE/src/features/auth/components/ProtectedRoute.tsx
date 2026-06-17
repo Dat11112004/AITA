@@ -29,8 +29,9 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
 
-  if (user.role !== allowedRole) {
-    const defaultPath = rolePath[user.role as UserRole] || '/'
+  const lowerRole = (user.role as string).toLowerCase() as UserRole
+  if (lowerRole !== allowedRole) {
+    const defaultPath = rolePath[lowerRole] || '/'
     return <Navigate to={defaultPath} replace />
   }
 

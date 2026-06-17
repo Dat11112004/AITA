@@ -13,7 +13,16 @@ import { UpdateClassUseCase } from '../../modules/classes/application/use-cases/
 import { DeleteClassUseCase } from '../../modules/classes/application/use-cases/delete-class.use-case.js'
 import { ClassController } from '../../modules/classes/presentation/controllers/class.controller.js'
 
+import { AssignmentRepository } from '../../modules/assignments/infrastructure/persistence/assignment.repository.js'
+import { AssignmentDomainService } from '../../modules/assignments/domain/services/assignment.domain.service.js'
+import { CreateAssignmentUseCase } from '../../modules/assignments/application/use-cases/create-assignment.use-case.js'
+import { ListAssignmentsUseCase } from '../../modules/assignments/application/use-cases/list-assignments.use-case.js'
+import { UpdateAssignmentUseCase } from '../../modules/assignments/application/use-cases/update-assignment.use-case.js'
+import { DeleteAssignmentUseCase } from '../../modules/assignments/application/use-cases/delete-assignment.use-case.js'
+import { AssignmentController } from '../../modules/assignments/presentation/controllers/assignment.controller.js'
+
 import { signToken } from '../../middleware/auth.js'
+import { logger } from './logger.js'
 
 export class DIContainer {
   private static instance: DIContainer
@@ -31,62 +40,98 @@ export class DIContainer {
   }
 
   private registerDependencies() {
-    // Auth Module
-    const userRepository = new UserRepository()
-    this.services.set('UserRepository', userRepository)
+    try {
+      // Auth Module
+      const userRepository = new UserRepository()
+      this.services.set('UserRepository', userRepository)
 
-    const authDomainService = new AuthDomainService()
-    this.services.set('AuthDomainService', authDomainService)
+      const authDomainService = new AuthDomainService()
+      this.services.set('AuthDomainService', authDomainService)
 
-    const loginUseCase = new LoginUseCase(
-      userRepository,
-      authDomainService,
-      (payload: any) => signToken(payload)
-    )
-    this.services.set('LoginUseCase', loginUseCase)
+      const loginUseCase = new LoginUseCase(
+        userRepository,
+        authDomainService,
+        (payload: any) => signToken(payload)
+      )
+      this.services.set('LoginUseCase', loginUseCase)
 
-    const registerUseCase = new RegisterUseCase(
-      userRepository,
-      authDomainService,
-      (payload: any) => signToken(payload)
-    )
-    this.services.set('RegisterUseCase', registerUseCase)
+      const registerUseCase = new RegisterUseCase(
+        userRepository,
+        authDomainService,
+        (payload: any) => signToken(payload)
+      )
+      this.services.set('RegisterUseCase', registerUseCase)
 
-    const getMeUseCase = new GetMeUseCase(userRepository)
-    this.services.set('GetMeUseCase', getMeUseCase)
+      const getMeUseCase = new GetMeUseCase(userRepository)
+      this.services.set('GetMeUseCase', getMeUseCase)
 
-    const authController = new AuthController(
-      loginUseCase,
-      registerUseCase,
-      getMeUseCase
-    )
-    this.services.set('AuthController', authController)
+      const authController = new AuthController(
+        loginUseCase,
+        registerUseCase,
+        getMeUseCase
+      )
+      this.services.set('AuthController', authController)
 
-    // Classes Module
-    const classRepository = new ClassRepository()
-    this.services.set('ClassRepository', classRepository)
+      // Classes Module
+      const classRepository = new ClassRepository()
+      this.services.set('ClassRepository', classRepository)
 
-    const classDomainService = new ClassDomainService()
-    this.services.set('ClassDomainService', classDomainService)
+      const classDomainService = new ClassDomainService()
+      this.services.set('ClassDomainService', classDomainService)
 
-    const createClassUseCase = new CreateClassUseCase(classRepository, classDomainService)
-    this.services.set('CreateClassUseCase', createClassUseCase)
+      const createClassUseCase = new CreateClassUseCase(classRepository, classDomainService)
+      this.services.set('CreateClassUseCase', createClassUseCase)
 
-    const listClassesUseCase = new ListClassesUseCase(classRepository)
-    this.services.set('ListClassesUseCase', listClassesUseCase)
+      const listClassesUseCase = new ListClassesUseCase(classRepository)
+      this.services.set('ListClassesUseCase', listClassesUseCase)
 
-    const updateClassUseCase = new UpdateClassUseCase(classRepository)
-    this.services.set('UpdateClassUseCase', updateClassUseCase)
+      const updateClassUseCase = new UpdateClassUseCase(classRepository)
+      this.services.set('UpdateClassUseCase', updateClassUseCase)
 
-    const deleteClassUseCase = new DeleteClassUseCase(classRepository)
-    this.services.set('DeleteClassUseCase', deleteClassUseCase)
+      const deleteClassUseCase = new DeleteClassUseCase(classRepository)
+      this.services.set('DeleteClassUseCase', deleteClassUseCase)
 
-    const classController = new ClassController(
-      createClassUseCase,
-      listClassesUseCase,
-      updateClassUseCase
-    )
-    this.services.set('ClassController', classController)
+      const classController = new ClassController(
+        createClassUseCase,
+        listClassesUseCase,
+        updateClassUseCase
+      )
+      this.services.set('ClassController', classController)
+
+      // Assignments Module
+      const assignmentRepository = new AssignmentRepository()
+      this.services.set('AssignmentRepository', assignmentRepository)
+
+      const assignmentDomainService = new AssignmentDomainService()
+      this.services.set('AssignmentDomainService', assignmentDomainService)
+
+      const createAssignmentUseCase = new CreateAssignmentUseCase(
+        assignmentRepository,
+        assignmentDomainService
+      )
+      this.services.set('CreateAssignmentUseCase', createAssignmentUseCase)
+
+      const listAssignmentsUseCase = new ListAssignmentsUseCase(assignmentRepository)
+      this.services.set('ListAssignmentsUseCase', listAssignmentsUseCase)
+
+      const updateAssignmentUseCase = new UpdateAssignmentUseCase(assignmentRepository)
+      this.services.set('UpdateAssignmentUseCase', updateAssignmentUseCase)
+
+      const deleteAssignmentUseCase = new DeleteAssignmentUseCase(assignmentRepository)
+      this.services.set('DeleteAssignmentUseCase', deleteAssignmentUseCase)
+
+      const assignmentController = new AssignmentController(
+        createAssignmentUseCase,
+        listAssignmentsUseCase,
+        updateAssignmentUseCase
+      )
+      this.services.set('AssignmentController', assignmentController)
+
+      logger.info('DI Container initialized successfully with all modules')
+    } catch (error) {
+      logger.error('DI Container initialization failed', error as Error)
+      throw error
+    }
   }
 
   get<T>(serviceName: string): T {

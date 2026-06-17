@@ -44,6 +44,8 @@ async function main() {
     },
   })
 
+
+
   const cls = await prisma.class.upsert({
     where: { code: 'PRJ301-SE1701' },
     update: {},

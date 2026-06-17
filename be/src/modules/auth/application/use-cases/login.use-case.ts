@@ -33,6 +33,7 @@ export class LoginUseCase implements IUseCase<LoginRequestDTO, LoginResponseDTO>
     const token = this.tokenGenerator({
       id: user.id,
       email: user.email,
+      fullName: user.fullName,
       role: user.role,
     })
 
