@@ -3,269 +3,779 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  LECTURER
-  STUDENT
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum AssignmentType {
-  QUIZ
-  CODING
-  GROUP
-}
-
-enum AssignmentStatus {
-  DRAFT
-  PENDING_AI_REVIEW
-  PUBLISHED
-  CLOSED
-}
-
-enum SubmissionStatus {
-  DRAFT
-  SUBMITTED
-  AI_GRADED
-  PUBLISHED
-}
-
-enum AIJobType {
-  EXERCISE_GENERATION
-  ASSESSMENT
-  LEARNING_FEEDBACK
-}
-
-enum AIJobStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  APPROVED
-  REJECTED
-}
-
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  fullName     String
-  externalId   String?
-  role         UserRole
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  taughtClasses Class[]             @relation("LecturerClasses")
-  enrollments   ClassEnrollment[]
-  submissions   Submission[]
-  activityLogs  ActivityLog[]
-  aiJobs        AIJob[]             @relation("AIJobCreator")
-  aiReviews     AIReview[]          @relation("AIReviewer")
-  contents      Content[]           @relation("UserContent")
-  threads       DiscussionThread[]  @relation("ThreadAuthor")
-  replies       DiscussionReply[]   @relation("ReplyAuthor")
+  Id                                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Email                                  String?                 @unique
+  PasswordHash                           String?
+  FullName                               String?
+  StudentCode                            String?
+  Phone                                  String?
+  Avatar                                 String?
+  Status                                 UserStatus?
+  LastLoginAt                            DateTime?               @db.Timestamptz(6)
+  AiUsageLog                             AiUsageLog[]
+  AuditLog                               AuditLog[]
+  Exam                                   Exam[]
+  ExamGenerationHistory                  ExamGenerationHistory[]
+  GradingSession                         GradingSession[]
+  ImportBatch                            ImportBatch[]
+  InstructorClass                        InstructorClass[]
+  Notification                           Notification[]
+  NotificationRecipient                  NotificationRecipient[]
+  PromptTemplate                         PromptTemplate[]
+  RefreshToken                           RefreshToken[]
+  StudentClass                           StudentClass[]
+  Submission_Submission_ReviewedByToUser Submission[]            @relation("Submission_ReviewedByToUser")
+  Submission_Submission_StudentIdToUser  Submission[]            @relation("Submission_StudentIdToUser")
+  UserRole                               UserRole[]
 }
 
 model Class {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  subject    String
-  semester   String
-  campus     String?
-  schedule   String?
-  lecturerId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  lecturer    User              @relation("LecturerClasses", fields: [lecturerId], references: [id])
-  enrollments ClassEnrollment[]
-  assignments Assignment[]
-  threads     DiscussionThread[]
-}
-
-model ClassEnrollment {
-  id        String   @id @default(cuid())
-  classId   String
-  studentId String
-  joinedAt  DateTime @default(now())
-
-  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([classId, studentId])
-}
-
-model Assignment {
-  id          String           @id @default(cuid())
-  classId     String
-  title       String
-  description String?
-  type        AssignmentType
-  status      AssignmentStatus @default(DRAFT)
-  dueAt       DateTime?
-  maxScore    Float            @default(10)
-  content     String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
-  submissions Submission[]
-  aiJobs      AIJob[]
+  Id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ClassCode       String?           @unique
+  SubjectId       String?           @db.Uuid
+  SemesterId      String?           @db.Uuid
+  Status          String?
+  Semester        Semester?         @relation(fields: [SemesterId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Subject         Subject?          @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  InstructorClass InstructorClass[]
+  StudentClass    StudentClass[]
+  Submission      Submission[]
 }
 
 model Submission {
-  id           String           @id @default(cuid())
-  assignmentId String
-  studentId    String
-  status       SubmissionStatus @default(DRAFT)
-  content      String?
-  language     String?
-  groupCode    String?
-  score        Float?
-  aiScore      Float?
-  aiFeedback   String?
-  submittedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  Id                               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId                           String?              @db.Uuid
+  StudentId                        String?              @db.Uuid
+  ClassId                          String?              @db.Uuid
+  AttemptNumber                    Int?
+  IsLatest                         Boolean?
+  SubmittedAt                      DateTime?            @db.Timestamptz(6)
+  ZipFileUrl                       String?
+  GradingStatus                    GradingStatus?
+  ReviewStatus                     ReviewStatus?
+  TotalScore                       Decimal?             @db.Decimal
+  FinalScore                       Decimal?             @db.Decimal
+  InstructorFeedback               String?
+  ReviewedBy                       String?              @db.Uuid
+  ReviewedAt                       DateTime?            @db.Timestamptz(6)
+  GradedAt                         DateTime?            @db.Timestamptz(6)
+  AiUsageLog                       AiUsageLog[]
+  ExecutionResult                  ExecutionResult[]
+  GradingSession                   GradingSession[]
+  Class                            Class?               @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Exam                             Exam?                @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User_Submission_ReviewedByToUser User?                @relation("Submission_ReviewedByToUser", fields: [ReviewedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User_Submission_StudentIdToUser  User?                @relation("Submission_StudentIdToUser", fields: [StudentId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  SubmissionArtifact               SubmissionArtifact[]
 
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  aiJobs     AIJob[]
-
-  @@unique([assignmentId, studentId])
-}
-
-model AIJob {
-  id           String      @id @default(cuid())
-  type         AIJobType
-  status       AIJobStatus @default(PENDING)
-  createdById  String
-  assignmentId String?
-  submissionId String?
-  input        String?
-  output       String?
-  errorMessage String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  createdBy  User        @relation("AIJobCreator", fields: [createdById], references: [id])
-  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  submission Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
-  review     AIReview?
-}
-
-model AIReview {
-  id         String    @id @default(cuid())
-  aiJobId    String    @unique
-  reviewerId String?
-  approved   Boolean?
-  note       String?
-  reviewedAt DateTime?
-
-  aiJob    AIJob @relation(fields: [aiJobId], references: [id], onDelete: Cascade)
-  reviewer User? @relation("AIReviewer", fields: [reviewerId], references: [id])
-}
-
-model LearningInsight {
-  id         String   @id @default(cuid())
-  studentId  String
-  topic      String
-  level      String
-  suggestion String?
-  createdAt  DateTime @default(now())
-
-  @@index([studentId])
-}
-
-model SystemSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
+  @@unique([StudentId, ExamId, ClassId, AttemptNumber], map: "Submission_StudentId_ExamId_ClassId_AttemptNumber_idx")
 }
 
 model Subject {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  name         String
-  difficulty   String
-  description  String
-  codeExamples String?
-  curriculum   String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model Content {
-  id        String   @id @default(cuid())
-  title     String
-  category  String
-  body      String
-  status    String   @default("draft")
-  authorId  String
-  publishAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  author User @relation("UserContent", fields: [authorId], references: [id])
+  Id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SubjectCode        String?              @unique
+  SubjectName        String?
+  Description        String?
+  IsActive           Boolean?
+  AssignmentTemplate AssignmentTemplate[]
+  Class              Class[]
+  Exam               Exam[]
+  PromptTemplate     PromptTemplate[]
+  SubjectProjectType SubjectProjectType[]
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  message   String
-  type      String
-  target    String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  Id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Title                 String?
+  Message               String?
+  Type                  String?
+  ReferenceId           String?                 @db.Uuid
+  ReferenceType         String?
+  CreatedBy             String?                 @db.Uuid
+  CreatedAt             DateTime?               @db.Timestamptz(6)
+  User                  User?                   @relation(fields: [CreatedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  NotificationRecipient NotificationRecipient[]
 }
 
-model DiscussionThread {
-  id        String   @id @default(cuid())
-  classId   String
-  title     String
-  content   String
-  authorId  String
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  class   Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
-  author  User              @relation("ThreadAuthor", fields: [authorId], references: [id])
-  replies DiscussionReply[]
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AiApiKey {
+  Id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Provider        String?
+  KeyValue        String?
+  Label           String?
+  IsActive        Boolean?
+  IsExhausted     Boolean?
+  LastUsedAt      DateTime? @db.Timestamptz(6)
+  TotalUsageCount Int?
 }
 
-model DiscussionReply {
-  id        String   @id @default(cuid())
-  threadId  String
-  content   String
-  authorId  String
-  createdAt DateTime @default(now())
-
-  thread DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author User             @relation("ReplyAuthor", fields: [authorId], references: [id])
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AiUsageLog {
+  Id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  UserId           String?     @db.Uuid
+  ExamId           String?     @db.Uuid
+  SubmissionId     String?     @db.Uuid
+  RequestId        String?
+  Provider         String?
+  ActionType       ActionType?
+  ModelUsed        String?
+  PromptTokens     Int?
+  CompletionTokens Int?
+  CostEstimate     Decimal?    @db.Decimal
+  DurationMs       Int?
+  IsSuccess        Boolean?
+  ErrorMessage     String?
+  CreatedAt        DateTime?   @db.Timestamptz(6)
+  Exam             Exam?       @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Submission       Submission? @relation(fields: [SubmissionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User             User?       @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model ActivityLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String
-  entity    String?
-  entityId  String?
-  metadata  String?
-  ip        String?
-  detail    String?
-  level     String   @default("info")
-  createdAt DateTime @default(now())
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AssignmentTemplate {
+  Id                      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SubjectId               String?         @db.Uuid
+  Name                    String?
+  Description             String?
+  AssignmentType          AssignmentType?
+  DefaultGradingProfileId String?         @db.Uuid
+  DefaultProjectTypeId    String?         @db.Uuid
+  SortOrder               Int?
+  IsActive                Boolean?
+  GradingProfile          GradingProfile? @relation(fields: [DefaultGradingProfileId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  ProjectType             ProjectType?    @relation(fields: [DefaultProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Subject                 Subject?        @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Exam                    Exam[]
+}
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model AuditLog {
+  Id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  EntityName String?
+  EntityId   String?      @db.Uuid
+  Action     AuditAction?
+  OldValue   String?
+  NewValue   String?
+  UserId     String?      @db.Uuid
+  IpAddress  String?
+  CreatedAt  DateTime?    @db.Timestamptz(6)
+  User       User?        @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model BuildArtifact {
+  Id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  GradingSessionId String?         @db.Uuid
+  BuildStatus      BuildStatus?
+  BuildLog         String?
+  DockerImageId    String?
+  ExecutablePath   String?
+  BuildHash        String?
+  DurationMs       Int?
+  GradingSession   GradingSession? @relation(fields: [GradingSessionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model CriterionScore {
+  Id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  RuleScoreId       String?          @db.Uuid
+  RubricCriterionId String?          @db.Uuid
+  AiScore           Decimal?         @db.Decimal
+  MaxScore          Decimal?         @db.Decimal
+  AiReasoning       String?
+  InstructorScore   Decimal?         @db.Decimal
+  IsOverridden      Boolean?
+  EffectiveScore    Decimal?         @db.Decimal
+  RubricCriterion   RubricCriterion? @relation(fields: [RubricCriterionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  RuleScore         RuleScore?       @relation(fields: [RuleScoreId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Evidence {
+  Id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  RuleScoreId  String?    @db.Uuid
+  EvidenceType String?
+  Content      String?
+  ImageUrl     String?
+  Caption      String?
+  RuleScore    RuleScore? @relation(fields: [RuleScoreId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Exam {
+  Id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Title                 String?
+  Description           String?
+  AssignmentTemplateId  String?                 @db.Uuid
+  ProjectTypeId         String?                 @db.Uuid
+  GradingProfileId      String?                 @db.Uuid
+  SubjectId             String?                 @db.Uuid
+  ExamType              ExamType?
+  Duration              Int?
+  TotalPoints           Decimal?                @db.Decimal
+  Status                ExamStatus?
+  SubmissionFormat      String?
+  AiGeneratedContent    String?
+  OriginalPrompt        String?
+  PromptTemplateId      String?                 @db.Uuid
+  CreatedBy             String?                 @db.Uuid
+  AiUsageLog            AiUsageLog[]
+  AssignmentTemplate    AssignmentTemplate?     @relation(fields: [AssignmentTemplateId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User                  User?                   @relation(fields: [CreatedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  GradingProfile        GradingProfile?         @relation(fields: [GradingProfileId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  ProjectType           ProjectType?            @relation(fields: [ProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  PromptTemplate        PromptTemplate?         @relation(fields: [PromptTemplateId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Subject               Subject?                @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  ExamAttachment        ExamAttachment[]
+  ExamGenerationHistory ExamGenerationHistory[]
+  ExamSection           ExamSection[]
+  ReferenceArtifact     ReferenceArtifact[]
+  SampleCode            SampleCode[]
+  Submission            Submission[]
+  TestCase              TestCase[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExamAttachment {
+  Id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId   String? @db.Uuid
+  FileName String?
+  FileUrl  String?
+  FileType String?
+  Exam     Exam?   @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExamGenerationHistory {
+  Id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId           String? @db.Uuid
+  Version          Int?
+  Prompt           String?
+  GeneratedContent String?
+  GeneratedBy      String? @db.Uuid
+  Exam             Exam?   @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User             User?   @relation(fields: [GeneratedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExamSection {
+  Id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId      String?      @db.Uuid
+  SectionCode String?
+  Title       String?
+  Description String?
+  MaxPoints   Decimal?     @db.Decimal
+  SortOrder   Int?
+  Exam        Exam?        @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  RubricRule  RubricRule[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExecutionResult {
+  Id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  GradingJobId   String?          @db.Uuid
+  SubmissionId   String?          @db.Uuid
+  EngineType     String?
+  ExecutionLabel String?
+  RawOutput      String?
+  Score          Decimal?         @db.Decimal
+  Status         ExecutionStatus?
+  StartedAt      DateTime?        @db.Timestamptz(6)
+  CompletedAt    DateTime?        @db.Timestamptz(6)
+  DurationMs     Int?
+  GradingJob     GradingJob?      @relation(fields: [GradingJobId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Submission     Submission?      @relation(fields: [SubmissionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  RuleScore      RuleScore[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GradingJob {
+  Id                                                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  GradingSessionId                                       String?             @db.Uuid
+  GradingProfileStepId                                   String?             @db.Uuid
+  Engine                                                 String?
+  Priority                                               Int?
+  Status                                                 JobStatus?
+  RetryCount                                             Int?
+  ErrorMessage                                           String?
+  StartedAt                                              DateTime?           @db.Timestamptz(6)
+  CompletedAt                                            DateTime?           @db.Timestamptz(6)
+  WorkerNodeId                                           String?
+  ExecutionResult                                        ExecutionResult[]
+  GradingProfileStep                                     GradingProfileStep? @relation(fields: [GradingProfileStepId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  GradingSession                                         GradingSession?     @relation(fields: [GradingSessionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  JobDependency_JobDependency_DependsOnJobIdToGradingJob JobDependency[]     @relation("JobDependency_DependsOnJobIdToGradingJob")
+  JobDependency_JobDependency_JobIdToGradingJob          JobDependency[]     @relation("JobDependency_JobIdToGradingJob")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GradingProfile {
+  Id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Name               String?
+  ProjectTypeId      String?              @db.Uuid
+  Description        String?
+  IsActive           Boolean?
+  AssignmentTemplate AssignmentTemplate[]
+  Exam               Exam[]
+  ProjectType        ProjectType?         @relation(fields: [ProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  GradingProfileStep GradingProfileStep[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GradingProfileStep {
+  Id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  GradingProfileId String?         @db.Uuid
+  EngineType       EngineType?
+  StepOrder        Int?
+  ConfigJson       String?
+  IsRequired       Boolean?
+  TimeoutSeconds   Int?
+  GradingJob       GradingJob[]
+  GradingProfile   GradingProfile? @relation(fields: [GradingProfileId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model GradingSession {
+  Id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SubmissionId     String?            @db.Uuid
+  Version          Int?
+  TriggeredBy      String?            @db.Uuid
+  TriggerReason    TriggerReason?
+  Status           SessionStatus?
+  TotalScore       Decimal?           @db.Decimal
+  StartedAt        DateTime?          @db.Timestamptz(6)
+  CompletedAt      DateTime?          @db.Timestamptz(6)
+  BuildArtifact    BuildArtifact[]
+  GradingJob       GradingJob[]
+  Submission       Submission?        @relation(fields: [SubmissionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User             User?              @relation(fields: [TriggeredBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  SandboxExecution SandboxExecution[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ImportBatch {
+  Id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  FileName     String?
+  FileUrl      String?
+  Status       String?
+  TotalRows    Int?
+  SuccessCount Int?
+  ErrorCount   Int?
+  ErrorDetails String?
+  ImportedBy   String? @db.Uuid
+  User         User?   @relation(fields: [ImportedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model InstructorClass {
+  UserId     String    @db.Uuid
+  ClassId    String    @db.Uuid
+  EnrolledAt DateTime? @db.Timestamptz(6)
+  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User       User      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([UserId, ClassId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model JobDependency {
+  JobId                                               String          @db.Uuid
+  DependsOnJobId                                      String          @db.Uuid
+  DependencyType                                      DependencyType?
+  GradingJob_JobDependency_DependsOnJobIdToGradingJob GradingJob      @relation("JobDependency_DependsOnJobIdToGradingJob", fields: [DependsOnJobId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  GradingJob_JobDependency_JobIdToGradingJob          GradingJob      @relation("JobDependency_JobIdToGradingJob", fields: [JobId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([JobId, DependsOnJobId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model NotificationRecipient {
+  Id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  NotificationId String?       @db.Uuid
+  UserId         String?       @db.Uuid
+  IsRead         Boolean?
+  ReadAt         DateTime?     @db.Timestamptz(6)
+  Notification   Notification? @relation(fields: [NotificationId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User           User?         @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ProjectType {
+  Id                                                                             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Code                                                                           String?                  @unique
+  DisplayName                                                                    String?
+  RequiresSandbox                                                                Boolean?
+  SandboxImage                                                                   String?
+  BuildCommand                                                                   String?
+  RunCommand                                                                     String?
+  AssignmentTemplate                                                             AssignmentTemplate[]
+  Exam                                                                           Exam[]
+  GradingProfile                                                                 GradingProfile[]
+  ProjectTypeComposition_ProjectTypeComposition_ChildProjectTypeIdToProjectType  ProjectTypeComposition[] @relation("ProjectTypeComposition_ChildProjectTypeIdToProjectType")
+  ProjectTypeComposition_ProjectTypeComposition_ParentProjectTypeIdToProjectType ProjectTypeComposition[] @relation("ProjectTypeComposition_ParentProjectTypeIdToProjectType")
+  PromptTemplate                                                                 PromptTemplate[]
+  SubjectProjectType                                                             SubjectProjectType[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ProjectTypeComposition {
+  ParentProjectTypeId                                                 String      @db.Uuid
+  ChildProjectTypeId                                                  String      @db.Uuid
+  Role                                                                String?
+  IsRequired                                                          Boolean?
+  SortOrder                                                           Int?
+  ProjectType_ProjectTypeComposition_ChildProjectTypeIdToProjectType  ProjectType @relation("ProjectTypeComposition_ChildProjectTypeIdToProjectType", fields: [ChildProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  ProjectType_ProjectTypeComposition_ParentProjectTypeIdToProjectType ProjectType @relation("ProjectTypeComposition_ParentProjectTypeIdToProjectType", fields: [ParentProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([ParentProjectTypeId, ChildProjectTypeId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model PromptTemplate {
+  Id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Name              String?
+  SubjectId         String?      @db.Uuid
+  ProjectTypeId     String?      @db.Uuid
+  Category          String?
+  TemplateContent   String?
+  PlaceholderSchema String?
+  IsDefault         Boolean?
+  IsActive          Boolean?
+  UsageCount        Int?
+  CreatedBy         String?      @db.Uuid
+  Exam              Exam[]
+  User              User?        @relation(fields: [CreatedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  ProjectType       ProjectType? @relation(fields: [ProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Subject           Subject?     @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ReferenceArtifact {
+  Id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId       String?                @db.Uuid
+  ArtifactType ReferenceArtifactType?
+  ExpectedFor  String?
+  FileName     String?
+  FileUrl      String?
+  Description  String?
+  SortOrder    Int?
+  Exam         Exam?                  @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RefreshToken {
+  Id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  UserId    String?   @db.Uuid
+  Token     String?
+  ExpiresAt DateTime? @db.Timestamptz(6)
+  IsRevoked Boolean?
+  User      User?     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Role {
+  Id       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  RoleName String?    @unique
+  UserRole UserRole[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RubricCriterion {
+  Id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  RubricRuleId     String?          @db.Uuid
+  Description      String?
+  MaxPoints        Decimal?         @db.Decimal
+  Weight           Decimal?         @db.Decimal
+  ValidationType   ValidationType?
+  ValidationConfig String?
+  IsCritical       Boolean?
+  SortOrder        Int?
+  CriterionScore   CriterionScore[]
+  RubricRule       RubricRule?      @relation(fields: [RubricRuleId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RubricRule {
+  Id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SectionId            String?           @db.Uuid
+  RuleCode             String?
+  Description          String?
+  MaxPoints            Decimal?          @db.Decimal
+  EvaluationPrompt     String?
+  ReferenceAnswer      String?
+  RequireImageEvidence Boolean?
+  RequireCodeEvidence  Boolean?
+  IsManualOnly         Boolean?
+  SortOrder            Int?
+  RubricCriterion      RubricCriterion[]
+  ExamSection          ExamSection?      @relation(fields: [SectionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  RuleScore            RuleScore[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model RuleScore {
+  Id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExecutionResultId String?          @db.Uuid
+  RubricRuleId      String?          @db.Uuid
+  AiScore           Decimal?         @db.Decimal
+  MaxScore          Decimal?         @db.Decimal
+  AiReasoning       String?
+  InstructorScore   Decimal?         @db.Decimal
+  InstructorComment String?
+  IsOverridden      Boolean?
+  EffectiveScore    Decimal?         @db.Decimal
+  CriterionScore    CriterionScore[]
+  Evidence          Evidence[]
+  ExecutionResult   ExecutionResult? @relation(fields: [ExecutionResultId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  RubricRule        RubricRule?      @relation(fields: [RubricRuleId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SampleCode {
+  Id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId      String? @db.Uuid
+  Language    String?
+  Code        String?
+  Explanation String?
+  Exam        Exam?   @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SandboxExecution {
+  Id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  GradingSessionId String?         @db.Uuid
+  ContainerId      String?
+  SandboxImage     String?
+  Status           SandboxStatus?
+  ExitCode         Int?
+  CpuTimeMs        BigInt?
+  PeakMemoryKb     BigInt?
+  NetworkDisabled  Boolean?
+  StartedAt        DateTime?       @db.Timestamptz(6)
+  FinishedAt       DateTime?       @db.Timestamptz(6)
+  RunLog           String?
+  GradingSession   GradingSession? @relation(fields: [GradingSessionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Semester {
+  Id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Code      String?   @unique
+  StartDate DateTime? @db.Timestamptz(6)
+  EndDate   DateTime? @db.Timestamptz(6)
+  IsActive  Boolean?
+  Class     Class[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model StudentClass {
+  UserId     String    @db.Uuid
+  ClassId    String    @db.Uuid
+  EnrolledAt DateTime? @db.Timestamptz(6)
+  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User       User      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([UserId, ClassId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubjectProjectType {
+  SubjectId     String      @db.Uuid
+  ProjectTypeId String      @db.Uuid
+  ProjectType   ProjectType @relation(fields: [ProjectTypeId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Subject       Subject     @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([SubjectId, ProjectTypeId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SubmissionArtifact {
+  Id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SubmissionId  String?       @db.Uuid
+  ArtifactType  ArtifactType?
+  ArtifactLabel String?
+  FileName      String?
+  FileUrl       String?
+  FileSizeBytes BigInt?
+  HashSha256    String?
+  ExtractedPath String?
+  MimeType      String?
+  Submission    Submission?   @relation(fields: [SubmissionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SystemConfig {
+  Key         String  @id
+  Value       String?
+  Description String?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model TestCase {
+  Id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ExamId         String?  @db.Uuid
+  Input          String?
+  ExpectedOutput String?
+  IsHidden       Boolean?
+  TimeoutMs      Int?
+  MemoryLimitMb  Int?
+  Points         Decimal? @db.Decimal
+  SortOrder      Int?
+  Exam           Exam?    @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model UserRole {
+  UserId     String    @db.Uuid
+  RoleId     String    @db.Uuid
+  AssignedAt DateTime? @db.Timestamptz(6)
+  Role       Role      @relation(fields: [RoleId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User       User      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([UserId, RoleId])
+}
+
+enum UserStatus {
+  Active
+  Inactive
+  Suspended
+}
+
+enum AssignmentType {
+  Coding
+  API
+  Fullstack
+  Mobile
+  Diagram
+  Algorithm
+  GameDev
+  WinForm
+}
+
+enum ActionType {
+  GenerateExam
+  GenerateRubric
+  GenerateTestCase
+  GradeSubmission
+}
+
+enum ArtifactType {
+  SourceCode
+  Screenshot
+  Video
+  APK
+  Build
+  Diagram
+  Document
+}
+
+enum AuditAction {
+  Created
+  Updated
+  Deleted
+  StatusChanged
+}
+
+enum BuildStatus {
+  Success
+  Failed
+  Timeout
+}
+
+enum DependencyType {
+  Hard
+  Soft
+}
+
+enum EngineType {
+  StaticAnalysis
+  DynamicTest
+  HttpProbe
+  AiCodeReview
+  AiVision
+  AiTextAnalysis
+  Manual
+}
+
+enum ExamStatus {
+  Draft
+  Published
+  Closed
+  Archived
+}
+
+enum ExamType {
+  Midterm
+  Final
+  Practice
+  Assignment
+}
+
+enum ExecutionStatus {
+  Completed
+  Failed
+}
+
+enum GradingStatus {
+  Pending
+  Queued
+  Grading
+  Graded
+  Error
+}
+
+enum JobStatus {
+  Queued
+  Waiting
+  Running
+  Completed
+  Failed
+  Cancelled
+}
+
+enum ReferenceArtifactType {
+  SourceCode
+  Screenshot
+  Architecture
+  ExpectedOutput
+  Video
+}
+
+enum ReviewStatus {
+  PendingReview
+  Reviewed
+  Disputed
+}
+
+enum SandboxStatus {
+  Running
+  Completed
+  Failed
+  Timeout
+  Killed
+}
+
+enum SessionStatus {
+  Running
+  Completed
+  Failed
+}
+
+enum TriggerReason {
+  Initial
+  Regrade
+  SystemRetry
+}
+
+enum ValidationType {
+  AI
+  Static
+  Http
+  Vision
+  TestCase
 }
