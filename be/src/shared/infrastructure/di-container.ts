@@ -1,32 +1,16 @@
-import { UserRepository } from '../../modules/auth/infrastructure/persistence/user.repository.js'
-import { AuthDomainService } from '../../modules/auth/domain/services/auth.domain.service.js'
-import { LoginUseCase } from '../../modules/auth/application/use-cases/login.use-case.js'
-import { RegisterUseCase } from '../../modules/auth/application/use-cases/register.use-case.js'
-import { GetMeUseCase } from '../../modules/auth/application/use-cases/get-me.use-case.js'
-import { AuthController } from '../../modules/auth/presentation/controllers/auth.controller.js'
-
-import { ClassRepository } from '../../modules/classes/infrastructure/persistence/class.repository.js'
-import { ClassDomainService } from '../../modules/classes/domain/services/class.domain.service.js'
-import { CreateClassUseCase } from '../../modules/classes/application/use-cases/create-class.use-case.js'
-import { ListClassesUseCase } from '../../modules/classes/application/use-cases/list-classes.use-case.js'
-import { UpdateClassUseCase } from '../../modules/classes/application/use-cases/update-class.use-case.js'
-import { DeleteClassUseCase } from '../../modules/classes/application/use-cases/delete-class.use-case.js'
-import { ClassController } from '../../modules/classes/presentation/controllers/class.controller.js'
-
-import { AssignmentRepository } from '../../modules/assignments/infrastructure/persistence/assignment.repository.js'
-import { AssignmentDomainService } from '../../modules/assignments/domain/services/assignment.domain.service.js'
-import { CreateAssignmentUseCase } from '../../modules/assignments/application/use-cases/create-assignment.use-case.js'
-import { ListAssignmentsUseCase } from '../../modules/assignments/application/use-cases/list-assignments.use-case.js'
-import { UpdateAssignmentUseCase } from '../../modules/assignments/application/use-cases/update-assignment.use-case.js'
-import { DeleteAssignmentUseCase } from '../../modules/assignments/application/use-cases/delete-assignment.use-case.js'
-import { AssignmentController } from '../../modules/assignments/presentation/controllers/assignment.controller.js'
-
-import { UsersController } from '../../controllers/users.controller.js'
-
-
-import { signToken } from '../../middleware/auth.js'
 import { logger } from './logger.js'
 
+// Legacy controllers (functions)
+import { login, registerStudent, me } from '../../controllers/auth.controller.js'
+import { list as listClasses, create as createClass } from '../../controllers/classes.controller.js'
+import { list as listAssignments, create as createAssignment, update as updateAssignment } from '../../controllers/assignments.controller.js'
+import { UsersController } from '../../controllers/users.controller.js'
+
+/**
+ * DI Container — wraps legacy services/controllers for backward compatibility.
+ * The legacy layer uses singleton services and function-based controllers.
+ * This container provides a unified interface for route handlers.
+ */
 export class DIContainer {
   private static instance: DIContainer
   private services: Map<string, any> = new Map()
@@ -44,99 +28,70 @@ export class DIContainer {
 
   private registerDependencies() {
     try {
-      // Auth Module
-      const userRepository = new UserRepository()
-      this.services.set('UserRepository', userRepository)
+      // Auth — wrap legacy functions as controller methods
+      this.services.set('AuthController', {
+        login: async (req: any, res: any) => {
+          try { await login(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        register: async (req: any, res: any) => {
+          try { await registerStudent(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        getMe: async (req: any, res: any) => {
+          try { await me(req, res) } catch (e) { this.handleError(e, res) }
+        },
+      })
 
-      const authDomainService = new AuthDomainService()
-      this.services.set('AuthDomainService', authDomainService)
+      // Classes — wrap legacy functions as controller methods
+      this.services.set('ClassController', {
+        list: async (req: any, res: any) => {
+          try { await listClasses(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        create: async (req: any, res: any) => {
+          try { await createClass(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        update: async (_req: any, res: any) => {
+          const { ok } = await import('../../utils/response.js')
+          ok(res, { message: 'Not implemented' })
+        },
+        delete: async (_req: any, res: any) => {
+          const { ok } = await import('../../utils/response.js')
+          ok(res, { message: 'Not implemented' })
+        },
+      })
 
-      const loginUseCase = new LoginUseCase(
-        userRepository,
-        authDomainService,
-        (payload: any) => signToken(payload)
-      )
-      this.services.set('LoginUseCase', loginUseCase)
+      // Assignments — wrap legacy functions as controller methods
+      this.services.set('AssignmentController', {
+        list: async (req: any, res: any) => {
+          try { await listAssignments(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        create: async (req: any, res: any) => {
+          try { await createAssignment(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        update: async (req: any, res: any) => {
+          try { await updateAssignment(req, res) } catch (e) { this.handleError(e, res) }
+        },
+        delete: async (_req: any, res: any) => {
+          const { ok } = await import('../../utils/response.js')
+          ok(res, { message: 'Not implemented' })
+        },
+      })
 
-      const registerUseCase = new RegisterUseCase(
-        userRepository,
-        authDomainService,
-        (payload: any) => signToken(payload)
-      )
-      this.services.set('RegisterUseCase', registerUseCase)
+      // Users — already a class
+      this.services.set('UsersController', new UsersController())
 
-      const getMeUseCase = new GetMeUseCase(userRepository)
-      this.services.set('GetMeUseCase', getMeUseCase)
-
-      const authController = new AuthController(
-        loginUseCase,
-        registerUseCase,
-        getMeUseCase
-      )
-      this.services.set('AuthController', authController)
-
-      // Classes Module
-      const classRepository = new ClassRepository()
-      this.services.set('ClassRepository', classRepository)
-
-      const classDomainService = new ClassDomainService()
-      this.services.set('ClassDomainService', classDomainService)
-
-      const createClassUseCase = new CreateClassUseCase(classRepository, classDomainService)
-      this.services.set('CreateClassUseCase', createClassUseCase)
-
-      const listClassesUseCase = new ListClassesUseCase(classRepository)
-      this.services.set('ListClassesUseCase', listClassesUseCase)
-
-      const updateClassUseCase = new UpdateClassUseCase(classRepository)
-      this.services.set('UpdateClassUseCase', updateClassUseCase)
-
-      const deleteClassUseCase = new DeleteClassUseCase(classRepository)
-      this.services.set('DeleteClassUseCase', deleteClassUseCase)
-
-      const classController = new ClassController(
-        createClassUseCase,
-        listClassesUseCase,
-        updateClassUseCase
-      )
-      this.services.set('ClassController', classController)
-
-      // Assignments Module
-      const assignmentRepository = new AssignmentRepository()
-      this.services.set('AssignmentRepository', assignmentRepository)
-
-      const assignmentDomainService = new AssignmentDomainService()
-      this.services.set('AssignmentDomainService', assignmentDomainService)
-
-      const createAssignmentUseCase = new CreateAssignmentUseCase(
-        assignmentRepository,
-        assignmentDomainService
-      )
-      this.services.set('CreateAssignmentUseCase', createAssignmentUseCase)
-
-      const listAssignmentsUseCase = new ListAssignmentsUseCase(assignmentRepository)
-      this.services.set('ListAssignmentsUseCase', listAssignmentsUseCase)
-
-      const updateAssignmentUseCase = new UpdateAssignmentUseCase(assignmentRepository)
-      this.services.set('UpdateAssignmentUseCase', updateAssignmentUseCase)
-
-      const deleteAssignmentUseCase = new DeleteAssignmentUseCase(assignmentRepository)
-      this.services.set('DeleteAssignmentUseCase', deleteAssignmentUseCase)
-
-      const assignmentController = new AssignmentController(
-        createAssignmentUseCase,
-        listAssignmentsUseCase,
-        updateAssignmentUseCase
-      )
-      this.services.set('AssignmentController', assignmentController)
-
-      const usersController = new UsersController()
-      this.services.set('UsersController', usersController)
-
-      logger.info('DI Container initialized successfully with all modules')
+      logger.info('DI Container initialized successfully with legacy services')
     } catch (error) {
       logger.error('DI Container initialization failed', error as Error)
       throw error
+    }
+  }
+
+  private handleError(error: unknown, res: any) {
+    if (error instanceof Error) {
+      const statusCode = (error as any).statusCode ?? 500
+      res.status(statusCode).json({ success: false, message: error.message })
+    } else {
+      res.status(500).json({ success: false, message: 'Internal server error' })
     }
   }
 

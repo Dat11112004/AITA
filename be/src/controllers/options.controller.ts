@@ -1,29 +1,27 @@
 import type { Request, Response } from 'express'
 import { prisma } from '../database/prisma.js'
 import { ok } from '../utils/response.js'
-import { mapUser } from '../utils/mappers.js'
 
 export async function classOptions(req: Request, res: Response) {
   const user = req.user!
-  let where = {}
+  let where: any = {}
 
-  if (user.role === 'LECTURER') where = { lecturerId: user.id }
+  if (user.role === 'LECTURER') {
+    where.InstructorClass = { some: { UserId: user.id } }
+  }
   if (user.role === 'STUDENT') {
-    const enrolled = await prisma.classEnrollment.findMany({
-      where: { studentId: user.id },
-      select: { classId: true },
-    })
-    where = { id: { in: enrolled.map((e: any) => e.classId) } }
+    where.StudentClass = { some: { UserId: user.id } }
   }
 
   const classes = await prisma.class.findMany({
     where,
-    orderBy: { code: 'asc' },
+    include: { Subject: true },
+    orderBy: { ClassCode: 'asc' },
   })
 
   ok(
     res,
-    classes.map((c: any) => ({ value: c.id, label: `${c.code} — ${c.name}` })),
+    classes.map((c) => ({ value: c.Id, label: `${c.ClassCode} — ${c.Subject?.SubjectName ?? c.ClassCode}` })),
   )
 }
 
@@ -31,34 +29,41 @@ export async function assignmentOptions(req: Request, res: Response) {
   const classId = req.query.classId as string | undefined
   const user = req.user!
 
-  const where: Record<string, unknown> = {}
-  if (classId) where.classId = classId
+  const where: Record<string, any> = {}
+  if (classId) where.SubjectId = classId
 
   if (user.role === 'LECTURER') {
-    const myIds = (
-      await prisma.class.findMany({ where: { lecturerId: user.id }, select: { id: true } })
-    ).map((c: any) => c.id)
-    where.classId = classId ? classId : { in: myIds }
+    const myClassIds = (
+      await prisma.class.findMany({
+        where: { InstructorClass: { some: { UserId: user.id } } },
+        select: { Id: true },
+      })
+    ).map((c) => c.Id)
+    where.SubjectId = classId ? classId : { in: myClassIds }
   }
 
   if (user.role === 'STUDENT') {
-    where.status = 'PUBLISHED'
-    const enrolled = await prisma.classEnrollment.findMany({
-      where: { studentId: user.id },
-      select: { classId: true },
+    where.Status = 'Published'
+    const enrolled = await prisma.studentClass.findMany({
+      where: { UserId: user.id },
+      select: { ClassId: true },
     })
-    const ids = enrolled.map((e: any) => e.classId)
-    where.classId = classId ? classId : { in: ids }
+    const ids = enrolled.map((e) => e.ClassId)
+    where.SubjectId = classId ? classId : { in: ids }
   }
 
-  const list = await prisma.assignment.findMany({ where, orderBy: { title: 'asc' } })
-  ok(res, list.map((a: any) => ({ value: a.id, label: a.title })))
+  const list = await prisma.exam.findMany({ where, orderBy: { Title: 'asc' } })
+  ok(res, list.map((a) => ({ value: a.Id, label: a.Title })))
 }
 
 export async function lecturerOptions(_req: Request, res: Response) {
   const lecturers = await prisma.user.findMany({
-    where: { role: 'LECTURER', status: 'ACTIVE' },
-    orderBy: { fullName: 'asc' },
+    where: {
+      UserRole: { some: { Role: { RoleName: 'LECTURER' } } },
+      Status: 'Active',
+    },
+    include: { UserRole: { include: { Role: true } } },
+    orderBy: { FullName: 'asc' },
   })
-  ok(res, lecturers.map((u: any) => ({ value: u.id, label: mapUser(u).name })))
+  ok(res, lecturers.map((u) => ({ value: u.Id, label: u.FullName })))
 }

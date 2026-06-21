@@ -27,6 +27,7 @@ model User {
   Notification                           Notification[]
   NotificationRecipient                  NotificationRecipient[]
   PromptTemplate                         PromptTemplate[]
+  OAuthIdentity                          OAuthIdentity[]
   RefreshToken                           RefreshToken[]
   StudentClass                           StudentClass[]
   Submission_Submission_ReviewedByToUser Submission[]            @relation("Submission_ReviewedByToUser")
@@ -467,7 +468,8 @@ model ReferenceArtifact {
   Exam         Exam?                  @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+
+
 model RefreshToken {
   Id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   UserId    String?   @db.Uuid

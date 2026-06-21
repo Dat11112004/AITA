@@ -7,6 +7,7 @@ import { AboutPage } from '@/pages/home/AboutPage'
 import { FeaturesPage } from '@/pages/home/FeaturesPage'
 import { PillarsPage } from '@/pages/home/PillarsPage'
 import { LoginPage } from '@/pages/LoginPage'
+
 import { ADMIN_NAV, LECTURER_NAV, STUDENT_NAV } from '@/constants/navigation'
 import { AdminOverview } from '@/pages/admin/AdminOverview'
 import { AdminUsers } from '@/pages/admin/AdminUsers'
@@ -50,6 +51,7 @@ export function AppRoutes() {
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
+
 
       <Route
         path="/admin"

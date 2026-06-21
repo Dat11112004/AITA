@@ -13,18 +13,18 @@ const DEFAULTS: Record<string, string> = {
 }
 
 export async function getAll(_req: Request, res: Response) {
-  const rows = await prisma.systemSetting.findMany()
-  const settings = { ...DEFAULTS, ...Object.fromEntries(rows.map((r: any) => [r.key, r.value])) }
+  const rows = await prisma.systemConfig.findMany()
+  const settings = { ...DEFAULTS, ...Object.fromEntries(rows.map((r) => [r.Key, r.Value])) }
   ok(res, settings)
 }
 
 export async function update(req: Request, res: Response) {
   const body = req.body as Record<string, string>
   for (const [key, value] of Object.entries(body)) {
-    await prisma.systemSetting.upsert({
-      where: { key },
-      create: { key, value: String(value) },
-      update: { value: String(value) },
+    await prisma.systemConfig.upsert({
+      where: { Key: key },
+      create: { Key: key, Value: String(value) },
+      update: { Value: String(value) },
     })
   }
   ok(res, body)

@@ -4,8 +4,11 @@ import { loginSchema, registerStudentSchema } from '../validations/auth.validati
 import { ok } from '../utils/response.js'
 
 export async function login(req: Request, res: Response) {
+  console.log('Auth Controller: Login request received.')
   const payload = loginSchema.parse(req.body)
+  console.log('Auth Controller: Payload parsed:', payload.email)
   const result = await authService.login(payload)
+  console.log('Auth Controller: Login service returned result.')
   ok(res, result)
 }
 

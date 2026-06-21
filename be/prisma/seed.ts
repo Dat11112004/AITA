@@ -8,164 +8,166 @@ async function main() {
 
   const hash = (p: string) => bcrypt.hash(p, 10)
 
+  // Create roles first
+  const adminRole = await prisma.role.upsert({
+    where: { RoleName: 'ADMIN' },
+    update: {},
+    create: { RoleName: 'ADMIN' },
+  })
+
+  const lecturerRole = await prisma.role.upsert({
+    where: { RoleName: 'LECTURER' },
+    update: {},
+    create: { RoleName: 'LECTURER' },
+  })
+
+  const studentRole = await prisma.role.upsert({
+    where: { RoleName: 'STUDENT' },
+    update: {},
+    create: { RoleName: 'STUDENT' },
+  })
+
+  // Create users
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@fpt.edu.vn' },
+    where: { Email: 'admin@fpt.edu.vn' },
     update: {},
     create: {
-      email: 'admin@fpt.edu.vn',
-      passwordHash: await hash('admin123'),
-      fullName: 'Quản trị AITA',
-      externalId: 'ADM001',
-      role: 'ADMIN',
+      Email: 'admin@fpt.edu.vn',
+      PasswordHash: await hash('admin123'),
+      FullName: 'Quản trị AITA',
+      StudentCode: 'ADM001',
+      Status: 'Active',
     },
   })
 
   const lecturer = await prisma.user.upsert({
-    where: { email: 'lecturer@fpt.edu.vn' },
+    where: { Email: 'lecturer@fpt.edu.vn' },
     update: {},
     create: {
-      email: 'lecturer@fpt.edu.vn',
-      passwordHash: await hash('lecturer123'),
-      fullName: 'Nguyễn Văn Giảng',
-      externalId: 'GV001',
-      role: 'LECTURER',
+      Email: 'lecturer@fpt.edu.vn',
+      PasswordHash: await hash('lecturer123'),
+      FullName: 'Nguyễn Văn Giảng',
+      StudentCode: 'GV001',
+      Status: 'Active',
     },
   })
 
   const student = await prisma.user.upsert({
-    where: { email: 'student@fpt.edu.vn' },
+    where: { Email: 'student@fpt.edu.vn' },
     update: {},
     create: {
-      email: 'student@fpt.edu.vn',
-      passwordHash: await hash('student123'),
-      fullName: 'Trần Thị Sinh',
-      externalId: 'HE170001',
-      role: 'STUDENT',
+      Email: 'student@fpt.edu.vn',
+      PasswordHash: await hash('student123'),
+      FullName: 'Trần Thị Sinh',
+      StudentCode: 'HE170001',
+      Status: 'Active',
     },
   })
 
+  // Assign roles
+  await prisma.userRole.upsert({
+    where: { UserId_RoleId: { UserId: admin.Id, RoleId: adminRole.Id } },
+    update: {},
+    create: { UserId: admin.Id, RoleId: adminRole.Id },
+  })
 
+  await prisma.userRole.upsert({
+    where: { UserId_RoleId: { UserId: lecturer.Id, RoleId: lecturerRole.Id } },
+    update: {},
+    create: { UserId: lecturer.Id, RoleId: lecturerRole.Id },
+  })
 
+  await prisma.userRole.upsert({
+    where: { UserId_RoleId: { UserId: student.Id, RoleId: studentRole.Id } },
+    update: {},
+    create: { UserId: student.Id, RoleId: studentRole.Id },
+  })
+
+  // Create subject
+  const subject = await prisma.subject.upsert({
+    where: { SubjectCode: 'PRJ301' },
+    update: {},
+    create: {
+      SubjectCode: 'PRJ301',
+      SubjectName: 'Java Web Application Development',
+      Description: 'Xây dựng ứng dụng web với Java',
+      IsActive: true,
+    },
+  })
+
+  // Create semester
+  const semester = await prisma.semester.upsert({
+    where: { Code: 'Spring 2026' },
+    update: {},
+    create: {
+      Code: 'Spring 2026',
+      StartDate: new Date('2026-01-15'),
+      EndDate: new Date('2026-05-30'),
+      IsActive: true,
+    },
+  })
+
+  // Create class
   const cls = await prisma.class.upsert({
-    where: { code: 'PRJ301-SE1701' },
+    where: { ClassCode: 'PRJ301-SE1701' },
     update: {},
     create: {
-      code: 'PRJ301-SE1701',
-      name: 'Java Web Application Development',
-      subject: 'PRJ301',
-      semester: 'Spring 2026',
-      campus: 'Hà Nội',
-      schedule: 'T2, T5 (13:30-15:50)',
-      lecturerId: lecturer.id,
+      ClassCode: 'PRJ301-SE1701',
+      SubjectId: subject.Id,
+      SemesterId: semester.Id,
+      Status: 'Active',
     },
   })
 
-  await prisma.classEnrollment.upsert({
-    where: { classId_studentId: { classId: cls.id, studentId: student.id } },
+  // Assign instructor to class
+  await prisma.instructorClass.upsert({
+    where: { UserId_ClassId: { UserId: lecturer.Id, ClassId: cls.Id } },
     update: {},
-    create: { classId: cls.id, studentId: student.id },
+    create: { UserId: lecturer.Id, ClassId: cls.Id },
   })
 
-  await prisma.assignment.upsert({
-    where: { id: 'seed-assignment-coding' },
+  // Enroll student in class
+  await prisma.studentClass.upsert({
+    where: { UserId_ClassId: { UserId: student.Id, ClassId: cls.Id } },
     update: {},
-    create: {
-      id: 'seed-assignment-coding',
-      classId: cls.id,
-      title: 'Lab 1: REST API cơ bản',
-      description: 'Xây dựng CRUD API với Express.',
-      type: 'CODING',
-      status: 'PUBLISHED',
-      dueAt: new Date(Date.now() + 7 * 86400000),
-      maxScore: 10,
-      content: JSON.stringify({ language: 'javascript' }),
+    create: { UserId: student.Id, ClassId: cls.Id },
+  })
+
+  // Create exams (assignments)
+  await prisma.exam.create({
+    data: {
+      Title: 'Lab 1: REST API cơ bản',
+      Description: 'Xây dựng CRUD API với Express.',
+      SubjectId: subject.Id,
+      ExamType: 'Assignment',
+      Status: 'Published',
+      Duration: 7 * 24 * 60, // 7 days in minutes
+      TotalPoints: 10,
+      CreatedBy: lecturer.Id,
     },
   })
 
-  await prisma.assignment.upsert({
-    where: { id: 'seed-assignment-quiz' },
-    update: {},
-    create: {
-      id: 'seed-assignment-quiz',
-      classId: cls.id,
-      title: 'Quiz: OOP & Design Patterns',
-      description: 'Trắc nghiệm 10 câu.',
-      type: 'QUIZ',
-      status: 'PUBLISHED',
-      dueAt: new Date(Date.now() + 14 * 86400000),
-      maxScore: 10,
+  await prisma.exam.create({
+    data: {
+      Title: 'Quiz: OOP & Design Patterns',
+      Description: 'Trắc nghiệm 10 câu.',
+      SubjectId: subject.Id,
+      ExamType: 'Midterm',
+      Status: 'Published',
+      Duration: 14 * 24 * 60,
+      TotalPoints: 10,
+      CreatedBy: lecturer.Id,
     },
   })
 
-  await prisma.learningInsight.deleteMany({ where: { studentId: student.id } })
-  await prisma.learningInsight.createMany({
-    data: [
-      { studentId: student.id, topic: 'OOP & Design Patterns', level: 'weak', suggestion: 'Ôn lại SOLID' },
-      { studentId: student.id, topic: 'REST API', level: 'medium' },
-      { studentId: student.id, topic: 'Unit Testing', level: 'weak' },
-      { studentId: student.id, topic: 'Git & Teamwork', level: 'strong' },
-    ],
-  })
-
-  const settings = [
-    ['appName', 'AITA'],
-    ['organization', 'FPT University'],
-    ['sessionTimeout', '60'],
-    ['aiStubMode', 'true'],
-    ['aiTimeout', '60'],
-  ]
-  for (const [key, value] of settings) {
-    await prisma.systemSetting.upsert({
-      where: { key },
-      create: { key, value },
-      update: { value },
-    })
-  }
-
-  const codingAssignment = await prisma.assignment.findFirst({
-    where: { id: 'seed-assignment-coding' },
-  })
-
-  if (codingAssignment) {
-    await prisma.submission.upsert({
-      where: {
-        assignmentId_studentId: {
-          assignmentId: codingAssignment.id,
-          studentId: student.id,
-        },
-      },
-      update: {},
-      create: {
-        assignmentId: codingAssignment.id,
-        studentId: student.id,
-        status: 'SUBMITTED',
-        content: 'const express = require("express");\nconst app = express();\n// TODO\n',
-        language: 'javascript',
-        submittedAt: new Date(),
-      },
-    })
-  }
-
-  await prisma.activityLog.createMany({
-    data: [
-      {
-        userId: admin.id,
-        action: 'SYSTEM_SEED',
-        entity: 'Database',
-        metadata: JSON.stringify({ users: 3, classes: 1 }),
-      },
-      {
-        userId: lecturer.id,
-        action: 'CLASS_CREATE',
-        entity: 'Class',
-        entityId: cls.id,
-      },
-      {
-        userId: student.id,
-        action: 'SUBMISSION_CREATE',
-        entity: 'Submission',
-      },
-    ],
+  // Create audit log
+  await prisma.auditLog.create({
+    data: {
+      UserId: admin.Id,
+      Action: 'Created',
+      EntityName: 'Database',
+      NewValue: JSON.stringify({ users: 3, classes: 1 }),
+    },
   })
 
   console.log('✅ Seed xong!')

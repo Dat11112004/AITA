@@ -7,20 +7,20 @@ export async function adminReport(req: Request, res: Response) {
   const days = period === '7d' ? 7 : period === 'semester' ? 120 : 30
   const since = new Date(Date.now() - days * 86400000)
 
-  const [users, classes, aiJobs, submissions, logs] = await Promise.all([
+  const [users, classes, exams, submissions, logs] = await Promise.all([
     prisma.user.count(),
     prisma.class.count(),
-    prisma.aIJob.count({ where: { createdAt: { gte: since } } }),
-    prisma.submission.count({ where: { createdAt: { gte: since } } }),
-    prisma.activityLog.count({ where: { createdAt: { gte: since } } }),
+    prisma.exam.count({ where: { Id: { not: undefined } } }),
+    prisma.submission.count({ where: { SubmittedAt: { gte: since } } }),
+    prisma.auditLog.count({ where: { CreatedAt: { gte: since } } }),
   ])
 
   ok(res, {
     period,
-    summary: { users, classes, aiJobs, submissions, activityLogs: logs },
+    summary: { users, classes, exams, submissions, auditLogs: logs },
     chart: {
-      labels: ['Users', 'Classes', 'AI Jobs', 'Submissions'],
-      values: [users, classes, aiJobs, submissions],
+      labels: ['Users', 'Classes', 'Exams', 'Submissions'],
+      values: [users, classes, exams, submissions],
     },
   })
 }

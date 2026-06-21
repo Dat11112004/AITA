@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import type { UserRole } from '@prisma/client'
 import { env } from '../config/env.js'
 import { unauthorized, forbidden } from '../utils/errors.js'
 import type { AuthUser } from '../types/express.js'
@@ -8,7 +7,7 @@ import type { AuthUser } from '../types/express.js'
 interface JwtPayload {
   sub: string
   email: string
-  role: UserRole
+  role: string
   fullName: string
 }
 
@@ -24,7 +23,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
   }
 }
 
-export function requireRoles(...roles: UserRole[]) {
+export function requireRoles(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) return next(unauthorized())
     if (!roles.includes(req.user.role)) return next(forbidden())

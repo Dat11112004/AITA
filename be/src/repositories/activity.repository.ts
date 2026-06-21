@@ -1,11 +1,21 @@
 import { prisma, Prisma } from '../database/prisma.js'
 
 export const activityRepository = {
-  create: (data: Prisma.ActivityLogUncheckedCreateInput) => prisma.activityLog.create({ data }),
-  findMany: (take: number = 20) => prisma.activityLog.findMany({
-    take,
-    orderBy: { createdAt: 'desc' },
-    include: { user: { select: { fullName: true, email: true } } },
-  }),
-  count: (where?: Prisma.ActivityLogWhereInput) => prisma.activityLog.count({ where }),
+  create: (data: { userId?: string; action: string; entity: string; entityId?: string; metadata?: string }) =>
+    prisma.auditLog.create({
+      data: {
+        UserId: data.userId,
+        Action: data.action as any,
+        EntityName: data.entity,
+        EntityId: data.entityId,
+        NewValue: data.metadata,
+      },
+    }),
+  findMany: (take: number = 20) =>
+    prisma.auditLog.findMany({
+      take,
+      orderBy: { CreatedAt: 'desc' },
+      include: { User: true },
+    }),
+  count: (where?: Prisma.AuditLogWhereInput) => prisma.auditLog.count({ where }),
 }

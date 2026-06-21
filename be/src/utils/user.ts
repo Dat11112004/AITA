@@ -1,11 +1,14 @@
-import type { User } from '@prisma/client'
+import type { User as PrismaUser, UserRole as PrismaUserRole, Role } from '@prisma/client'
 
-export function toPublicUser(u: User) {
-  const { passwordHash: _, ...rest } = u
+type UserWithRoles = PrismaUser & { UserRole: (PrismaUserRole & { Role: Role })[] }
+
+export function toPublicUser(u: UserWithRoles) {
+  const { PasswordHash: _, ...rest } = u
+  const primaryRole = u.UserRole?.[0]?.Role?.RoleName ?? 'STUDENT'
   return {
     ...rest,
-    name: u.fullName,
-    role: u.role.toLowerCase(),
-    status: u.status.toLowerCase(),
+    name: u.FullName,
+    role: primaryRole.toLowerCase(),
+    status: u.Status?.toLowerCase() ?? 'active',
   }
 }

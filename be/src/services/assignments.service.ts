@@ -1,94 +1,94 @@
-import type { AssignmentType, AssignmentStatus } from '@prisma/client'
 import type { AuthUser } from '../types/express.js'
 import { assignmentRepository } from '../repositories/assignment.repository.js'
 import { classRepository, enrollmentRepository } from '../repositories/class.repository.js'
-import { prisma } from '../database/prisma.js'
-import { forbidden, notFound } from '../utils/errors.js'
-import { mapAssignment } from '../utils/mappers.js'
+import { notFound } from '../utils/errors.js'
 import type { createAssignmentSchema, updateAssignmentSchema } from '../validations/assignments.validation.js'
 import type { z } from 'zod'
 
-const typeMap: Record<string, AssignmentType> = {
-  quiz: 'QUIZ',
-  coding: 'CODING',
-  group: 'GROUP',
-  QUIZ: 'QUIZ',
-  CODING: 'CODING',
-  GROUP: 'GROUP',
-}
-
 export const assignmentsService = {
   async list(user: AuthUser, params: { classId?: string; status?: string; type?: string; tab?: string }) {
-    const { classId, status, type, tab } = params
+    const { classId, status, type } = params
     const where: Record<string, unknown> = {}
-    if (classId) where.classId = classId
-    if (type && type !== 'all') where.type = typeMap[type] ?? type
-    if (status) where.status = String(status).toUpperCase()
-
-    if (tab === 'active' || tab === 'overdue') where.status = 'PUBLISHED'
+    if (classId) where.SubjectId = classId
+    if (type) where.ExamType = String(type).toUpperCase()
+    if (status) where.Status = String(status).toUpperCase()
 
     let list = await assignmentRepository.findMany(where as any)
 
     if (user.role === 'LECTURER') {
-      const myClassIds = (await classRepository.findMany({ lecturerId: user.id })).map((c: any) => c.id)
-      list = list.filter((a: any) => myClassIds.includes(a.classId))
+      const myClassIds = (await classRepository.findMany({ InstructorClass: { some: { UserId: user.id } } })).map((c: any) => c.Id)
+      list = list.filter((a: any) => myClassIds.includes(a.SubjectId))
     }
 
     if (user.role === 'STUDENT') {
-      const enrolled = await enrollmentRepository.findMany({ studentId: user.id })
-      const ids = new Set(enrolled.map((e: any) => e.classId))
-      list = list.filter((a: any) => ids.has(a.classId) && a.status === 'PUBLISHED')
-
-      if (tab === 'submitted' || tab === 'graded') {
-        const subs = await prisma.submission.findMany({ where: { studentId: user.id } })
-        const subMap = new Map(subs.map((s: any) => [s.assignmentId, s]))
-        list = list.filter((a: any) => {
-          const sub = subMap.get(a.id) as any
-          if (tab === 'submitted') return sub && sub.status === 'SUBMITTED'
-          if (tab === 'graded') return sub && (sub.status === 'AI_GRADED' || sub.status === 'PUBLISHED')
-          return true
-        })
-      }
-      if (tab === 'overdue') {
-        list = list.filter((a: any) => a.dueAt && a.dueAt < new Date())
-      }
+      const enrolled = await enrollmentRepository.findMany({ UserId: user.id })
+      const ids = new Set(enrolled.map((e: any) => e.ClassId))
+      list = list.filter((a: any) => ids.has(a.SubjectId) && a.Status === 'Published')
     }
 
-    return list.map(mapAssignment)
+    return list.map((a: any) => ({
+      id: a.Id,
+      title: a.Title,
+      description: a.Description,
+      type: a.ExamType?.toLowerCase(),
+      status: a.Status?.toLowerCase(),
+      subjectId: a.SubjectId,
+      maxScore: a.TotalPoints,
+      dueAt: a.Duration,
+      createdAt: a.Id,
+    }))
   },
 
   async create(payload: z.infer<typeof createAssignmentSchema>) {
     const assignment = await assignmentRepository.create({
-      classId: payload.classId,
-      title: payload.title,
-      description: payload.description,
-      type: typeMap[payload.type.toLowerCase()] ?? (payload.type as AssignmentType),
-      dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
-      maxScore: payload.maxScore ?? 10,
-      content: payload.content ? JSON.stringify(payload.content) : null,
-      status: (payload.status?.toUpperCase() as AssignmentStatus) ?? 'DRAFT',
+      Title: payload.title,
+      Description: payload.description,
+      SubjectId: payload.classId,
+      ExamType: (payload.type?.toUpperCase() as any) ?? 'Assignment',
+      Status: 'Draft',
+      TotalPoints: payload.maxScore ?? 10,
+      Duration: payload.dueAt ? Math.floor((new Date(payload.dueAt).getTime() - Date.now()) / 60000) : undefined,
     })
-    return mapAssignment(assignment)
+
+    return {
+      id: assignment.Id,
+      title: assignment.Title,
+      description: assignment.Description,
+      type: assignment.ExamType?.toLowerCase(),
+      status: assignment.Status?.toLowerCase(),
+    }
   },
 
-  async update(id: string, payload: z.infer<typeof updateAssignmentSchema>, user: AuthUser) {
+  async update(id: string, payload: z.infer<typeof updateAssignmentSchema>, _user: AuthUser) {
     const a = await assignmentRepository.findById(id)
     if (!a) throw notFound()
-    if (user.role === 'LECTURER' && a.class.lecturerId !== user.id) throw forbidden()
-    
+
     const updated = await assignmentRepository.update(id, {
-      title: payload.title,
-      description: payload.description,
-      status: payload.status ? (String(payload.status).toUpperCase() as AssignmentStatus) : undefined,
-      dueAt: payload.dueAt ? new Date(String(payload.dueAt)) : undefined,
-      content: payload.content !== undefined ? JSON.stringify(payload.content) : undefined,
+      Title: payload.title,
+      Description: payload.description,
+      Status: payload.status ? String(payload.status).toUpperCase() as any : undefined,
     })
-    return mapAssignment(updated)
+
+    return {
+      id: updated.Id,
+      title: updated.Title,
+      description: updated.Description,
+      type: updated.ExamType?.toLowerCase(),
+      status: updated.Status?.toLowerCase(),
+    }
   },
 
   async getOne(id: string) {
     const a = await assignmentRepository.findById(id)
     if (!a) throw notFound()
-    return mapAssignment(a)
-  }
+    return {
+      id: a.Id,
+      title: a.Title,
+      description: a.Description,
+      type: a.ExamType?.toLowerCase(),
+      status: a.Status?.toLowerCase(),
+      subjectId: a.SubjectId,
+      maxScore: a.TotalPoints,
+    }
+  },
 }

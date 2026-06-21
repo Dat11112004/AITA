@@ -1,23 +1,43 @@
 import { prisma, Prisma } from '../database/prisma.js'
 
 export const assignmentRepository = {
-  findMany: (where?: Prisma.AssignmentWhereInput) => prisma.assignment.findMany({
-    where,
-    include: { class: true, _count: { select: { submissions: true } } },
-    orderBy: { createdAt: 'desc' },
-  }),
-  findById: (id: string) => prisma.assignment.findUnique({ 
-    where: { id },
-    include: { class: true, _count: { select: { submissions: true } } }, 
-  }),
-  create: (data: Prisma.AssignmentUncheckedCreateInput) => prisma.assignment.create({ 
-    data,
-    include: { class: true, _count: { select: { submissions: true } } },
-  }),
-  update: (id: string, data: Prisma.AssignmentUpdateInput) => prisma.assignment.update({ 
-    where: { id }, 
-    data,
-    include: { class: true, _count: { select: { submissions: true } } },
-  }),
-  count: (where?: Prisma.AssignmentWhereInput) => prisma.assignment.count({ where }),
+  findMany: (where?: Prisma.ExamWhereInput) =>
+    prisma.exam.findMany({
+      where,
+      include: {
+        Subject: true,
+        AssignmentTemplate: true,
+        _count: { select: { Submission: true } },
+      },
+      orderBy: { Id: 'desc' },
+    }),
+  findById: (id: string) =>
+    prisma.exam.findUnique({
+      where: { Id: id },
+      include: {
+        Subject: true,
+        AssignmentTemplate: true,
+        _count: { select: { Submission: true } },
+      },
+    }),
+  create: (data: Prisma.ExamUncheckedCreateInput) =>
+    prisma.exam.create({
+      data,
+      include: {
+        Subject: true,
+        AssignmentTemplate: true,
+        _count: { select: { Submission: true } },
+      },
+    }),
+  update: (id: string, data: Prisma.ExamUpdateInput) =>
+    prisma.exam.update({
+      where: { Id: id },
+      data,
+      include: {
+        Subject: true,
+        AssignmentTemplate: true,
+        _count: { select: { Submission: true } },
+      },
+    }),
+  count: (where?: Prisma.ExamWhereInput) => prisma.exam.count({ where }),
 }

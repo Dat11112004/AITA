@@ -1,6 +1,4 @@
-import { AIJobStatus, AIJobType } from '@prisma/client'
 import { env } from '../config/env.js'
-import { prisma } from '../database/prisma.js'
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -18,7 +16,6 @@ export const aiService = {
       }
     }
 
-    // Call real Python AI Microservice
     console.log('🚀 Calling Python AI Service -> /generate-exercise')
     const response = await fetch(`${env.AI_ENDPOINT}/generate-exercise`, {
       method: 'POST',
@@ -61,7 +58,6 @@ export const aiService = {
       }
     }
 
-    // Call real Python AI Microservice
     console.log('🚀 Calling Python AI Service -> /assess')
     const response = await fetch(`${env.AI_ENDPOINT}/assess`, {
       method: 'POST',
@@ -96,7 +92,6 @@ export const aiService = {
       }
     }
 
-    // Call real Python AI Microservice
     console.log('🚀 Calling Python AI Service -> /learning-feedback')
     const response = await fetch(`${env.AI_ENDPOINT}/learning-feedback`, {
       method: 'POST',
@@ -112,74 +107,7 @@ export const aiService = {
     return response.json()
   },
 
-  async runJob(jobId: string) {
-    const job = await prisma.aIJob.findUnique({
-      where: { id: jobId },
-      include: { submission: { include: { assignment: true } } },
-    })
-    if (!job) return
-
-    await prisma.aIJob.update({ where: { id: jobId }, data: { status: AIJobStatus.PROCESSING } })
-    try {
-      const input = job.input ? JSON.parse(job.input) : {}
-      let output: object
-      if (job.type === AIJobType.EXERCISE_GENERATION) {
-        output = await this.generateExercise(input)
-      } else if (job.type === AIJobType.ASSESSMENT && job.submission) {
-        output = await this.assess(
-          job.submission.content ?? '',
-          job.submission.language ?? undefined,
-          job.submission.assignment.title,
-          job.submission.assignment.description ?? undefined,
-        )
-      } else if (job.type === AIJobType.LEARNING_FEEDBACK) {
-        output = await this.learningFeedback(String(input.studentId ?? job.createdById))
-        const parsed = output as { skills?: { topic: string; level: string; suggestion?: string }[] }
-        if (parsed.skills && Array.isArray(parsed.skills)) {
-          const studentId = String(input.studentId ?? job.createdById)
-          // Delete old insights
-          await prisma.learningInsight.deleteMany({ where: { studentId } })
-          // Insert new ones
-          await prisma.learningInsight.createMany({
-            data: parsed.skills.map((s) => ({
-              studentId,
-              topic: s.topic,
-              level: s.level,
-              suggestion: s.suggestion,
-            })),
-          })
-        }
-      } else {
-        output = {}
-      }
-      await prisma.aIJob.update({
-        where: { id: jobId },
-        data: { status: AIJobStatus.COMPLETED, output: JSON.stringify(output) },
-      })
-      
-      // Auto queue learning feedback after assessment
-      if (job.type === AIJobType.ASSESSMENT && job.createdById) {
-        const fbJob = await prisma.aIJob.create({
-          data: {
-            type: AIJobType.LEARNING_FEEDBACK,
-            status: 'PENDING',
-            createdById: job.createdById,
-          },
-        })
-        this.schedule(fbJob.id)
-      }
-    } catch (e) {
-      await prisma.aIJob.update({
-        where: { id: jobId },
-        data: {
-          status: AIJobStatus.FAILED,
-          errorMessage: e instanceof Error ? e.message : 'Failed',
-        },
-      })
-    }
-  },
-
-  schedule(jobId: string) {
-    setImmediate(() => void this.runJob(jobId))
+  schedule(_jobId: string) {
+    console.log('⚠️ AI job scheduling not available - no AIJob model in schema')
   },
 }

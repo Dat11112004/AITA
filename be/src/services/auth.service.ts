@@ -9,11 +9,22 @@ import type { z } from 'zod'
 
 export const authService = {
   async login(payload: z.infer<typeof loginSchema>) {
+    console.log('Attempting login for email:', payload.email)
     const user = await userRepository.findByEmail(payload.email)
-    if (!user || user.status !== 'ACTIVE') throw unauthorized('Email hoặc mật khẩu không đúng')
-    if (!(await bcrypt.compare(payload.password, user.passwordHash))) throw unauthorized('Email hoặc mật khẩu không đúng')
+    if (!user || user.Status !== 'Active') {
+      console.log('User not found or inactive for email:', payload.email)
+      throw unauthorized('Email hoặc mật khẩu không đúng')
+    }
+    console.log('User found:', user.Id)
+    if (!user.PasswordHash || !(await bcrypt.compare(payload.password, user.PasswordHash))) {
+      console.log('Invalid password for user:', user.Id)
+      throw unauthorized('Email hoặc mật khẩu không đúng')
+    }
+    console.log('Password matched for user:', user.Id)
 
-    const auth = { id: user.id, email: user.email, role: user.role, fullName: user.fullName }
+    const primaryRole = user.UserRole?.[0]?.Role?.RoleName ?? 'STUDENT'
+    const auth = { id: user.Id, email: user.Email ?? '', role: primaryRole, fullName: user.FullName ?? '' }
+    console.log('Login successful for user:', user.Id, 'Role:', primaryRole)
     return { token: signToken(auth), user: mapUser(user) }
   },
 
@@ -23,21 +34,31 @@ export const authService = {
     }
 
     const user = await userRepository.create({
-      email: payload.email.toLowerCase(),
-      passwordHash: await bcrypt.hash(payload.password, 10),
-      fullName: payload.fullName,
-      role: 'STUDENT',
-      externalId: payload.externalId,
+      Email: payload.email.toLowerCase(),
+      PasswordHash: await bcrypt.hash(payload.password, 10),
+      FullName: payload.fullName,
+      StudentCode: payload.externalId,
     })
+
+    // Assign STUDENT role
+    const prisma = (await import('../database/prisma.js')).prisma
+    const studentRole = await prisma.role.findFirst({
+      where: { RoleName: 'STUDENT' },
+    })
+    if (studentRole) {
+      await prisma.userRole.create({
+        data: { UserId: user.Id, RoleId: studentRole.Id },
+      })
+    }
 
     await activityRepository.create({
-      userId: user.id,
+      userId: user.Id,
       action: 'STUDENT_REGISTER',
       entity: 'User',
-      entityId: user.id,
+      entityId: user.Id,
     })
 
-    const auth = { id: user.id, email: user.email, role: user.role, fullName: user.fullName }
+    const auth = { id: user.Id, email: user.Email ?? '', role: 'STUDENT', fullName: user.FullName ?? '' }
     return { token: signToken(auth), user: mapUser(user) }
   },
 
@@ -45,5 +66,5 @@ export const authService = {
     const user = await userRepository.findById(userId)
     if (!user) throw unauthorized()
     return mapUser(user)
-  }
+  },
 }
