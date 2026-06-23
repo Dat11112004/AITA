@@ -22,6 +22,17 @@ export class AppError extends Error {
     // Set prototype explicitly for instanceof checks to work
     Object.setPrototypeOf(this, AppError.prototype)
   }
+
+  toJSON() {
+    return {
+      name: this.name,
+      code: this.code,
+      message: this.message,
+      statusCode: this.statusCode,
+      details: this.details,
+      stack: process.env.NODE_ENV === 'development' ? this.stack : undefined,
+    }
+  }
 }
 
 // Common error types
@@ -57,6 +68,20 @@ export class ConflictError extends AppError {
   constructor(message: string, details?: Record<string, any>) {
     super('CONFLICT', message, 409, details)
     Object.setPrototypeOf(this, ConflictError.prototype)
+  }
+}
+
+export class TooManyRequestsError extends AppError {
+  constructor(message: string = 'Too many requests') {
+    super('TOO_MANY_REQUESTS', message, 429)
+    Object.setPrototypeOf(this, TooManyRequestsError.prototype)
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string = 'Service unavailable', details?: Record<string, any>) {
+    super('SERVICE_UNAVAILABLE', message, 503, details)
+    Object.setPrototypeOf(this, ServiceUnavailableError.prototype)
   }
 }
 

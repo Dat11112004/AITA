@@ -1,10 +1,32 @@
 import { logger } from './logger.js'
 
+// Clean Architecture components
+import { PrismaUnitOfWork } from './prisma-unit-of-work.js'
+import { LoginUseCase } from '../../modules/auth/application/use-cases/login.use-case.js'
+import { RegisterStudentUseCase } from '../../modules/auth/application/use-cases/register.use-case.js'
+import { GetMeUseCase } from '../../modules/auth/application/use-cases/get-me.use-case.js'
+import { AuthController } from '../../modules/auth/presentation/auth.controller.js'
+import { ListClassesUseCase } from '../../modules/classes/application/use-cases/list-classes.use-case.js'
+import { CreateClassUseCase } from '../../modules/classes/application/use-cases/create-class.use-case.js'
+import { GetClassStudentsUseCase } from '../../modules/classes/application/use-cases/get-class-students.use-case.js'
+import { EnrollStudentUseCase } from '../../modules/classes/application/use-cases/enroll-student.use-case.js'
+import { ClassesController } from '../../modules/classes/presentation/classes.controller.js'
+import { ListSubjectsUseCase } from '../../modules/subjects/application/use-cases/list-subjects.use-case.js'
+import { CreateSubjectUseCase } from '../../modules/subjects/application/use-cases/create-subject.use-case.js'
+import { UpdateSubjectUseCase } from '../../modules/subjects/application/use-cases/update-subject.use-case.js'
+import { DeleteSubjectUseCase } from '../../modules/subjects/application/use-cases/delete-subject.use-case.js'
+import { SubjectsController } from '../../modules/subjects/presentation/subjects.controller.js'
+
 // Legacy controllers (functions)
-import { login, registerStudent, me } from '../../controllers/auth.controller.js'
-import { list as listClasses, create as createClass } from '../../controllers/classes.controller.js'
 import { list as listAssignments, create as createAssignment, update as updateAssignment } from '../../controllers/assignments.controller.js'
 import { UsersController } from '../../controllers/users.controller.js'
+import { list as listSubmissions, recent as recentSubmissions, getOne as getOneSubmission, submit as submitSubmission, publishGrade } from '../../controllers/submissions.controller.js'
+import { list as listNotifications, create as createNotification, markRead as markNotificationRead } from '../../controllers/notifications.controller.js'
+import * as statsController from '../../controllers/stats.controller.js'
+import * as reportsController from '../../controllers/reports.controller.js'
+import * as settingsController from '../../controllers/settings.controller.js'
+import * as optionsController from '../../controllers/options.controller.js'
+import * as aiController from '../../controllers/ai.controller.js'
 
 /**
  * DI Container — wraps legacy services/controllers for backward compatibility.
@@ -13,7 +35,7 @@ import { UsersController } from '../../controllers/users.controller.js'
  */
 export class DIContainer {
   private static instance: DIContainer
-  private services: Map<string, any> = new Map()
+  private services: Map<string, unknown> = new Map()
 
   private constructor() {
     this.registerDependencies()
@@ -28,70 +50,142 @@ export class DIContainer {
 
   private registerDependencies() {
     try {
-      // Auth — wrap legacy functions as controller methods
-      this.services.set('AuthController', {
-        login: async (req: any, res: any) => {
-          try { await login(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        register: async (req: any, res: any) => {
-          try { await registerStudent(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        getMe: async (req: any, res: any) => {
-          try { await me(req, res) } catch (e) { this.handleError(e, res) }
-        },
-      })
+      // ── Clean Architecture ──────────────────────────────────────
+      const uow = new PrismaUnitOfWork()
+      this.services.set('UnitOfWork', uow)
 
-      // Classes — wrap legacy functions as controller methods
-      this.services.set('ClassController', {
-        list: async (req: any, res: any) => {
-          try { await listClasses(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        create: async (req: any, res: any) => {
-          try { await createClass(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        update: async (_req: any, res: any) => {
-          const { ok } = await import('../../utils/response.js')
-          ok(res, { message: 'Not implemented' })
-        },
-        delete: async (_req: any, res: any) => {
-          const { ok } = await import('../../utils/response.js')
-          ok(res, { message: 'Not implemented' })
-        },
-      })
+      const loginUseCase = new LoginUseCase(uow)
+      const registerStudentUseCase = new RegisterStudentUseCase(uow)
+      const getMeUseCase = new GetMeUseCase(uow)
 
-      // Assignments — wrap legacy functions as controller methods
+      const authController = new AuthController(loginUseCase, registerStudentUseCase, getMeUseCase)
+      this.services.set('AuthController', authController)
+
+      // ── Classes ───────────────────────────────────────────────
+      const listClassesUseCase = new ListClassesUseCase(uow)
+      const createClassUseCase = new CreateClassUseCase(uow)
+      const getClassStudentsUseCase = new GetClassStudentsUseCase(uow)
+      const enrollStudentUseCase = new EnrollStudentUseCase(uow)
+
+      const classController = new ClassesController(
+        listClassesUseCase,
+        createClassUseCase,
+        getClassStudentsUseCase,
+        enrollStudentUseCase
+      )
+      this.services.set('ClassController', classController)
+
+      // ── Subjects ──────────────────────────────────────────────
+      const listSubjectsUseCase = new ListSubjectsUseCase(uow)
+      const createSubjectUseCase = new CreateSubjectUseCase(uow)
+      const updateSubjectUseCase = new UpdateSubjectUseCase(uow)
+      const deleteSubjectUseCase = new DeleteSubjectUseCase(uow)
+
+      const subjectController = new SubjectsController(
+        listSubjectsUseCase,
+        createSubjectUseCase,
+        updateSubjectUseCase,
+        deleteSubjectUseCase
+      )
+      this.services.set('SubjectController', subjectController)
+
+      // Legacy: Assignments ─────────────────────────────────────
+
+
       this.services.set('AssignmentController', {
-        list: async (req: any, res: any) => {
-          try { await listAssignments(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        create: async (req: any, res: any) => {
-          try { await createAssignment(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        update: async (req: any, res: any) => {
-          try { await updateAssignment(req, res) } catch (e) { this.handleError(e, res) }
-        },
-        delete: async (_req: any, res: any) => {
-          const { ok } = await import('../../utils/response.js')
-          ok(res, { message: 'Not implemented' })
-        },
+        list: this.wrap(listAssignments),
+        create: this.wrap(createAssignment),
+        update: this.wrap(updateAssignment),
+        delete: this.notImplemented(),
       })
 
-      // Users — already a class
+      // ── Legacy: Users (class-based) ─────────────────────────────
       this.services.set('UsersController', new UsersController())
 
-      logger.info('DI Container initialized successfully with legacy services')
+      this.services.set('UserController', new UsersController())
+
+      // ── Legacy: Submissions ─────────────────────────────────────
+      this.services.set('SubmissionController', {
+        list: this.wrap(listSubmissions),
+        recent: this.wrap(recentSubmissions),
+        getOne: this.wrap(getOneSubmission),
+        submit: this.wrap(submitSubmission),
+        publishGrade: this.wrap(publishGrade),
+      })
+
+      // ── Legacy: Notifications ───────────────────────────────────
+      this.services.set('NotificationController', {
+        list: this.wrap(listNotifications),
+        create: this.wrap(createNotification),
+        markRead: this.wrap(markNotificationRead),
+      })
+
+      // ── Legacy: Stats ───────────────────────────────────────────
+      this.services.set('StatsController', {
+        overview: this.wrap(statsController.overview),
+        activityLogs: this.wrap(statsController.activityLogs),
+        studentHistory: this.wrap(statsController.studentHistory),
+        teamwork: this.wrap(statsController.teamwork),
+        studentTeamwork: this.wrap(statsController.studentTeamwork),
+        lecturerReport: this.wrap(statsController.lecturerReport),
+        studentProgress: this.wrap(statsController.studentProgress),
+        studentFeedbackList: this.wrap(statsController.studentFeedbackList),
+        studentLearning: this.wrap(statsController.studentLearning),
+      })
+
+      // ── Legacy: Reports ─────────────────────────────────────────
+      this.services.set('ReportController', {
+        adminReport: this.wrap(reportsController.adminReport),
+        systemHealth: this.wrap(reportsController.systemHealth),
+      })
+
+      // ── Legacy: Settings ────────────────────────────────────────
+      this.services.set('SettingsController', {
+        getAll: this.wrap(settingsController.getAll),
+        update: this.wrap(settingsController.update),
+      })
+
+      // ── Legacy: Options (dropdown data) ─────────────────────────
+      this.services.set('OptionsController', {
+        classOptions: this.wrap(optionsController.classOptions),
+        assignmentOptions: this.wrap(optionsController.assignmentOptions),
+        lecturerOptions: this.wrap(optionsController.lecturerOptions),
+      })
+
+      // ── Legacy: AI ──────────────────────────────────────────────
+      this.services.set('AiController', {
+        generateExercise: this.wrap(aiController.generateExercise),
+        saveAssignmentFromAI: this.wrap(aiController.saveAssignmentFromAI),
+        assessSubmission: this.wrap(aiController.assessSubmission),
+        learningFeedback: this.wrap(aiController.learningFeedback),
+        listReviews: this.wrap(aiController.listReviews),
+        reviewJob: this.wrap(aiController.reviewJob),
+        getConfig: this.wrap(aiController.getConfig),
+        updateConfig: this.wrap(aiController.updateConfig),
+      })
+
+      logger.info('DI Container initialized successfully with Clean Architecture and legacy services')
     } catch (error) {
       logger.error('DI Container initialization failed', error as Error)
       throw error
     }
   }
 
-  private handleError(error: unknown, res: any) {
-    if (error instanceof Error) {
-      const statusCode = (error as any).statusCode ?? 500
-      res.status(statusCode).json({ success: false, message: error.message })
-    } else {
-      res.status(500).json({ success: false, message: 'Internal server error' })
+  /**
+   * Wraps a legacy controller function to catch errors and forward them properly.
+   */
+  private wrap(fn: Function) {
+    return async (req: any, res: any, next: any) => {
+      try { await fn(req, res) } catch (e) { next(e) }
+    }
+  }
+
+  /**
+   * Returns a stub handler for unimplemented endpoints.
+   */
+  private notImplemented() {
+    return async (_req: any, res: any) => {
+      res.status(501).json({ statusCode: 501, Message: 'Not implemented' })
     }
   }
 
@@ -100,7 +194,7 @@ export class DIContainer {
     if (!service) {
       throw new Error(`Service ${serviceName} not found in container`)
     }
-    return service
+    return service as T
   }
 }
 

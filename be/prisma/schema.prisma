@@ -479,6 +479,18 @@ model RefreshToken {
   User      User?     @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
 
+model OAuthIdentity {
+  Id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  UserId       String? @db.Uuid
+  Provider     String?
+  ProviderId   String?
+  AccessToken  String?
+  RefreshToken String?
+  User         User?   @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([Provider, ProviderId])
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Role {
   Id       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
