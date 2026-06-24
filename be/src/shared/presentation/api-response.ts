@@ -57,4 +57,28 @@ export class ApiResponse<T = unknown> {
   static error<T = unknown>(message: string, statusCode = 500, data?: T): ApiResponse<T> {
     return new ApiResponse<T>(statusCode, message, data)
   }
+
+  static created<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(210, message, data)
+  }
+
+  static badRequest<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(400, message, data)
+  }
+
+  static unauthorized<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(401, message, data)
+  }
+
+  static forbidden<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(403, message, data)
+  }
+
+  static notFound<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(404, message, data)
+  }
+
+  static conflict<T>(message: string, data?: T): ApiResponse<T> {
+    return new ApiResponse<T>(409, message, data)
+  }
 }

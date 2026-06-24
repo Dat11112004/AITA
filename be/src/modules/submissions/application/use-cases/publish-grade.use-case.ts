@@ -4,9 +4,9 @@ import { NotFoundError } from '../../../../shared/application/app.error.js'
 import { PublishGradeRequestDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 
 export class PublishGradeUseCase implements IUseCase<{ id: string; dto: PublishGradeRequestDto; reviewerId?: string }, ReturnType<typeof SubmissionResponseDto.from>> {
-  constructor(private readonly uow: IUnitOfWork) {}
+  constructor(private readonly uow: IUnitOfWork) { }
 
-  async execute({ id, dto, reviewerId }: { id: string; dto: PublishGradeRequestDto; reviewerId?: string }) {
+  async execute({ id, dto }: { id: string; dto: PublishGradeRequestDto; reviewerId?: string }) {
     const current = await this.uow.submissionRepository.findById(id)
     if (!current) throw new NotFoundError('Không tìm thấy bài nộp')
 
@@ -15,7 +15,6 @@ export class PublishGradeUseCase implements IUseCase<{ id: string; dto: PublishG
       TotalScore: score,
       FinalScore: dto.data.finalScore ?? score,
       InstructorFeedback: dto.data.feedback,
-      ReviewedBy: reviewerId,
       ReviewedAt: new Date(),
       GradedAt: new Date(),
       GradingStatus: 'Graded',

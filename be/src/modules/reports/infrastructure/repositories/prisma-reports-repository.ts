@@ -1,0 +1,24 @@
+import { PrismaClient } from '@prisma/client'
+import { IReportsRepository } from '../../domain/repositories/reports-repository.interface.js'
+
+export class PrismaReportsRepository implements IReportsRepository {
+    constructor(private readonly prisma: PrismaClient) { }
+
+    async getAdminSummary(since: Date) {
+        const [users, classes, exams, submissions, logs] = await Promise.all([
+            this.prisma.user.count(),
+            this.prisma.class.count(),
+            this.prisma.exam.count(),
+            this.prisma.submission.count({ where: { SubmittedAt: { gte: since } } }),
+            this.prisma.auditLog.count({ where: { CreatedAt: { gte: since } } }),
+        ])
+
+        return {
+            users,
+            classes,
+            exams,
+            submissions,
+            auditLogs: logs
+        }
+    }
+}
