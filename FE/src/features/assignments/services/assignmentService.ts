@@ -1,27 +1,48 @@
-import { api, type AssignmentRow } from '@/lib/api'
-
 /**
- * Assignment service - handles assignment management operations
+ * Assignments Service
  */
-export const assignmentService = {
-  /**
-   * Get assignments with optional filters
-   */
-  getAssignments: async (params?: Record<string, string>): Promise<AssignmentRow[]> => {
-    return api.getAssignments(params)
-  },
 
-  /**
-   * Create a new assignment
-   */
-  createAssignment: async (data: unknown): Promise<AssignmentRow> => {
-    return api.createAssignment(data)
-  },
+import { apiClient } from '@/lib/apiClient'
 
-  /**
-   * Update an assignment
-   */
-  updateAssignment: async (id: string, data: unknown): Promise<AssignmentRow> => {
-    return api.updateAssignment(id, data)
-  },
+export interface Assignment {
+  id: string
+  title: string
+  description?: string
+  classId: string
+  status: string
+  dueDate?: string
+  totalPoints?: number
 }
+
+export interface CreateAssignmentRequest {
+  title: string
+  description?: string
+  classId: string
+  dueDate?: string
+  totalPoints?: number
+}
+
+class AssignmentService {
+  async getAssignments(classId?: string): Promise<Assignment[]> {
+    const query = classId ? `?classId=${classId}` : ''
+    return apiClient.get<Assignment[]>(`/assignments${query}`)
+  }
+
+  async getAssignment(id: string): Promise<Assignment> {
+    return apiClient.get<Assignment>(`/assignments/${id}`)
+  }
+
+  async createAssignment(data: CreateAssignmentRequest): Promise<Assignment> {
+    return apiClient.post<Assignment>('/assignments', data)
+  }
+
+  async updateAssignment(id: string, data: Partial<CreateAssignmentRequest>): Promise<Assignment> {
+    return apiClient.patch<Assignment>(`/assignments/${id}`, data)
+  }
+
+  async deleteAssignment(id: string): Promise<void> {
+    return apiClient.delete<void>(`/assignments/${id}`)
+  }
+}
+
+export const assignmentService = new AssignmentService()

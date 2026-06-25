@@ -1,55 +1,51 @@
-import { api, type AIReviewRow, type AIConfig } from '@/lib/api'
-
 /**
- * AI service - handles AI operations (generation, assessment, review)
+ * AI Service - AI-powered features (exercise generation, assessment, etc.)
  */
-export const aiService = {
-  /**
-   * Generate an exercise using AI
-   */
-  generateExercise: async (data: unknown) => {
-    return api.generateExercise(data)
-  },
 
-  /**
-   * Save an AI-generated assignment
-   */
-  saveAIAssignment: async (data: unknown) => {
-    return api.saveAIAssignment(data)
-  },
+import { apiClient } from '@/lib/apiClient'
 
-  /**
-   * Assess a submission using AI
-   */
-  assessSubmission: async (submissionId: string) => {
-    return api.assessSubmission(submissionId)
-  },
-
-  /**
-   * Get all AI reviews pending approval
-   */
-  getAIReviews: async (): Promise<AIReviewRow[]> => {
-    return api.getAIReviews()
-  },
-
-  /**
-   * Review an AI job (approve or reject)
-   */
-  reviewAIJob: async (jobId: string, approved: boolean, note?: string) => {
-    return api.reviewAIJob(jobId, approved, note)
-  },
-
-  /**
-   * Get AI configuration
-   */
-  getAIConfig: async (): Promise<AIConfig> => {
-    return api.getAIConfig()
-  },
-
-  /**
-   * Update AI configuration
-   */
-  updateAIConfig: async (config: Record<string, string>) => {
-    return api.updateAIConfig(config)
-  },
+export interface GenerateExerciseRequest {
+  topic: string
+  difficulty: string
+  quantity: number
 }
+
+export interface AssessSubmissionRequest {
+  submissionId: string
+}
+
+class AIService {
+  async getAIReviews(): Promise<any[]> {
+    return apiClient.get('/ai/reviews')
+  }
+
+  async generateExercise(data: any): Promise<any> {
+    return apiClient.post('/ai/generate-exercise', data)
+  }
+
+  async saveAIAssignment(data: any): Promise<any> {
+    return apiClient.post('/ai/save-assignment', data)
+  }
+
+  async assessSubmission(submissionId: string): Promise<any> {
+    return apiClient.post(`/ai/assess/${submissionId}`, {})
+  }
+
+  async reviewAIJob(jobId: string, approved: boolean, note?: string): Promise<any> {
+    return apiClient.post(`/ai/reviews/${jobId}`, { approved, note })
+  }
+
+  async getAIConfig(): Promise<any> {
+    return apiClient.get('/ai/config')
+  }
+
+  async updateAIConfig(config: Record<string, any>): Promise<any> {
+    return apiClient.patch('/ai/config', config)
+  }
+
+  async getLearningFeedback(userId: string): Promise<any> {
+    return apiClient.get(`/ai/feedback/${userId}`)
+  }
+}
+
+export const aiService = new AIService()

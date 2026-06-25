@@ -15,7 +15,7 @@ export class ClassesController {
     private readonly createClassUseCase: CreateClassUseCase,
     private readonly getClassStudentsUseCase: GetClassStudentsUseCase,
     private readonly enrollStudentUseCase: EnrollStudentUseCase
-  ) {}
+  ) { }
 
   async list(req: Request, res: Response): Promise<void> {
     this.logger.info(`Fetching classes for user ${req.user!.id}`)
@@ -41,7 +41,7 @@ export class ClassesController {
     const classId = req.params.id as string
     this.logger.info(`Enrolling student to class ${classId}`)
     const dto = EnrollStudentRequestDto.from(req.body)
-    const result = await this.enrollStudentUseCase.execute({ classId, dto })
+    const result = await this.enrollStudentUseCase.execute({ classId, dto, user: req.user! })
     res.status(201).json(ApiResponse.success('Thêm học sinh thành công', result, 201))
   }
 }

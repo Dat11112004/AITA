@@ -46,7 +46,7 @@ export class SubmissionsController {
     }
 
     async publishGrade(req: Request, res: Response): Promise<void> {
-        const result = await this.publishGradeUseCase.execute({ id: String(req.params.id), dto: req.body, reviewerId: req.user!.id })
+        const result = await this.publishGradeUseCase.execute({ id: String(req.params.id), dto: req.body })
         res.status(200).json(new ApiResponse(200, 'Công bố điểm thành công', result))
     }
 }

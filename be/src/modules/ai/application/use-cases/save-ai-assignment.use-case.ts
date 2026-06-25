@@ -8,7 +8,7 @@ export class SaveAiAssignmentUseCase {
             return await tx.examRepository.create({
                 Title: dto.title,
                 Description: dto.description,
-                ExamType: dto.type.toUpperCase() as any,
+                ExamType: dto.type,
                 Status: dto.publish ? 'Published' : 'Draft',
                 AiGeneratedContent: dto.content ? JSON.stringify(dto.content) : null,
                 TotalPoints: 10,

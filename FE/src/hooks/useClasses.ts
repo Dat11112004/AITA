@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { classService } from '@/services'
-import type { ClassRow, CreateClassBody } from '@/lib/api'
 
 const CLASSES_QUERY_KEY = ['classes']
 
@@ -35,14 +34,9 @@ export function useCreateClass() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: CreateClassBody) => classService.createClass(data),
-    onSuccess: (newClass) => {
-      // Invalidate classes list to refetch
+    mutationFn: (data: any) => classService.createClass(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLASSES_QUERY_KEY })
-      // Optionally add the new class to cache
-      queryClient.setQueryData<ClassRow[]>(CLASSES_QUERY_KEY, (old) => 
-        old ? [...old, newClass] : [newClass]
-      )
     },
   })
 }

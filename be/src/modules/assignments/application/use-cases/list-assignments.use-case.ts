@@ -1,26 +1,36 @@
-import { AssignmentResponseDto } from '../../application/dtos/assignment.dto.js'
+import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { PrismaAssignmentRepository } from '../../infrastructure/repositories/prisma-assignment-repository.js'
+import { AuthUser } from '../../../../types/express.js'
+import { Prisma } from '../../../../database/prisma.js'
 
-export class ListAssignmentsUseCase {
+export class ListAssignmentsUseCase implements IUseCase<{ user: AuthUser; params: any }, any[]> {
     constructor(private readonly uow: IUnitOfWork) { }
 
-    async execute(user: any, params: { classId?: string; status?: string; type?: string; tab?: string }): Promise<AssignmentResponseDto[]> {
-        const repo = this.uow.getRepo(PrismaAssignmentRepository)
+    async execute({ user, params }: { user: AuthUser; params: any }): Promise<any[]> {
         const { classId, status, type } = params
 
-        const where: Record<string, unknown> = {}
+        const where: Prisma.ExamWhereInput = {}
         if (classId) where.SubjectId = classId
-        if (type) where.ExamType = String(type).toUpperCase()
-        if (status) where.Status = String(status).toUpperCase()
+        if (type) where.ExamType = String(type).toUpperCase() as any
+        if (status) where.Status = String(status).toUpperCase() as any
 
-        const list = await repo.findMany(where)
+        const assignments = await this.uow.examRepository.findMany(where)
 
-        // Simplified filtering logic for this refactor example
-        let filtered = list
+        let allowedSubjectIds: Set<string> | null = null
+
         if (user.role === 'LECTURER') {
-            // Logic from legacy service would go here, or even better, in the repository query
+            const classes = await this.uow.classRepository.findMany({
+                InstructorClass: { some: { UserId: user.id } }
+            })
+            allowedSubjectIds = new Set(classes.map((item: any) => item.Id))
+        } else if (user.role === 'STUDENT') {
+            const enrollments = await this.uow.enrollmentRepository.findMany({ UserId: user.id })
+            allowedSubjectIds = new Set(enrollments.map((item: any) => item.ClassId))
         }
+
+        const filtered = allowedSubjectIds
+            ? assignments.filter((item: any) => allowedSubjectIds!.has(item.SubjectId))
+            : assignments
 
         return filtered.map((a: any) => ({
             id: a.Id,
@@ -30,8 +40,6 @@ export class ListAssignmentsUseCase {
             status: a.Status?.toLowerCase() || 'draft',
             subjectId: a.SubjectId,
             maxScore: a.TotalPoints,
-            dueAt: a.Duration,
-            createdAt: a.Id,
         }))
     }
 }

@@ -1,3 +1,8 @@
+export const AUTH_STORAGE_KEYS = {
+  token: 'aita_token',
+  user: 'aita_user',
+} as const
+
 const BASE = (import.meta as any).env.VITE_API_URL || '/api'
 
 export class ApiError extends Error {
@@ -11,7 +16,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('aita_token')
+  const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {

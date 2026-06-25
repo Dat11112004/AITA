@@ -28,33 +28,36 @@ export function useLecturerReport(classId?: string) {
 /**
  * Hook to fetch student progress data
  */
-export function useStudentProgress() {
+export function useStudentProgress(userId: string) {
   return useQuery({
-    queryKey: ['student', 'progress'],
-    queryFn: reportService.getStudentProgress,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: ['student', 'progress', userId],
+    queryFn: () => reportService.getStudentProgress(userId),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!userId,
   })
 }
 
 /**
  * Hook to fetch student feedback
  */
-export function useStudentFeedback() {
+export function useStudentFeedback(userId: string) {
   return useQuery({
-    queryKey: ['student', 'feedback'],
-    queryFn: reportService.getStudentFeedback,
+    queryKey: ['student', 'feedback', userId],
+    queryFn: () => reportService.getStudentFeedback(userId),
     staleTime: 5 * 60 * 1000,
+    enabled: !!userId,
   })
 }
 
 /**
  * Hook to fetch student learning insights
  */
-export function useStudentLearning() {
+export function useStudentLearning(userId: string) {
   return useQuery({
-    queryKey: ['student', 'learning'],
-    queryFn: reportService.getStudentLearning,
+    queryKey: ['student', 'learning', userId],
+    queryFn: () => reportService.getStudentLearning(userId),
     staleTime: 10 * 60 * 1000,
+    enabled: !!userId,
   })
 }
 
@@ -64,8 +67,8 @@ export function useStudentLearning() {
 export function useSystemHealth() {
   return useQuery({
     queryKey: ['system', 'health'],
-    queryFn: reportService.getSystemHealth,
-    staleTime: 2 * 60 * 1000, // 2 minutes - check health frequently
+    queryFn: () => reportService.getSystemHealth(),
+    staleTime: 2 * 60 * 1000,
   })
 }
 
@@ -75,7 +78,7 @@ export function useSystemHealth() {
 export function useActivityLogs() {
   return useQuery({
     queryKey: ['activity'],
-    queryFn: reportService.getActivity,
-    staleTime: 3 * 60 * 1000, // 3 minutes
+    queryFn: () => reportService.getActivity(),
+    staleTime: 3 * 60 * 1000,
   })
 }

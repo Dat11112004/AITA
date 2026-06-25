@@ -10,7 +10,7 @@ export class ToggleLockUseCase {
         if (!user) throw notFound('Người dùng không tồn tại')
 
         const status = locked ? 'Suspended' : 'Active'
-        const updated = await this.uow.userRepository.update(id, { Status: status as any })
+        const updated = await this.uow.userRepository.update(id, { Status: status })
 
         return UserResponseDto.from(updated)
     }

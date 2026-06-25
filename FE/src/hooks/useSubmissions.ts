@@ -6,11 +6,11 @@ const SUBMISSIONS_QUERY_KEY = ['submissions']
 /**
  * Hook to fetch submissions with optional filters
  */
-export function useSubmissions(params?: Record<string, string>) {
+export function useSubmissions(assignmentId?: string) {
   return useQuery({
-    queryKey: [...SUBMISSIONS_QUERY_KEY, params ? JSON.stringify(params) : null],
-    queryFn: () => submissionService.getSubmissions(params),
-    staleTime: 3 * 60 * 1000, // 3 minutes - submissions change frequently
+    queryKey: [...SUBMISSIONS_QUERY_KEY, assignmentId],
+    queryFn: () => submissionService.getSubmissions(assignmentId),
+    staleTime: 3 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })
 }
@@ -68,7 +68,7 @@ export function usePublishSubmission() {
 
   return useMutation({
     mutationFn: ({ id, score }: { id: string; score?: number }) =>
-      submissionService.publishSubmission(id, score),
+      submissionService.publishSubmission(id, score ?? 0),
     onSuccess: (updatedSubmission) => {
       queryClient.invalidateQueries({ queryKey: SUBMISSIONS_QUERY_KEY })
       queryClient.setQueryData(['submissions', updatedSubmission.id], updatedSubmission)

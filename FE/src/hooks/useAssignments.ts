@@ -6,10 +6,10 @@ const ASSIGNMENTS_QUERY_KEY = ['assignments']
 /**
  * Hook to fetch assignments with optional filters
  */
-export function useAssignments(params?: Record<string, string>) {
+export function useAssignments(classId?: string) {
   return useQuery({
-    queryKey: [...ASSIGNMENTS_QUERY_KEY, params ? JSON.stringify(params) : null],
-    queryFn: () => assignmentService.getAssignments(params),
+    queryKey: [...ASSIGNMENTS_QUERY_KEY, classId],
+    queryFn: () => assignmentService.getAssignments(classId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })
@@ -22,7 +22,7 @@ export function useCreateAssignment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: unknown) => assignmentService.createAssignment(data),
+    mutationFn: (data: any) => assignmentService.createAssignment(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_QUERY_KEY })
     },
@@ -36,7 +36,7 @@ export function useUpdateAssignment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: unknown }) =>
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
       assignmentService.updateAssignment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ASSIGNMENTS_QUERY_KEY })

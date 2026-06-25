@@ -23,7 +23,7 @@ export class AssignmentsController {
             status: req.query.status as string,
             type: req.query.type as string,
         }
-        const result = await this.listUseCase.execute(req.user, params)
+        const result = await this.listUseCase.execute({ user: req.user!, params })
         res.status(200).json(ApiResponse.success('Lấy danh sách bài tập thành công', result))
     }
 

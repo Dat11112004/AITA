@@ -1,22 +1,26 @@
 import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { NotFoundError } from '../../../../shared/application/app.error.js'
+import { notFound } from '../../../../utils/errors.js'
 import { PublishGradeRequestDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 
-export class PublishGradeUseCase implements IUseCase<{ id: string; dto: PublishGradeRequestDto; reviewerId?: string }, ReturnType<typeof SubmissionResponseDto.from>> {
+export class PublishGradeUseCase implements IUseCase<{ id: string; dto: PublishGradeRequestDto }, ReturnType<typeof SubmissionResponseDto.from>> {
   constructor(private readonly uow: IUnitOfWork) { }
 
-  async execute({ id, dto }: { id: string; dto: PublishGradeRequestDto; reviewerId?: string }) {
+  async execute({ id, dto }: { id: string; dto: PublishGradeRequestDto }) {
     const current = await this.uow.submissionRepository.findById(id)
-    if (!current) throw new NotFoundError('Không tìm thấy bài nộp')
+    if (!current) throw notFound('Không tìm thấy bài nộp')
 
-    const score = dto.data.score ?? dto.data.finalScore ?? current.TotalScore ?? 0
+    const scoreNum = Number(dto.data.score ?? dto.data.finalScore ?? current.TotalScore ?? 0)
+    const finalScoreNum = Number(dto.data.finalScore ?? scoreNum)
+
+    const now = new Date()
+
     const updated = await this.uow.submissionRepository.update(id, {
-      TotalScore: score,
-      FinalScore: dto.data.finalScore ?? score,
+      TotalScore: scoreNum,
+      FinalScore: finalScoreNum,
       InstructorFeedback: dto.data.feedback,
-      ReviewedAt: new Date(),
-      GradedAt: new Date(),
+      ReviewedAt: now,
+      GradedAt: now,
       GradingStatus: 'Graded',
       ReviewStatus: 'Reviewed',
     })

@@ -4,7 +4,7 @@ import { UpdateExamRequestDto, ExamResponseDto } from '../dtos/exam.dto.js'
 import { notFound } from '../../../../utils/errors.js'
 
 export class UpdateExamUseCase implements IUseCase<{ id: string; dto: UpdateExamRequestDto }, ExamResponseDto> {
-  constructor(private readonly uow: IUnitOfWork) {}
+  constructor(private readonly uow: IUnitOfWork) { }
 
   async execute(params: { id: string; dto: UpdateExamRequestDto }): Promise<ExamResponseDto> {
     const existing = await this.uow.examRepository.findById(params.id)
@@ -13,12 +13,13 @@ export class UpdateExamUseCase implements IUseCase<{ id: string; dto: UpdateExam
     }
 
     const { data } = params.dto
+    const normalizedStatus = data.status === 'published' ? 'Published' : data.status === 'draft' ? 'Draft' : data.status
     const exam = await this.uow.examRepository.update(params.id, {
       Title: data.title,
       Description: data.description,
-      Status: data.status ? (String(data.status).toUpperCase() as any) : undefined,
+      Status: normalizedStatus as any,
     })
-    
+
     return ExamResponseDto.from(exam)
   }
 }

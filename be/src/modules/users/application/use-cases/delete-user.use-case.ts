@@ -8,7 +8,9 @@ export class DeleteUserUseCase {
         const user = await this.uow.userRepository.findById(id)
         if (!user) throw notFound('Người dùng không tồn tại')
 
-        await this.uow.userRepository.delete(id)
-        return { success: true }
+        // Soft delete: Mark as inactive rather than hard delete
+        await this.uow.userRepository.update(id, { Status: 'Suspended' })
+
+        return { success: true, message: 'Người dùng đã bị xóa' }
     }
 }

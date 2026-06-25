@@ -2,13 +2,13 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { logger } from '../shared/infrastructure/logger.js'
 
 export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' 
+  log: process.env.NODE_ENV === 'development'
     ? [
-        { emit: 'event', level: 'query' },
-        { emit: 'event', level: 'error' },
-        { emit: 'event', level: 'info' },
-        { emit: 'event', level: 'warn' },
-      ]
+      { emit: 'event', level: 'query' },
+      { emit: 'event', level: 'error' },
+      { emit: 'event', level: 'info' },
+      { emit: 'event', level: 'warn' },
+    ]
     : ['error'],
 })
 
@@ -51,26 +51,4 @@ export type {
   GradingJob,
   AiApiKey,
   AiUsageLog,
-} from '@prisma/client'
-
-export {
-  UserStatus,
-  AssignmentType,
-  GradingStatus,
-  ReviewStatus,
-  ExamStatus,
-  ExamType,
-  JobStatus,
-  AuditAction,
-  BuildStatus,
-  ExecutionStatus,
-  SessionStatus,
-  TriggerReason,
-  ActionType,
-  EngineType,
-  SandboxStatus,
-  ArtifactType,
-  ValidationType,
-  DependencyType,
-  ReferenceArtifactType,
 } from '@prisma/client'

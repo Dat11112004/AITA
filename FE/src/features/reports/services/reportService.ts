@@ -1,55 +1,53 @@
-import { api } from '@/lib/api'
-
 /**
- * Report service - handles reporting and analytics operations
+ * Reports Service
  */
-export const reportService = {
-  /**
-   * Get admin dashboard report for a specific period
-   */
-  getAdminReport: async (period: string) => {
-    return api.getAdminReport(period)
-  },
 
-  /**
-   * Get lecturer report, optionally filtered by class
-   */
-  getLecturerReport: async (classId?: string) => {
-    return api.getLecturerReport(classId)
-  },
+import { apiClient } from '@/lib/apiClient'
 
-  /**
-   * Get student progress data
-   */
-  getStudentProgress: async () => {
-    return api.getStudentProgress()
-  },
-
-  /**
-   * Get student feedback data
-   */
-  getStudentFeedback: async () => {
-    return api.getStudentFeedback()
-  },
-
-  /**
-   * Get student learning insights
-   */
-  getStudentLearning: async () => {
-    return api.getStudentLearning()
-  },
-
-  /**
-   * Get system health status
-   */
-  getSystemHealth: async () => {
-    return api.getSystemHealth()
-  },
-
-  /**
-   * Get activity logs
-   */
-  getActivity: async () => {
-    return api.getActivity()
-  },
+export interface AdminReport {
+  period: string
+  totalUsers: number
+  totalClasses: number
+  totalAssignments: number
+  totalSubmissions: number
 }
+
+export interface SystemHealth {
+  database: string
+  api: string
+  cache: string
+  status: string
+}
+
+class ReportService {
+  async getAdminReport(period: string = 'month'): Promise<AdminReport> {
+    return apiClient.get<AdminReport>(`/reports/admin?period=${period}`)
+  }
+
+  async getLecturerReport(classId?: string): Promise<any> {
+    const query = classId ? `?classId=${classId}` : ''
+    return apiClient.get(`/reports/lecturer${query}`)
+  }
+
+  async getStudentProgress(userId: string): Promise<any> {
+    return apiClient.get(`/reports/student/${userId}/progress`)
+  }
+
+  async getStudentFeedback(userId: string): Promise<any> {
+    return apiClient.get(`/reports/student/${userId}/feedback`)
+  }
+
+  async getStudentLearning(userId: string): Promise<any> {
+    return apiClient.get(`/reports/student/${userId}/learning`)
+  }
+
+  async getActivity(): Promise<any> {
+    return apiClient.get('/reports/activity')
+  }
+
+  async getSystemHealth(): Promise<SystemHealth> {
+    return apiClient.get<SystemHealth>('/reports/health')
+  }
+}
+
+export const reportService = new ReportService()

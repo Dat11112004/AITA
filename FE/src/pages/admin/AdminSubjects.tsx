@@ -24,9 +24,24 @@ export function AdminSubjects() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
-  const load = () => {
-    api.getSubjects().then(setSubjects).catch(console.error)
+  const load = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const data = await api.getSubjects()
+      setSubjects(data || [])
+      setError('')
+    } catch (err) {
+      console.error('Failed to load subjects:', err)
+      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách môn học'
+      setLoadError(msg)
+      setSubjects([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -98,6 +113,32 @@ export function AdminSubjects() {
         }
       />
 
+      {/* Loading State */}
+      {loading && (
+        <Card className="flex items-center justify-center p-12 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto mb-3" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Đang tải danh sách môn học...</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {loadError && (
+        <Card className="border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 p-4 animate-in slide-in-from-top-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="text-red-600 dark:text-red-400 w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-800 dark:text-red-300">Lỗi tải dữ liệu</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-1">{loadError}</p>
+            </div>
+            <button onClick={load} className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
+              Thử lại
+            </button>
+          </div>
+        </Card>
+      )}
+
       {/* Thông báo xác nhận xóa (Hộp cảnh báo nổi bật) */}
       {confirmDelete && (
         <Card className="border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 p-4 shadow-sm animate-in slide-in-from-top-3 duration-300">
@@ -118,7 +159,7 @@ export function AdminSubjects() {
       )}
 
       {/* Form thêm/sửa môn học */}
-      {showForm && (
+      {!loading && !loadError && showForm && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader title={editing ? `Cập nhật thông tin: ${editing.code}` : 'Khởi tạo môn học mới'} />
@@ -173,93 +214,96 @@ export function AdminSubjects() {
       )}
 
       {/* Danh sách ngân hàng môn học */}
-      <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-        <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-          <GraduationCap className="text-slate-500 w-5 h-5 ml-2" />
-          <CardHeader title="Danh mục môn học trong hệ thống" />
-        </div>
+      {!loading && !loadError && (
+        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+          <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
+            <GraduationCap className="text-slate-500 w-5 h-5 ml-2" />
+            <CardHeader title="Danh mục môn học trong hệ thống" />
+          </div>
 
-        <div className="p-2">
-          <DataTable
-            columns={[
-              {
-                key: 'code',
-                header: 'Mã môn',
-                render: (r) => <span className="font-mono font-bold text-xs tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200/60 dark:border-slate-700/50 text-slate-700 dark:text-slate-300">{(r as SubjectRow).code}</span>,
-                className: 'w-28 pl-4'
-              },
-              {
-                key: 'name',
-                header: 'Tên môn học',
-                render: (r) => (
-                  <div className="flex items-center gap-2.5 py-1">
-                    <div className="p-1.5 bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 rounded-lg shrink-0">
-                      <BookOpen size={15} />
-                    </div>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as SubjectRow).name}</span>
-                  </div>
-                )
-              },
-              {
-                key: 'difficulty',
-                header: 'Mức độ',
-                render: (r) => {
-                  const d = (r as SubjectRow).difficulty
-                  const v = d === 'beginner' ? 'success' : d === 'advanced' ? 'danger' : 'warning'
-                  const l = d === 'beginner' ? 'Cơ bản' : d === 'advanced' ? 'Nâng cao' : 'Trung bình'
-                  return <Badge variant={v} className="px-2 py-0.5 rounded-full font-medium shadow-none text-[11px]">{l}</Badge>
+          <div className="p-2">
+            <DataTable
+              columns={[
+                {
+                  key: 'code',
+                  header: 'Mã môn',
+                  render: (r) => <span className="font-mono font-bold text-xs tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200/60 dark:border-slate-700/50 text-slate-700 dark:text-slate-300">{(r as SubjectRow).code}</span>,
+                  className: 'w-28 pl-4'
                 },
-                className: 'w-28'
-              },
-              {
-                key: 'curriculum',
-                header: 'Chương trình',
-                render: (r) => <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{(r as SubjectRow).curriculum || '—'}</span>,
-                className: 'w-32'
-              },
-              {
-                key: 'description',
-                header: 'Mô tả vắn tắt',
-                render: (r) => (
-                  <span className="text-slate-500 dark:text-slate-400 text-xs max-w-xs block truncate" title={(r as SubjectRow).description}>
-                    {(r as SubjectRow).description || 'Chưa có mô tả môn học.'}
-                  </span>
-                )
-              },
-              {
-                key: 'actions',
-                header: 'Thao tác',
-                render: (r) => {
-                  const s = r as SubjectRow
-                  return (
-                    <div className="flex gap-1 pr-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(s)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
-                        title="Sửa môn học"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete(s.id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                        title="Xóa môn học"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                {
+                  key: 'name',
+                  header: 'Tên môn học',
+                  render: (r) => (
+                    <div className="flex items-center gap-2.5 py-1">
+                      <div className="p-1.5 bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400 rounded-lg shrink-0">
+                        <BookOpen size={15} />
+                      </div>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as SubjectRow).name}</span>
                     </div>
                   )
                 },
-                className: 'w-24 text-right'
-              },
-            ]}
-            data={subjects}
-            keyExtractor={(r) => r.id}
-          />
-        </div>
-      </Card>
+                {
+                  key: 'difficulty',
+                  header: 'Mức độ',
+                  render: (r) => {
+                    const d = (r as SubjectRow).difficulty
+                    const v = d === 'beginner' ? 'success' : d === 'advanced' ? 'danger' : 'warning'
+                    const l = d === 'beginner' ? 'Cơ bản' : d === 'advanced' ? 'Nâng cao' : 'Trung bình'
+                    return <Badge variant={v} className="px-2 py-0.5 rounded-full font-medium shadow-none text-[11px]">{l}</Badge>
+                  },
+                  className: 'w-28'
+                },
+                {
+                  key: 'curriculum',
+                  header: 'Chương trình',
+                  render: (r) => <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{(r as SubjectRow).curriculum || '—'}</span>,
+                  className: 'w-32'
+                },
+                {
+                  key: 'description',
+                  header: 'Mô tả vắn tắt',
+                  render: (r) => (
+                    <span className="text-slate-500 dark:text-slate-400 text-xs max-w-xs block truncate" title={(r as SubjectRow).description}>
+                      {(r as SubjectRow).description || 'Chưa có mô tả môn học.'}
+                    </span>
+                  )
+                },
+                {
+                  key: 'actions',
+                  header: 'Thao tác',
+                  render: (r) => {
+                    const s = r as SubjectRow
+                    return (
+                      <div className="flex gap-1 pr-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(s)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
+                          title="Sửa môn học"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(s.id)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                          title="Xóa môn học"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )
+                  },
+                  className: 'w-24 text-right'
+                },
+              ]}
+              data={subjects}
+              keyExtractor={(r) => r.id}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
+``

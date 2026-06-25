@@ -12,7 +12,19 @@ export function createApp() {
   const app = express()
 
   app.use(helmet())
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }))
+  // Accept both :5173 and :5174 for frontend dev
+  const corsOptions = {
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+      const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error('CORS not allowed'))
+      }
+    },
+    credentials: true
+  }
+  app.use(cors(corsOptions))
   app.use(requestLogger)
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
   app.use(express.json({ limit: '2mb' }))

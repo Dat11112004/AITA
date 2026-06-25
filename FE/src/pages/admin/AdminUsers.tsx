@@ -26,9 +26,23 @@ export function AdminUsers() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
-  const load = useCallback(() => {
-    api.getUsers(activeTab).then(setUsers).catch(console.error)
+  const load = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const data = await api.getUsers(activeTab)
+      setUsers(data || [])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách người dùng'
+      setLoadError(msg)
+      setUsers([])
+      console.error('Failed to load users:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [activeTab])
 
   useEffect(() => {
@@ -143,7 +157,7 @@ export function AdminUsers() {
         }
       />
 
-      {/* Thông báo xác nhận xóa tài khoản */}
+      {/* Delete Confirmation */}
       {confirmDelete && (
         <Card className="border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 p-4 shadow-sm animate-in slide-in-from-top-3 duration-300">
           <div className="flex items-center justify-between gap-4">
@@ -162,7 +176,7 @@ export function AdminUsers() {
         </Card>
       )}
 
-      {/* Form thêm mới / Chỉnh sửa người dùng */}
+      {/* Form */}
       {showForm && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
@@ -244,110 +258,137 @@ export function AdminUsers() {
         </Card>
       )}
 
-      {/* Khối danh sách tài khoản kèm bộ lọc tìm kiếm */}
-      <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Users className="text-slate-400 w-5 h-5 ml-2" />
-            <Tabs items={ROLE_TABS} activeId={activeTab} onChange={setActiveTab} />
+      {/* Loading State */}
+      {loading && (
+        <Card className="flex items-center justify-center p-12 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto mb-3" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Đang tải danh sách người dùng...</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {loadError && (
+        <Card className="border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 p-4 animate-in slide-in-from-top-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="text-red-600 dark:text-red-400 w-5 h-5 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-800 dark:text-red-300">Lỗi tải dữ liệu</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-1">{loadError}</p>
+            </div>
+            <button onClick={load} className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
+              Thử lại
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {/* Users List - Only show when not loading and no error */}
+      {!loading && !loadError && (
+        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="text-slate-400 w-5 h-5 ml-2" />
+              <Tabs items={ROLE_TABS} activeId={activeTab} onChange={setActiveTab} />
+            </div>
+
+            <div className="relative max-w-xs w-full sm:ml-auto">
+              <Input
+                placeholder="Lọc nhanh họ tên, email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pr-10"
+              />
+            </div>
           </div>
 
-          <div className="relative max-w-xs w-full sm:ml-auto">
-            <Input
-              placeholder="Lọc nhanh họ tên, email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pr-10"
+          <div className="overflow-x-auto">
+            <DataTable
+              columns={[
+                {
+                  key: 'id',
+                  header: 'Mã số hệ thống',
+                  render: (r) => <span className="font-mono text-[11px] text-slate-400 block max-w-[80px] truncate" title={(r as UserRow).id}>{(r as UserRow).id}</span>,
+                  className: 'w-24 pl-4'
+                },
+                {
+                  key: 'name',
+                  header: 'Họ và tên',
+                  render: (r) => <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as UserRow).name}</span>
+                },
+                {
+                  key: 'email',
+                  header: 'Địa chỉ Email',
+                  render: (r) => <span className="text-slate-600 dark:text-slate-400 font-medium">{(r as UserRow).email}</span>
+                },
+                {
+                  key: 'role',
+                  header: 'Phân quyền',
+                  render: (r) => {
+                    const u = r as UserRow
+                    const variant = u.role === 'admin' ? 'info' : u.role === 'lecturer' ? 'warning' : 'success'
+                    const label = u.role === 'admin' ? 'Quản trị' : u.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'
+                    return <Badge variant={variant} className="px-2.5 py-0.5 rounded-full font-medium text-[11px]">{label}</Badge>
+                  },
+                  className: 'w-32'
+                },
+                {
+                  key: 'status',
+                  header: 'Trạng thái',
+                  render: (r) => {
+                    const u = r as UserRow
+                    return (
+                      <Badge variant={u.status === 'active' ? 'success' : u.status === 'locked' ? 'danger' : 'neutral'} className="shadow-none px-2 py-0.5 text-[11px]">
+                        {u.status === 'active' ? 'Hoạt động' : u.status === 'locked' ? 'Đã khóa' : u.status}
+                      </Badge>
+                    )
+                  },
+                  className: 'w-32'
+                },
+                {
+                  key: 'actions',
+                  header: 'Thao tác bảo mật',
+                  render: (r) => {
+                    const u = r as UserRow
+                    return (
+                      <div className="flex gap-1 justify-end pr-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(u)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
+                          title="Sửa thông tin tài khoản"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleLock(u)}
+                          className={`rounded-lg p-1.5 transition ${u.status === 'locked' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30'}`}
+                          title={u.status === 'locked' ? 'Mở khóa tài khoản' : 'Khóa truy cập'}
+                        >
+                          {u.status === 'locked' ? <Unlock size={14} /> : <Lock size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(u.id)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
+                          title="Xóa tài khoản vĩnh viễn"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )
+                  },
+                  className: 'w-32 text-right'
+                },
+              ]}
+              data={filteredUsers}
+              keyExtractor={(r) => r.id}
             />
           </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="overflow-x-auto">
-          <DataTable
-            columns={[
-              {
-                key: 'id',
-                header: 'Mã số hệ thống',
-                render: (r) => <span className="font-mono text-[11px] text-slate-400 block max-w-[80px] truncate" title={(r as UserRow).id}>{(r as UserRow).id}</span>,
-                className: 'w-24 pl-4'
-              },
-              {
-                key: 'name',
-                header: 'Họ và tên',
-                render: (r) => <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as UserRow).name}</span>
-              },
-              {
-                key: 'email',
-                header: 'Địa chỉ Email',
-                render: (r) => <span className="text-slate-600 dark:text-slate-400 font-medium">{(r as UserRow).email}</span>
-              },
-              {
-                key: 'role',
-                header: 'Phân quyền',
-                render: (r) => {
-                  const u = r as UserRow
-                  const variant = u.role === 'admin' ? 'info' : u.role === 'lecturer' ? 'warning' : 'success'
-                  const label = u.role === 'admin' ? 'Quản trị' : u.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'
-                  return <Badge variant={variant} className="px-2.5 py-0.5 rounded-full font-medium text-[11px]">{label}</Badge>
-                },
-                className: 'w-32'
-              },
-              {
-                key: 'status',
-                header: 'Trạng thái',
-                render: (r) => {
-                  const u = r as UserRow
-                  return (
-                    <Badge variant={u.status === 'active' ? 'success' : u.status === 'locked' ? 'danger' : 'neutral'} className="shadow-none px-2 py-0.5 text-[11px]">
-                      {u.status === 'active' ? 'Hoạt động' : u.status === 'locked' ? 'Đã khóa' : u.status}
-                    </Badge>
-                  )
-                },
-                className: 'w-32'
-              },
-              {
-                key: 'actions',
-                header: 'Thao tác bảo mật',
-                render: (r) => {
-                  const u = r as UserRow
-                  return (
-                    <div className="flex gap-1 justify-end pr-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(u)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
-                        title="Sửa thông tin tài khoản"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleLock(u)}
-                        className={`rounded-lg p-1.5 transition ${u.status === 'locked' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30'}`}
-                        title={u.status === 'locked' ? 'Mở khóa tài khoản' : 'Khóa truy cập'}
-                      >
-                        {u.status === 'locked' ? <Unlock size={14} /> : <Lock size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete(u.id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                        title="Xóa tài khoản vĩnh viễn"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )
-                },
-                className: 'w-32 text-right'
-              },
-            ]}
-            data={filteredUsers}
-            keyExtractor={(r) => r.id}
-          />
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   )
 }

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userService } from '@/services'
-import type { UserRow, CreateUserBody } from '@/lib/api'
 
 const USERS_QUERY_KEY = ['users']
 
@@ -23,14 +22,9 @@ export function useCreateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: CreateUserBody) => userService.createUser(data),
-    onSuccess: (newUser) => {
-      // Invalidate all user queries
+    mutationFn: (data: any) => userService.createUser(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
-      // Add new user to relevant role cache
-      queryClient.setQueryData<UserRow[]>([...USERS_QUERY_KEY, 'all'], (old) =>
-        old ? [...old, newUser] : [newUser]
-      )
     },
   })
 }
