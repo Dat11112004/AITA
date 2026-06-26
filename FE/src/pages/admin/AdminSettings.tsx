@@ -1,145 +1,132 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Input, Textarea } from '@/components/ui/Input'
+import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Tabs } from '@/components/ui/Tabs'
+import { Input } from '@/components/ui/Input'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 import { api } from '@/lib/api'
-import { Save, Settings, ShieldCheck, BellRing, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
-
-const SETTINGS_TABS = [
-  { id: 'general', label: 'Chung' },
-  { id: 'security', label: 'Bảo mật' },
-  { id: 'notifications', label: 'Thông báo' },
-]
+import { Save, Settings, ShieldAlert, Globe } from 'lucide-react'
 
 export function AdminSettings() {
-  const [tab, setTab] = useState('general')
-  const [settings, setSettings] = useState<Record<string, string>>({})
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [config, setConfig] = useState({
+    appName: 'AITA Platform',
+    maintenanceMode: false,
+    maxUploadSizeMB: 10,
+    supportEmail: 'support@aita.edu.vn'
+  })
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setError('')
-    api
-      .getSettings()
-      .then(setSettings)
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : 'Lỗi tải cài đặt')
-      })
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await api.getSettingsConfig()
+      if (data) {
+        setConfig((prev) => ({ ...prev, ...data }))
+      }
+    } catch (e: any) {
+      setError(e.message || 'Lỗi tải cấu hình hệ thống')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const save = async () => {
-    setError('')
-    setSuccess('')
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const handleSave = async () => {
     setSaving(true)
     try {
-      await api.updateSettings(settings)
-      setSuccess('Đã cập nhật cấu hình hệ thống thành công!')
-      setTimeout(() => setSuccess(''), 4000)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi lưu cấu hình')
+      await api.updateSettingsConfig(config)
+      alert('Cập nhật cấu hình thành công!')
+    } catch (e: any) {
+      alert(e.message || 'Lỗi khi lưu cấu hình')
     } finally {
       setSaving(false)
     }
   }
 
+  if (loading) return <LoadingSpinner />
+  if (error) return <ErrorState message={error} onRetry={load} />
+
   return (
-    <div className="space-y-8 p-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-      {/* Page Header */}
-      <PageHeader
-        title="Cài đặt hệ thống"
-        description="Cấu hình thông số vận hành, thiết lập chính sách bảo mật và luồng truyền tin."
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Cài đặt' }]}
+    <div className="space-y-8 p-1 sm:p-4 max-w-4xl mx-auto animate-in fade-in">
+      <PageHeader 
+        title="Cài đặt Hệ thống" 
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Cài đặt chung' }]} 
+        actions={
+          <Button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-2 px-6">
+            <Save size={16} />
+            {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+          </Button>
+        }
       />
 
-      {/* Phân hệ Tabs điều hướng */}
-      <div className="border-b border-slate-100 dark:border-slate-800 pb-1">
-        <Tabs items={SETTINGS_TABS} activeId={tab} onChange={setTab} />
-      </div>
-
-      {/* Khối quản lý cấu hình */}
-      <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 p-6 mt-6">
-
-        {/* Khối hiển thị thông báo lỗi / thành công */}
-        {error && (
-          <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4 animate-in slide-in-from-top-2">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div><span className="font-semibold">Lỗi cấu hình:</span> {error}</div>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 flex items-start gap-3 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 rounded-xl p-4 shadow-sm animate-in slide-in-from-top-2">
-            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-            <div><span className="font-semibold">Thành công:</span> {success}</div>
-          </div>
-        )}
-
-        {/* Nội dung tương ứng từng phân hệ Tab */}
-        <div className="min-h-[220px]">
-          {tab === 'general' && (
-            <div className="grid gap-5 max-w-2xl animate-in fade-in-50 duration-200">
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
-                <Settings size={16} className="text-brand-500" />
-                <span>Thông tin ứng dụng tổng quan</span>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input label="Tên hệ thống (AppName)" placeholder="Ví dụ: SORMS Portal" value={settings.appName ?? ''} onChange={(e) => setSettings({ ...settings, appName: e.target.value })} />
-                <Input label="Tổ chức / Đơn vị chủ quản" placeholder="Ví dụ: FPT University" value={settings.organization ?? ''} onChange={(e) => setSettings({ ...settings, organization: e.target.value })} />
-              </div>
-              <Textarea label="Mô tả hệ thống" placeholder="Mô tả vắn tắt mục đích sử dụng hoặc ghi chú bản quyền..." value={settings.description ?? ''} onChange={(e) => setSettings({ ...settings, description: e.target.value })} rows={4} />
-            </div>
-          )}
-
-          {tab === 'security' && (
-            <div className="grid gap-5 max-w-xl animate-in fade-in-50 duration-200">
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold text-sm mb-1">
-                <ShieldCheck size={16} className="text-amber-500" />
-                <span>Chính sách kiểm soát phiên đăng nhập</span>
-              </div>
-              <Input
-                label="Thời hạn phiên làm việc (Session timeout - phút)"
-                type="number"
-                min="5"
-                placeholder="60"
-                value={settings.sessionTimeout ?? '60'}
-                onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.value })}
-              />
-              <p className="text-xs text-slate-400 leading-relaxed -mt-2">
-                * Sau khoảng thời gian không thao tác này, tài khoản của sinh viên/giảng viên sẽ tự động đăng xuất để bảo mật dữ liệu.
-              </p>
-            </div>
-          )}
-
-          {tab === 'notifications' && (
-            <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/10 max-w-2xl animate-in fade-in-50 duration-200">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-brand-500 rounded-lg shadow-sm">
-                  <BellRing size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Kênh cấu hình luồng thông báo</h4>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Hệ thống lưu cấu hình nhận thông báo qua Email SMTP và In-app alert trực tiếp vào trường dữ liệu `settings`. Bạn có thể mở rộng thêm các key kết nối webhook tại đây trong giai đoạn tiếp theo.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+      <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
+          <Settings className="text-slate-500 w-5 h-5 ml-1" />
+          <CardHeader title="Thông số Cơ bản" />
         </div>
 
-        {/* Chân form chứa nút Lưu thay đổi */}
-        <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-          <Button
-            onClick={save}
-            disabled={saving}
-            className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
-            {saving ? 'Đang lưu cấu hình...' : 'Lưu thay đổi'}
-          </Button>
+        <div className="p-6 space-y-8">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <Globe size={18} /> Định danh Ứng dụng
+              </h4>
+              
+              <Input 
+                label="Tên ứng dụng" 
+                value={config.appName}
+                onChange={(e) => setConfig({ ...config, appName: e.target.value })}
+              />
+              
+              <Input 
+                label="Email Hỗ trợ" 
+                type="email"
+                value={config.supportEmail}
+                onChange={(e) => setConfig({ ...config, supportEmail: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <ShieldAlert size={18} /> Giới hạn & Bảo mật
+              </h4>
+              
+              <Input 
+                label="Kích thước Tệp Tối đa (MB)" 
+                type="number"
+                min="1"
+                max="100"
+                value={config.maxUploadSizeMB.toString()}
+                onChange={(e) => setConfig({ ...config, maxUploadSizeMB: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div className="relative">
+                <input 
+                  type="checkbox" 
+                  className="sr-only" 
+                  checked={config.maintenanceMode}
+                  onChange={(e) => setConfig({ ...config, maintenanceMode: e.target.checked })}
+                />
+                <div className={`block w-14 h-8 rounded-full transition-colors ${config.maintenanceMode ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${config.maintenanceMode ? 'transform translate-x-6' : ''}`}></div>
+              </div>
+              <div>
+                <div className="font-bold text-red-600 dark:text-red-400">Chế độ Bảo trì (Maintenance Mode)</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">Khi bật, chỉ Admin mới có thể truy cập hệ thống. Sinh viên và giảng viên sẽ thấy trang thông báo bảo trì.</div>
+              </div>
+            </label>
+          </div>
         </div>
       </Card>
     </div>

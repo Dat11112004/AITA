@@ -39,7 +39,6 @@ export function AdminUsers() {
       const msg = err instanceof Error ? err.message : 'Không thể tải danh sách người dùng'
       setLoadError(msg)
       setUsers([])
-      console.error('Failed to load users:', err)
     } finally {
       setLoading(false)
     }
@@ -125,7 +124,7 @@ export function AdminUsers() {
   }
 
   const handleToggleLock = async (user: UserRow) => {
-    const isLocked = user.status === 'inactive'
+    const isLocked = ['inactive', 'banned', 'locked'].includes(user.status?.toLowerCase() || '')
     try {
       await api.toggleUserLock(user.id, !isLocked)
       load()
@@ -213,15 +212,18 @@ export function AdminUsers() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="user@fpt.edu.vn"
                 required
+                disabled={!!editingUser}
+                hint={editingUser ? "Không thể thay đổi email sau khi tạo" : ""}
               />
               <Input
-                label={editingUser ? 'Thay đổi mật khẩu mới (Để trống nếu giữ nguyên)' : 'Mật khẩu khởi tạo'}
+                label={editingUser ? 'Mật khẩu (Không thể đổi qua form này)' : 'Mật khẩu khởi tạo'}
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="••••••"
                 required={!editingUser}
-                hint="Độ dài chuỗi an toàn tối thiểu 6 ký tự"
+                disabled={!!editingUser}
+                hint={!editingUser ? "Độ dài chuỗi an toàn tối thiểu 6 ký tự" : ""}
               />
               <Select
                 label="Phân quyền vai trò hệ thống"
@@ -233,6 +235,7 @@ export function AdminUsers() {
                 value={form.role}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, role: e.target.value })}
                 required
+                disabled={!!editingUser}
               />
               {!editingUser && (
                 <Input
@@ -338,7 +341,7 @@ export function AdminUsers() {
                   header: 'Trạng thái',
                   render: (r) => {
                     const u = r as UserRow
-                    const isLocked = u.status === 'inactive'
+                    const isLocked = ['inactive', 'banned', 'locked'].includes(u.status?.toLowerCase() || '')
                     return (
                       <Badge variant={isLocked ? 'danger' : 'success'} className="shadow-none px-2 py-0.5 text-[11px]">
                         {isLocked ? 'Locked' : 'Active'}
@@ -352,7 +355,7 @@ export function AdminUsers() {
                   header: 'Thao tác bảo mật',
                   render: (r) => {
                     const u = r as UserRow
-                    const isLocked = u.status === 'inactive'
+                    const isLocked = ['inactive', 'banned', 'locked'].includes(u.status?.toLowerCase() || '')
                     return (
                       <div className="flex gap-1 justify-end pr-2">
                         <button

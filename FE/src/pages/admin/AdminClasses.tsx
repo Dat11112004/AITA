@@ -36,9 +36,7 @@ export function AdminClasses() {
     load()
     api.getLecturerOptions()
       .then(setLecturers)
-      .catch((err) => {
-        console.error('Failed to load lecturers:', err)
-      })
+      .catch(() => setLecturers([]))
   }, [load])
 
   const handleCreate = async () => {

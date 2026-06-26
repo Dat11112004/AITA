@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Tabs } from '@/components/ui/Tabs'
+import { Button } from '@/components/ui/Button'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import { api, type AssignmentRow } from '@/lib/api'
-import { Sparkles, Calendar, Layers, GraduationCap, Inbox, CheckCircle2 } from 'lucide-react'
+import { Calendar, Layers, GraduationCap, Inbox, CheckCircle2, Loader2, Sparkles, Plus } from 'lucide-react'
+import { APIError } from '@/components/common/ErrorState'
 
 const TYPE_TABS = [
   { id: 'all', label: 'Tất cả Bài tập' },
@@ -17,18 +18,32 @@ const TYPE_TABS = [
 ]
 
 export function LecturerAssignments() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('all')
   const [rows, setRows] = useState<AssignmentRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const load = useCallback(() => {
+    let alive = true
+    setLoading(true)
+    setError(null)
     const params: Record<string, string> = {}
     if (tab !== 'all') params.type = tab
-    api.getAssignments(params).then(setRows).catch(console.error)
+    api.getAssignments(params)
+      .then(res => { if (alive) setRows(res || []) })
+      .catch(err => { if (alive) setError(err) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
   }, [tab])
 
   useEffect(() => {
-    load()
+    const cleanup = load()
+    return cleanup
   }, [load])
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
+  if (error) return <APIError error={error} onRetry={load} />
 
   const formatTypeName = (type: string) => {
     switch (type?.toLowerCase()) {
@@ -44,21 +59,22 @@ export function LecturerAssignments() {
 
       {/* Header Section */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <PageHeader
-            title="Ngân Hàng Bài Tập"
-            description="Quản lý cấu trúc bộ câu hỏi, theo dõi thời hạn và giao bài tự động cho sinh viên."
-            breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Bài tập' }]}
-          />
-        </div>
-        
-        <div className="flex shrink-0 items-center justify-end">
-          <Link to="/lecturer/ai-generate">
-            <Button className="h-10 gap-2 bg-gradient-to-r from-brand-600 to-brand-500 font-bold hover:shadow-lg hover:shadow-brand-500/25 transition-all text-white">
-              <Sparkles size={16} /> Tạo Đề Thay Thế AI
-            </Button>
-          </Link>
-        </div>
+        <PageHeader 
+          title="Quản lý Bài tập" 
+          breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Bài tập' }]} 
+          actions={
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => navigate('/lecturer/assignments/ai-generator')} className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
+                <Sparkles size={16} />
+                AI Ra Đề
+              </Button>
+              <Button size="sm" className="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-2">
+                <Plus size={16} />
+                Tạo bài tập
+              </Button>
+            </div>
+          }
+        />  
       </div>
 
       {/* Main Table Workspace Card */}
@@ -140,7 +156,7 @@ export function LecturerAssignments() {
                     <div className="flex items-center gap-1.5 text-xs py-2">
                       <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 dark:border-slate-700/50 dark:bg-slate-800/50 dark:text-slate-300 font-bold shadow-sm">
                         <Inbox size={12} className="text-brand-500" />
-                        <span>{(r as AssignmentRow).submitted}</span>
+                        <span>{(r as AssignmentRow).submitted ?? 0}</span>
                       </div>
                     </div>
                   )
@@ -157,6 +173,17 @@ export function LecturerAssignments() {
                     </div>
                   )
                 },
+                {
+                  key: 'actions',
+                  header: '',
+                  render: (r) => (
+                    <div className="flex justify-end gap-2 pr-4">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/lecturer/assignments/${(r as AssignmentRow).id}/submissions`)}>
+                        Chấm bài
+                      </Button>
+                    </div>
+                  )
+                }
               ]}
               data={rows}
               keyExtractor={(r) => r.id}

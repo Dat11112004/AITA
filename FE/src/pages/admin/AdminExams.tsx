@@ -2,15 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
-import { api, type SubjectRow } from '@/lib/api'
-import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, Trash2 } from 'lucide-react'
+import { api, type ExamRow, type SubjectRow } from '@/lib/api'
+import { Plus, FileSignature, TableProperties, Loader2, X, AlertTriangle } from 'lucide-react'
 
-export function AdminSubjects() {
-  const [subjects, setSubjects] = useState<SubjectRow[]>([])
+export function AdminExams() {
+  const [exams, setExams] = useState<ExamRow[]>([])
+  const [subjects, setSubjects] = useState<{value: string, label: string}[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', credits: 3, description: '' })
+  const [form, setForm] = useState({ title: '', subjectId: '', duration: 90, description: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -19,13 +20,13 @@ export function AdminSubjects() {
     setLoading(true)
     setLoadError('')
     try {
-      const data = await api.getSubjects()
-      setSubjects(data || [])
+      const data = await api.getExams()
+      setExams(data || [])
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách môn học'
+      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách kỳ thi'
       setLoadError(msg)
-      setSubjects([])
-      console.error('Failed to load subjects:', err)
+      setExams([])
+      console.error('Failed to load exams:', err)
     } finally {
       setLoading(false)
     }
@@ -33,44 +34,40 @@ export function AdminSubjects() {
 
   useEffect(() => {
     load()
+    // Tải danh sách môn học cho dropdown
+    api.getSubjects().then((res) => {
+      if (res) {
+        setSubjects(res.map((s: SubjectRow) => ({ value: s.id, label: `${s.code} - ${s.name}` })))
+      }
+    }).catch(console.error)
   }, [load])
 
   const handleCreate = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
     try {
-      await api.createSubject({
-        code: form.code,
-        name: form.name,
-        credits: Number(form.credits) || 0,
+      await api.createExam({
+        title: form.title,
+        subjectId: form.subjectId,
+        duration: Number(form.duration) || 0,
         description: form.description,
       })
-      setForm({ code: '', name: '', credits: 3, description: '' })
+      setForm({ title: '', subjectId: '', duration: 90, description: '' })
       setShowForm(false)
       load()
     } catch (error) {
       console.error(error)
-      alert(error instanceof Error ? error.message : 'Tạo môn học thất bại')
+      alert(error instanceof Error ? error.message : 'Tạo kỳ thi thất bại')
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xoá môn học này?')) return
-    try {
-      await api.deleteSubject(id)
-      load()
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá thất bại')
     }
   }
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <PageHeader
-        title="Quản lý Môn học"
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Môn học' }]}
+        title="Quản lý Kỳ thi"
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Kỳ thi' }]}
         actions={
           <Button
             size="sm"
@@ -81,7 +78,7 @@ export function AdminSubjects() {
               }`}
           >
             {showForm ? <X size={16} /> : <Plus size={16} />}
-            {showForm ? 'Đóng form' : 'Tạo môn học mới'}
+            {showForm ? 'Đóng form' : 'Tạo kỳ thi mới'}
           </Button>
         }
       />
@@ -89,16 +86,16 @@ export function AdminSubjects() {
       {showForm && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-            <Library className="text-brand-500 w-5 h-5 ml-2" />
-            <CardHeader title="Tạo môn học mới" />
+            <FileSignature className="text-brand-500 w-5 h-5 ml-2" />
+            <CardHeader title="Thiết lập Kỳ thi mới" />
           </div>
 
           <div className="p-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
-              <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              <Input label="Tên môn" placeholder="Ví dụ: Java Web Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <Input label="Số tín chỉ" type="number" value={form.credits.toString()} onChange={(e) => setForm({ ...form, credits: parseInt(e.target.value) || 0 })} />
-              <Input label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <Input label="Tên kỳ thi" placeholder="Ví dụ: Thi cuối kỳ Spring 2026" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              <Select label="Môn học" options={subjects} value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })} />
+              <Input label="Thời lượng (Phút)" type="number" value={form.duration.toString()} onChange={(e) => setForm({ ...form, duration: parseInt(e.target.value) || 0 })} />
+              <Input label="Mô tả / Ghi chú" placeholder="Nhập ghi chú cho kỳ thi..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
             <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
@@ -113,7 +110,7 @@ export function AdminSubjects() {
                     Đang lưu dữ liệu...
                   </>
                 ) : (
-                  'Lưu thông tin môn học'
+                  'Lưu thông tin kỳ thi'
                 )}
               </Button>
             </div>
@@ -126,7 +123,7 @@ export function AdminSubjects() {
         <Card className="flex items-center justify-center p-12 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto mb-3" />
-            <p className="text-slate-600 dark:text-slate-400 font-medium">Đang tải danh sách môn học...</p>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">Đang tải danh sách kỳ thi...</p>
           </div>
         </Card>
       )}
@@ -147,54 +144,49 @@ export function AdminSubjects() {
         </Card>
       )}
 
-      {/* Subjects List */}
+      {/* Exams List */}
       {!loading && !loadError && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
           <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
             <TableProperties className="text-slate-500 w-5 h-5 ml-2" />
-            <CardHeader title="Danh sách môn học" />
+            <CardHeader title="Danh sách Kỳ thi" />
           </div>
 
           <div className="p-2 overflow-x-auto custom-scrollbar">
             <DataTable
               columns={[
                 {
-                  key: 'code',
-                  header: 'Mã môn',
-                  render: (r) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{(r as SubjectRow).code}</span>
+                  key: 'title',
+                  header: 'Tên kỳ thi',
+                  render: (r) => <span className="font-bold text-slate-900 dark:text-slate-100">{(r as ExamRow).title}</span>
                 },
-                { key: 'name', header: 'Tên môn học' },
+                { key: 'subject', header: 'Môn học' },
                 {
-                  key: 'credits',
-                  header: 'Tín chỉ',
-                  render: (r) => (r as SubjectRow).credits ?? <span className="text-slate-400">—</span>,
+                  key: 'duration',
+                  header: 'Thời gian',
+                  render: (r) => <span className="font-mono">{(r as ExamRow).duration} phút</span>
                 },
                 {
                   key: 'status',
                   header: 'Trạng thái',
                   render: (r) => {
-                    const status = (r as SubjectRow).status
-                    const isActive = status === 'active' || status === '1' || status === 'true' || !status
+                    const status = (r as ExamRow).status || 'draft'
+                    const map: Record<string, { label: string, color: string }> = {
+                      draft: { label: 'Bản nháp', color: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400' },
+                      published: { label: 'Đã xuất bản', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+                      ongoing: { label: 'Đang diễn ra', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' },
+                      completed: { label: 'Đã kết thúc', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+                    }
+                    const s = map[status] || map.draft
                     return (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'}`}>
-                        {isActive ? 'Hoạt động' : 'Tạm dừng'}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${s.color}`}>
+                        {s.label}
                       </span>
                     )
                   }
                 },
-                {
-                  key: 'actions',
-                  header: '',
-                  render: (r) => (
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" className="bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-none border-0" onClick={() => handleDelete((r as SubjectRow).id)}>
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  )
-                }
               ]}
-              data={subjects}
+              data={exams}
               keyExtractor={(r) => r.id}
             />
           </div>

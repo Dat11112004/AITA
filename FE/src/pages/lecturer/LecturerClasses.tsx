@@ -1,23 +1,57 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type StudentRow } from '@/lib/api'
-import { GraduationCap, Users, BookOpen, UserCheck, Activity, Award, CheckCircle2 } from 'lucide-react'
+import { GraduationCap, Users, BookOpen, UserCheck, Activity, Award, CheckCircle2, Loader2 } from 'lucide-react'
+import { APIError } from '@/components/common/ErrorState'
 
 export function LecturerClasses() {
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [students, setStudents] = useState<StudentRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [studentError, setStudentError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    api.getClasses().then(setClasses).catch(console.error)
+  const loadClasses = useCallback(() => {
+    let alive = true
+    setLoading(true)
+    setError(null)
+    api.getClasses()
+      .then(data => { if (alive) setClasses(data || []) })
+      .catch(err => { if (alive) setError(err) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
   }, [])
 
   useEffect(() => {
-    if (!selectedId) return
-    api.getClassStudents(selectedId).then(setStudents).catch(console.error)
+    const cleanup = loadClasses()
+    return cleanup
+  }, [loadClasses])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setStudents([])
+      setStudentError(null)
+      return
+    }
+    let alive = true
+    setLoadingStudents(true)
+    setStudentError(null)
+    
+    api.getClassStudents(selectedId)
+      .then(res => { if (alive) setStudents(res || []) })
+      .catch(err => { if (alive) setStudentError(err) })
+      .finally(() => { if (alive) setLoadingStudents(false) })
+      
+    return () => { alive = false }
   }, [selectedId])
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
+  if (error) return <APIError error={error} onRetry={loadClasses} />
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -78,7 +112,7 @@ export function LecturerClasses() {
               <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800/80">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   <Users size={16} className={selectedId === c.id ? 'text-brand-500' : 'text-slate-400'} />
-                  {c.studentCount} Sinh viên
+                  {c.studentCount ?? 0} Sinh viên
                 </div>
                 <div className="text-xs font-bold text-slate-400 dark:text-slate-500">
                   Năm học 2026
@@ -118,6 +152,22 @@ export function LecturerClasses() {
               <p className="mt-2 text-sm max-w-sm text-slate-500 dark:text-slate-400">
                 Vui lòng nhấp chọn một thẻ lớp học ở danh sách phía trên để nạp dữ liệu tiến độ của sinh viên.
               </p>
+            </div>
+          ) : loadingStudents ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Loader2 size={32} className="animate-spin text-brand-500" />
+              <p className="mt-4 font-medium text-slate-600 dark:text-slate-400">Đang tải danh sách sinh viên...</p>
+            </div>
+          ) : studentError ? (
+            <div className="py-10">
+              <APIError error={studentError} onRetry={() => {
+                setLoadingStudents(true)
+                setStudentError(null)
+                api.getClassStudents(selectedId)
+                  .then(res => setStudents(res || []))
+                  .catch(err => setStudentError(err))
+                  .finally(() => setLoadingStudents(false))
+              }} />
             </div>
           ) : (
             <DataTable

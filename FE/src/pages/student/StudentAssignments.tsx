@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Tabs } from '@/components/ui/Tabs'
@@ -17,6 +17,7 @@ const STATUS_TABS = [
 ]
 
 export function StudentAssignments() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('active')
   const [rows, setRows] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,7 +35,8 @@ export function StudentAssignments() {
   }, [tab])
 
   useEffect(() => {
-    load()
+    const cleanup = load()
+    return cleanup
   }, [load])
 
   if (loading) return <LoadingSpinner />
@@ -61,9 +63,9 @@ export function StudentAssignments() {
                     {a.due && <Badge variant="warning">Hạn: {a.due.slice(0, 10)}</Badge>}
                   </div>
                 </div>
-                <Link to="/student/submissions">
-                  <Button size="sm">Nộp bài</Button>
-                </Link>
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/student/assignments/${a.id}`)}>Xem chi tiết</Button>
+                </div>
               </div>
             </Card>
           ))

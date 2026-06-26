@@ -1,15 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow } from '@/lib/api'
+import { APIError } from '@/components/common/ErrorState'
+import { Loader2 } from 'lucide-react'
 
 export function StudentClasses() {
   const [classes, setClasses] = useState<ClassRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const loadData = useCallback(() => {
+    let alive = true
+    setLoading(true)
+    setError(null)
+    api.getClasses()
+      .then(data => { if (alive) setClasses(data || []) })
+      .catch(err => { if (alive) setError(err) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
-    api.getClasses().then(setClasses).catch(console.error)
-  }, [])
+    const cleanup = loadData()
+    return cleanup
+  }, [loadData])
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
+  if (error) return <APIError error={error} onRetry={loadData} />
 
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen">

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bell, Search, LogOut, Sun, Moon, ChevronDown, LayoutDashboard } from 'lucide-react'
+import { Search, LogOut, Sun, Moon, ChevronDown, LayoutDashboard } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/store/AuthContext'
 import { useTheme } from '@/store/ThemeContext'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 import { LiveClock } from '@/components/ui/LiveClock'
+import { NotificationsDropdown } from '@/components/ui/NotificationsDropdown'
 
 interface Props { title?: string; sidebarCollapsed: boolean }
 
@@ -27,7 +28,7 @@ const roleAvatar: Record<string, string> = {
   student:  'from-emerald-500 to-emerald-700',
 }
 
-export function DashboardTopbar({}: Props) {
+export function DashboardTopbar(_props: Props) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -101,19 +102,7 @@ export function DashboardTopbar({}: Props) {
           }
         </button>
 
-        {/* Bell */}
-        <button
-          type="button"
-          className="
-            relative h-9 w-9 flex items-center justify-center rounded-xl
-            text-slate-500 hover:bg-slate-100 hover:text-slate-700
-            dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200
-            transition-all duration-150
-          "
-        >
-          <Bell size={17} />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand-500 ring-[1.5px] ring-white dark:ring-[#0f1117]" />
-        </button>
+        <NotificationsDropdown />
 
         {/* Divider */}
         <div className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-800" />

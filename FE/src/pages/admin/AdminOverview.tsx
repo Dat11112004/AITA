@@ -3,22 +3,37 @@ import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatCard } from '@/components/ui/StatCard'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { api, type ActivityLog } from '@/lib/api'
 import { type StatMetric } from '@/types'
-import { Server, Users, BookOpen, Brain, Shield, Bell, Settings, Activity, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { Server, Users, BookOpen, Brain, Activity, CheckCircle, AlertCircle, ArrowRight, Loader2 } from 'lucide-react'
+import { APIError } from '@/components/common/ErrorState'
 
 export function AdminOverview() {
   const [stats, setStats] = useState<Record<string, string | number>>({})
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [health, setHealth] = useState<Record<string, { status: string }>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const loadData = () => {
+    setLoading(true)
+    setError(null)
+    Promise.all([
+      api.getStatsOverview().then(setStats),
+      api.getActivity().then(setLogs),
+      api.getSystemHealth().then(setHealth)
+    ])
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }
 
   useEffect(() => {
-    api.getStatsOverview().then(setStats).catch(console.error)
-    api.getActivity().then(setLogs).catch(console.error)
-    api.getSystemHealth().then(setHealth).catch(console.error)
+    loadData()
   }, [])
+
+  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
+  if (error) return <APIError error={error} onRetry={loadData} />
 
   const statCards: StatMetric[] = [
     { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—', icon: Users },
@@ -29,10 +44,7 @@ export function AdminOverview() {
 
   const quickActions = [
     { label: 'Người dùng', path: '/admin/users', icon: Users, cls: 'text-brand-700 bg-brand-50 border-brand-100 dark:text-brand-400 dark:bg-brand-500/10 dark:border-brand-500/20' },
-    { label: 'Môn học', path: '/admin/subjects', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
-    { label: 'Module AI', path: '/admin/ai-modules', icon: Brain, cls: 'text-purple-700 bg-purple-50 border-purple-100 dark:text-purple-400 dark:bg-purple-500/10 dark:border-purple-500/20' },
-    { label: 'Bảo mật', path: '/admin/security-logs', icon: Shield, cls: 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
-    { label: 'Thông báo', path: '/admin/notifications', icon: Bell, cls: 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20' },
+    { label: 'Lớp học', path: '/admin/classes', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
   ]
 
   return (
@@ -44,11 +56,6 @@ export function AdminOverview() {
           description="Theo dõi người dùng, trạng thái dịch vụ và module AI."
           breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Tổng quan' }]}
         />
-        <Link to="/admin/settings">
-          <Button variant="outline" size="sm" className="gap-2 shrink-0">
-            <Settings size={14} /> Cài đặt
-          </Button>
-        </Link>
       </div>
 
       {/* Stats */}
@@ -88,9 +95,6 @@ export function AdminOverview() {
           <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
             <Activity size={15} className="text-slate-400" />
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Hoạt động gần đây</span>
-            <Link to="/admin/security-logs" className="ml-auto">
-              <Button variant="ghost" size="sm">Xem tất cả</Button>
-            </Link>
           </div>
           <div className="p-4">
             {logs.length === 0 ? (

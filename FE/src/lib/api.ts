@@ -58,7 +58,7 @@ export const api = {
   }),
 
   getStatsOverview: () => request<Record<string, string | number>>('/stats/overview'),
-  getActivity: () => request<ActivityLog[]>('/stats/activity-logs'),
+  getActivity: () => request<ActivityLog[]>('/stats/activity'),
   getSystemHealth: () => request<Record<string, { status: string }>>('/reports/health'),
 
   getUsers: (role = 'all', page = 1, limit = 10) => 
@@ -75,66 +75,14 @@ export const api = {
     const q = new URLSearchParams(params).toString()
     return request<AssignmentRow[]>(`/assignments${q ? `?${q}` : ''}`)
   },
+  getAssignment: (id: string) => request<AssignmentRow>(`/assignments/${id}`),
   createAssignment: (body: unknown) =>
     request<AssignmentRow>('/assignments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssignment: (id: string, body: unknown) =>
     request<AssignmentRow>(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
-  getSubmissions: (params?: Record<string, string>) => {
-    const q = new URLSearchParams(params).toString()
-    return request<SubmissionRow[]>(`/submissions${q ? `?${q}` : ''}`)
-  },
-  getRecentSubmissions: (limit = 5) =>
-    request<SubmissionRow[]>(`/submissions/recent?limit=${limit}`),
-  getSubmission: (id: string) => request<SubmissionRow>(`/submissions/${id}`),
-  submitWork: (body: { assignmentId: string; content?: string; language?: string; groupCode?: string }) =>
-    request<SubmissionRow>('/submissions', { method: 'POST', body: JSON.stringify(body) }),
-  publishSubmission: (id: string, score?: number) =>
-    request<SubmissionRow>(`/submissions/${id}/grade`, {
-      method: 'PATCH',
-      body: JSON.stringify({ score }),
-    }),
-
-  generateExercise: (body: unknown) =>
-    request<{ result: unknown; assignment: AssignmentRow | null }>('/ai/generate-exercise', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  saveAIAssignment: (body: unknown) =>
-    request<AssignmentRow>('/ai/save-assignment', { method: 'POST', body: JSON.stringify(body) }),
-  assessSubmission: (submissionId: string) =>
-    request<{ submission: SubmissionRow; aiScore: number; feedback: unknown }>(
-      `/ai/assess/${submissionId}`,
-      { method: 'POST' },
-    ),
-  getAIReviews: () => request<AIReviewRow[]>('/ai/reviews'),
-  reviewAIJob: (jobId: string, approved: boolean, note?: string) =>
-    request(`/ai/reviews/${jobId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ approved, note }),
-    }),
-  getAIConfig: () => request<AIConfig>('/ai/config'),
-  updateAIConfig: (body: Record<string, string>) =>
-    request('/ai/config', { method: 'PUT', body: JSON.stringify(body) }),
-
-  getSettings: () => request<Record<string, string>>('/settings'),
-  updateSettings: (body: Record<string, string>) =>
-    request('/settings', { method: 'PUT', body: JSON.stringify(body) }),
-
-  getAdminReport: (period: string) => request<unknown>(`/reports?period=${period}`),
-  getLecturerReport: (classId?: string) =>
-    request<{ avgScore: number; submitRate: string; passRate: string }>(
-      `/stats/lecturer-report${classId ? `?classId=${classId}` : ''}`,
-    ),
-
-  getStudentProgress: () => request<StudentProgress>('/stats/student-progress'),
-  getStudentFeedback: () => request<FeedbackRow[]>('/stats/student-feedback'),
-  getStudentLearning: () => request<LearningData>('/stats/student-learning'),
-
-  getClassOptions: () => request<Option[]>(`/options/classes`),
-  getAssignmentOptions: (classId?: string) =>
-    request<Option[]>(`/options/assignments${classId ? `?classId=${classId}` : ''}`),
-  getLecturerOptions: () => request<Option[]>(`/options/lecturers`),
+  getClassOptions: () => request<Option[]>(`/settings/options/classes`),
+  getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
 
   // ─── Admin: User CRUD ───
   updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string }) =>
@@ -144,8 +92,8 @@ export const api = {
   toggleUserLock: (id: string, locked: boolean) =>
     request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
 
-  // ─── Admin: Subjects ───
-  getSubjects: () => request<SubjectRow[]>('/subjects'),
+  // ─── Subjects CRUD ───
+  getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
   createSubject: (body: CreateSubjectBody) =>
     request<SubjectRow>('/subjects', { method: 'POST', body: JSON.stringify(body) }),
   updateSubject: (id: string, body: Partial<CreateSubjectBody>) =>
@@ -153,55 +101,59 @@ export const api = {
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
-  // ─── Admin: Content Management ───
-  getContents: (params?: Record<string, string>) => {
+  // ─── Exams CRUD ───
+  getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
+  getExam: (id: string) => request<ExamRow>(`/exams/${id}`),
+  createExam: (body: CreateExamBody) =>
+    request<ExamRow>('/exams', { method: 'POST', body: JSON.stringify(body) }),
+  updateExam: (id: string, body: Partial<CreateExamBody>) =>
+    request<ExamRow>(`/exams/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  // ─── Submissions ───
+  getSubmissions: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString()
-    return request<ContentRow[]>(`/contents${q ? `?${q}` : ''}`)
+    return request<SubmissionRow[]>(`/submissions${q ? `?${q}` : ''}`)
   },
-  createContent: (body: CreateContentBody) =>
-    request<ContentRow>('/contents', { method: 'POST', body: JSON.stringify(body) }),
-  updateContent: (id: string, body: Partial<CreateContentBody>) =>
-    request<ContentRow>(`/contents/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteContent: (id: string) =>
-    request<void>(`/contents/${id}`, { method: 'DELETE' }),
+  getSubmission: (id: string) => request<SubmissionRow>(`/submissions/${id}`),
+  submitAssignment: (body: { assignmentId: string, content: string, files?: any[] }) =>
+    request<SubmissionRow>('/submissions', { method: 'POST', body: JSON.stringify(body) }),
+  gradeSubmission: (id: string, body: { score: number, feedback?: string, rubricScores?: Record<string, number> }) =>
+    request<SubmissionRow>(`/submissions/${id}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
 
-  // ─── Admin: Security Logs ───
-  getSecurityLogs: (params?: Record<string, string>) => {
-    const q = new URLSearchParams(params).toString()
-    return request<SecurityLog[]>(`/audit/logs${q ? `?${q}` : ''}`)
-  },
+  // ─── Grading & Rubric ───
+  startGradingSession: (assignmentId: string) =>
+    request<{ sessionId: string }>('/grading/start', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
+  getRubricRules: () => request<any[]>('/rubric/rules'),
 
-  // ─── Admin: Notifications ───
-  getNotifications: (params?: Record<string, string>) => {
-    const q = new URLSearchParams(params).toString()
-    return request<NotificationRow[]>(`/notifications${q ? `?${q}` : ''}`)
-  },
-  sendNotification: (body: SendNotificationBody) =>
-    request<NotificationRow>('/notifications', { method: 'POST', body: JSON.stringify(body) }),
-  markNotificationRead: (id: string) =>
-    request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
+  // ─── AI Features ───
+  generateExerciseAI: (body: { topic: string, difficulty: string, type: string }) =>
+    request<any>('/ai/generate-exercise', { method: 'POST', body: JSON.stringify(body) }),
+  saveAIAssignment: (body: any) =>
+    request<AssignmentRow>('/ai/save-assignment', { method: 'POST', body: JSON.stringify(body) }),
+  assessSubmissionAI: (submissionId: string) =>
+    request<any>(`/ai/assess/${submissionId}`, { method: 'POST' }),
+  getAIFeedback: (studentId: string) =>
+    request<any>(`/ai/feedback/${studentId}`),
+  getAIConfig: () =>
+    request<any>('/ai/config'),
+  updateAIConfig: (body: any) =>
+    request<any>('/ai/config', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ─── Lecturer: Teamwork ───
-  getTeamworkData: (classId?: string) => {
-    const q = classId ? `?classId=${classId}` : ''
-    return request<TeamworkData>(`/stats/teamwork${q}`)
-  },
+  // ─── Settings ───
+  getSettingsConfig: () => request<any>('/settings/config'),
+  updateSettingsConfig: (body: any) => request<any>('/settings/config', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ─── Student: Discussion ───
-  getDiscussionThreads: (classId?: string) => {
-    const q = classId ? `?classId=${classId}` : ''
-    return request<DiscussionThread[]>(`/discussions${q}`)
-  },
-  createDiscussionThread: (body: { classId: string; title: string; content: string }) =>
-    request<DiscussionThread>('/discussions', { method: 'POST', body: JSON.stringify(body) }),
-  replyToThread: (threadId: string, body: { content: string }) =>
-    request<DiscussionReply>(`/discussions/${threadId}/replies`, { method: 'POST', body: JSON.stringify(body) }),
+  // ─── Audit Logs ───
+  getAuditLogs: () => request<any[]>('/audit/logs'),
+  getAIAuditLogs: () => request<any[]>('/audit/ai-usage'),
 
-  // ─── Student: Assignment History ───
-  getSubmissionHistory: () => request<SubmissionHistoryRow[]>('/stats/student-history'),
+  // ─── Reports ───
+  getSystemReports: () => request<any>('/reports'),
+  getHealthReports: () => request<any>('/reports/health'),
 
-  // ─── Student: Teamwork ───
-  getStudentTeamwork: () => request<StudentTeamData>('/stats/student-teamwork'),
+  // ─── Notifications ───
+  getNotifications: () => request<any[]>('/notifications'),
+  markNotificationRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
 }
 
 /* ═══════════════════════════════════════════
@@ -243,7 +195,7 @@ export interface ClassRow {
   campus?: string
   schedule?: string
   lecturer?: AuthUser
-  studentCount: number
+  studentCount?: number
   count?: number
 }
 
@@ -269,10 +221,10 @@ export interface AssignmentRow {
   id: string
   title: string
   type: string
-  class: string
+  class?: string
   classId: string
-  due: string | null
-  submitted: number
+  due?: string | null
+  submitted?: number
   status: string
   description?: string
   content?: unknown
@@ -343,140 +295,34 @@ export interface LearningData {
   recommendations: { type: string; title: string }[]
 }
 
-// ─── New types ───
-
 export interface SubjectRow {
   id: string
   code: string
   name: string
-  difficulty: string
-  description: string
-  codeExamples?: string
-  curriculum?: string
-  createdAt: string
+  credits?: number
+  description?: string
+  status: string
 }
 
 export interface CreateSubjectBody {
   code: string
   name: string
-  difficulty: string
-  description: string
-  codeExamples?: string
-  curriculum?: string
+  credits?: number
+  description?: string
 }
 
-export interface ContentRow {
+export interface ExamRow {
   id: string
   title: string
-  category: string
-  body: string
-  status: 'draft' | 'published' | 'archived'
-  author: string
-  publishAt?: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateContentBody {
-  title: string
-  category: string
-  body: string
-  status?: 'draft' | 'published'
-  publishAt?: string | null
-}
-
-export interface SecurityLog {
-  id: string
-  action: string
-  user: string
-  ip: string
-  detail: string
-  level: 'info' | 'warning' | 'danger'
-  createdAt: string
-}
-
-export interface NotificationRow {
-  id: string
-  title: string
-  message: string
-  type: 'info' | 'warning' | 'urgent' | 'grade' | 'deadline'
-  target: string
-  read: boolean
-  createdAt: string
-}
-
-export interface SendNotificationBody {
-  title: string
-  message: string
-  type: string
-  targetRole?: string
-  targetClassId?: string
-}
-
-export interface TeamworkData {
-  teams: TeamInfo[]
-}
-
-export interface TeamInfo {
-  id: string
-  name: string
-  assignment: string
-  members: TeamMember[]
-}
-
-export interface TeamMember {
-  id: string
-  name: string
-  commits: number
-  linesAdded: number
-  linesRemoved: number
-  contributionPercent: number
-  lastActive: string
-}
-
-export interface DiscussionThread {
-  id: string
-  classId: string
-  className?: string
-  title: string
-  content: string
-  author: string
-  authorRole: string
-  replies: DiscussionReply[]
-  resolved: boolean
-  createdAt: string
-}
-
-export interface DiscussionReply {
-  id: string
-  content: string
-  author: string
-  authorRole: string
-  createdAt: string
-}
-
-export interface SubmissionHistoryRow {
-  id: string
-  assignment: string
-  className: string
-  submittedAt: string
-  score: number | null
-  aiScore: number | null
+  subject: string
+  duration?: number
   status: string
-  feedback?: string
-  language?: string
+  createdAt?: string
 }
 
-export interface StudentTeamData {
-  teams: StudentTeamInfo[]
-}
-
-export interface StudentTeamInfo {
-  id: string
-  name: string
-  assignment: string
-  className: string
-  members: { id: string; name: string; role: string; contributionPercent: number }[]
-  myContribution: number
-  status: string
+export interface CreateExamBody {
+  title: string
+  subjectId: string
+  duration?: number
+  description?: string
 }

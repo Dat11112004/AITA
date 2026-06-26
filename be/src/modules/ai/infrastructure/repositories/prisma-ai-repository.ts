@@ -4,14 +4,14 @@ import { IAiRepository } from '../../domain/repositories/ai-repository.interface
 export class PrismaAiRepository implements IAiRepository {
     constructor(private readonly prisma: PrismaClient) { }
 
-    async logInteraction(userId: string, model: string, prompt: string, response: string) {
+    async logInteraction(userId: string, model: string, _prompt: string, _response: string) {
         await (this.prisma as any).aiUsageLog.create({
             data: {
-                UserId: userId,
-                Model: model,
-                Prompt: prompt,
-                Response: response,
-                CreatedAt: new Date()
+                User: { connect: { Id: userId } },
+                ModelUsed: model,
+                ActionType: 'Interaction',
+                CreatedAt: new Date(),
+                IsSuccess: true
             }
         })
     }
