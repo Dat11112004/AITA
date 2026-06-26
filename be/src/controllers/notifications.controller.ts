@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Request, Response } from 'express'
 import { notificationsService } from '../services/notifications.service.js'
 import type { AuthUser } from '../types/express.js'

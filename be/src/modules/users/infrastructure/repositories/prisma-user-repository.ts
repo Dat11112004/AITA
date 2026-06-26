@@ -4,6 +4,10 @@ import { IUserRepository, UserWithRoles } from '../../domain/repositories/user-r
 export class PrismaUserRepository implements IUserRepository {
   private client: any
 
+  private get include() {
+    return { UserRole: { include: { Role: true } } }
+  }
+
   constructor(client: any) {
     this.client = client
   }
@@ -18,14 +22,16 @@ export class PrismaUserRepository implements IUserRepository {
   async findById(id: string): Promise<UserWithRoles | null> {
     return this.client.user.findUnique({
       where: { Id: id },
-      include: { UserRole: { include: { Role: true } } },
+      include: this.include,
     })
   }
 
-  async findMany(where?: Prisma.UserWhereInput): Promise<UserWithRoles[]> {
-    return this.client.user.findMany({
-      where,
-      include: { UserRole: { include: { Role: true } } },
+  async findMany(params?: { where?: Prisma.UserWhereInput, skip?: number, take?: number }): Promise<UserWithRoles[]> {
+    return this.client.user.findMany({ 
+      where: params?.where,
+      skip: params?.skip,
+      take: params?.take,
+      include: this.include,
       orderBy: { Id: 'desc' },
     })
   }
@@ -63,6 +69,9 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async assignRole(userId: string, roleId: string): Promise<any> {
+    await this.client.userRole.deleteMany({
+      where: { UserId: userId }
+    })
     return this.client.userRole.create({
       data: { UserId: userId, RoleId: roleId },
     })

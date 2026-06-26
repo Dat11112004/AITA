@@ -4,8 +4,8 @@ import { CreateUserUseCase } from '../application/use-cases/create-user.use-case
 import { UpdateUserUseCase } from '../application/use-cases/update-user.use-case.js'
 import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case.js'
 import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case.js'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
-
+import { ok } from '../../../utils/response.js'
+import { CreateUserDto, UpdateUserDto } from '../application/dtos/user.dto.js'
 
 export class UsersController {
     constructor(
@@ -18,28 +18,32 @@ export class UsersController {
 
     async list(req: Request, res: Response): Promise<void> {
         const role = String(req.query.role ?? 'all')
-        const result = await this.listUseCase.execute(role)
-        res.status(200).json(ApiResponse.success('Lấy danh sách người dùng thành công', result))
+        const page = parseInt(req.query.page as string) || 1
+        const limit = parseInt(req.query.limit as string) || 10
+        const result = await this.listUseCase.execute(role, page, limit)
+        ok(res, result, 200, 'Lấy danh sách người dùng thành công')
     }
 
     async create(req: Request, res: Response): Promise<void> {
-        const result = await this.createUseCase.execute(req.body)
-        res.status(201).json(ApiResponse.success('Tạo người dùng thành công', result, 201))
+        const dto = CreateUserDto.parse(req.body)
+        const result = await this.createUseCase.execute(dto)
+        ok(res, result, 201, 'Tạo người dùng thành công')
     }
 
     async update(req: Request, res: Response): Promise<void> {
-        const result = await this.updateUseCase.execute(String(req.params.id), req.body)
-        res.status(200).json(ApiResponse.success('Cập nhật người dùng thành công', result))
+        const dto = UpdateUserDto.parse(req.body)
+        const result = await this.updateUseCase.execute(String(req.params.id), dto)
+        ok(res, result, 200, 'Cập nhật người dùng thành công')
     }
 
     async delete(req: Request, res: Response): Promise<void> {
         const result = await this.deleteUseCase.execute(String(req.params.id))
-        res.status(200).json(ApiResponse.success('Xóa người dùng thành công', result))
+        ok(res, result, 200, 'Xóa người dùng thành công')
     }
 
     async toggleLock(req: Request, res: Response): Promise<void> {
         const { locked } = req.body
         const result = await this.toggleLockUseCase.execute(String(req.params.id), locked)
-        res.status(200).json(ApiResponse.success('Cập nhật trạng thái khóa thành công', result))
+        ok(res, result, 200, 'Cập nhật trạng thái khóa thành công')
     }
 }

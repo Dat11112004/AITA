@@ -15,8 +15,11 @@ export class GetAssignmentUseCase {
             description: a.Description,
             type: a.ExamType?.toLowerCase(),
             status: a.Status?.toLowerCase(),
-            subjectId: a.SubjectId,
+            classId: a.SubjectId,
+            class: a.Subject?.SubjectName || a.Subject?.SubjectCode || a.SubjectId,
             maxScore: a.TotalPoints,
+            due: null,
+            submitted: a._count?.Submission || 0
         }
     }
 }

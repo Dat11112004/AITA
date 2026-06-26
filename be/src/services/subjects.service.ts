@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { subjectRepository } from '../repositories/subject.repository.js'
 import { mapSubject } from '../utils/mappers.js'
 

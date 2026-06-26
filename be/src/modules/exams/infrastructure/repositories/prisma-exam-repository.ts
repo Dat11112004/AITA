@@ -1,4 +1,4 @@
-import type { Prisma, Exam } from '../../../../database/prisma.js'
+import type { Prisma } from '../../../../database/prisma.js'
 import { IExamRepository } from '../../domain/repositories/exam-repository.interface.js'
 
 export class PrismaExamRepository implements IExamRepository {
@@ -8,19 +8,31 @@ export class PrismaExamRepository implements IExamRepository {
     this.client = client
   }
 
-  async findMany(where?: Prisma.ExamWhereInput): Promise<Exam[]> {
-    return this.client.exam.findMany({ where })
+  private get include() {
+    return {
+      Subject: true,
+      _count: { select: { Submission: true } }
+    }
   }
 
-  async findById(id: string): Promise<Exam | null> {
-    return this.client.exam.findUnique({ where: { Id: id } })
+  async findMany(params?: { where?: Prisma.ExamWhereInput, skip?: number, take?: number }): Promise<any[]> {
+    return this.client.exam.findMany({ 
+      where: params?.where,
+      skip: params?.skip,
+      take: params?.take,
+      include: this.include
+    })
   }
 
-  async create(data: Prisma.ExamUncheckedCreateInput): Promise<Exam> {
-    return this.client.exam.create({ data })
+  async findById(id: string): Promise<any | null> {
+    return this.client.exam.findUnique({ where: { Id: id }, include: this.include })
   }
 
-  async update(id: string, data: Prisma.ExamUpdateInput): Promise<Exam> {
-    return this.client.exam.update({ where: { Id: id }, data })
+  async create(data: Prisma.ExamUncheckedCreateInput): Promise<any> {
+    return this.client.exam.create({ data, include: this.include })
+  }
+
+  async update(id: string, data: Prisma.ExamUpdateInput): Promise<any> {
+    return this.client.exam.update({ where: { Id: id }, data, include: this.include })
   }
 }

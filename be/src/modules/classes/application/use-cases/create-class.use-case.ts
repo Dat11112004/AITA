@@ -1,6 +1,6 @@
 import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { badRequest } from '../../../../utils/errors.js'
+import { ValidationError } from '../../../../shared/application/app.error.js'
 import { CreateClassRequestDto, ClassResponseDto } from '../dtos/class.dto.js'
 
 export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, ClassResponseDto> {
@@ -11,7 +11,7 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Class
 
     const existingClass = await this.uow.classRepository.findByCode(data.code)
     if (existingClass) {
-      throw badRequest('Mã lớp đã tồn tại')
+      throw new ValidationError('Mã lớp đã tồn tại')
     }
 
     return this.uow.runInTransaction(async (uow: IUnitOfWork) => {

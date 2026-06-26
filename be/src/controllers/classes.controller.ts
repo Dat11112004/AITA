@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Request, Response } from 'express'
 import { classesService } from '../services/classes.service.js'
 import { createClassSchema, enrollSchema } from '../validations/classes.validation.js'

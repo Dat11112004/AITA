@@ -7,20 +7,21 @@ export class ListAssignmentsUseCase implements IUseCase<{ user: AuthUser; params
     constructor(private readonly uow: IUnitOfWork) { }
 
     async execute({ user, params }: { user: AuthUser; params: any }): Promise<any[]> {
-        const { classId, status, type } = params
+        const { classId, status, type, page = 1, limit = 10 } = params
 
         const where: Prisma.ExamWhereInput = {}
         if (classId) where.SubjectId = classId
         if (type) where.ExamType = String(type).toUpperCase() as any
         if (status) where.Status = String(status).toUpperCase() as any
 
-        const assignments = await this.uow.examRepository.findMany(where)
+        const skip = (page - 1) * limit
+        const assignments = await this.uow.examRepository.findMany({ where, skip, take: limit })
 
         let allowedSubjectIds: Set<string> | null = null
 
         if (user.role === 'LECTURER') {
             const classes = await this.uow.classRepository.findMany({
-                InstructorClass: { some: { UserId: user.id } }
+                where: { InstructorClass: { some: { UserId: user.id } } }
             })
             allowedSubjectIds = new Set(classes.map((item: any) => item.Id))
         } else if (user.role === 'STUDENT') {
@@ -38,8 +39,11 @@ export class ListAssignmentsUseCase implements IUseCase<{ user: AuthUser; params
             description: a.Description,
             type: a.ExamType?.toLowerCase() || 'assignment',
             status: a.Status?.toLowerCase() || 'draft',
-            subjectId: a.SubjectId,
+            classId: a.SubjectId,
+            class: a.Subject?.SubjectName || a.Subject?.SubjectCode || a.SubjectId,
             maxScore: a.TotalPoints,
+            due: null,
+            submitted: a._count?.Submission || 0
         }))
     }
 }

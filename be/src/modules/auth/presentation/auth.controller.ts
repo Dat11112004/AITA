@@ -3,7 +3,7 @@ import { LoginUseCase } from '../application/use-cases/login.use-case.js'
 import { RegisterStudentUseCase } from '../application/use-cases/register.use-case.js'
 import { GetMeUseCase } from '../application/use-cases/get-me.use-case.js'
 import { LoginRequestDto, RegisterStudentRequestDto } from '../application/dtos/auth.dto.js'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
+import { ok } from '../../../utils/response.js'
 import { Logger } from '../../../shared/infrastructure/logger.js'
 
 export class AuthController {
@@ -27,7 +27,7 @@ export class AuthController {
     const dto = LoginRequestDto.from(req.body)
     const result = await this.loginUseCase.execute(dto)
 
-    res.status(200).json(ApiResponse.success('Đăng nhập thành công', result))
+    ok(res, result, 200, 'Đăng nhập thành công')
   }
 
   async register(req: Request, res: Response): Promise<void> {
@@ -35,18 +35,18 @@ export class AuthController {
     const dto = RegisterStudentRequestDto.from(req.body)
     const result = await this.registerStudentUseCase.execute(dto)
 
-    res.status(201).json(ApiResponse.success('Đăng ký tài khoản thành công', result, 201))
+    ok(res, result, 201, 'Đăng ký tài khoản thành công')
   }
 
   async getMe(req: Request, res: Response): Promise<void> {
     this.logger.info(`Received getMe request for user: ${req.user?.id}`)
     const result = await this.getMeUseCase.execute(req.user!.id)
 
-    res.status(200).json(ApiResponse.success('Lấy thông tin tài khoản thành công', result))
+    ok(res, result, 200, 'Lấy thông tin tài khoản thành công')
   }
 
   async logout(_req: Request, res: Response): Promise<void> {
     this.logger.info('Received logout request')
-    res.status(200).json(ApiResponse.success('Đăng xuất thành công'))
+    ok(res, null, 200, 'Đăng xuất thành công')
   }
 }

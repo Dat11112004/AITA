@@ -1,5 +1,5 @@
 import { IStatsRepository } from '../../domain/repositories/stats-repository.interface.js'
-// import { notFound } from '../../../../utils/errors.js'
+// import { NotFoundError } from '../../../../shared/application/app.error.js'
 
 export class GetOverviewUseCase {
     constructor(private readonly statsRepo: IStatsRepository) { }

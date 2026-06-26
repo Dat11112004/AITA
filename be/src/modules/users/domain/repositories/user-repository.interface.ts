@@ -11,7 +11,7 @@ export type UserWithRoles = Prisma.UserGetPayload<{
 export interface IUserRepository {
   findByEmail(email: string): Promise<UserWithRoles | null>
   findById(id: string): Promise<UserWithRoles | null>
-  findMany(where?: Prisma.UserWhereInput): Promise<UserWithRoles[]>
+  findMany(params?: { where?: Prisma.UserWhereInput, skip?: number, take?: number }): Promise<UserWithRoles[]>
   create(data: Prisma.UserUncheckedCreateInput): Promise<UserWithRoles>
   update(id: string, data: Prisma.UserUpdateInput): Promise<UserWithRoles>
   delete(id: string): Promise<UserWithRoles>

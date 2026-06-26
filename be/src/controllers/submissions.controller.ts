@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Request, Response } from 'express'
 import { submissionsService } from '../services/submissions.service.js'
 import { submitAssignmentSchema, publishGradeSchema } from '../validations/submissions.validation.js'

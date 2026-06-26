@@ -9,7 +9,7 @@ export type ClassWithRelations = Prisma.ClassGetPayload<{
 }>
 
 export interface IClassRepository {
-  findMany(where?: Prisma.ClassWhereInput): Promise<ClassWithRelations[]>
+  findMany(params?: { where?: Prisma.ClassWhereInput, skip?: number, take?: number }): Promise<ClassWithRelations[]>
   findById(id: string): Promise<ClassWithRelations | null>
   findByCode(code: string): Promise<ClassWithRelations | null>
   create(data: Prisma.ClassUncheckedCreateInput): Promise<ClassWithRelations>

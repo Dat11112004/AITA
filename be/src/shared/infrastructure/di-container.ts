@@ -182,7 +182,7 @@ export class DIContainer {
 
       // ── AI ───────────────────────────────────────────────────
       const aiService = new ExternalAiService()
-      const aiRepo = new PrismaAiRepository(uow as any)
+      const aiRepo = uow.getRepo(PrismaAiRepository)
       const generateExerciseUseCase = new GenerateExerciseUseCase(aiService, aiRepo)
       const saveAiAssignmentUseCase = new SaveAiAssignmentUseCase(uow)
       const assessSubmissionUseCase = new AssessSubmissionUseCase(uow, aiService, aiRepo)
@@ -201,7 +201,7 @@ export class DIContainer {
       this.services.set('AiController', modularAiController)
 
       // ── Reports ─────────────────────────────────────────────
-      const reportsRepo = new PrismaReportsRepository(uow as any)
+      const reportsRepo = uow.getRepo(PrismaReportsRepository)
       const getAdminReportUseCase = new GetAdminReportUseCase(reportsRepo)
       const getSystemHealthUseCase = new GetSystemHealthUseCase()
 
@@ -209,7 +209,7 @@ export class DIContainer {
       this.services.set('ReportsController', modularReportsController)
 
       // ── Audit ────────────────────────────────────────────────
-      const auditRepo = new PrismaAuditRepository(uow as any)
+      const auditRepo = uow.getRepo(PrismaAuditRepository)
       const getAuditLogsUseCase = new GetAuditLogsUseCase(auditRepo)
       const getAiUsageLogsUseCase = new GetAiUsageLogsUseCase(auditRepo)
 
@@ -220,7 +220,7 @@ export class DIContainer {
       this.services.set('AuditController', modularAuditController)
 
       // ── Config ───────────────────────────────────────────────
-      const configRepo = new PrismaConfigRepository(uow as any)
+      const configRepo = uow.getRepo(PrismaConfigRepository)
       const listProjectTypesUseCase = new ListProjectTypesUseCase(configRepo)
       const getProjectTypeUseCase = new GetProjectTypeUseCase(configRepo)
       const updateProjectTypeUseCase = new UpdateProjectTypeUseCase(configRepo)
@@ -233,7 +233,7 @@ export class DIContainer {
       this.services.set('ConfigController', modularConfigController)
 
       // ── Notifications ────────────────────────────────────────
-      const notificationRepo = new PrismaNotificationRepository(uow as any)
+      const notificationRepo = uow.getRepo(PrismaNotificationRepository)
       const listNotificationsUseCase = new ListUserNotificationsUseCase(notificationRepo)
       const markNotificationAsReadUseCase = new MarkNotificationAsReadUseCase(notificationRepo)
 
@@ -244,7 +244,7 @@ export class DIContainer {
       this.services.set('NotificationsController', modularNotificationsController)
 
       // ── Rubric ───────────────────────────────────────────────
-      const rubricRepo = new PrismaRubricRepository(uow as any)
+      const rubricRepo = uow.getRepo(PrismaRubricRepository)
       const listRubricRulesUseCase = new ListRubricRulesUseCase(rubricRepo)
       const getRubricRuleWithCriteriaUseCase = new GetRubricRuleWithCriteriaUseCase(rubricRepo)
 
@@ -255,7 +255,7 @@ export class DIContainer {
       this.services.set('RubricController', modularRubricController)
 
       // ── Grading ──────────────────────────────────────────────
-      const gradingRepo = new PrismaGradingRepository(uow as any)
+      const gradingRepo = uow.getRepo(PrismaGradingRepository)
       const getGradingSessionStatusUseCase = new GetGradingSessionStatusUseCase(gradingRepo)
       const startGradingSessionUseCase = new StartGradingSessionUseCase(gradingRepo)
 
@@ -266,7 +266,7 @@ export class DIContainer {
       this.services.set('GradingController', modularGradingController)
 
       // ── Stats ────────────────────────────────────────────────
-      const statsRepo = new PrismaStatsRepository(uow as any)
+      const statsRepo = uow.getRepo(PrismaStatsRepository)
       const getOverviewUseCase = new GetOverviewUseCase(statsRepo)
       const getActivityLogsUseCase = new GetActivityLogsUseCase(statsRepo)
       const getLecturerReportUseCase = new GetLecturerReportUseCase(statsRepo)
@@ -283,7 +283,7 @@ export class DIContainer {
       this.services.set('StatsController', modularStatsController)
 
       // ── Settings ─────────────────────────────────────────────
-      const settingsRepo = new PrismaSettingsRepository(uow as any)
+      const settingsRepo = uow.getRepo(PrismaSettingsRepository)
       const getSystemConfigUseCase = new GetSystemConfigUseCase(settingsRepo)
       const updateSystemConfigUseCase = new UpdateSystemConfigUseCase(settingsRepo)
       const getOptionsUseCase = new GetOptionsUseCase(settingsRepo)

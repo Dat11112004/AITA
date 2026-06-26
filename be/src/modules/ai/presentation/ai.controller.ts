@@ -6,7 +6,7 @@ import { AssessSubmissionUseCase } from '../application/use-cases/assess-submiss
 import { GetLearningFeedbackUseCase } from '../application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../application/use-cases/ai-config.use-case.js'
 import { ApiResponse } from '../../../shared/presentation/api-response.js'
-import { badRequest } from '../../../utils/errors.js'
+import { ValidationError } from '../../../shared/application/app.error.js'
 
 export class AiController {
     constructor(
@@ -55,7 +55,7 @@ export class AiController {
 
     async learningFeedback(req: Request, res: Response): Promise<void> {
         const studentId = String(req.params.studentId)
-        if (req.user!.role === 'STUDENT' && req.user!.id !== studentId) throw badRequest('Forbidden')
+        if (req.user!.role === 'STUDENT' && req.user!.id !== studentId) throw new ValidationError('Forbidden')
         const result = await this.getLearningFeedbackUseCase.execute(studentId)
         res.status(200).json(ApiResponse.success('Lấy phản hồi học tập thành công', result))
     }

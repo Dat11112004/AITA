@@ -16,15 +16,15 @@ export class ListExamsUseCase implements IUseCase<{ user: AuthUser; params: any 
     if (type) where.ExamType = String(type) as any
     if (status) where.Status = String(status) as any
 
-    let exams = await this.uow.examRepository.findMany(where)
+    let exams = await this.uow.examRepository.findMany({ where })
 
     // Role-based filtering
     if (user.role === 'LECTURER') {
-      const myClasses = await this.uow.classRepository.findMany({
-        InstructorClass: { some: { UserId: user.id } }
+      const classes = await this.uow.classRepository.findMany({
+        where: { InstructorClass: { some: { UserId: user.id } } }
       })
-      const myClassIds = new Set(myClasses.map((c: any) => c.Id))
-      exams = exams.filter((exam: any) => myClassIds.has(exam.SubjectId))
+      const allowedSubjectIds = new Set(classes.map((c: any) => c.Id))
+      exams = exams.filter((exam: any) => allowedSubjectIds.has(exam.SubjectId))
     }
 
     if (user.role === 'STUDENT') {

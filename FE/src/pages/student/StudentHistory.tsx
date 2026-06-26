@@ -5,6 +5,8 @@ import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { api, type SubmissionHistoryRow } from '@/lib/api'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 import { History, Search, Download, Clock } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 
@@ -12,17 +14,24 @@ export function StudentHistory() {
   const [history, setHistory] = useState<SubmissionHistoryRow[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let alive = true;
     api.getSubmissionHistory()
-      .then(setHistory)
-      .finally(() => setLoading(false))
+      .then((d) => { if (alive) setHistory(d) })
+      .catch((e) => { if (alive) setError(e.message) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
   }, [])
 
   const filtered = history.filter(h => 
     h.assignment.toLowerCase().includes(search.toLowerCase()) || 
     h.className.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (loading) return <LoadingSpinner />
+  if (error) return <ErrorState message={error} />
 
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen">

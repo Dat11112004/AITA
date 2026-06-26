@@ -1,7 +1,7 @@
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { IAIService } from '../../../../shared/application/ports/ai-service.interface.js'
 import { IAiRepository } from '../../domain/repositories/ai-repository.interface.js'
-import { notFound } from '../../../../utils/errors.js'
+import { NotFoundError } from '../../../../shared/application/app.error.js'
 
 export class AssessSubmissionUseCase {
     constructor(
@@ -12,7 +12,7 @@ export class AssessSubmissionUseCase {
 
     async execute(submissionId: string) {
         const sub = await this.uow.submissionRepository.findById(submissionId)
-        if (!sub) throw notFound('Bài nộp không tồn tại')
+        if (!sub) throw new NotFoundError('Bài nộp không tồn tại')
 
         const result = await this.aiService.assess(
             '',

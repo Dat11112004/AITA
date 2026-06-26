@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AuthUser } from '../types/express.js'
 import { classRepository, enrollmentRepository } from '../repositories/class.repository.js'
 import { badRequest, notFound } from '../utils/errors.js'

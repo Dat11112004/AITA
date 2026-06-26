@@ -1,14 +1,14 @@
 import bcrypt from 'bcryptjs'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { CreateUserDto, UserResponseDto } from '../dtos/user.dto.js'
-import { badRequest } from '../../../../utils/errors.js'
+import { ConflictError } from '../../../../shared/application/app.error.js'
 
 export class CreateUserUseCase {
     constructor(private readonly uow: IUnitOfWork) { }
 
     async execute(dto: CreateUserDto) {
         const existing = await this.uow.userRepository.findByEmail(dto.email)
-        if (existing) throw badRequest('Email đã tồn tại')
+        if (existing) throw new ConflictError('Email đã tồn tại')
 
         const passwordHash = await bcrypt.hash(dto.password, 10)
 

@@ -125,7 +125,7 @@ export function AdminUsers() {
   }
 
   const handleToggleLock = async (user: UserRow) => {
-    const isLocked = user.status === 'locked'
+    const isLocked = user.status === 'inactive'
     try {
       await api.toggleUserLock(user.id, !isLocked)
       load()
@@ -338,9 +338,10 @@ export function AdminUsers() {
                   header: 'Trạng thái',
                   render: (r) => {
                     const u = r as UserRow
+                    const isLocked = u.status === 'inactive'
                     return (
-                      <Badge variant={u.status === 'active' ? 'success' : u.status === 'locked' ? 'danger' : 'neutral'} className="shadow-none px-2 py-0.5 text-[11px]">
-                        {u.status === 'active' ? 'Hoạt động' : u.status === 'locked' ? 'Đã khóa' : u.status}
+                      <Badge variant={isLocked ? 'danger' : 'success'} className="shadow-none px-2 py-0.5 text-[11px]">
+                        {isLocked ? 'Locked' : 'Active'}
                       </Badge>
                     )
                   },
@@ -351,6 +352,7 @@ export function AdminUsers() {
                   header: 'Thao tác bảo mật',
                   render: (r) => {
                     const u = r as UserRow
+                    const isLocked = u.status === 'inactive'
                     return (
                       <div className="flex gap-1 justify-end pr-2">
                         <button
@@ -364,10 +366,10 @@ export function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => handleToggleLock(u)}
-                          className={`rounded-lg p-1.5 transition ${u.status === 'locked' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30'}`}
-                          title={u.status === 'locked' ? 'Mở khóa tài khoản' : 'Khóa truy cập'}
+                          className={`rounded-lg p-1.5 transition ${isLocked ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30'}`}
+                          title={isLocked ? 'Mở khóa tài khoản' : 'Khóa truy cập'}
                         >
-                          {u.status === 'locked' ? <Unlock size={14} /> : <Lock size={14} />}
+                          {isLocked ? <Unlock size={14} /> : <Lock size={14} />}
                         </button>
                         <button
                           type="button"

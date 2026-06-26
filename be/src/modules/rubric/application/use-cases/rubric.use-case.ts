@@ -1,5 +1,5 @@
 import { IRubricRepository } from '../../domain/repositories/rubric-repository.interface.js'
-import { notFound } from '../../../../utils/errors.js'
+import { NotFoundError } from '../../../../shared/application/app.error.js'
 
 export class ListRubricRulesUseCase {
     constructor(private readonly rubricRepo: IRubricRepository) { }
@@ -14,7 +14,7 @@ export class GetRubricRuleWithCriteriaUseCase {
 
     async execute(id: string) {
         const rule = await this.rubricRepo.getRule(id)
-        if (!rule) throw notFound('Quy tắc chấm điểm không tồn tại')
+        if (!rule) throw new NotFoundError('Quy tắc chấm điểm không tồn tại')
 
         const criteria = await this.rubricRepo.listCriteria(id)
         return { ...rule, criteria }

@@ -47,7 +47,8 @@ export class ClassResponseDto {
     public readonly name: string | null,
     public readonly subject: any,
     public readonly semester: any,
-    public readonly lecturers: any[]
+    public readonly lecturers: any[],
+    public readonly studentCount: number
   ) {}
 
   static from(cls: any): ClassResponseDto {
@@ -61,7 +62,8 @@ export class ClassResponseDto {
         id: ic.User?.Id,
         name: ic.User?.FullName,
         email: ic.User?.Email,
-      })) || []
+      })) || [],
+      cls._count?.StudentClass || 0
     )
   }
 }

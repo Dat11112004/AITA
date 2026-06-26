@@ -6,15 +6,33 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { api, type NotificationRow } from '@/lib/api'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 import { Bell, Clock, BookOpen, CheckCircle, ArrowRight, TrendingUp, MessageSquare, History, Users } from 'lucide-react'
 
 export function StudentOverview() {
   const [stats, setStats] = useState<Record<string, string | number>>({})
   const [announcements, setAnnouncements] = useState<NotificationRow[]>([])
 
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    api.getStatsOverview().then(setStats).catch(console.error)
-    api.getNotifications({ limit: '3', type: 'info' }).then(setAnnouncements).catch(console.error)
+    let alive = true
+    Promise.all([
+      api.getStatsOverview(),
+      api.getNotifications({ limit: '3', type: 'info' })
+    ]).then(([statsData, notifsData]) => {
+      if (alive) {
+        setStats(statsData)
+        setAnnouncements(notifsData)
+      }
+    }).catch((e) => {
+      if (alive) setError(e.message)
+    }).finally(() => {
+      if (alive) setLoading(false)
+    })
+    return () => { alive = false }
   }, [])
 
   const statCards = [
@@ -30,6 +48,9 @@ export function StudentOverview() {
     { to: '/student/discussion', icon: Users, label: 'Thảo luận', cls: 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20' },
     { to: '/student/history', icon: History, label: 'Lịch sử nộp', cls: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' },
   ]
+
+  if (loading) return <LoadingSpinner />
+  if (error) return <ErrorState message={error} />
 
   return (
     <div className="space-y-6 animate-fade-in-up">

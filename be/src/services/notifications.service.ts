@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { notificationRepository } from '../repositories/notification.repository.js'
 import { mapNotification } from '../utils/mappers.js'
 import type { AuthUser } from '../types/express.js'

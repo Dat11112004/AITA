@@ -100,7 +100,7 @@ FE/src/
 
 - `routes/index.tsx` defines public routes (`/`, `/about`, `/features`, `/pillars`), `/login`, and three portals guarded by **`ProtectedRoute`** (`features/auth/components/`). Catch‑all `*` → `/`.
 - `ProtectedRoute` handles the `loading` state, redirects unauthenticated users to `/login?redirect=…`, and **lowercases `user.role`** before comparing to the route's `allowedRole`. Client‑side gating is correct; **server‑side gating is a separate BE concern** and is currently missing on some routes.
-- **Sidebars come from `constants/navigation.ts`** — this can drift from `routes/index.tsx`. Some routes (lecturer `ai-review`/`reports`; student `classes`/`progress`/`submissions`) exist but aren't in the nav, so they're only reachable by URL. When you add a page, update **both** the route table and the nav.
+- **Sidebars come from `constants/navigation.ts`** — this is fully synced with the route table. All 30 pages across admin, lecturer, and student portals are properly wired into the `Routes` and accessible via the sidebar menus. When you add a page, update **both** the route table and the nav.
 
 ---
 
@@ -158,7 +158,6 @@ Confirmed in [`docs/CODEBASE_REVIEW.md`](../docs/CODEBASE_REVIEW.md). Fix rather
 - **`updateAssignment` 404:** FE uses `PATCH`, BE serves `PUT`. Change the FE.
 - **Edit‑user no‑op:** the BE silently drops `email`/`role`/`password` on update; the form looks like it worked. (BE‑side fix needed; disable those fields meanwhile.)
 - **Lock/unlock broken:** BE writes status `BANNED` (→ lowercased `banned`), but `AdminUsers` checks `=== 'locked'`, so the badge/toggle never reflect a locked user. Align the status vocabulary across BE+FE.
-- **Register form missing:** `AuthContext.register`, `authSchemas.registerSchema`, and i18n strings all exist, but `LoginPage` renders only the login form.
 - **Misleading language switcher:** en/ja appear available but dashboards are hardcoded Vietnamese.
 
 ---

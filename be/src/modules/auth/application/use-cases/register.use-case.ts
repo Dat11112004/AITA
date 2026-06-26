@@ -2,9 +2,8 @@ import bcrypt from 'bcryptjs'
 import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { Logger } from '../../../../shared/infrastructure/logger.js'
-import { badRequest } from '../../../../utils/errors.js'
+import { ValidationError } from '../../../../shared/application/app.error.js'
 import { signToken } from '../../../../middleware/auth.js'
-import { mapUser } from '../../../../utils/mappers.js'
 import { RegisterStudentRequestDto, AuthResponseDto } from '../dtos/auth.dto.js'
 
 export class RegisterStudentUseCase implements IUseCase<RegisterStudentRequestDto, AuthResponseDto> {
@@ -21,7 +20,7 @@ export class RegisterStudentUseCase implements IUseCase<RegisterStudentRequestDt
     const existingUser = await this.uow.userRepository.findByEmail(dto.email)
     if (existingUser) {
       this.logger.warn(`Registration failed: Email already in use: ${dto.email}`)
-      throw badRequest('Email đã được sử dụng')
+      throw new ValidationError('Email đã được sử dụng')
     }
 
     return this.uow.runInTransaction(async (transactionalUow) => {
@@ -59,7 +58,7 @@ export class RegisterStudentUseCase implements IUseCase<RegisterStudentRequestDt
 
       const userWithRoles = await transactionalUow.userRepository.findById(user.Id)
 
-      return AuthResponseDto.from(token, mapUser(userWithRoles || user))
+      return AuthResponseDto.from(token, userWithRoles || user, 'STUDENT')
     })
   }
 }

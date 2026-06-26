@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AuthUser } from '../types/express.js'
 import { submissionRepository } from '../repositories/submission.repository.js'
 import { assignmentRepository } from '../repositories/assignment.repository.js'

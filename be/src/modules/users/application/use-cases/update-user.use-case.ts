@@ -1,20 +1,35 @@
+import bcrypt from 'bcryptjs'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { UpdateUserDto, UserResponseDto } from '../dtos/user.dto.js'
-import { notFound } from '../../../../utils/errors.js'
+import { NotFoundError } from '../../../../shared/application/app.error.js'
 
 export class UpdateUserUseCase {
     constructor(private readonly uow: IUnitOfWork) { }
 
     async execute(id: string, dto: UpdateUserDto) {
         const user = await this.uow.userRepository.findById(id)
-        if (!user) throw notFound('Người dùng không tồn tại')
+        if (!user) throw new NotFoundError('Người dùng không tồn tại')
 
-        const updated = await this.uow.userRepository.update(id, {
+        let passwordHash = undefined
+        if (dto.password) {
+            passwordHash = await bcrypt.hash(dto.password, 10)
+        }
+
+        await this.uow.userRepository.update(id, {
             FullName: dto.fullName,
             Email: dto.email,
-            Status: dto.status === 'Locked' ? 'Suspended' : (dto.status === 'Active' ? 'Active' : undefined)
+            Status: dto.status === 'Locked' ? 'Inactive' : (dto.status === 'Active' ? 'Active' : undefined),
+            PasswordHash: passwordHash
         })
 
-        return UserResponseDto.from(updated)
+        if (dto.role) {
+            const targetRole = await this.uow.userRepository.findRoleByName(dto.role.toUpperCase())
+            if (targetRole) {
+                await this.uow.userRepository.assignRole(id, targetRole.Id)
+            }
+        }
+        
+        const finalUpdatedUser = await this.uow.userRepository.findById(id)
+        return UserResponseDto.from(finalUpdatedUser)
     }
 }

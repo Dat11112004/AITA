@@ -16,7 +16,14 @@ export class UpdateAssignmentUseCase {
         return {
             id: updated.Id,
             title: updated.Title,
+            description: updated.Description,
+            type: updated.ExamType?.toLowerCase(),
             status: updated.Status?.toLowerCase(),
+            classId: updated.SubjectId,
+            class: updated.Subject?.SubjectName || updated.Subject?.SubjectCode || updated.SubjectId,
+            maxScore: updated.TotalPoints,
+            due: null,
+            submitted: updated._count?.Submission || 0
         }
     }
 }

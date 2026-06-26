@@ -14,8 +14,9 @@ export class RecentSubmissionsUseCase implements IUseCase<{ user: AuthUser; limi
     }
 
     if (user.role === 'LECTURER') {
-      const myClassIds = (await this.uow.classRepository.findMany({ InstructorClass: { some: { UserId: user.id } } })).map((item: any) => item.Id)
-      where.ClassId = { in: myClassIds }
+      const classes = await this.uow.classRepository.findMany({ where: { InstructorClass: { some: { UserId: user.id } } } })
+      const allowedClassIds = classes.map(c => c.Id)
+      where.ClassId = { in: allowedClassIds }
     }
 
     const submissions = await this.uow.submissionRepository.findRecent(where, limit)

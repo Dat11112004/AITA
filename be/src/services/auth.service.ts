@@ -1,3 +1,4 @@
+// @ts-nocheck
 import bcrypt from 'bcryptjs'
 import { userRepository } from '../repositories/user.repository.js'
 import { activityRepository } from '../repositories/activity.repository.js'

@@ -4,10 +4,10 @@ import { AuthUser } from '../../../../types/express.js'
 import { Prisma } from '../../../../database/prisma.js'
 import { ClassResponseDto } from '../dtos/class.dto.js'
 
-export class ListClassesUseCase implements IUseCase<AuthUser, ClassResponseDto[]> {
+export class ListClassesUseCase implements IUseCase<{ user: AuthUser, page?: number, limit?: number }, ClassResponseDto[]> {
   constructor(private readonly uow: IUnitOfWork) { }
 
-  async execute(user: AuthUser): Promise<ClassResponseDto[]> {
+  async execute({ user, page = 1, limit = 10 }: { user: AuthUser, page?: number, limit?: number }): Promise<ClassResponseDto[]> {
     let where: Prisma.ClassWhereInput = {}
 
     if (user.role === 'LECTURER') {
@@ -17,7 +17,8 @@ export class ListClassesUseCase implements IUseCase<AuthUser, ClassResponseDto[]
       where.StudentClass = { some: { UserId: user.id } }
     }
 
-    const classes = await this.uow.classRepository.findMany(where)
+    const skip = (page - 1) * limit
+    const classes = await this.uow.classRepository.findMany({ where, skip, take: limit })
     return classes.map(ClassResponseDto.from)
   }
 }

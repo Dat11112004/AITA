@@ -1,9 +1,8 @@
 import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { Logger } from '../../../../shared/infrastructure/logger.js'
-import { unauthorized } from '../../../../utils/errors.js'
-import { mapUser } from '../../../../utils/mappers.js'
-
+import { UnauthorizedError } from '../../../../shared/application/app.error.js'
+import { UserResponseDto } from '../../../../modules/users/application/dtos/user.dto.js'
 export class GetMeUseCase implements IUseCase<string, any> {
   private readonly uow: IUnitOfWork
   private readonly logger = new Logger('GetMeUseCase')
@@ -17,8 +16,8 @@ export class GetMeUseCase implements IUseCase<string, any> {
     const user = await this.uow.userRepository.findById(userId)
     if (!user) {
       this.logger.warn(`User details fetch failed: User not found for ID: ${userId}`)
-      throw unauthorized()
+      throw new UnauthorizedError()
     }
-    return mapUser(user)
+    return UserResponseDto.from(user)
   }
 }

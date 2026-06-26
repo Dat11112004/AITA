@@ -1,6 +1,6 @@
 import { IUseCase } from '../../../../shared/application/base-use-case.js'
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { notFound } from '../../../../utils/errors.js'
+import { NotFoundError } from '../../../../shared/application/app.error.js'
 
 export class GetClassStudentsUseCase implements IUseCase<string, any[]> {
   constructor(private readonly uow: IUnitOfWork) {}
@@ -8,7 +8,7 @@ export class GetClassStudentsUseCase implements IUseCase<string, any[]> {
   async execute(classId: string): Promise<any[]> {
     const cls = await this.uow.classRepository.findById(classId)
     if (!cls) {
-      throw notFound('Lớp không tồn tại')
+      throw new NotFoundError('Lớp không tồn tại')
     }
 
     const enrollments = await this.uow.enrollmentRepository.findMany({ ClassId: classId })

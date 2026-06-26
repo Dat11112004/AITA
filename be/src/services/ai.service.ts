@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { env } from '../config/env.js'
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))

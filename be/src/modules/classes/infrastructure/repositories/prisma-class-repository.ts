@@ -13,11 +13,17 @@ export class PrismaClassRepository implements IClassRepository {
       InstructorClass: { include: { User: true } },
       Subject: true,
       Semester: true,
+      _count: { select: { StudentClass: true } }
     }
   }
 
-  async findMany(where?: Prisma.ClassWhereInput): Promise<ClassWithRelations[]> {
-    return this.client.class.findMany({ where, include: this.include })
+  async findMany(params?: { where?: Prisma.ClassWhereInput, skip?: number, take?: number }): Promise<ClassWithRelations[]> {
+    return this.client.class.findMany({ 
+      where: params?.where, 
+      skip: params?.skip,
+      take: params?.take,
+      include: this.include 
+    })
   }
 
   async findById(id: string): Promise<ClassWithRelations | null> {

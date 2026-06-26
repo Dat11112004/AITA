@@ -7,6 +7,7 @@ export const createAssignmentSchema = z.object({
     type: z.enum(['QUIZ', 'CODING', 'GROUP']).optional(),
     maxScore: z.number().min(0).optional(),
     dueAt: z.string().optional(),
+    status: z.enum(['DRAFT', 'PUBLISHED', 'CLOSED']).optional(),
 })
 
 export const updateAssignmentSchema = z.object({
@@ -22,6 +23,7 @@ export class CreateAssignmentDto {
     type?: 'QUIZ' | 'CODING' | 'GROUP'
     maxScore?: number
     dueAt?: string
+    status?: 'DRAFT' | 'PUBLISHED' | 'CLOSED'
 
     static from(data: unknown): CreateAssignmentDto {
         const parsed = createAssignmentSchema.parse(data)

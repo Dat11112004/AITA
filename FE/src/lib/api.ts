@@ -27,10 +27,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
 
   const json = await res.json().catch(() => ({}))
-  if (!res.ok || json.success === false) {
-    throw new ApiError(json.error?.message || res.statusText || 'Lỗi API', res.status, json.error?.code)
+  if (!res.ok || json.success === false || json.statusCode >= 400) {
+    throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lỗi API', json.statusCode || res.status, json.error?.code)
   }
-  return json.data as T
+  return (json.Data !== undefined ? json.Data : json.data) as T
 }
 
 export const api = {
@@ -38,25 +38,35 @@ export const api = {
     request<{ token: string; user: AuthUser }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }).then(res => {
+      if (res.user?.role) res.user.role = res.user.role.toLowerCase() as any
+      return res
     }),
 
   register: (body: { email: string; password: string; fullName: string; externalId?: string }) =>
     request<{ token: string; user: AuthUser }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
+    }).then(res => {
+      if (res.user?.role) res.user.role = res.user.role.toLowerCase() as any
+      return res
     }),
 
-  me: () => request<AuthUser>('/auth/me'),
+  me: () => request<AuthUser>('/auth/me').then(u => {
+    if (u?.role) u.role = u.role.toLowerCase() as any
+    return u
+  }),
 
   getStatsOverview: () => request<Record<string, string | number>>('/stats/overview'),
-  getActivity: () => request<ActivityLog[]>('/stats/activity'),
-  getSystemHealth: () => request<Record<string, { status: string }>>('/system/health'),
+  getActivity: () => request<ActivityLog[]>('/stats/activity-logs'),
+  getSystemHealth: () => request<Record<string, { status: string }>>('/reports/health'),
 
-  getUsers: (role = 'all') => request<UserRow[]>(`/users?role=${role}`),
+  getUsers: (role = 'all', page = 1, limit = 10) => 
+    request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}`),
   createUser: (body: CreateUserBody) =>
     request<UserRow>('/users', { method: 'POST', body: JSON.stringify(body) }),
 
-  getClasses: () => request<ClassRow[]>('/classes'),
+  getClasses: (page = 1, limit = 10) => request<ClassRow[]>(`/classes?page=${page}&limit=${limit}`),
   createClass: (body: CreateClassBody) =>
     request<ClassRow>('/classes', { method: 'POST', body: JSON.stringify(body) }),
   getClassStudents: (classId: string) => request<StudentRow[]>(`/classes/${classId}/students`),
@@ -68,7 +78,7 @@ export const api = {
   createAssignment: (body: unknown) =>
     request<AssignmentRow>('/assignments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssignment: (id: string, body: unknown) =>
-    request<AssignmentRow>(`/assignments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    request<AssignmentRow>(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   getSubmissions: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString()
@@ -80,7 +90,7 @@ export const api = {
   submitWork: (body: { assignmentId: string; content?: string; language?: string; groupCode?: string }) =>
     request<SubmissionRow>('/submissions', { method: 'POST', body: JSON.stringify(body) }),
   publishSubmission: (id: string, score?: number) =>
-    request<SubmissionRow>(`/submissions/${id}/publish`, {
+    request<SubmissionRow>(`/submissions/${id}/grade`, {
       method: 'PATCH',
       body: JSON.stringify({ score }),
     }),
@@ -111,15 +121,15 @@ export const api = {
   updateSettings: (body: Record<string, string>) =>
     request('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  getAdminReport: (period: string) => request<unknown>(`/reports/admin?period=${period}`),
+  getAdminReport: (period: string) => request<unknown>(`/reports?period=${period}`),
   getLecturerReport: (classId?: string) =>
     request<{ avgScore: number; submitRate: string; passRate: string }>(
-      `/reports/lecturer${classId ? `?classId=${classId}` : ''}`,
+      `/stats/lecturer-report${classId ? `?classId=${classId}` : ''}`,
     ),
 
-  getStudentProgress: () => request<StudentProgress>('/student/progress'),
-  getStudentFeedback: () => request<FeedbackRow[]>('/student/feedback'),
-  getStudentLearning: () => request<LearningData>('/student/learning'),
+  getStudentProgress: () => request<StudentProgress>('/stats/student-progress'),
+  getStudentFeedback: () => request<FeedbackRow[]>('/stats/student-feedback'),
+  getStudentLearning: () => request<LearningData>('/stats/student-learning'),
 
   getClassOptions: () => request<Option[]>(`/options/classes`),
   getAssignmentOptions: (classId?: string) =>
@@ -139,7 +149,7 @@ export const api = {
   createSubject: (body: CreateSubjectBody) =>
     request<SubjectRow>('/subjects', { method: 'POST', body: JSON.stringify(body) }),
   updateSubject: (id: string, body: Partial<CreateSubjectBody>) =>
-    request<SubjectRow>(`/subjects/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    request<SubjectRow>(`/subjects/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
@@ -158,7 +168,7 @@ export const api = {
   // ─── Admin: Security Logs ───
   getSecurityLogs: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString()
-    return request<SecurityLog[]>(`/security/logs${q ? `?${q}` : ''}`)
+    return request<SecurityLog[]>(`/audit/logs${q ? `?${q}` : ''}`)
   },
 
   // ─── Admin: Notifications ───
@@ -169,12 +179,12 @@ export const api = {
   sendNotification: (body: SendNotificationBody) =>
     request<NotificationRow>('/notifications', { method: 'POST', body: JSON.stringify(body) }),
   markNotificationRead: (id: string) =>
-    request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+    request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
 
   // ─── Lecturer: Teamwork ───
   getTeamworkData: (classId?: string) => {
     const q = classId ? `?classId=${classId}` : ''
-    return request<TeamworkData>(`/teamwork${q}`)
+    return request<TeamworkData>(`/stats/teamwork${q}`)
   },
 
   // ─── Student: Discussion ───
@@ -188,10 +198,10 @@ export const api = {
     request<DiscussionReply>(`/discussions/${threadId}/replies`, { method: 'POST', body: JSON.stringify(body) }),
 
   // ─── Student: Assignment History ───
-  getSubmissionHistory: () => request<SubmissionHistoryRow[]>('/student/history'),
+  getSubmissionHistory: () => request<SubmissionHistoryRow[]>('/stats/student-history'),
 
   // ─── Student: Teamwork ───
-  getStudentTeamwork: () => request<StudentTeamData>('/student/teamwork'),
+  getStudentTeamwork: () => request<StudentTeamData>('/stats/student-teamwork'),
 }
 
 /* ═══════════════════════════════════════════

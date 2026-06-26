@@ -60,17 +60,21 @@ export class AuthResponseDto {
     status: string | null
   }
 
-  static from(token: string, user: any): AuthResponseDto {
+  static from(token: string, user: any, explicitRole?: string): AuthResponseDto {
     const dto = new AuthResponseDto()
     dto.token = token
+    
+    // Extract role from Prisma nested relation if explicitRole isn't provided
+    const role = explicitRole || user.role || user.UserRole?.[0]?.Role?.RoleName || 'STUDENT'
+
     dto.user = {
       id: user.id || user.Id,
       email: user.email || user.Email,
       fullName: user.fullName || user.FullName,
       studentCode: user.studentCode || user.StudentCode,
       avatar: user.avatar || user.Avatar,
-      role: user.role || 'STUDENT',
-      status: user.status || user.Status
+      role: role.toLowerCase(), // mapUser lowercased the role, maintaining compatibility
+      status: (user.status || user.Status || 'active').toLowerCase()
     }
     return dto
   }

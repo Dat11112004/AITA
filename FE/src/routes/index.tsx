@@ -13,19 +13,31 @@ import { AdminOverview } from '@/pages/admin/AdminOverview'
 import { AdminUsers } from '@/pages/admin/AdminUsers'
 import { AdminSubjects } from '@/pages/admin/AdminSubjects'
 import { AdminReports } from '@/pages/admin/AdminReports'
+import { AdminSecurityLogs } from '@/pages/admin/AdminSecurityLogs'
+import { AdminNotifications } from '@/pages/admin/AdminNotifications'
+import { AdminAIModules } from '@/pages/admin/AdminAIModules'
+import { AdminSettings } from '@/pages/admin/AdminSettings'
+import { AdminClasses } from '@/pages/admin/AdminClasses'
+
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
 import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerGrading } from '@/pages/lecturer/LecturerGrading'
 import { LecturerNotifications } from '@/pages/lecturer/LecturerNotifications'
 import { LecturerReports } from '@/pages/lecturer/LecturerReports'
-import { AdminClasses } from '@/pages/admin/AdminClasses'
+import { LecturerAIGenerate } from '@/pages/lecturer/LecturerAIGenerate'
+import { LecturerTeamwork } from '@/pages/lecturer/LecturerTeamwork'
+
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentClasses } from '@/pages/student/StudentClasses'
 import { StudentProgress } from '@/pages/student/StudentProgress'
 import { StudentSubmissions } from '@/pages/student/StudentSubmissions'
 import { StudentNotifications } from '@/pages/student/StudentNotifications'
+import { StudentLearning } from '@/pages/student/StudentLearning'
+import { StudentFeedback } from '@/pages/student/StudentFeedback'
+import { StudentTeamwork } from '@/pages/student/StudentTeamwork'
+import { StudentHistory } from '@/pages/student/StudentHistory'
 
 export function AppRoutes() {
   return (
@@ -58,6 +70,10 @@ export function AppRoutes() {
         <Route path="classes" element={<AdminClasses />} />
         <Route path="subjects" element={<AdminSubjects />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="security-logs" element={<AdminSecurityLogs />} />
+        <Route path="notifications" element={<AdminNotifications />} />
+        <Route path="ai-modules" element={<AdminAIModules />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       <Route
@@ -76,7 +92,9 @@ export function AppRoutes() {
         <Route index element={<LecturerOverview />} />
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="assignments" element={<LecturerAssignments />} />
+        <Route path="ai-generate" element={<LecturerAIGenerate />} />
         <Route path="grading" element={<LecturerGrading />} />
+        <Route path="teamwork" element={<LecturerTeamwork />} />
         <Route path="reports" element={<LecturerReports />} />
         <Route path="notifications" element={<LecturerNotifications />} />
       </Route>
@@ -97,8 +115,12 @@ export function AppRoutes() {
         <Route index element={<StudentOverview />} />
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="classes" element={<StudentClasses />} />
-        <Route path="progress" element={<StudentProgress />} />
         <Route path="submissions" element={<StudentSubmissions />} />
+        <Route path="progress" element={<StudentProgress />} />
+        <Route path="learning" element={<StudentLearning />} />
+        <Route path="feedback" element={<StudentFeedback />} />
+        <Route path="teamwork" element={<StudentTeamwork />} />
+        <Route path="history" element={<StudentHistory />} />
         <Route path="notifications" element={<StudentNotifications />} />
       </Route>
 

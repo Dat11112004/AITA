@@ -20,7 +20,7 @@ export class ListSubmissionsUseCase implements IUseCase<{ user: AuthUser; query:
 
     if (user.role === 'LECTURER') {
       const myClassIds = (await this.uow.classRepository.findMany({
-        InstructorClass: { some: { UserId: user.id } }
+        where: { InstructorClass: { some: { UserId: user.id } } }
       })).map((item: any) => item.Id)
       submissions = submissions.filter((submission: any) => myClassIds.includes(submission.ClassId))
     }

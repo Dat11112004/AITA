@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/Card'
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow } from '@/lib/api'
 
 const STATUS_TABS = [
@@ -17,14 +19,26 @@ const STATUS_TABS = [
 export function StudentAssignments() {
   const [tab, setTab] = useState('active')
   const [rows, setRows] = useState<AssignmentRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
-    api.getAssignments({ tab }).then(setRows).catch(console.error)
+    let alive = true
+    setLoading(true)
+    setError(null)
+    api.getAssignments({ tab })
+      .then((d) => { if (alive) setRows(d) })
+      .catch((e) => { if (alive) setError(e.message) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
   }, [tab])
 
   useEffect(() => {
     load()
   }, [load])
+
+  if (loading) return <LoadingSpinner />
+  if (error) return <ErrorState message={error} />
 
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen">
