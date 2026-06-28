@@ -19,5 +19,6 @@ export class ClassesRouter {
     this.router.post('/', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.create(req, res)))
     this.router.get('/:id/students', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.getStudents(req, res)))
     this.router.post('/:id/enroll', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.enroll(req, res)))
+    this.router.patch('/:id/note', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.updateNote(req, res)))
   }
 }

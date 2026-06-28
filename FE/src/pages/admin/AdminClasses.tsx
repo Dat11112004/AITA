@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input, Select } from '@/components/ui/Input'
+import { Input, Select, Textarea } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type Option } from '@/lib/api'
-import { Plus, GraduationCap, TableProperties, Loader2, X, AlertTriangle } from 'lucide-react'
+import { Plus, GraduationCap, TableProperties, Loader2, X, AlertTriangle, StickyNote, Save, Check } from 'lucide-react'
 
 export function AdminClasses() {
   const [classes, setClasses] = useState<ClassRow[]>([])
@@ -15,6 +15,15 @@ export function AdminClasses() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
+
+  // Internal class note editor (admin only)
+  const [noteClassId, setNoteClassId] = useState<string | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteError, setNoteError] = useState('')
+  const [noteSaved, setNoteSaved] = useState(false)
+
+  const noteClass = classes.find((c) => c.id === noteClassId) ?? null
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,6 +68,29 @@ export function AdminClasses() {
       alert(error instanceof Error ? error.message : 'Tạo lớp thất bại')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const openNote = (c: ClassRow) => {
+    setNoteClassId(c.id)
+    setNoteDraft(c.note ?? '')
+    setNoteError('')
+    setNoteSaved(false)
+  }
+
+  const saveNote = async () => {
+    if (!noteClassId || savingNote) return
+    setSavingNote(true)
+    setNoteError('')
+    setNoteSaved(false)
+    try {
+      await api.updateClassNote(noteClassId, noteDraft)
+      setNoteSaved(true)
+      load()
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'Không thể lưu ghi chú')
+    } finally {
+      setSavingNote(false)
     }
   }
 
@@ -118,6 +150,49 @@ export function AdminClasses() {
         </Card>
       )}
 
+      {/* Internal note editor (admin only) */}
+      {noteClass && (
+        <Card className="overflow-hidden border border-amber-200/70 dark:border-amber-500/20 bg-amber-50/40 dark:bg-amber-500/5 shadow-md animate-in slide-in-from-top-4 duration-300">
+          <div className="border-b border-amber-100 dark:border-amber-500/20 p-4 flex items-center gap-2">
+            <StickyNote className="text-amber-500 w-5 h-5 ml-2" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                Ghi chú nội bộ — <span className="font-mono text-brand-600 dark:text-brand-400">{noteClass.code}</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Chỉ admin &amp; giảng viên thấy. Sinh viên không nhìn thấy.</p>
+            </div>
+            <button onClick={() => setNoteClassId(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="p-6 space-y-3">
+            <Textarea
+              value={noteDraft}
+              onChange={(e) => { setNoteDraft(e.target.value); setNoteSaved(false) }}
+              placeholder="Thêm lưu ý riêng về lớp này..."
+              maxLength={2000}
+              rows={4}
+            />
+            {noteError && <p className="text-xs text-red-600 dark:text-red-400">{noteError}</p>}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400 dark:text-slate-500">{noteDraft.length}/2000</span>
+              <div className="flex items-center gap-3">
+                {noteSaved && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <Check size={14} /> Đã lưu
+                  </span>
+                )}
+                <Button size="sm" onClick={saveNote} disabled={savingNote || noteDraft === (noteClass.note ?? '')}>
+                  {savingNote
+                    ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Đang lưu...</>
+                    : <><Save size={14} className="mr-1.5" />Lưu ghi chú</>}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Loading State */}
       {loading && (
         <Card className="flex items-center justify-center p-12 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -172,6 +247,23 @@ export function AdminClasses() {
                   render: (r) => <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">{(r as ClassRow).studentCount ?? 0} SV</span>
                 },
                 { key: 'semester', header: 'Học kỳ' },
+                {
+                  key: 'note',
+                  header: 'Ghi chú nội bộ',
+                  render: (r) => {
+                    const cls = r as ClassRow
+                    return (
+                      <div className="flex items-center gap-2">
+                        {cls.note
+                          ? <span className="max-w-[160px] truncate text-xs text-slate-600 dark:text-slate-300" title={cls.note}>{cls.note}</span>
+                          : <span className="text-xs text-slate-400">—</span>}
+                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => openNote(cls)}>
+                          <StickyNote size={13} className="mr-1" />Sửa
+                        </Button>
+                      </div>
+                    )
+                  },
+                },
               ]}
               data={classes}
               keyExtractor={(r) => r.id}

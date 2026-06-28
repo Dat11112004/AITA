@@ -19,6 +19,8 @@ export class ListClassesUseCase implements IUseCase<{ user: AuthUser, page?: num
 
     const skip = (page - 1) * limit
     const classes = await this.uow.classRepository.findMany({ where, skip, take: limit })
-    return classes.map(ClassResponseDto.from)
+    // Internal note is visible only to staff; never expose it to students.
+    const includeNote = user.role !== 'STUDENT'
+    return classes.map((c) => ClassResponseDto.from(c, includeNote))
   }
 }

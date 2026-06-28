@@ -26,6 +26,22 @@ export class CreateClassRequestDto {
   }
 }
 
+export const UpdateClassNoteSchema = z.object({
+  note: z.string().max(2000, 'Ghi chú tối đa 2000 ký tự'),
+})
+
+export type UpdateClassNoteDtoType = z.infer<typeof UpdateClassNoteSchema>
+
+export class UpdateClassNoteDto {
+  note!: string
+
+  static from(body: unknown): UpdateClassNoteDto {
+    const dto = new UpdateClassNoteDto()
+    Object.assign(dto, UpdateClassNoteSchema.parse(body))
+    return dto
+  }
+}
+
 export const EnrollStudentSchema = z.object({
   studentId: z.string({ required_error: 'studentId là bắt buộc' }),
 })
@@ -48,10 +64,12 @@ export class ClassResponseDto {
     public readonly subject: any,
     public readonly semester: any,
     public readonly lecturers: any[],
-    public readonly studentCount: number
+    public readonly studentCount: number,
+    // Internal note — only populated for ADMIN/LECTURER; omitted entirely for STUDENT.
+    public readonly note?: string | null
   ) {}
 
-  static from(cls: any): ClassResponseDto {
+  static from(cls: any, includeNote = false): ClassResponseDto {
     return new ClassResponseDto(
       cls.Id,
       cls.ClassCode,
@@ -63,7 +81,8 @@ export class ClassResponseDto {
         name: ic.User?.FullName,
         email: ic.User?.Email,
       })) || [],
-      cls._count?.StudentClass || 0
+      cls._count?.StudentClass || 0,
+      includeNote ? (cls.Note ?? null) : undefined
     )
   }
 }
