@@ -70,6 +70,8 @@ export const api = {
   createClass: (body: CreateClassBody) =>
     request<ClassRow>('/classes', { method: 'POST', body: JSON.stringify(body) }),
   getClassStudents: (classId: string) => request<StudentRow[]>(`/classes/${classId}/students`),
+  updateClassNote: (classId: string, note: string) =>
+    request<ClassRow>(`/classes/${classId}/note`, { method: 'PATCH', body: JSON.stringify({ note }) }),
 
   getAssignments: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString()
@@ -197,6 +199,8 @@ export interface ClassRow {
   lecturer?: AuthUser
   studentCount?: number
   count?: number
+  // Internal staff note — present only for ADMIN/LECTURER (BE omits it for students).
+  note?: string | null
 }
 
 export interface CreateClassBody {

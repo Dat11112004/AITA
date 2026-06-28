@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express'
 import { ok } from '../../../utils/response.js'
 import { Logger } from '../../../shared/infrastructure/logger.js'
-import { CreateClassRequestDto, EnrollStudentRequestDto } from '../application/dtos/class.dto.js'
+import { CreateClassRequestDto, EnrollStudentRequestDto, UpdateClassNoteDto } from '../application/dtos/class.dto.js'
 import { ListClassesUseCase } from '../application/use-cases/list-classes.use-case.js'
 import { CreateClassUseCase } from '../application/use-cases/create-class.use-case.js'
 import { GetClassStudentsUseCase } from '../application/use-cases/get-class-students.use-case.js'
 import { EnrollStudentUseCase } from '../application/use-cases/enroll-student.use-case.js'
+import { UpdateClassNoteUseCase } from '../application/use-cases/update-class-note.use-case.js'
 
 export class ClassesController {
   private readonly logger = new Logger('ClassesController')
@@ -14,7 +15,8 @@ export class ClassesController {
     private readonly listClassesUseCase: ListClassesUseCase,
     private readonly createClassUseCase: CreateClassUseCase,
     private readonly getClassStudentsUseCase: GetClassStudentsUseCase,
-    private readonly enrollStudentUseCase: EnrollStudentUseCase
+    private readonly enrollStudentUseCase: EnrollStudentUseCase,
+    private readonly updateClassNoteUseCase: UpdateClassNoteUseCase
   ) { }
 
   async list(req: Request, res: Response): Promise<void> {
@@ -48,5 +50,13 @@ export class ClassesController {
     const dto = EnrollStudentRequestDto.from(req.body)
     const result = await this.enrollStudentUseCase.execute({ classId, dto, user: req.user! })
     ok(res, result, 201, 'Thêm học sinh thành công')
+  }
+
+  async updateNote(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Updating note for class ${classId}`)
+    const dto = UpdateClassNoteDto.from(req.body)
+    const result = await this.updateClassNoteUseCase.execute({ classId, dto, user: req.user! })
+    ok(res, result, 200, 'Cập nhật ghi chú thành công')
   }
 }

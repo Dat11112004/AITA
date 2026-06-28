@@ -10,6 +10,7 @@ import { ListClassesUseCase } from '../../modules/classes/application/use-cases/
 import { CreateClassUseCase } from '../../modules/classes/application/use-cases/create-class.use-case.js'
 import { GetClassStudentsUseCase } from '../../modules/classes/application/use-cases/get-class-students.use-case.js'
 import { EnrollStudentUseCase } from '../../modules/classes/application/use-cases/enroll-student.use-case.js'
+import { UpdateClassNoteUseCase } from '../../modules/classes/application/use-cases/update-class-note.use-case.js'
 import { ClassesController } from '../../modules/classes/presentation/classes.controller.js'
 import { ListSubjectsUseCase } from '../../modules/subjects/application/use-cases/list-subjects.use-case.js'
 import { CreateSubjectUseCase } from '../../modules/subjects/application/use-cases/create-subject.use-case.js'
@@ -111,12 +112,14 @@ export class DIContainer {
       const createClassUseCase = new CreateClassUseCase(uow)
       const getClassStudentsUseCase = new GetClassStudentsUseCase(uow)
       const enrollStudentUseCase = new EnrollStudentUseCase(uow)
+      const updateClassNoteUseCase = new UpdateClassNoteUseCase(uow)
 
       const classController = new ClassesController(
         listClassesUseCase,
         createClassUseCase,
         getClassStudentsUseCase,
-        enrollStudentUseCase
+        enrollStudentUseCase,
+        updateClassNoteUseCase
       )
       this.services.set('ClassController', classController)
 

@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
+import { Textarea } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
 import { api, type ClassRow, type StudentRow } from '@/lib/api'
-import { GraduationCap, Users, BookOpen, UserCheck, Activity, Award, CheckCircle2, Loader2 } from 'lucide-react'
+import { GraduationCap, Users, BookOpen, UserCheck, Activity, Award, CheckCircle2, Loader2, StickyNote, Save, Check } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 
 export function LecturerClasses() {
@@ -15,6 +17,14 @@ export function LecturerClasses() {
   
   const [loadingStudents, setLoadingStudents] = useState(false)
   const [studentError, setStudentError] = useState<Error | null>(null)
+
+  // Internal class note (lecturer/admin only)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [noteError, setNoteError] = useState<string | null>(null)
+  const [noteSaved, setNoteSaved] = useState(false)
+
+  const selectedClass = classes.find((c) => c.id === selectedId) ?? null
 
   const loadClasses = useCallback(() => {
     let alive = true
@@ -31,6 +41,29 @@ export function LecturerClasses() {
     const cleanup = loadClasses()
     return cleanup
   }, [loadClasses])
+
+  // Sync the note draft whenever the selected class (or freshly-loaded data) changes.
+  useEffect(() => {
+    setNoteDraft(selectedClass?.note ?? '')
+    setNoteError(null)
+    setNoteSaved(false)
+  }, [selectedId, selectedClass?.note])
+
+  const saveNote = useCallback(async () => {
+    if (!selectedId || savingNote) return
+    setSavingNote(true)
+    setNoteError(null)
+    setNoteSaved(false)
+    try {
+      await api.updateClassNote(selectedId, noteDraft)
+      setNoteSaved(true)
+      loadClasses()
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'Không thể lưu ghi chú')
+    } finally {
+      setSavingNote(false)
+    }
+  }, [selectedId, noteDraft, savingNote, loadClasses])
 
   useEffect(() => {
     if (!selectedId) {
@@ -122,6 +155,53 @@ export function LecturerClasses() {
           </button>
         ))}
       </div>
+
+      {/* Internal note (lecturer/admin only) */}
+      {selectedClass && (
+        <Card className="border-amber-200/70 bg-amber-50/40 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <div className="flex items-start gap-3 p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+              <StickyNote size={20} strokeWidth={2.5} />
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Ghi chú nội bộ — <span className="font-mono text-brand-600 dark:text-brand-400">{selectedClass.code}</span>
+                </h3>
+                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Chỉ giảng viên và quản trị viên thấy ghi chú này. Sinh viên không nhìn thấy.
+                </p>
+              </div>
+              <Textarea
+                value={noteDraft}
+                onChange={(e) => { setNoteDraft(e.target.value); setNoteSaved(false) }}
+                placeholder="Thêm lưu ý riêng về lớp này..."
+                maxLength={2000}
+                rows={4}
+              />
+              {noteError && <p className="text-xs text-red-600 dark:text-red-400">{noteError}</p>}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 dark:text-slate-500">{noteDraft.length}/2000</span>
+                <div className="flex items-center gap-3">
+                  {noteSaved && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <Check size={14} /> Đã lưu
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={saveNote}
+                    loading={savingNote}
+                    disabled={savingNote || noteDraft === (selectedClass.note ?? '')}
+                  >
+                    <Save size={14} className="mr-1.5" /> Lưu ghi chú
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Class Students Roster Sheet Workspace */}
       <Card padding="none" className="overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821]">

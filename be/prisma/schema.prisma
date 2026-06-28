@@ -41,6 +41,7 @@ model Class {
   SubjectId       String?           @db.UniqueIdentifier
   SemesterId      String?           @db.UniqueIdentifier
   Status          String?
+  Note            String?
   Semester        Semester?         @relation(fields: [SemesterId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   Subject         Subject?          @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   InstructorClass InstructorClass[]
