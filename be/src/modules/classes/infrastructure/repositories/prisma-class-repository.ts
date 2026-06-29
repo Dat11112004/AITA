@@ -21,6 +21,9 @@ export class PrismaClassRepository implements IClassRepository {
     if (filter?.instructorId) {
       where.InstructorClass = { some: { UserId: filter.instructorId } }
     }
+    if (filter?.studentId) {
+      where.StudentClass = { some: { UserId: filter.studentId } }
+    }
     return where
   }
 
@@ -81,5 +84,16 @@ export class PrismaClassRepository implements IClassRepository {
     } else {
       await this.create(classEntity)
     }
+  }
+
+  async updateNote(classId: string, note: string): Promise<void> {
+    await this.client.class.update({ where: { Id: classId }, data: { Note: note } })
+  }
+
+  async isInstructor(classId: string, userId: string): Promise<boolean> {
+    const found = await this.client.instructorClass.findFirst({
+      where: { ClassId: classId, UserId: userId },
+    })
+    return !!found
   }
 }

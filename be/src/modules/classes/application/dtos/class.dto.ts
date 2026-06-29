@@ -69,20 +69,17 @@ export class ClassResponseDto {
     public readonly note?: string | null
   ) {}
 
+  // Maps from a domain Class entity (camelCase) produced by ClassMapper.toDomain.
   static from(cls: any, includeNote = false): ClassResponseDto {
     return new ClassResponseDto(
-      cls.Id,
-      cls.ClassCode,
-      cls.ClassName,
-      cls.Subject ? { id: cls.Subject.Id, code: cls.Subject.SubjectCode, name: cls.Subject.SubjectName } : null,
-      cls.Semester ? { id: cls.Semester.Id, code: cls.Semester.SemesterCode, name: cls.Semester.SemesterName } : null,
-      cls.InstructorClass?.map((ic: any) => ({
-        id: ic.User?.Id,
-        name: ic.User?.FullName,
-        email: ic.User?.Email,
-      })) || [],
-      cls._count?.StudentClass || 0,
-      includeNote ? (cls.Note ?? null) : undefined
+      cls.id,
+      cls.classCode,
+      cls.subjectName ?? null,
+      cls.subjectId ? { id: cls.subjectId, code: cls.subjectCode ?? null, name: cls.subjectName ?? null } : null,
+      cls.semesterId ? { id: cls.semesterId, code: null, name: cls.semesterName ?? null } : null,
+      cls.instructorId ? [{ id: cls.instructorId, name: cls.instructorName ?? null, email: cls.instructorEmail ?? null }] : [],
+      cls.studentCount ?? 0,
+      includeNote ? (cls.note ?? null) : undefined
     )
   }
 }

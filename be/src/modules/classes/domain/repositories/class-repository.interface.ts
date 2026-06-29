@@ -4,6 +4,7 @@ export interface ClassFilter {
   semesterId?: string
   subjectId?: string
   instructorId?: string
+  studentId?: string
 }
 
 export interface IClassRepository {
@@ -15,4 +16,6 @@ export interface IClassRepository {
   delete(id: string): Promise<void>
   assignInstructor(classId: string, instructorId: string): Promise<void>
   save(classEntity: Class): Promise<void>
+  updateNote(classId: string, note: string): Promise<void>
+  isInstructor(classId: string, userId: string): Promise<boolean>
 }

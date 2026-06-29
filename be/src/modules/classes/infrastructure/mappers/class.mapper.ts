@@ -21,10 +21,13 @@ export class ClassMapper {
     if (raw.InstructorClass && raw.InstructorClass.length > 0) {
       (classEntity as any).instructorName = raw.InstructorClass[0].User?.FullName;
       (classEntity as any).instructorId = raw.InstructorClass[0].User?.Id;
+      (classEntity as any).instructorEmail = raw.InstructorClass[0].User?.Email;
     }
     if (raw._count?.StudentClass !== undefined) {
       (classEntity as any).studentCount = raw._count.StudentClass
     }
+    // Internal note — carried on the entity so the response DTO can expose it to staff.
+    (classEntity as any).note = raw.Note ?? null
 
     return classEntity
   }

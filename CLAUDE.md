@@ -4,36 +4,35 @@ AITA is an **AI‑powered Teaching Assistant for FPT University**. It has three 
 
 | Dir | Service | Stack | Runs on |
 |---|---|---|---|
-| `be/` | API / backend | Node.js · Express 5 · TypeScript · Prisma + SQLite · JWT | `:3001` |
+| `be/` | API / backend | Node.js · Express 5 · TypeScript · Prisma + **SQL Server** · JWT | `:3001` |
 | `FE/` | Web client (admin/lecturer/student portals) | React 19 · Vite · React Router 7 · Tailwind 4 | `:5173` |
-| `ai/` | AI engine | Python · FastAPI · Google Gemini | `:8000` |
+| `ai/` | Guide only (the standalone Python service was **removed**) | AI now runs as the `be/src/modules/ai` module calling an external Gemini service | — |
 
 **Domain in one line:** lecturers create classes & assignments → an AI engine drafts exercises, grades submissions, and gives feedback behind a human‑review gate → students submit and consume feedback → admins manage users/content.
 
 ## Start here
 
-1. **[`docs/CODEBASE_REVIEW.md`](docs/CODEBASE_REVIEW.md)** — the architectural assessment, business‑logic overview, confirmed issues, and the phased remediation roadmap. **Read this first.**
+1. **[`docs/CODEBASE_REVIEW.md`](docs/CODEBASE_REVIEW.md)** — original architectural assessment + remediation roadmap. **Historical** — it predates the SQL Server migration and the Clean Architecture refactor, so treat it as background, not current truth. For current state read the **Outline Product Bible** (Specifications root) + per-module specs, and the `be/`/`FE/` guides below.
 2. **[`be/CONTRIBUTING.md`](be/CONTRIBUTING.md)** — backend developer guide (structure, rules, roles, onboarding, how to add a module).
 3. **[`FE/CONTRIBUTING.md`](FE/CONTRIBUTING.md)** — frontend developer guide.
 4. **[`ai/CONTRIBUTING.md`](ai/CONTRIBUTING.md)** — AI microservice guide.
 
 ## Critical context (don't be misled)
 
-- **What actually works is small.** The backend serves **only 15 endpoints** (auth, classes, assignments, users) via `be/src/routes/index.ts`. The frontend calls **~50** endpoints; the rest 404 silently. **`be/src/routes/index.ts` is the source of truth for what runs.**
-- **Two backend architectures coexist.** The **target is Clean Architecture** (`be/src/modules/*`). The legacy flat layer (`be/src/controllers`, `services`, `repositories`) holds unmigrated features but is **orphaned — do not extend it**; migrate from it instead.
-- **The AI service is not wired in** (the BE doesn't call it) and ships a **committed live Gemini key** (`ai/core/config.py:4`) — rotate before doing anything with `ai/`.
+- **One architecture now.** The backend is fully modular Clean Architecture (`be/src/modules/*` + `be/src/shared/*`); the old flat `controllers/services/repositories` layer was **deleted**. Routes are wired in **`be/src/shared/presentation/route-manager.ts`** (~17 module routers resolved from the DI container) — that's the source of truth for what runs. `/api/assignments` is served by `ExamsRouter` (there is no `assignments` module).
+- **Auth is V2.** Access + refresh tokens (rotation, server-side logout/revocation, change-password); token signing + password hashing go through injected ports (`ITokenService`/`IHashService`). JWT + bcrypt only — no passport/OAuth/session.
+- **The `ai/` folder is docs-only.** The standalone Python/Gemini service was removed; AI runs as `be/src/modules/ai` calling an external service (`infrastructure/external-ai.service.ts`, `AI_STUB_MODE` toggle).
 - **Roles are UPPERCASE** in the DB/JWT (`ADMIN`/`LECTURER`/`STUDENT`); the FE lowercases at its boundary.
 - **Always run the type‑checked build** (`cd be && npm run build`; `cd FE && npm run build`) before claiming a change works — `dev` (tsx/vite) skips checks the build enforces.
 
 ## Run it locally
 
 ```bash
-# 1) backend
-cd be && cp .env.example .env && npm install && npm run setup && npm run dev   # :3001
+# 1) backend — needs a SQL Server instance; create be/.env with DATABASE_URL + JWT_SECRET (no .env.example committed)
+cd be && npm install && npm run setup && npm run dev   # setup = prisma generate + db push + seed; :3001
 # 2) frontend (new shell)
-cd FE && npm install && npm run dev                                            # :5173, proxies /api → :3001
-# 3) ai (optional; orphaned today)  — rotate the key first
-cd ai && pip install -r requirements.txt && python main.py                     # :8000
+cd FE && npm install && npm run dev                    # :5173, proxies /api → :3001
+# (No separate AI service to run — the former Python service was removed; AI is the be `ai` module.)
 ```
 Seeded logins: `admin@fpt.edu.vn` / `admin123`, `lecturer@fpt.edu.vn` / `lecturer123`, `student@fpt.edu.vn` / `student123`.
 
@@ -45,7 +44,7 @@ These docs are **living documentation**. Whenever you make a change that alters 
 
 | When you change… | Update… |
 |---|---|
-| `be/src/routes/index.ts` (any route added/removed/changed) | `be/CONTRIBUTING.md` §2 endpoint table + wired/orphaned list |
+| `be/src/shared/presentation/route-manager.ts` (any route added/removed/changed) | `be/CONTRIBUTING.md` §2 endpoint table |
 | a `be/src/modules/*` boundary, a new domain module, or the DI container | `be/CONTRIBUTING.md` §3–§4 |
 | `be/src/config/env.ts` (env vars) | `be/CONTRIBUTING.md` §8 |
 | `be/prisma/schema.prisma` (models/enums/relations) | `docs/CODEBASE_REVIEW.md` §2 (and `docs/DATABASE.md` once it exists) |
@@ -56,7 +55,7 @@ These docs are **living documentation**. Whenever you make a change that alters 
 | Fixing any bug listed in a doc's "Known bugs" section | remove it from that list |
 
 **Rules of thumb:**
-- A doc claim must be **verifiable against the code**. If you write "X works", `routes/index.ts` (or the relevant file) must back it up. Prefer citing `file:line`.
+- A doc claim must be **verifiable against the code**. If you write "X works", `route-manager.ts` (or the relevant file) must back it up. Prefer citing `file:line`.
 - When you **fix** one of the documented issues (e.g. add auth to a route, wire an orphaned controller, fix the assignment‑status bug), **remove or update** the corresponding warning so the docs don't cry wolf.
 - If a change makes `docs/CODEBASE_REVIEW.md`'s maturity table or top‑risks list stale, update those rows too.
 - Keep docs **honest about what's broken** — the whole point of this set is that a new member isn't misled by an app that looks finished but isn't.
