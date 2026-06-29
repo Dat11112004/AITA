@@ -1,9 +1,18 @@
 # AITA Backend — Developer Guide
 
 > **Service:** `be/` — the AITA API.
-> **Stack:** Node.js · Express 5 · TypeScript (ESM / NodeNext) · Prisma 6 + SQLite · JWT (HS256) · bcryptjs · Zod · helmet · cors · morgan.
-> **Target architecture:** **Clean Architecture** (`src/modules/*`). New work follows this pattern. The legacy flat layer (`src/controllers`, `src/services`, `src/repositories`) is **migration source material — do not extend it.**
-> **Last verified:** 2026‑06‑25 (against the code). Keep this date current — see [§10](#10-keeping-this-doc-current).
+> **Stack:** Node.js · Express 5 · TypeScript (ESM / NodeNext) · Prisma 6 + **SQL Server** · JWT (HS256, access+refresh) · bcryptjs · Zod · helmet · cors · morgan.
+> **Architecture:** **Clean Architecture only** (`src/modules/*` + `src/shared/*`). The legacy flat layer (`src/controllers`, `src/services`, `src/repositories`) was **deleted** in the refactor — it no longer exists.
+> **Last verified:** header re-synced 2026‑06‑29 after the Clean Architecture refactor (body sections below partially stale — see notice).
+>
+> ⚠️ **POST-REFACTOR NOTICE (2026-06-29).** This guide predates the refactor and **several sections below are still stale** (the §2 "15 endpoints / orphaned" narrative, the SQLite / `cuid()` / `{success,data}` claims, and the §7 walkthrough that references the flat layer). Corrected high-level facts:
+> - **DB:** SQL Server (not SQLite); ids use **`uuid()`** (not `cuid()`); `DATABASE_URL` is a `sqlserver://…` string (no committed `.env.example`).
+> - **Routing:** wired in **`src/shared/presentation/route-manager.ts`** (~17 module routers via the DI container) — there is no single `src/routes/index.ts`, and **no orphaned flat layer**.
+> - **Responses:** controllers **extend `BaseController`** and call `this.ok/created(...)` with `MESSAGES.*` → envelope **`{ statusCode, Message, Data, timestamp }`** (PascalCase). The standalone `utils/response.ts` `ok()` is dead.
+> - **Persistence:** repositories return **domain entities** and delegate row↔entity to `infrastructure/mappers/<x>.mapper.ts`.
+> - **Auth:** V2 — access + refresh tokens (rotation, server-side logout, change-password) via injected ports (`ITokenService`/`IHashService`).
+>
+> For authoritative current conventions use the `aita-*` skills (`aita-be-architecture`, `aita-be-validation-and-auth`, `aita-be-prisma`, `aita-be-services-and-ports`, `aita-be-api-and-errors`, `aita-project-structure`) and the **Outline Product Bible**. A full section-by-section rewrite of this file is a pending follow-up.
 
 New here? Read [§1 Quick start](#1-quick-start) → [§2 What actually runs today](#2-what-actually-runs-today-read-this-first) → [§4 Architecture](#4-architecture-the-target-pattern) → [§7 How to add a feature](#7-how-to-add-a-new-domain-module-the-golden-path).
 
