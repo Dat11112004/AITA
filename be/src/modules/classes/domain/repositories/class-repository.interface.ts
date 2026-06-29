@@ -4,6 +4,7 @@ export interface ClassFilter {
   semesterId?: string
   subjectId?: string
   instructorId?: string
+  studentId?: string
 }
 
 export interface IClassRepository {

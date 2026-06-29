@@ -21,6 +21,9 @@ export class PrismaClassRepository implements IClassRepository {
     if (filter?.instructorId) {
       where.InstructorClass = { some: { UserId: filter.instructorId } }
     }
+    if (filter?.studentId) {
+      where.StudentClass = { some: { UserId: filter.studentId } }
+    }
     return where
   }
 
