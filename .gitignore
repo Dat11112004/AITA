@@ -29,12 +29,14 @@ ai/*.pyc
 temp/
 cycles/
 
-# Bible / PM tooling — local-only (adopted via chore/adopt-bible; not committed to the product repo)
+# Bible / PM tooling — OWNER-ONLY (needs Plane/Outline; not committed to the product repo)
 /scripts/
 /config.json
 /.mcp.json
 /.claude/commands/
 /.claude/skills/po/
-/.claude/skills/aita-*/
 /docs/pm.md
 /docs/index.md
+
+# NOTE: .claude/skills/aita-* (coding-convention skills) ARE committed on purpose —
+# collaborators/AI tools need them to follow the project's code conventions.
