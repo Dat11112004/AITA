@@ -1,0 +1,57 @@
+name: Plane sync — PR merged → task Done
+
+# Khi 1 PR được MERGE, lấy mã task ở tiêu đề PR rồi chuyển task tương ứng trên Plane sang Done.
+# Cần secret: PLANE_API_KEY (Settings → Secrets and variables → Actions → New repository secret).
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  mark-task-done:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      PLANE_BASE_URL: https://api.plane.so
+      PLANE_WORKSPACE_SLUG: alexpm
+      PLANE_PROJECT_ID: cb0f325e-4791-4c57-96c4-6f1e5629c163
+      STATE_DONE_UUID: b62a9f1f-0184-4b4c-b035-8aecf05c155a
+      # ── PLACEHOLDER ─────────────────────────────────────────────────────────────
+      # Lấy token trong [ ] đầu tiêu đề PR. Khi team CHỐT quy ước mã task → chỉ cần sửa regex này.
+      TASK_CODE_REGEX: '\[([^\]]+)\]'
+      # ────────────────────────────────────────────────────────────────────────────
+    steps:
+      - name: Mark matching Plane task as Done
+        env:
+          PLANE_API_KEY: ${{ secrets.PLANE_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PLANE_API_KEY:-}" ]; then
+            echo "::warning::Chưa cấu hình secret PLANE_API_KEY → bỏ qua (không chặn merge)."; exit 0
+          fi
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+          API="$PLANE_BASE_URL/api/v1/workspaces/$PLANE_WORKSPACE_SLUG/projects/$PLANE_PROJECT_ID"
+
+          CODE=$(printf '%s' "$PR_TITLE" | python3 -c "import sys,os,re; m=re.search(os.environ['TASK_CODE_REGEX'], sys.stdin.read()); print(m.group(1) if m else '')")
+          if [ -z "$CODE" ]; then echo "Không thấy mã task trong tiêu đề PR: '$PR_TITLE' → bỏ qua."; exit 0; fi
+          echo "Mã task lấy được: $CODE"
+
+          curl -s -A "$UA" -H "X-API-Key: $PLANE_API_KEY" "$API/work-items/?per_page=100" > items.json
+          cat > find.py <<'PY'
+          import json, os
+          code = os.environ['CODE'].strip().strip('[]').strip().lower()
+          d = json.load(open('items.json'))
+          r = d.get('results', d if isinstance(d, list) else [])
+          for w in r:
+              name = (w.get('name') or '').lower()
+              seq = w.get('sequence_id')
+              if f'[{code}]' in name or code == f'alexp-{seq}' or code in name:
+                  print(w['id']); break
+          PY
+          UUID=$(CODE="$CODE" python3 find.py || true)
+          if [ -z "$UUID" ]; then echo "::warning::Không tìm thấy task khớp '$CODE' trên Plane → bỏ qua."; exit 0; fi
+
+          echo "Work item $UUID → Done"
+          curl -s -A "$UA" -X PATCH -H "X-API-Key: $PLANE_API_KEY" -H "Content-Type: application/json" \
+            -d "{\"state\":\"$STATE_DONE_UUID\"}" "$API/work-items/$UUID/" -o /dev/null -w "Plane PATCH: HTTP %{http_code}\n"
