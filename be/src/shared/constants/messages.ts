@@ -24,6 +24,7 @@ export const MESSAGES = {
   // Classes
   CLASS_CREATE_SUCCESS: 'Tạo lớp học thành công',
   CLASS_UPDATE_SUCCESS: 'Cập nhật lớp học thành công',
+  CLASS_NOTE_UPDATED: 'Cập nhật ghi chú thành công',
   CLASS_DELETE_SUCCESS: 'Xóa lớp học thành công',
   CLASS_LIST_SUCCESS: 'Lấy danh sách lớp học thành công',
   CLASS_GET_SUCCESS: 'Lấy thông tin lớp học thành công',

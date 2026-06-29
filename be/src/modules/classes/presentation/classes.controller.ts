@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express'
-import { CreateClassRequestDto, EnrollStudentRequestDto } from '../application/dtos/class.dto.js'
+import { CreateClassRequestDto, EnrollStudentRequestDto, UpdateClassNoteDto } from '../application/dtos/class.dto.js'
 import { ListClassesUseCase } from '../application/use-cases/list-classes.use-case.js'
 import { CreateClassUseCase } from '../application/use-cases/create-class.use-case.js'
 import { GetClassStudentsUseCase } from '../application/use-cases/get-class-students.use-case.js'
 import { EnrollStudentUseCase } from '../application/use-cases/enroll-student.use-case.js'
+import { UpdateClassNoteUseCase } from '../application/use-cases/update-class-note.use-case.js'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
@@ -14,6 +15,7 @@ export class ClassesController extends BaseController {
     private readonly createClassUseCase: CreateClassUseCase,
     private readonly getClassStudentsUseCase: GetClassStudentsUseCase,
     private readonly enrollStudentUseCase: EnrollStudentUseCase,
+    private readonly updateClassNoteUseCase: UpdateClassNoteUseCase,
     private readonly logger: ILogger
   ) {
     super()
@@ -50,5 +52,13 @@ export class ClassesController extends BaseController {
     const dto = EnrollStudentRequestDto.from(req.body)
     const result = await this.enrollStudentUseCase.execute({ classId, dto, user: req.user! })
     this.created(res, result, MESSAGES.SUCCESS)
+  }
+
+  async updateNote(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Updating note for class ${classId}`)
+    const dto = UpdateClassNoteDto.from(req.body)
+    const result = await this.updateClassNoteUseCase.execute({ classId, dto, user: req.user! })
+    this.ok(res, result, MESSAGES.CLASS_NOTE_UPDATED)
   }
 }

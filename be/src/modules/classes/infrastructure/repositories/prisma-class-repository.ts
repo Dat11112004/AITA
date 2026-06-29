@@ -82,4 +82,15 @@ export class PrismaClassRepository implements IClassRepository {
       await this.create(classEntity)
     }
   }
+
+  async updateNote(classId: string, note: string): Promise<void> {
+    await this.client.class.update({ where: { Id: classId }, data: { Note: note } })
+  }
+
+  async isInstructor(classId: string, userId: string): Promise<boolean> {
+    const found = await this.client.instructorClass.findFirst({
+      where: { ClassId: classId, UserId: userId },
+    })
+    return !!found
+  }
 }
