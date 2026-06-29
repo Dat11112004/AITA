@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client'
 import { IRubricRepository } from '../../domain/repositories/rubric-repository.interface.js'
 import { RubricRule } from '../../domain/entities/rubric-rule.entity.js'
 import { RubricCriterion } from '../../domain/entities/rubric-criterion.entity.js'
 
 export class PrismaRubricRepository implements IRubricRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async listRules(): Promise<RubricRule[]> {
         const list = await (this.prisma as any).rubricRule.findMany()

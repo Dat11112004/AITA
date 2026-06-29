@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { container } from '../../../shared/infrastructure/di-container.js'
+import { TOKENS } from '../../../shared/infrastructure/tokens.js'
 import { authenticate, requireRoles } from '../../../middleware/auth.js'
-import { asyncHandler } from '../../../utils/async-handler.js'
-import { StatsController } from './stats.controller.js'
+import { asyncHandler } from '../../../shared/presentation/async-handler.js'
+import type { StatsController } from './stats.controller.js'
 
 export class StatsRouter {
     public readonly router: Router
@@ -13,7 +14,7 @@ export class StatsRouter {
     }
 
     private registerRoutes() {
-        const ctrl = container.get<StatsController>('StatsController')
+        const ctrl = container.get<StatsController>(TOKENS.StatsController)
 
         this.router.get('/overview', authenticate, asyncHandler((req, res) => ctrl.overview(req, res)))
         this.router.get('/activity', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.activityLogs(req, res)))

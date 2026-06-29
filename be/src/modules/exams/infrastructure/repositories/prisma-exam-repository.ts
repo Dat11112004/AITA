@@ -1,12 +1,9 @@
-import type { Prisma } from '../../../../database/prisma.js'
-import { IExamRepository } from '../../domain/repositories/exam-repository.interface.js'
+import { IExamRepository, ExamFilter } from '../../domain/repositories/exam-repository.interface.js'
+import { Exam } from '../../domain/entities/exam.entity.js'
+import { ExamMapper } from '../mappers/exam.mapper.js'
 
 export class PrismaExamRepository implements IExamRepository {
-  private client: any
-
-  constructor(client: any) {
-    this.client = client
-  }
+  constructor(private readonly client: any) {}
 
   private get include() {
     return {
@@ -15,24 +12,58 @@ export class PrismaExamRepository implements IExamRepository {
     }
   }
 
-  async findMany(params?: { where?: Prisma.ExamWhereInput, skip?: number, take?: number }): Promise<any[]> {
-    return this.client.exam.findMany({ 
-      where: params?.where,
-      skip: params?.skip,
-      take: params?.take,
+  async findMany(filter?: ExamFilter, options?: { skip?: number; take?: number }): Promise<Exam[]> {
+    const where: any = {}
+
+    if (filter?.subjectId) {
+      where.SubjectId = filter.subjectId
+    }
+    if (filter?.status) {
+      where.Status = filter.status
+    }
+    if (filter?.examType) {
+      where.ExamType = filter.examType
+    }
+    // Handle complex auth filters if needed here or passed correctly via UI
+
+    const rawExams = await this.client.exam.findMany({
+      where,
+      skip: options?.skip,
+      take: options?.take,
+      orderBy: { CreatedAt: 'desc' },
       include: this.include
+    })
+
+    return rawExams.map(ExamMapper.toDomain)
+  }
+
+  async findById(id: string): Promise<Exam | null> {
+    const raw = await this.client.exam.findUnique({
+      where: { Id: id },
+      include: this.include
+    })
+    return raw ? ExamMapper.toDomain(raw) : null
+  }
+
+  async create(exam: Exam): Promise<void> {
+    const data = ExamMapper.toPersistence(exam)
+    await this.client.exam.create({ data })
+  }
+
+  async update(exam: Exam): Promise<void> {
+    const data = ExamMapper.toPersistence(exam)
+    await this.client.exam.update({
+      where: { Id: exam.id },
+      data
     })
   }
 
-  async findById(id: string): Promise<any | null> {
-    return this.client.exam.findUnique({ where: { Id: id }, include: this.include })
-  }
-
-  async create(data: Prisma.ExamUncheckedCreateInput): Promise<any> {
-    return this.client.exam.create({ data, include: this.include })
-  }
-
-  async update(id: string, data: Prisma.ExamUpdateInput): Promise<any> {
-    return this.client.exam.update({ where: { Id: id }, data, include: this.include })
+  async save(exam: Exam): Promise<void> {
+    const existing = await this.client.exam.findUnique({ where: { Id: exam.id } })
+    if (existing) {
+      await this.update(exam)
+    } else {
+      await this.create(exam)
+    }
   }
 }

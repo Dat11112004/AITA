@@ -1,33 +1,60 @@
-import { IUseCase } from '../../../../shared/application/base-use-case.js'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { ValidationError } from '../../../../shared/application/app.error.js'
+import { randomUUID } from 'crypto'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { IClassRepository } from '../../domain/repositories/class-repository.interface.js'
+import { ConflictError, NotFoundError } from '../../../../shared/application/app.error.js'
 import { CreateClassRequestDto, ClassResponseDto } from '../dtos/class.dto.js'
+import { Class } from '../../domain/entities/class.entity.js'
+import { TOKENS } from '../../../../shared/infrastructure/tokens.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
 
-export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, ClassResponseDto> {
+export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, ReturnType<typeof ClassResponseDto.from>> {
   constructor(private readonly uow: IUnitOfWork) {}
 
-  async execute(dto: CreateClassRequestDto): Promise<ClassResponseDto> {
+  async execute(dto: CreateClassRequestDto) {
     const { data } = dto
 
-    const existingClass = await this.uow.classRepository.findByCode(data.code)
+    // We can resolve the class repo outside transaction for reads
+    const classRepo = this.uow.resolve<IClassRepository>(TOKENS.ClassRepository)
+    const subjectRepo = this.uow.resolve<any>(Symbol.for('SubjectRepository'))
+    const userRepo = this.uow.resolve<any>(Symbol.for('UserRepository'))
+    
+    const existingClass = await classRepo.findByCode(data.code)
     if (existingClass) {
-      throw new ValidationError('Mã lớp đã tồn tại')
+      throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS)
     }
 
-    return this.uow.runInTransaction(async (uow: IUnitOfWork) => {
-      const cls = await uow.classRepository.create({
-        ClassCode: data.code,
-        SubjectId: data.subject,
-        SemesterId: data.semester,
-        Status: 'Active',
-      })
+    const subject = await subjectRepo.findById(data.subject)
+    if (!subject) {
+      throw new NotFoundError(MESSAGES.SUBJECT_NOT_FOUND)
+    }
+
+    if (data.lecturerId) {
+      const lecturer = await userRepo.findById(data.lecturerId)
+      if (!lecturer) {
+        throw new NotFoundError(MESSAGES.INSTRUCTOR_NOT_FOUND)
+      }
+    }
+
+    return this.uow.runInTransaction(async (txn) => {
+      // Resolve transaction-bound repository
+      const txClassRepo = txn.resolve<IClassRepository>(TOKENS.ClassRepository)
+
+      const cls = Class.create(
+        randomUUID(),
+        data.code,
+        data.subject as string,
+        data.semester as string
+      )
+
+      await txClassRepo.create(cls)
 
       if (data.lecturerId) {
-        await uow.classRepository.assignInstructor(cls.Id, data.lecturerId)
+        await txClassRepo.assignInstructor(cls.id, data.lecturerId)
       }
 
-      const finalClass = await uow.classRepository.findById(cls.Id)
-      return ClassResponseDto.from(finalClass!)
+      const finalClass = await txClassRepo.findById(cls.id)
+      return ClassResponseDto.from(finalClass as any)
     })
   }
 }

@@ -1,14 +1,21 @@
 import { env } from '../../../config/env.js'
-import { IAIService } from '../../../shared/application/ports/ai-service.interface.js'
+import type {
+    IAIService,
+    GenerateExerciseInput,
+    GenerateExerciseOutput,
+    AssessInput,
+    AssessOutput,
+    LearningFeedbackOutput,
+} from '../../../shared/application/ports/ai-service.interface.js'
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export class ExternalAiService implements IAIService {
-    async generateExercise(input: any): Promise<any> {
+    async generateExercise(input: GenerateExerciseInput): Promise<GenerateExerciseOutput> {
         if (env.AI_STUB_MODE) {
             await wait(800)
-            const type = String(input.type ?? 'coding')
-            const topic = String(input.topic ?? 'Topic')
+            const type = input.type ?? 'coding'
+            const topic = input.topic ?? 'Topic'
             return {
                 title: `[AI] Bài tập ${type}: ${topic}`,
                 description: `Độ khó ${input.difficulty ?? 'medium'}`,
@@ -19,15 +26,7 @@ export class ExternalAiService implements IAIService {
         const response = await fetch(`${env.AI_ENDPOINT}/generate-exercise`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                classId: input.classId,
-                type: input.type,
-                topic: input.topic,
-                difficulty: input.difficulty ?? 'medium',
-                questionCount: input.questionCount ?? 5,
-                language: input.language ?? 'javascript',
-                extra: input.extra,
-            }),
+            body: JSON.stringify(input),
         })
 
         if (!response.ok) {
@@ -38,7 +37,7 @@ export class ExternalAiService implements IAIService {
         return response.json()
     }
 
-    async assess(content: string, language?: string, assignmentTitle?: string, assignmentDescription?: string): Promise<any> {
+    async assess(input: AssessInput): Promise<AssessOutput> {
         if (env.AI_STUB_MODE) {
             await wait(1000)
             const aiScore = Math.round((7 + Math.random() * 2) * 10) / 10
@@ -50,8 +49,8 @@ export class ExternalAiService implements IAIService {
                     logic: 'Logic đúng happy path.',
                     performance: 'Ổn.',
                     suggestions: ['Thêm unit test'],
-                    language,
-                    length: content.length,
+                    language: input.language,
+                    length: input.content.length,
                 },
             }
         }
@@ -59,12 +58,7 @@ export class ExternalAiService implements IAIService {
         const response = await fetch(`${env.AI_ENDPOINT}/assess`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                content,
-                language,
-                assignmentTitle,
-                assignmentDescription,
-            }),
+            body: JSON.stringify(input),
         })
 
         if (!response.ok) {
@@ -75,7 +69,7 @@ export class ExternalAiService implements IAIService {
         return response.json()
     }
 
-    async learningFeedback(studentId: string): Promise<any> {
+    async learningFeedback(studentId: string): Promise<LearningFeedbackOutput> {
         if (env.AI_STUB_MODE) {
             await wait(500)
             return {

@@ -1,23 +1,24 @@
-import { IUseCase } from '../../../../shared/application/base-use-case.js'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { Logger } from '../../../../shared/infrastructure/logger.js'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUserRepository } from '../../../users/domain/repositories/user-repository.interface.js'
+import type { ILogger } from '../../../../shared/application/ports/logger.interface.js'
 import { UnauthorizedError } from '../../../../shared/application/app.error.js'
-import { UserResponseDto } from '../../../../modules/users/application/dtos/user.dto.js'
-export class GetMeUseCase implements IUseCase<string, any> {
-  private readonly uow: IUnitOfWork
-  private readonly logger = new Logger('GetMeUseCase')
+import { UserResponseDto } from '../../../users/application/dtos/user.dto.js'
 
-  constructor(uow: IUnitOfWork) {
-    this.uow = uow
-  }
+export class GetMeUseCase implements IUseCase<string, UserResponseDto> {
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly logger: ILogger,
+  ) {}
 
-  async execute(userId: string): Promise<any> {
+  async execute(userId: string): Promise<UserResponseDto> {
     this.logger.info(`Fetching current user details for user ID: ${userId}`)
-    const user = await this.uow.userRepository.findById(userId)
+
+    const user = await this.userRepo.findById(userId)
     if (!user) {
-      this.logger.warn(`User details fetch failed: User not found for ID: ${userId}`)
+      this.logger.warn(`User not found for ID: ${userId}`)
       throw new UnauthorizedError()
     }
+
     return UserResponseDto.from(user)
   }
 }

@@ -1,35 +1,38 @@
 import type { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { env } from '../config/env.js'
 import { UnauthorizedError, ForbiddenError } from '../shared/application/app.error.js'
-import type { AuthUser } from '../types/express.js'
+import { JwtTokenService } from '../shared/infrastructure/jwt-token-service.js'
 import { logger } from '../shared/infrastructure/logger.js'
 
-export interface JwtPayload {
-  sub: string
-  email: string
-  role: string
-  fullName: string
-}
+/**
+ * Singleton token service used by middleware.
+ * Use cases should NOT use this directly — they receive ITokenService via DI.
+ */
+const tokenService = new JwtTokenService()
 
+/**
+ * Express middleware that verifies the Bearer token and attaches user info to `req.user`.
+ */
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
-  const h = req.headers.authorization
-  if (!h?.startsWith('Bearer ')) {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) {
     logger.debug('Authentication failed: Missing or invalid Authorization header')
     return next(new UnauthorizedError())
   }
-  
+
   try {
-    const d = jwt.verify(h.slice(7), env.JWT_SECRET) as JwtPayload
-    req.user = { id: d.sub, email: d.email, role: d.role, fullName: d.fullName }
-    logger.debug('User authenticated successfully', { userId: d.sub })
+    const payload = tokenService.verify(header.slice(7))
+    req.user = { id: payload.userId, email: payload.email, role: payload.role, fullName: payload.fullName }
+    logger.debug('User authenticated successfully', { userId: payload.userId })
     next()
-  } catch (error) {
-    logger.debug('Authentication failed: Token verification failed', { error })
+  } catch {
+    logger.debug('Authentication failed: Token verification failed')
     next(new UnauthorizedError('Token không hợp lệ'))
   }
 }
 
+/**
+ * Express middleware that checks if the authenticated user has one of the required roles.
+ */
 export function requireRoles(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -37,21 +40,13 @@ export function requireRoles(...roles: string[]) {
       return next(new UnauthorizedError())
     }
     if (!roles.includes(req.user.role)) {
-      logger.warn('Role authorization failed: Insufficient permissions', { 
-        userId: req.user.id, 
-        userRole: req.user.role, 
-        requiredRoles: roles 
+      logger.warn('Role authorization failed: Insufficient permissions', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        requiredRoles: roles,
       })
       return next(new ForbiddenError())
     }
     next()
   }
-}
-
-export function signToken(user: AuthUser) {
-  return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, fullName: user.fullName },
-    env.JWT_SECRET,
-    { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] },
-  )
 }

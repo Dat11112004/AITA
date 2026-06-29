@@ -1,9 +1,16 @@
-import type { Prisma, Subject } from '../../../../database/prisma.js'
+import type { Subject } from '../entities/subject.entity.js'
+
+export interface SubjectFilter {
+  isActive?: boolean
+  search?: string
+}
 
 export interface ISubjectRepository {
-  findMany(where?: Prisma.SubjectWhereInput): Promise<Subject[]>
+  findMany(filter?: SubjectFilter): Promise<Subject[]>
   findById(id: string): Promise<Subject | null>
-  create(data: Prisma.SubjectUncheckedCreateInput): Promise<Subject>
-  update(id: string, data: Prisma.SubjectUpdateInput): Promise<Subject>
-  delete(id: string): Promise<Subject>
+  findByCode(code: string): Promise<Subject | null>
+  create(subject: Subject): Promise<void>
+  update(subject: Subject): Promise<void>
+  delete(id: string): Promise<void>
+  save(subject: Subject): Promise<void>
 }

@@ -6,7 +6,8 @@ import { AssessSubmissionUseCase } from '../application/use-cases/assess-submiss
 import { GetLearningFeedbackUseCase } from '../application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../application/use-cases/ai-config.use-case.js'
 import { ApiResponse } from '../../../shared/presentation/api-response.js'
-import { ValidationError } from '../../../shared/application/app.error.js'
+import { ForbiddenError } from '../../../shared/application/app.error.js'
+import { MESSAGES } from '../../../shared/constants/messages.js'
 
 export class AiController {
     constructor(
@@ -30,7 +31,7 @@ export class AiController {
         }).parse(req.body)
 
         const result = await this.generateExerciseUseCase.execute(input)
-        res.status(200).json(ApiResponse.success('Phát sinh bài tập thành công', { result, assignment: null }))
+        res.status(200).json(ApiResponse.success(MESSAGES.AI_GENERATE_SUCCESS, { result, assignment: null }))
     }
 
     async saveAssignmentFromAI(req: Request, res: Response): Promise<void> {
@@ -44,29 +45,29 @@ export class AiController {
         }).parse(req.body)
 
         const result = await this.saveAssignmentUseCase.execute({ dto: body, creatorId: req.user!.id })
-        res.status(201).json(ApiResponse.success('Lưu bài tập thành công', result, 201))
+        res.status(201).json(ApiResponse.success(MESSAGES.AI_SAVE_SUCCESS, result, 201))
     }
 
     async assessSubmission(req: Request, res: Response): Promise<void> {
         const submissionId = String(req.params.submissionId)
         const result = await this.assessSubmissionUseCase.execute(submissionId)
-        res.status(200).json(ApiResponse.success('Đánh giá bài nộp thành công', result))
+        res.status(200).json(ApiResponse.success(MESSAGES.AI_ASSESS_SUCCESS, result))
     }
 
     async learningFeedback(req: Request, res: Response): Promise<void> {
         const studentId = String(req.params.studentId)
-        if (req.user!.role === 'STUDENT' && req.user!.id !== studentId) throw new ValidationError('Forbidden')
+        if (req.user!.role === 'STUDENT' && req.user!.id !== studentId) throw new ForbiddenError(MESSAGES.FORBIDDEN)
         const result = await this.getLearningFeedbackUseCase.execute(studentId)
-        res.status(200).json(ApiResponse.success('Lấy phản hồi học tập thành công', result))
+        res.status(200).json(ApiResponse.success(MESSAGES.AI_FEEDBACK_SUCCESS, result))
     }
 
     async getConfig(_req: Request, res: Response): Promise<void> {
         const result = await this.getConfigUseCase.execute()
-        res.status(200).json(ApiResponse.success('Lấy cấu hình AI thành công', result))
+        res.status(200).json(ApiResponse.success(MESSAGES.AI_CONFIG_GET_SUCCESS, result))
     }
 
     async updateConfig(req: Request, res: Response): Promise<void> {
         const result = await this.updateConfigUseCase.execute(req.body)
-        res.status(200).json(ApiResponse.success('Cập nhật cấu hình AI thành công', result))
+        res.status(200).json(ApiResponse.success(MESSAGES.AI_CONFIG_UPDATE_SUCCESS, result))
     }
 }

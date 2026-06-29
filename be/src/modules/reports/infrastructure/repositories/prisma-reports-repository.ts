@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client'
 import { IReportsRepository } from '../../domain/repositories/reports-repository.interface.js'
 
 export class PrismaReportsRepository implements IReportsRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async getAdminSummary(since: Date) {
         const [users, classes, exams, submissions, logs] = await Promise.all([

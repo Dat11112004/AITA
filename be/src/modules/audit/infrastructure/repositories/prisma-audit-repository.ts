@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client'
 import { IAuditRepository } from '../../domain/repositories/audit-repository.interface.js'
 import { AuditLog } from '../../domain/entities/audit-log.entity.js'
 import { AiUsageLog } from '../../domain/entities/ai-usage-log.entity.js'
 import { ImportBatch } from '../../domain/entities/import-batch.entity.js'
 
 export class PrismaAuditRepository implements IAuditRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async createAuditLog(log: AuditLog): Promise<void> {
         await (this.prisma as any).auditLog.create({

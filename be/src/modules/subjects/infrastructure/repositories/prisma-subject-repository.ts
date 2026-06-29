@@ -1,30 +1,63 @@
-import type { Prisma, Subject } from '../../../../database/prisma.js'
-import { ISubjectRepository } from '../../domain/repositories/subject-repository.interface.js'
+import { ISubjectRepository, SubjectFilter } from '../../domain/repositories/subject-repository.interface.js'
+import { Subject } from '../../domain/entities/subject.entity.js'
+import { SubjectMapper } from '../mappers/subject.mapper.js'
 
 export class PrismaSubjectRepository implements ISubjectRepository {
-  private client: any
+  constructor(private readonly client: any) {}
 
-  constructor(client: any) {
-    this.client = client
+  private mapFilterToWhere(filter?: SubjectFilter): any {
+    const where: any = {}
+    if (filter?.isActive !== undefined) where.IsActive = filter.isActive
+    if (filter?.search) {
+      where.OR = [
+        { SubjectCode: { contains: filter.search } },
+        { SubjectName: { contains: filter.search } }
+      ]
+    }
+    return where
   }
 
-  async findMany(where?: Prisma.SubjectWhereInput): Promise<Subject[]> {
-    return this.client.subject.findMany({ where })
+  async findMany(filter?: SubjectFilter): Promise<Subject[]> {
+    const rawList = await this.client.subject.findMany({
+      where: this.mapFilterToWhere(filter),
+      orderBy: { SubjectCode: 'asc' }
+    })
+    return rawList.map(SubjectMapper.toDomain)
   }
 
   async findById(id: string): Promise<Subject | null> {
-    return this.client.subject.findUnique({ where: { Id: id } })
+    const raw = await this.client.subject.findUnique({ where: { Id: id } })
+    return raw ? SubjectMapper.toDomain(raw) : null
   }
 
-  async create(data: Prisma.SubjectUncheckedCreateInput): Promise<Subject> {
-    return this.client.subject.create({ data })
+  async findByCode(code: string): Promise<Subject | null> {
+    const raw = await this.client.subject.findUnique({ where: { SubjectCode: code } })
+    return raw ? SubjectMapper.toDomain(raw) : null
   }
 
-  async update(id: string, data: Prisma.SubjectUpdateInput): Promise<Subject> {
-    return this.client.subject.update({ where: { Id: id }, data })
+  async create(subject: Subject): Promise<void> {
+    const data = SubjectMapper.toPersistence(subject)
+    await this.client.subject.create({ data })
   }
 
-  async delete(id: string): Promise<Subject> {
-    return this.client.subject.delete({ where: { Id: id } })
+  async update(subject: Subject): Promise<void> {
+    const data = SubjectMapper.toPersistence(subject)
+    await this.client.subject.update({
+      where: { Id: subject.id },
+      data
+    })
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.client.subject.delete({ where: { Id: id } })
+  }
+
+  async save(subject: Subject): Promise<void> {
+    const existing = await this.client.subject.findUnique({ where: { Id: subject.id } })
+    if (existing) {
+      await this.update(subject)
+    } else {
+      await this.create(subject)
+    }
   }
 }

@@ -1,35 +1,63 @@
-import bcrypt from 'bcryptjs'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUserRepository } from '../../domain/repositories/user-repository.interface.js'
+import type { IHashService } from '../../../../shared/application/ports/i-hash-service.js'
+import type { ILogger } from '../../../../shared/application/ports/logger.interface.js'
 import { UpdateUserDto, UserResponseDto } from '../dtos/user.dto.js'
-import { NotFoundError } from '../../../../shared/application/app.error.js'
+import { NotFoundError, ConflictError } from '../../../../shared/application/app.error.js'
+import type { UserRoleType } from '../../../auth/domain/entities/user.entity.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
 
-export class UpdateUserUseCase {
-    constructor(private readonly uow: IUnitOfWork) { }
+export interface UpdateUserInput {
+    id: string
+    dto: UpdateUserDto
+}
 
-    async execute(id: string, dto: UpdateUserDto) {
-        const user = await this.uow.userRepository.findById(id)
-        if (!user) throw new NotFoundError('Người dùng không tồn tại')
+export class UpdateUserUseCase implements IUseCase<UpdateUserInput, UserResponseDto> {
+    constructor(
+        private readonly userRepo: IUserRepository,
+        private readonly hashService: IHashService,
+        private readonly logger: ILogger
+    ) { }
 
-        let passwordHash = undefined
-        if (dto.password) {
-            passwordHash = await bcrypt.hash(dto.password, 10)
+    async execute({ id, dto }: UpdateUserInput): Promise<UserResponseDto> {
+        this.logger.info(`Updating user: ${id}`)
+        
+        const user = await this.userRepo.findById(id)
+        if (!user) throw new NotFoundError(MESSAGES.USER_NOT_FOUND)
+
+        if (dto.email && dto.email.toLowerCase() !== user.email) {
+            const existingEmail = await this.userRepo.findByEmail(dto.email.toLowerCase())
+            if (existingEmail) {
+                throw new ConflictError(MESSAGES.USER_EMAIL_EXISTS)
+            }
         }
 
-        await this.uow.userRepository.update(id, {
-            FullName: dto.fullName,
-            Email: dto.email,
-            Status: dto.status === 'Locked' ? 'Inactive' : (dto.status === 'Active' ? 'Active' : undefined),
-            PasswordHash: passwordHash
+        // Apply domain updates
+        user.updateProfile({
+            fullName: dto.fullName,
         })
+        
+        if (dto.email) user.email = dto.email.toLowerCase()
+
+        if (dto.status === 'Locked') user.suspend()
+        else if (dto.status === 'Inactive') user.deactivate()
+        else if (dto.status === 'Active') user.activate()
+
+        if (dto.password) {
+            const passwordHash = await this.hashService.hash(dto.password)
+            user.changePassword(passwordHash)
+        }
+
+        await this.userRepo.save(user)
 
         if (dto.role) {
-            const targetRole = await this.uow.userRepository.findRoleByName(dto.role.toUpperCase())
+            const targetRole = await this.userRepo.findRoleByName(dto.role.toUpperCase())
             if (targetRole) {
-                await this.uow.userRepository.assignRole(id, targetRole.Id)
+                await this.userRepo.assignRole(id, targetRole.id)
+                user.assignRole(dto.role.toUpperCase() as UserRoleType)
             }
         }
         
-        const finalUpdatedUser = await this.uow.userRepository.findById(id)
-        return UserResponseDto.from(finalUpdatedUser)
+        return UserResponseDto.from(user)
     }
 }

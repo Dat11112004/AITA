@@ -1,19 +1,18 @@
-import type { Prisma } from '../../../../database/prisma.js'
+import type { Class } from '../entities/class.entity.js'
 
-export type ClassWithRelations = Prisma.ClassGetPayload<{
-  include: {
-    InstructorClass: { include: { User: true } }
-    Subject: true
-    Semester: true
-  }
-}>
+export interface ClassFilter {
+  semesterId?: string
+  subjectId?: string
+  instructorId?: string
+}
 
 export interface IClassRepository {
-  findMany(params?: { where?: Prisma.ClassWhereInput, skip?: number, take?: number }): Promise<ClassWithRelations[]>
-  findById(id: string): Promise<ClassWithRelations | null>
-  findByCode(code: string): Promise<ClassWithRelations | null>
-  create(data: Prisma.ClassUncheckedCreateInput): Promise<ClassWithRelations>
-  update(id: string, data: Prisma.ClassUpdateInput): Promise<ClassWithRelations>
-  delete(id: string): Promise<ClassWithRelations>
+  findMany(filter?: ClassFilter, options?: { skip?: number; take?: number }): Promise<Class[]>
+  findById(id: string): Promise<Class | null>
+  findByCode(code: string): Promise<Class | null>
+  create(classEntity: Class): Promise<void>
+  update(classEntity: Class): Promise<void>
+  delete(id: string): Promise<void>
   assignInstructor(classId: string, instructorId: string): Promise<void>
+  save(classEntity: Class): Promise<void>
 }

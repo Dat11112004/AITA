@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client'
 import { IConfigRepository } from '../../domain/repositories/config-repository.interface.js'
 import { ProjectType } from '../../domain/entities/project-type.entity.js'
 import { PromptTemplate } from '../../domain/entities/prompt-template.entity.js'
 
 export class PrismaConfigRepository implements IConfigRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async listProjectTypes(): Promise<ProjectType[]> {
         const list = await (this.prisma as any).projectType.findMany()

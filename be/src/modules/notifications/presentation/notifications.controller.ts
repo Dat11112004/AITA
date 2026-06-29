@@ -1,28 +1,35 @@
+import { MESSAGES } from '../../../shared/constants/messages.js'
 import type { Request, Response } from 'express'
 import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase } from '../application/use-cases/notification.use-case.js'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
+import { BaseController } from '../../../shared/presentation/base-controller.js'
+import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
-export class NotificationsController {
+export class NotificationsController extends BaseController {
     constructor(
         private readonly listUserNotificationsUseCase: ListUserNotificationsUseCase,
-        private readonly markNotificationAsReadUseCase: MarkNotificationAsReadUseCase
-    ) { }
+        private readonly markNotificationAsReadUseCase: MarkNotificationAsReadUseCase,
+        private readonly logger: ILogger
+    ) {
+        super()
+    }
 
     async listMyNotifications(req: Request, res: Response): Promise<void> {
         const userId = (req as any).user.id
         const query = req.query as any
+        this.logger.debug(`Fetching notifications for user: ${userId}`)
         const result = await this.listUserNotificationsUseCase.execute(userId, {
             page: Number(query.page || 1),
             limit: Number(query.limit || 20),
             read: query.read === 'true' ? true : query.read === 'false' ? false : undefined
         })
-        res.status(200).json(ApiResponse.success('Lấy danh sách thông báo thành công', result))
+        this.ok(res, result, MESSAGES.NOTIFICATIONS_LIST_SUCCESS)
     }
 
     async markAsRead(req: Request, res: Response): Promise<void> {
         const userId = (req as any).user.id
         const notificationId = req.params.id as string
+        this.logger.info(`Marking notification ${notificationId} as read for user ${userId}`)
         await this.markNotificationAsReadUseCase.execute(userId, notificationId)
-        res.status(200).json(ApiResponse.success('Đã đánh dấu thông báo là đã đọc', null))
+        this.ok(res, null, MESSAGES.NOTIFICATIONS_MARK_READ_SUCCESS)
     }
 }

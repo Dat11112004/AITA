@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { container } from '../../../shared/infrastructure/di-container.js'
+import { TOKENS } from '../../../shared/infrastructure/tokens.js'
 import { authenticate } from '../../../middleware/auth.js'
-import { asyncHandler } from '../../../utils/async-handler.js'
+import { asyncHandler } from '../../../shared/presentation/async-handler.js'
 import type { SubjectsController } from './subjects.controller.js'
 
 export class SubjectsRouter {
@@ -13,7 +14,7 @@ export class SubjectsRouter {
   }
 
   private registerRoutes() {
-    const controller = container.get<SubjectsController>('SubjectController')
+    const controller = container.get<SubjectsController>(TOKENS.SubjectController)
 
     this.router.get('/', authenticate, asyncHandler((req, res) => controller.list(req, res)))
     this.router.post('/', authenticate, asyncHandler((req, res) => controller.create(req, res)))

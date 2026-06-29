@@ -4,8 +4,8 @@ export class SaveAiAssignmentUseCase {
     constructor(private readonly uow: IUnitOfWork) { }
 
     async execute({ dto, creatorId }: { dto: any; creatorId: string }) {
-        return await this.uow.runInTransaction(async (tx) => {
-            return await tx.examRepository.create({
+        return await this.uow.runInTransaction(async (_tx) => {
+            return await this.uow.resolve<any>(Symbol.for('ExamRepository')).create({
                 Title: dto.title,
                 Description: dto.description,
                 ExamType: dto.type,

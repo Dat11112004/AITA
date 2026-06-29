@@ -1,8 +1,17 @@
-import type { Prisma, Exam } from '../../../../database/prisma.js'
+import type { Exam, ExamStatusValue, ExamTypeValue } from '../entities/exam.entity.js'
+
+export interface ExamFilter {
+  subjectId?: string
+  status?: ExamStatusValue
+  examType?: ExamTypeValue
+  instructorId?: string
+  classIds?: string[]
+}
 
 export interface IExamRepository {
-  findMany(params?: { where?: Prisma.ExamWhereInput, skip?: number, take?: number }): Promise<Exam[]>
+  findMany(filter?: ExamFilter, options?: { skip?: number; take?: number }): Promise<Exam[]>
   findById(id: string): Promise<Exam | null>
-  create(data: Prisma.ExamUncheckedCreateInput): Promise<Exam>
-  update(id: string, data: Prisma.ExamUpdateInput): Promise<Exam>
+  create(exam: Exam): Promise<void>
+  update(exam: Exam): Promise<void>
+  save(exam: Exam): Promise<void>
 }

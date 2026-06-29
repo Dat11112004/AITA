@@ -1,80 +1,99 @@
 import { PrismaClient, Prisma } from '@prisma/client'
 import { prisma } from '../../database/prisma.js'
-import { IUnitOfWork } from '../application/ports/unit-of-work.interface.js'
-import { IUserRepository } from '../../modules/users/domain/repositories/user-repository.interface.js'
-import { IActivityRepository } from '../../modules/auth/domain/repositories/activity-repository.interface.js'
-import { IClassRepository } from '../../modules/classes/domain/repositories/class-repository.interface.js'
-import { IEnrollmentRepository } from '../../modules/classes/domain/repositories/enrollment-repository.interface.js'
-import { ISubjectRepository } from '../../modules/subjects/domain/repositories/subject-repository.interface.js'
-import { IExamRepository } from '../../modules/exams/domain/repositories/exam-repository.interface.js'
-import { ISettingsRepository } from '../../modules/settings/domain/repositories/settings-repository.interface.js'
-import { PrismaUserRepository } from '../../modules/users/infrastructure/repositories/prisma-user-repository.js'
-import { PrismaActivityRepository } from '../../modules/auth/infrastructure/repositories/prisma-activity-repository.js'
-import { PrismaClassRepository } from '../../modules/classes/infrastructure/repositories/prisma-class-repository.js'
-import { PrismaEnrollmentRepository } from '../../modules/classes/infrastructure/repositories/prisma-enrollment-repository.js'
-import { PrismaSubjectRepository } from '../../modules/subjects/infrastructure/repositories/prisma-subject-repository.js'
-import { PrismaExamRepository } from '../../modules/exams/infrastructure/repositories/prisma-exam-repository.js'
-import { PrismaSettingsRepository } from '../../modules/settings/infrastructure/repositories/prisma-settings-repository.js'
-import { ISubmissionRepository } from '../../modules/submissions/domain/repositories/submission-repository.interface.js'
-import { PrismaSubmissionRepository } from '../../modules/submissions/infrastructure/repositories/prisma-submission-repository.js'
-import { logger } from './logger.js'
+import type { IUnitOfWork } from '../application/ports/unit-of-work.interface.js'
+import { Logger } from './logger.js'
 
+/**
+ * Prisma-backed Unit of Work.
+ *
+ * Repositories are registered by their symbol token.
+ * Inside a transaction, a child UoW is created with new repo instances
+ * that share the transactional Prisma client.
+ */
 export class PrismaUnitOfWork implements IUnitOfWork {
-  private client: PrismaClient | Prisma.TransactionClient
-  private repositories: Map<string, any> = new Map()
+  private readonly client: PrismaClient | Prisma.TransactionClient
+  private readonly repositories = new Map<symbol, unknown>()
+  private readonly repoFactories = new Map<symbol, (client: any) => unknown>()
+  private readonly logger: Logger
 
   constructor(client: PrismaClient | Prisma.TransactionClient = prisma) {
     this.client = client
+    this.logger = new Logger('UnitOfWork')
   }
 
   /**
-   * Dynamically resolves a repository or returns a cached instance.
+   * Register a repository factory for a given token.
+   * The factory receives the Prisma client and returns a repo instance.
    */
-  public getRepo<T>(RepoClass: new (client: any) => T): T {
-    const className = RepoClass.name
-    if (!this.repositories.has(className)) {
-      this.repositories.set(className, new RepoClass(this.client))
-    }
-    return this.repositories.get(className) as T
+  registerFactory<T>(token: symbol, factory: (client: any) => T): void {
+    this.repoFactories.set(token, factory)
   }
 
-  // legacy getters for backward compatibility (can be removed later)
-  get userRepository(): IUserRepository { return this.getRepo(PrismaUserRepository) }
-  get activityRepository(): IActivityRepository { return this.getRepo(PrismaActivityRepository) }
-  get classRepository(): IClassRepository { return this.getRepo(PrismaClassRepository) }
-  get enrollmentRepository(): IEnrollmentRepository { return this.getRepo(PrismaEnrollmentRepository) }
-  get subjectRepository(): ISubjectRepository { return this.getRepo(PrismaSubjectRepository) }
-  get examRepository(): IExamRepository { return this.getRepo(PrismaExamRepository) }
-  get submissionRepository(): ISubmissionRepository { return this.getRepo(PrismaSubmissionRepository) }
-  get settingsRepository(): ISettingsRepository { return this.getRepo(PrismaSettingsRepository) }
+  /**
+   * Resolve a repository by its token.
+   * Lazily instantiates and caches the repo on first access.
+   */
+  resolve<T>(token: symbol): T {
+    if (!this.repositories.has(token)) {
+      const factory = this.repoFactories.get(token)
+      if (!factory) {
+        throw new Error(`No repository factory registered for token: ${token.toString()}`)
+      }
+      this.repositories.set(token, factory(this.client))
+    }
+    return this.repositories.get(token) as T
+  }
 
-  async runInTransaction<T>(work: (uow: IUnitOfWork) => Promise<T>): Promise<T> {
+  /**
+   * LEGACY: Resolve a repository by its class constructor.
+   */
+  getRepo<T>(RepoClass: new (client: any) => T): T {
+    const className = RepoClass.name
+    // Use string key for legacy repos to avoid polluting the token map
+    const legacyToken = Symbol.for(className)
+    
+    if (!this.repositories.has(legacyToken)) {
+      this.repositories.set(legacyToken, new RepoClass(this.client))
+    }
+    return this.repositories.get(legacyToken) as T
+  }
+
+  async runInTransaction<T>(work: (txUow: IUnitOfWork) => Promise<T>): Promise<T> {
     if (this.isTransactionClient(this.client)) {
-      logger.debug('Reusing existing transaction')
+      this.logger.debug('Reusing existing transaction')
       return work(this)
     }
 
-    logger.debug('Starting new transaction')
+    this.logger.debug('Starting new transaction')
     const timeout = Number(process.env.DB_TRANSACTION_TIMEOUT) || 10000
 
     try {
       const result = await (this.client as PrismaClient).$transaction(
         async (tx) => {
+          // Create a child UoW sharing the transactional client
           const txUow = new PrismaUnitOfWork(tx)
+          // Copy all registered factories to the transactional UoW
+          for (const [token, factory] of this.repoFactories) {
+            txUow.registerFactory(token, factory)
+          }
           return work(txUow)
         },
-        { timeout }
+        { timeout },
       )
-      logger.debug('Transaction committed successfully')
+      this.logger.debug('Transaction committed successfully')
       return result
     } catch (error) {
-      logger.error('Transaction rolled back due to error', { error })
+      this.logger.error('Transaction rolled back due to error', error as Error)
       throw error
     }
+  }
+
+  /** Expose the underlying client for infrastructure-level access (e.g., DI container setup) */
+  getClient(): PrismaClient | Prisma.TransactionClient {
+    return this.client
   }
 
   private isTransactionClient(client: PrismaClient | Prisma.TransactionClient): boolean {
     return !('$transaction' in client) || typeof (client as any).$transaction !== 'function'
   }
 }
-export const unitOfWork = new PrismaUnitOfWork()

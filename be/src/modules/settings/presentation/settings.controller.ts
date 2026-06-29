@@ -1,37 +1,44 @@
+import { MESSAGES } from '../../../shared/constants/messages.js'
 import type { Request, Response } from 'express'
 import { GetSystemConfigUseCase, UpdateSystemConfigUseCase, GetOptionsUseCase } from '../application/use-cases/settings.use-case.js'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
+import { BaseController } from '../../../shared/presentation/base-controller.js'
+import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
-export class SettingsController {
+export class SettingsController extends BaseController {
     constructor(
         private readonly getSystemConfigUseCase: GetSystemConfigUseCase,
         private readonly updateSystemConfigUseCase: UpdateSystemConfigUseCase,
-        private readonly getOptionsUseCase: GetOptionsUseCase
-    ) { }
+        private readonly getOptionsUseCase: GetOptionsUseCase,
+        private readonly logger: ILogger
+    ) {
+        super()
+    }
 
     async getSystemConfig(_req: Request, res: Response): Promise<void> {
+        this.logger.debug('Fetching system config')
         const result = await this.getSystemConfigUseCase.execute()
-        res.status(200).json(ApiResponse.success('Lấy cấu hình hệ thống thành công', result))
+        this.ok(res, result, MESSAGES.SETTINGS_GET_SUCCESS)
     }
 
     async updateSystemConfig(req: Request, res: Response): Promise<void> {
+        this.logger.info('Updating system config')
         const result = await this.updateSystemConfigUseCase.execute(req.body)
-        res.status(200).json(ApiResponse.success('Cập nhật cấu hình hệ thống thành công', result))
+        this.ok(res, result, MESSAGES.SETTINGS_UPDATE_SUCCESS)
     }
 
     async classOptions(req: Request, res: Response): Promise<void> {
         const user = (req as any).user
         const result = await this.getOptionsUseCase.getClassOptions(user)
-        res.status(200).json(ApiResponse.success('Lấy danh sách lớp học thành công', result))
+        this.ok(res, result, MESSAGES.OPTIONS_CLASSES_SUCCESS)
     }
 
     async lecturerOptions(_req: Request, res: Response): Promise<void> {
         const result = await this.getOptionsUseCase.getLecturerOptions()
-        res.status(200).json(ApiResponse.success('Lấy danh sách giảng viên thành công', result))
+        this.ok(res, result, MESSAGES.OPTIONS_LECTURERS_SUCCESS)
     }
 
     async assignmentOptions(_req: Request, res: Response): Promise<void> {
         const result = await this.getOptionsUseCase.getAssignmentOptions()
-        res.status(200).json(ApiResponse.success('Lấy danh sách bài tập thành công', result))
+        this.ok(res, result, MESSAGES.OPTIONS_EXAMS_SUCCESS)
     }
 }

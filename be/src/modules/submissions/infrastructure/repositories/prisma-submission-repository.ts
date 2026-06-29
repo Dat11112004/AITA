@@ -1,5 +1,6 @@
-import type { Prisma, Submission } from '../../../../database/prisma.js'
-import { ISubmissionRepository } from '../../domain/repositories/submission-repository.interface.js'
+import { ISubmissionRepository, SubmissionFilter } from '../../domain/repositories/submission-repository.interface.js'
+import { Submission } from '../../domain/entities/submission.entity.js'
+import { SubmissionMapper } from '../mappers/submission.mapper.js'
 
 const includeDefault = {
   User_Submission_StudentIdToUser: true,
@@ -10,39 +11,67 @@ const includeDefault = {
 export class PrismaSubmissionRepository implements ISubmissionRepository {
   constructor(private readonly client: any) {}
 
-  async findMany(where?: Prisma.SubmissionWhereInput): Promise<Submission[]> {
-    return this.client.submission.findMany({
-      where,
+  private mapFilterToWhere(filter?: SubmissionFilter): any {
+    const where: any = {}
+    if (filter?.examId) where.ExamId = filter.examId
+    if (filter?.studentId) where.StudentId = filter.studentId
+    if (filter?.classId) where.ClassId = filter.classId
+    if (filter?.instructorId) {
+      where.Class = {
+        InstructorClass: {
+          some: { UserId: filter.instructorId }
+        }
+      }
+    }
+    return where
+  }
+
+  async findMany(filter?: SubmissionFilter): Promise<Submission[]> {
+    const rawList = await this.client.submission.findMany({
+      where: this.mapFilterToWhere(filter),
       include: includeDefault,
       orderBy: { SubmittedAt: 'desc' },
     })
+    return rawList.map(SubmissionMapper.toDomain)
   }
 
-  async findRecent(where?: Prisma.SubmissionWhereInput, take = 5): Promise<Submission[]> {
-    return this.client.submission.findMany({
-      where,
+  async findRecent(filter?: SubmissionFilter, take = 5): Promise<Submission[]> {
+    const rawList = await this.client.submission.findMany({
+      where: this.mapFilterToWhere(filter),
       include: includeDefault,
       orderBy: { SubmittedAt: 'desc' },
       take,
     })
+    return rawList.map(SubmissionMapper.toDomain)
   }
 
   async findById(id: string): Promise<Submission | null> {
-    return this.client.submission.findUnique({
+    const raw = await this.client.submission.findUnique({
       where: { Id: id },
       include: includeDefault,
     })
+    return raw ? SubmissionMapper.toDomain(raw) : null
   }
 
-  async create(data: Prisma.SubmissionUncheckedCreateInput): Promise<Submission> {
-    return this.client.submission.create({ data, include: includeDefault })
+  async create(submission: Submission): Promise<void> {
+    const data = SubmissionMapper.toPersistence(submission)
+    await this.client.submission.create({ data })
   }
 
-  async update(id: string, data: Prisma.SubmissionUpdateInput): Promise<Submission> {
-    return this.client.submission.update({
-      where: { Id: id },
+  async update(submission: Submission): Promise<void> {
+    const data = SubmissionMapper.toPersistence(submission)
+    await this.client.submission.update({
+      where: { Id: submission.id },
       data,
-      include: includeDefault,
     })
+  }
+
+  async save(submission: Submission): Promise<void> {
+    const existing = await this.client.submission.findUnique({ where: { Id: submission.id } })
+    if (existing) {
+      await this.update(submission)
+    } else {
+      await this.create(submission)
+    }
   }
 }

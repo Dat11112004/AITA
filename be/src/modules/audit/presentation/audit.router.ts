@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { container } from '../../../shared/infrastructure/di-container.js'
+import { TOKENS } from '../../../shared/infrastructure/tokens.js'
 import { authenticate, requireRoles } from '../../../middleware/auth.js'
-import { asyncHandler } from '../../../utils/async-handler.js'
-import { AuditController } from './audit.controller.js'
+import { asyncHandler } from '../../../shared/presentation/async-handler.js'
+import type { AuditController } from './audit.controller.js'
 
 export class AuditRouter {
     public readonly router: Router
@@ -13,7 +14,7 @@ export class AuditRouter {
     }
 
     private registerRoutes() {
-        const ctrl = container.get<AuditController>('AuditController')
+        const ctrl = container.get<AuditController>(TOKENS.AuditController)
 
         this.router.get('/logs', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.getAuditLogs(req, res)))
         this.router.get('/ai-usage', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.getAiUsageLogs(req, res)))

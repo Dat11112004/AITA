@@ -1,64 +1,100 @@
-import bcrypt from 'bcryptjs'
-import { IUseCase } from '../../../../shared/application/base-use-case.js'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { Logger } from '../../../../shared/infrastructure/logger.js'
-import { ValidationError } from '../../../../shared/application/app.error.js'
-import { signToken } from '../../../../middleware/auth.js'
-import { RegisterStudentRequestDto, AuthResponseDto } from '../dtos/auth.dto.js'
+import { randomUUID } from 'crypto'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUserRepository } from '../../../users/domain/repositories/user-repository.interface.js'
+import type { IActivityRepository } from '../../domain/repositories/activity-repository.interface.js'
+import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { ITokenService } from '../../../../shared/application/ports/i-token-service.js'
+import type { IHashService } from '../../../../shared/application/ports/i-hash-service.js'
+import type { ILogger } from '../../../../shared/application/ports/logger.interface.js'
+import { ConflictError } from '../../../../shared/application/app.error.js'
+import { User } from '../../domain/entities/user.entity.js'
+import type { RegisterStudentRequestDto } from '../dtos/auth.dto.js'
+import { AuthResponseDto } from '../dtos/auth.dto.js'
+import { TOKENS } from '../../../../shared/infrastructure/tokens.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
+import { RefreshToken } from '../../domain/entities/refresh-token.entity.js'
+import type { IRefreshTokenRepository } from '../../domain/repositories/refresh-token-repository.interface.js'
+import { randomBytes } from 'crypto'
 
-export class RegisterStudentUseCase implements IUseCase<RegisterStudentRequestDto, AuthResponseDto> {
-  private readonly uow: IUnitOfWork
-  private readonly logger = new Logger('RegisterStudentUseCase')
+export interface RegisterInput {
+  dto: RegisterStudentRequestDto
+}
 
-  constructor(uow: IUnitOfWork) {
-    this.uow = uow
-  }
+export class RegisterStudentUseCase implements IUseCase<RegisterInput, AuthResponseDto> {
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly uow: IUnitOfWork,
+    private readonly tokenService: ITokenService,
+    private readonly hashService: IHashService,
+    private readonly logger: ILogger,
+  ) {}
 
-  async execute(dto: RegisterStudentRequestDto): Promise<AuthResponseDto> {
+  async execute({ dto }: RegisterInput): Promise<AuthResponseDto> {
     this.logger.info(`Attempting student registration for email: ${dto.email}`)
 
-    const existingUser = await this.uow.userRepository.findByEmail(dto.email)
+    const existingUser = await this.userRepo.findByEmail(dto.email)
     if (existingUser) {
       this.logger.warn(`Registration failed: Email already in use: ${dto.email}`)
-      throw new ValidationError('Email đã được sử dụng')
+      throw new ConflictError(MESSAGES.AUTH_EMAIL_IN_USE)
     }
 
-    return this.uow.runInTransaction(async (transactionalUow) => {
-      const hashedPassword = await bcrypt.hash(dto.password, 10)
+    const hashedPassword = await this.hashService.hash(dto.password)
 
-      this.logger.info('Creating User record in transaction')
-      const user = await transactionalUow.userRepository.create({
-        Email: dto.email.toLowerCase(),
-        PasswordHash: hashedPassword,
-        FullName: dto.fullName,
-        StudentCode: dto.externalId,
-      })
+    return this.uow.runInTransaction(async (txUow) => {
+      // Create domain entity via factory method
+      const user = User.create(
+        randomUUID(),
+        dto.email.toLowerCase(),
+        dto.fullName,
+        hashedPassword,
+        'STUDENT',
+      )
 
-      this.logger.info('Fetching STUDENT role in transaction')
-      const studentRole = await transactionalUow.userRepository.findRoleByName('STUDENT')
+      const txUserRepo = txUow.resolve<IUserRepository>(TOKENS.UserRepository)
+      const txActivityRepo = txUow.resolve<IActivityRepository>(TOKENS.ActivityRepository)
+
+      this.logger.info('Creating user in transaction')
+      await txUserRepo.create(user)
+
+      // Assign STUDENT role
+      const studentRole = await txUserRepo.findRoleByName('STUDENT')
       if (studentRole) {
-        this.logger.info(`Assigning STUDENT role to user ID: ${user.Id}`)
-        await transactionalUow.userRepository.assignRole(user.Id, studentRole.Id)
+        this.logger.info(`Assigning STUDENT role to user: ${user.id}`)
+        await txUserRepo.assignRole(user.id, studentRole.id)
       } else {
-        this.logger.warn('STUDENT role was not found in the database.')
+        this.logger.warn('STUDENT role not found in database')
       }
 
-      this.logger.info(`Creating audit log for STUDENT_REGISTER (user ID: ${user.Id})`)
-      await transactionalUow.activityRepository.create({
-        userId: user.Id,
+      // Audit trail
+      await txActivityRepo.create({
+        userId: user.id,
         action: 'STUDENT_REGISTER',
         entity: 'User',
-        entityId: user.Id,
+        entityId: user.id,
       })
 
-      const authPayload = { id: user.Id, email: user.Email ?? '', role: 'STUDENT', fullName: user.FullName ?? '' }
-      const token = signToken(authPayload)
+      const token = this.tokenService.sign({
+        userId: user.id,
+        email: user.email ?? '',
+        role: 'STUDENT',
+        fullName: user.fullName ?? '',
+      })
 
-      this.logger.info(`Student registered successfully: user ID: ${user.Id}`)
+      const txRefreshTokenRepo = txUow.resolve<IRefreshTokenRepository>(TOKENS.RefreshTokenRepository)
+      const refreshTokenString = randomBytes(64).toString('hex')
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 7)
 
-      const userWithRoles = await transactionalUow.userRepository.findById(user.Id)
+      const refreshToken = RefreshToken.create(
+        randomUUID(),
+        user.id,
+        refreshTokenString,
+        expiresAt
+      )
+      await txRefreshTokenRepo.save(refreshToken)
 
-      return AuthResponseDto.from(token, userWithRoles || user, 'STUDENT')
+      this.logger.info(`Student registered successfully: ${user.id}`)
+      return AuthResponseDto.from(token, refreshTokenString, user, 'STUDENT')
     })
   }
 }

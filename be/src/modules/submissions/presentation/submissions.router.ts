@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { container } from '../../../shared/infrastructure/di-container.js'
+import { TOKENS } from '../../../shared/infrastructure/tokens.js'
 import { authenticate } from '../../../middleware/auth.js'
-import { asyncHandler } from '../../../utils/async-handler.js'
-import { SubmissionsController } from './submissions.controller.js'
+import { asyncHandler } from '../../../shared/presentation/async-handler.js'
+import type { SubmissionsController } from './submissions.controller.js'
 
 export class SubmissionsRouter {
     public readonly router: Router
@@ -13,7 +14,7 @@ export class SubmissionsRouter {
     }
 
     private registerRoutes() {
-        const ctrl = container.get<SubmissionsController>('SubmissionController') // Match key in DI container
+        const ctrl = container.get<SubmissionsController>(TOKENS.SubmissionController)
 
         this.router.get('/', authenticate, asyncHandler((req: any, res: any) => ctrl.list(req, res)))
         this.router.get('/recent', authenticate, asyncHandler((req: any, res: any) => ctrl.recent(req, res)))

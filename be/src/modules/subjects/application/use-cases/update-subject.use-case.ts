@@ -1,21 +1,30 @@
-import { IUseCase } from '../../../../shared/application/base-use-case.js'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { ISubjectRepository } from '../../domain/repositories/subject-repository.interface.js'
 import { SubjectRequestDto, SubjectResponseDto } from '../dtos/subject.dto.js'
-import { NotFoundError } from '../../../../shared/application/app.error.js'
+import { NotFoundError, ConflictError } from '../../../../shared/application/app.error.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
 
-export class UpdateSubjectUseCase implements IUseCase<{ id: string; dto: SubjectRequestDto }, SubjectResponseDto> {
-  constructor(private readonly uow: IUnitOfWork) {}
+export class UpdateSubjectUseCase implements IUseCase<{ id: string; dto: SubjectRequestDto }, ReturnType<typeof SubjectResponseDto.from>> {
+  constructor(private readonly subjectRepo: ISubjectRepository) {}
 
-  async execute(params: { id: string; dto: SubjectRequestDto }): Promise<SubjectResponseDto> {
-    const existing = await this.uow.subjectRepository.findById(params.id)
-    if (!existing) {
-      throw new NotFoundError('Môn học không tồn tại')
+  async execute(params: { id: string; dto: SubjectRequestDto }) {
+    const subject = await this.subjectRepo.findById(params.id)
+    if (!subject) {
+      throw new NotFoundError(MESSAGES.SUBJECT_NOT_FOUND)
     }
 
-    const subject = await this.uow.subjectRepository.update(params.id, {
-      SubjectCode: params.dto.data.code,
-      SubjectName: params.dto.data.name,
+    const existingCode = await this.subjectRepo.findByCode(params.dto.data.code)
+    if (existingCode && existingCode.id !== params.id) {
+      throw new ConflictError(MESSAGES.SUBJECT_ALREADY_EXISTS)
+    }
+
+    subject.updateInfo({
+      subjectCode: params.dto.data.code,
+      subjectName: params.dto.data.name,
     })
-    return SubjectResponseDto.from(subject)
+
+    await this.subjectRepo.save(subject)
+    
+    return SubjectResponseDto.from(subject as any)
   }
 }

@@ -1,9 +1,17 @@
-import type { Prisma, Submission } from '../../../../database/prisma.js'
+import type { Submission } from '../entities/submission.entity.js'
+
+export interface SubmissionFilter {
+  examId?: string
+  studentId?: string
+  classId?: string
+  instructorId?: string
+}
 
 export interface ISubmissionRepository {
-  findMany(where?: Prisma.SubmissionWhereInput): Promise<Submission[]>
-  findRecent(where?: Prisma.SubmissionWhereInput, take?: number): Promise<Submission[]>
+  findMany(filter?: SubmissionFilter): Promise<Submission[]>
+  findRecent(filter?: SubmissionFilter, take?: number): Promise<Submission[]>
   findById(id: string): Promise<Submission | null>
-  create(data: Prisma.SubmissionUncheckedCreateInput): Promise<Submission>
-  update(id: string, data: Prisma.SubmissionUpdateInput): Promise<Submission>
+  create(submission: Submission): Promise<void>
+  update(submission: Submission): Promise<void>
+  save(submission: Submission): Promise<void>
 }

@@ -1,21 +1,34 @@
-import type { Prisma } from '../../../../database/prisma.js'
+import type { User, UserRoleType } from '../../../auth/domain/entities/user.entity.js'
 
 /**
- * Prisma User type with eager-loaded UserRole → Role.
- * This is the shape every repository query returns.
+ * User repository port — domain-owned interface.
+ * NO Prisma types allowed. All methods work with domain User entity.
  */
-export type UserWithRoles = Prisma.UserGetPayload<{
-  include: { UserRole: { include: { Role: true } } }
-}>
+
+export interface UserFilter {
+  role?: UserRoleType
+  status?: string
+  search?: string
+}
+
+export interface Pagination {
+  skip?: number
+  take?: number
+}
+
+export interface RoleInfo {
+  id: string
+  name: string
+}
 
 export interface IUserRepository {
-  findByEmail(email: string): Promise<UserWithRoles | null>
-  findById(id: string): Promise<UserWithRoles | null>
-  findMany(params?: { where?: Prisma.UserWhereInput, skip?: number, take?: number }): Promise<UserWithRoles[]>
-  create(data: Prisma.UserUncheckedCreateInput): Promise<UserWithRoles>
-  update(id: string, data: Prisma.UserUpdateInput): Promise<UserWithRoles>
-  delete(id: string): Promise<UserWithRoles>
-  count(): Promise<number>
-  findRoleByName(roleName: string): Promise<{ Id: string; RoleName: string | null } | null>
-  assignRole(userId: string, roleId: string): Promise<any>
+  findByEmail(email: string): Promise<User | null>
+  findById(id: string): Promise<User | null>
+  findMany(filter?: UserFilter, pagination?: Pagination): Promise<User[]>
+  save(user: User): Promise<void>
+  create(user: User): Promise<void>
+  delete(id: string): Promise<void>
+  count(filter?: UserFilter): Promise<number>
+  findRoleByName(name: string): Promise<RoleInfo | null>
+  assignRole(userId: string, roleId: string): Promise<void>
 }

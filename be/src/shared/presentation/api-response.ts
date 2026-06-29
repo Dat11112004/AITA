@@ -59,7 +59,7 @@ export class ApiResponse<T = unknown> {
   }
 
   static created<T>(message: string, data?: T): ApiResponse<T> {
-    return new ApiResponse<T>(210, message, data)
+    return new ApiResponse<T>(201, message, data)
   }
 
   static badRequest<T>(message: string, data?: T): ApiResponse<T> {

@@ -1,22 +1,30 @@
+import { MESSAGES } from '../../../shared/constants/messages.js'
 import type { Request, Response } from 'express'
 import { GetGradingSessionStatusUseCase, StartGradingSessionUseCase } from '../application/use-cases/grading.use-case.js'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
+import { BaseController } from '../../../shared/presentation/base-controller.js'
+import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
-export class GradingController {
+export class GradingController extends BaseController {
     constructor(
         private readonly getGradingSessionStatusUseCase: GetGradingSessionStatusUseCase,
-        private readonly startGradingSessionUseCase: StartGradingSessionUseCase
-    ) { }
+        private readonly startGradingSessionUseCase: StartGradingSessionUseCase,
+        private readonly logger: ILogger
+    ) {
+        super()
+    }
 
     async getSessionStatus(req: Request, res: Response): Promise<void> {
         const sessionId = req.params.sessionId as string
+        this.logger.debug(`Fetching grading session status: ${sessionId}`)
         const result = await this.getGradingSessionStatusUseCase.execute(sessionId)
-        res.status(200).json(ApiResponse.success('Lấy trạng thái phiên chấm điểm thành công', result))
+        this.ok(res, result, MESSAGES.GRADING_STATUS_SUCCESS)
     }
 
     async startGrading(req: Request, res: Response): Promise<void> {
         const { submissionId } = req.body
+        this.logger.info(`Starting grading session for submission: ${submissionId}`)
         const result = await this.startGradingSessionUseCase.execute(submissionId)
-        res.status(202).json(ApiResponse.success('Đã bắt đầu phiên chấm điểm', result))
+        // 202 Accepted
+        this.ok(res, result, MESSAGES.GRADING_START_SUCCESS) 
     }
 }

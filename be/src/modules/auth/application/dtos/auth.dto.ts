@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { User } from '../../domain/entities/user.entity.js'
 
 export class LoginRequestDto {
   email!: string
@@ -48,8 +49,57 @@ export class RegisterStudentRequestDto {
   }
 }
 
+export class RefreshTokenRequestDto {
+  refreshToken!: string
+
+  static readonly schema = z.object({
+    refreshToken: z.string().min(1, 'Refresh token là bắt buộc'),
+  })
+
+  static from(data: unknown): RefreshTokenRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new RefreshTokenRequestDto()
+    dto.refreshToken = parsed.refreshToken
+    return dto
+  }
+}
+
+export class LogoutRequestDto {
+  refreshToken!: string
+
+  static readonly schema = z.object({
+    refreshToken: z.string().min(1, 'Refresh token là bắt buộc'),
+  })
+
+  static from(data: unknown): LogoutRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new LogoutRequestDto()
+    dto.refreshToken = parsed.refreshToken
+    return dto
+  }
+}
+
+export class ChangePasswordRequestDto {
+  oldPassword!: string
+  newPassword!: string
+
+  static readonly schema = z.object({
+    oldPassword: z.string().min(1, 'Mật khẩu cũ là bắt buộc'),
+    newPassword: z.string().min(6, 'Mật khẩu mới phải có ít nhất 6 ký tự'),
+  })
+
+  static from(data: unknown): ChangePasswordRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new ChangePasswordRequestDto()
+    dto.oldPassword = parsed.oldPassword
+    dto.newPassword = parsed.newPassword
+    return dto
+  }
+}
+
 export class AuthResponseDto {
   token!: string
+  refreshToken!: string
   user!: {
     id: string
     email: string | null
@@ -60,21 +110,22 @@ export class AuthResponseDto {
     status: string | null
   }
 
-  static from(token: string, user: any, explicitRole?: string): AuthResponseDto {
+  static from(token: string, refreshToken: string, user: User, primaryRole?: string): AuthResponseDto {
     const dto = new AuthResponseDto()
     dto.token = token
+    dto.refreshToken = refreshToken
     
-    // Extract role from Prisma nested relation if explicitRole isn't provided
-    const role = explicitRole || user.role || user.UserRole?.[0]?.Role?.RoleName || 'STUDENT'
+    // Default to the first assigned role or 'STUDENT'
+    const role = primaryRole || user.roles[0] || 'STUDENT'
 
     dto.user = {
-      id: user.id || user.Id,
-      email: user.email || user.Email,
-      fullName: user.fullName || user.FullName,
-      studentCode: user.studentCode || user.StudentCode,
-      avatar: user.avatar || user.Avatar,
-      role: role.toLowerCase(), // mapUser lowercased the role, maintaining compatibility
-      status: (user.status || user.Status || 'active').toLowerCase()
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      studentCode: user.studentCode,
+      avatar: user.avatar,
+      role: role.toLowerCase(),
+      status: (user.status || 'active').toLowerCase()
     }
     return dto
   }

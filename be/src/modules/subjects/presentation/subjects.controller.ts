@@ -1,40 +1,49 @@
 import type { Request, Response } from 'express'
-import { ApiResponse } from '../../../shared/presentation/api-response.js'
 import { SubjectRequestDto } from '../application/dtos/subject.dto.js'
 import { ListSubjectsUseCase } from '../application/use-cases/list-subjects.use-case.js'
 import { CreateSubjectUseCase } from '../application/use-cases/create-subject.use-case.js'
 import { UpdateSubjectUseCase } from '../application/use-cases/update-subject.use-case.js'
 import { DeleteSubjectUseCase } from '../application/use-cases/delete-subject.use-case.js'
+import { BaseController } from '../../../shared/presentation/base-controller.js'
+import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
+import { MESSAGES } from '../../../shared/constants/messages.js'
 
-export class SubjectsController {
+export class SubjectsController extends BaseController {
   constructor(
     private readonly listSubjectsUseCase: ListSubjectsUseCase,
     private readonly createSubjectUseCase: CreateSubjectUseCase,
     private readonly updateSubjectUseCase: UpdateSubjectUseCase,
-    private readonly deleteSubjectUseCase: DeleteSubjectUseCase
-  ) {}
+    private readonly deleteSubjectUseCase: DeleteSubjectUseCase,
+    private readonly logger: ILogger
+  ) {
+    super()
+  }
 
   async list(_req: Request, res: Response): Promise<void> {
+    this.logger.debug('Fetching list of subjects')
     const result = await this.listSubjectsUseCase.execute()
-    res.status(200).json(ApiResponse.success('Thành công', result))
+    this.ok(res, result, MESSAGES.SUBJECT_LIST_SUCCESS)
   }
 
   async create(req: Request, res: Response): Promise<void> {
+    this.logger.info('Creating new subject')
     const dto = SubjectRequestDto.from(req.body)
     const result = await this.createSubjectUseCase.execute(dto)
-    res.status(201).json(ApiResponse.success('Tạo môn học thành công', result, 201))
+    this.created(res, result, MESSAGES.SUBJECT_CREATE_SUCCESS)
   }
 
   async update(req: Request, res: Response): Promise<void> {
     const id = req.params.id as string
+    this.logger.info(`Updating subject: ${id}`)
     const dto = SubjectRequestDto.from(req.body)
     const result = await this.updateSubjectUseCase.execute({ id, dto })
-    res.status(200).json(ApiResponse.success('Cập nhật môn học thành công', result))
+    this.ok(res, result, MESSAGES.SUBJECT_UPDATE_SUCCESS)
   }
 
   async remove(req: Request, res: Response): Promise<void> {
     const id = req.params.id as string
+    this.logger.info(`Removing subject: ${id}`)
     await this.deleteSubjectUseCase.execute(id)
-    res.status(200).json(ApiResponse.success('Xóa môn học thành công', null))
+    this.ok(res, null, MESSAGES.SUBJECT_DELETE_SUCCESS)
   }
 }

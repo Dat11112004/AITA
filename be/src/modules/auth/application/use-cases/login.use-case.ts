@@ -1,39 +1,68 @@
-import bcrypt from 'bcryptjs'
-import { IUseCase } from '../../../../shared/application/base-use-case.js'
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
-import { Logger } from '../../../../shared/infrastructure/logger.js'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUserRepository } from '../../../users/domain/repositories/user-repository.interface.js'
+import type { ITokenService } from '../../../../shared/application/ports/i-token-service.js'
+import type { IHashService } from '../../../../shared/application/ports/i-hash-service.js'
+import type { ILogger } from '../../../../shared/application/ports/logger.interface.js'
+import type { IRefreshTokenRepository } from '../../domain/repositories/refresh-token-repository.interface.js'
+import { RefreshToken } from '../../domain/entities/refresh-token.entity.js'
+import { randomUUID, randomBytes } from 'crypto'
 import { UnauthorizedError } from '../../../../shared/application/app.error.js'
-import { signToken } from '../../../../middleware/auth.js'
-import { LoginRequestDto, AuthResponseDto } from '../dtos/auth.dto.js'
+import type { LoginRequestDto } from '../dtos/auth.dto.js'
+import { AuthResponseDto } from '../dtos/auth.dto.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
 
-export class LoginUseCase implements IUseCase<LoginRequestDto, AuthResponseDto> {
-  private readonly uow: IUnitOfWork
-  private readonly logger = new Logger('LoginUseCase')
+export interface LoginInput {
+  dto: LoginRequestDto
+}
 
-  constructor(uow: IUnitOfWork) {
-    this.uow = uow
-  }
+export class LoginUseCase implements IUseCase<LoginInput, AuthResponseDto> {
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly refreshTokenRepo: IRefreshTokenRepository,
+    private readonly tokenService: ITokenService,
+    private readonly hashService: IHashService,
+    private readonly logger: ILogger,
+  ) {}
 
-  async execute(dto: LoginRequestDto): Promise<AuthResponseDto> {
-    this.logger.info(`Attempting login for email: ${dto.email}`)
+  async execute({ dto }: LoginInput): Promise<AuthResponseDto> {
+    this.logger.info(`Login attempt for email: ${dto.email}`)
 
-    const user = await this.uow.userRepository.findByEmail(dto.email)
-    if (!user || user.Status !== 'Active') {
-      this.logger.warn(`Login failed: User not found or inactive for email ${dto.email}`)
-      throw new UnauthorizedError('Email hoặc mật khẩu không đúng')
+    const user = await this.userRepo.findByEmail(dto.email)
+    if (!user || !user.isActive()) {
+      this.logger.warn(`Login failed: User not found or inactive for email: ${dto.email}`)
+      throw new UnauthorizedError(MESSAGES.AUTH_INVALID_CREDENTIALS)
     }
 
-    if (!user.PasswordHash || !(await bcrypt.compare(dto.password, user.PasswordHash))) {
-      this.logger.warn(`Login failed: Invalid password for user ID ${user.Id}`)
-      throw new UnauthorizedError('Email hoặc mật khẩu không đúng')
+    if (!user.passwordHash || !(await this.hashService.compare(dto.password, user.passwordHash))) {
+      this.logger.warn(`Login failed: Invalid password for user: ${user.id}`)
+      throw new UnauthorizedError(MESSAGES.AUTH_INVALID_CREDENTIALS)
     }
 
-    const primaryRole = user.UserRole?.[0]?.Role?.RoleName ?? 'STUDENT'
-    const authPayload = { id: user.Id, email: user.Email ?? '', role: primaryRole, fullName: user.FullName ?? '' }
+    // Record login via domain logic
+    user.recordLogin()
+    await this.userRepo.save(user)
 
-    const token = signToken(authPayload)
-    this.logger.info(`Login successful for user ID ${user.Id} (Role: ${primaryRole})`)
+    const primaryRole = user.roles[0] ?? 'STUDENT'
+    const token = this.tokenService.sign({
+      userId: user.id,
+      email: user.email ?? '',
+      role: primaryRole,
+      fullName: user.fullName ?? '',
+    })
 
-    return AuthResponseDto.from(token, user, primaryRole)
+    const refreshTokenString = randomBytes(64).toString('hex')
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7) // 7 days valid
+
+    const refreshToken = RefreshToken.create(
+      randomUUID(),
+      user.id,
+      refreshTokenString,
+      expiresAt
+    )
+    await this.refreshTokenRepo.save(refreshToken)
+
+    this.logger.info(`Login successful for user: ${user.id}`)
+    return AuthResponseDto.from(token, refreshTokenString, user, primaryRole)
   }
 }

@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client'
 import { INotificationRepository } from '../../domain/repositories/notification-repository.interface.js'
 import { Notification } from '../../domain/entities/notification.entity.js'
 
 export class PrismaNotificationRepository implements INotificationRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async findForUser(userId: string, params: { limit?: number; offset?: number; read?: boolean }): Promise<Notification[]> {
         const list = await (this.prisma as any).notification.findMany({

@@ -1,5 +1,66 @@
+/**
+ * Port interface for AI microservice operations.
+ * All input/output types are domain-owned — no leaking of external API shapes.
+ */
+
+// ── Input Types ──────────────────────────────────────────────
+
+export interface GenerateExerciseInput {
+  classId?: string
+  type: string
+  topic: string
+  difficulty?: string
+  questionCount?: number
+  language?: string
+  extra?: string
+  userId?: string
+}
+
+export interface AssessInput {
+  content: string
+  language?: string
+  assignmentTitle?: string
+  assignmentDescription?: string
+}
+
+// ── Output Types ─────────────────────────────────────────────
+
+export interface GenerateExerciseOutput {
+  title: string
+  description: string
+  content: Record<string, unknown>
+}
+
+export interface AssessFeedback {
+  testCases?: { passed: number; total: number }
+  codingStyle?: string
+  logic?: string
+  performance?: string
+  suggestions?: string[]
+  language?: string
+  length?: number
+}
+
+export interface AssessOutput {
+  aiScore: number
+  feedback: AssessFeedback
+}
+
+export interface LearningRecommendation {
+  type: string
+  title: string
+}
+
+export interface LearningFeedbackOutput {
+  studentId: string
+  weakTopics: string[]
+  recommendations: LearningRecommendation[]
+}
+
+// ── Service Interface ────────────────────────────────────────
+
 export interface IAIService {
-    generateExercise(input: any): Promise<any>
-    assess(content: string, language?: string, assignmentTitle?: string, assignmentDescription?: string): Promise<any>
-    learningFeedback(studentId: string): Promise<any>
+  generateExercise(input: GenerateExerciseInput): Promise<GenerateExerciseOutput>
+  assess(input: AssessInput): Promise<AssessOutput>
+  learningFeedback(studentId: string): Promise<LearningFeedbackOutput>
 }

@@ -1,24 +1,18 @@
-import type { AuditLog, Prisma } from '../../../../database/prisma.js'
-import { IActivityRepository } from '../../domain/repositories/activity-repository.interface.js'
+import type {
+  IActivityRepository,
+  CreateActivityData,
+  ActivityRecord,
+  ActivityFilter,
+} from '../../domain/repositories/activity-repository.interface.js'
 
 export class PrismaActivityRepository implements IActivityRepository {
-  private client: any
+  constructor(private readonly client: any) {}
 
-  constructor(client: any) {
-    this.client = client
-  }
-
-  async create(data: {
-    userId?: string
-    action: string
-    entity: string
-    entityId?: string
-    metadata?: string
-  }): Promise<AuditLog> {
-    return this.client.auditLog.create({
+  async create(data: CreateActivityData): Promise<void> {
+    await this.client.auditLog.create({
       data: {
         UserId: data.userId,
-        Action: data.action as any,
+        Action: data.action,
         EntityName: data.entity,
         EntityId: data.entityId,
         NewValue: data.metadata,
@@ -26,15 +20,29 @@ export class PrismaActivityRepository implements IActivityRepository {
     })
   }
 
-  async findMany(take: number = 20): Promise<AuditLog[]> {
-    return this.client.auditLog.findMany({
+  async findMany(take: number = 20): Promise<ActivityRecord[]> {
+    const raw = await this.client.auditLog.findMany({
       take,
       orderBy: { CreatedAt: 'desc' },
       include: { User: true },
     })
+
+    return raw.map((r: any) => ({
+      id: r.Id,
+      userId: r.UserId,
+      action: r.Action,
+      entity: r.EntityName,
+      entityId: r.EntityId,
+      metadata: r.NewValue,
+      createdAt: r.CreatedAt,
+      userName: r.User?.FullName,
+    }))
   }
 
-  async count(where?: Prisma.AuditLogWhereInput): Promise<number> {
+  async count(filter?: ActivityFilter): Promise<number> {
+    const where: any = {}
+    if (filter?.userId) where.UserId = filter.userId
+    if (filter?.action) where.Action = filter.action
     return this.client.auditLog.count({ where })
   }
 }

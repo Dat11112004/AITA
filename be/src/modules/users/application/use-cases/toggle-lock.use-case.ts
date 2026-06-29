@@ -1,17 +1,34 @@
-import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { IUseCase } from '../../../../shared/application/base-use-case.js'
+import type { IUserRepository } from '../../domain/repositories/user-repository.interface.js'
+import type { ILogger } from '../../../../shared/application/ports/logger.interface.js'
 import { NotFoundError } from '../../../../shared/application/app.error.js'
 import { UserResponseDto } from '../dtos/user.dto.js'
+import { MESSAGES } from '../../../../shared/constants/messages.js'
 
-export class ToggleLockUseCase {
-    constructor(private readonly uow: IUnitOfWork) { }
+export interface ToggleLockInput {
+    id: string
+    locked: boolean
+}
 
-    async execute(id: string, locked: boolean) {
-        const user = await this.uow.userRepository.findById(id)
-        if (!user) throw new NotFoundError('Người dùng không tồn tại')
+export class ToggleLockUseCase implements IUseCase<ToggleLockInput, UserResponseDto> {
+    constructor(
+        private readonly userRepo: IUserRepository,
+        private readonly logger: ILogger
+    ) { }
 
-        const status = locked ? 'Inactive' : 'Active'
-        const updated = await this.uow.userRepository.update(id, { Status: status })
+    async execute({ id, locked }: ToggleLockInput): Promise<UserResponseDto> {
+        this.logger.info(`Toggling lock for user: ${id}, locked=${locked}`)
+        
+        const user = await this.userRepo.findById(id)
+        if (!user) throw new NotFoundError(MESSAGES.USER_NOT_FOUND)
 
-        return UserResponseDto.from(updated)
+        if (locked) {
+            user.deactivate()
+        } else {
+            user.activate()
+        }
+
+        await this.userRepo.save(user)
+        return UserResponseDto.from(user)
     }
 }

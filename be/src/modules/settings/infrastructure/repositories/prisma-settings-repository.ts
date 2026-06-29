@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client'
 import { ISettingsRepository } from '../../domain/repositories/settings-repository.interface.js'
 
 export class PrismaSettingsRepository implements ISettingsRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: any) { }
 
     async getSystemConfig(): Promise<any[]> {
         return this.prisma.systemConfig.findMany()
