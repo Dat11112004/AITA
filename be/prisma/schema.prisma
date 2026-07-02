@@ -33,6 +33,7 @@ model User {
   Submission_Submission_ReviewedByToUser Submission[]            @relation("Submission_ReviewedByToUser")
   Submission_Submission_StudentIdToUser  Submission[]            @relation("Submission_StudentIdToUser")
   UserRole                               UserRole[]
+  Appeal                                 Appeal[]
 }
 
 model Class {
@@ -47,6 +48,7 @@ model Class {
   InstructorClass InstructorClass[]
   StudentClass    StudentClass[]
   Submission      Submission[]
+  ExamClass       ExamClass[]
 }
 
 model Submission {
@@ -70,6 +72,7 @@ model Submission {
   AiUsageLog                       AiUsageLog[]
   ExecutionResult                  ExecutionResult[]
   GradingSession                   GradingSession[]
+  Appeal                           Appeal[]
   Class                            Class?               @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   Exam                             Exam?                @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   User_Submission_ReviewedByToUser User?                @relation("Submission_ReviewedByToUser", fields: [ReviewedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
@@ -243,6 +246,7 @@ model Exam {
   SampleCode            SampleCode[]
   Submission            Submission[]
   TestCase              TestCase[]
+  ExamClass             ExamClass[]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -655,6 +659,33 @@ model UserRole {
 
   @@id([UserId, RoleId])
 }
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model ExamClass {
+  ExamId      String    @db.UniqueIdentifier
+  ClassId     String    @db.UniqueIdentifier
+  AssignedAt  DateTime? @db.DateTime2
+  DueDate     DateTime? @db.DateTime2
+  Class       Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Exam        Exam      @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([ExamId, ClassId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Appeal {
+  Id           String      @id @default(uuid()) @db.UniqueIdentifier
+  SubmissionId String?     @db.UniqueIdentifier
+  StudentId    String?     @db.UniqueIdentifier
+  Reason       String?
+  Status       String?
+  CreatedAt    DateTime?   @db.DateTime2
+  ResolvedAt   DateTime?   @db.DateTime2
+  Resolution   String?
+  Submission   Submission? @relation(fields: [SubmissionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  User         User?       @relation(fields: [StudentId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+}
+
 
 
 

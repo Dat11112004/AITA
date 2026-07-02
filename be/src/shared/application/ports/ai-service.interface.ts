@@ -61,6 +61,11 @@ export interface GenerateRubricInput {
   topic: string
   difficulty?: string
   totalScore?: number
+  file?: {
+    filename: string
+    buffer: Buffer
+    mimetype: string
+  }
 }
 
 export interface GenerateRubricOutput {

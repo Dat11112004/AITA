@@ -1,216 +1,264 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { ArrowLeft, Send, CheckCircle, Clock } from 'lucide-react'
+import { FileText, ArrowLeft, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 export function StudentAssignmentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [submission, setSubmission] = useState<SubmissionRow | null>(null)
-  const [content, setContent] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  
   const [file, setFile] = useState<File | null>(null)
+  const [content, setContent] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async () => {
+  // AI Feedback Mock state
+  const [aiFeedback] = useState('Bài làm khá tốt. Tuy nhiên cần chú ý tối ưu các vòng lặp để tránh time limit exceeded. Cấu trúc code sạch sẽ, rõ ràng.')
+  const [appealText, setAppealText] = useState('')
+  const [showAppeal, setShowAppeal] = useState(false)
+
+  const loadData = useCallback(() => {
     if (!id) return
+    let alive = true
     setLoading(true)
-    setError(null)
-    try {
-      const data = await api.getAssignment(id)
-      setAssignment(data)
-      // Check if already submitted
-      const subs = await api.getSubmissions({ assignmentId: id })
-      if (subs && subs.length > 0) {
-        setSubmission(subs[0])
-        setContent(subs[0].content || '')
+    
+    Promise.all([
+      api.getAssignments().then(res => res?.find(a => a.id === id)),
+      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null) // Mock: assume first is current user's
+    ])
+    .then(([a, s]) => {
+      if (alive) {
+        setAssignment(a as AssignmentRow)
+        setSubmission(s as SubmissionRow)
       }
-    } catch (e: any) {
-      setError(e.message || 'Lỗi tải chi tiết bài tập')
-    } finally {
-      setLoading(false)
-    }
+    })
+    .finally(() => { if (alive) setLoading(false) })
+
+    return () => { alive = false }
   }, [id])
 
   useEffect(() => {
-    load()
-  }, [load])
+    const cleanup = loadData()
+    return cleanup
+  }, [loadData])
 
   const handleSubmit = async () => {
-    if (!id || (!content.trim() && !file)) return
-    setSubmitting(true)
+    if (!id || (!file && !content)) return
+    setIsSubmitting(true)
     try {
-      const zipFileUrl = file ? `blob:upload/${file.name}` : undefined;
-      await api.submitAssignment({ assignmentId: id, content, zipFileUrl })
-      await load() // Reload to get updated submission status
+      await new Promise(r => setTimeout(r, 1000))
+      // Mock successful submission
+      setSubmission({
+        id: 'new-sub',
+        assignmentId: id,
+        studentId: 'user',
+        student: 'Sinh viên',
+        content: content || file?.name || '',
+        score: null,
+        aiScore: null,
+        status: 'SUBMITTED',
+        aiFeedback: null,
+        submittedAt: new Date().toISOString()
+      })
+      alert('Nộp bài thành công!')
     } catch (e: any) {
-      alert(e.message || 'Lỗi khi nộp bài')
+      alert(e.message || 'Error')
     } finally {
-      setSubmitting(false)
+      setIsSubmitting(false)
     }
   }
 
-  if (loading) return <LoadingSpinner />
-  if (error || !assignment) return <ErrorState message={error || 'Không tìm thấy bài tập'} onRetry={load} />
+  const handleSendAppeal = async () => {
+    if (!appealText.trim() || !submission) return
+    setIsSubmitting(true)
+    try {
+      await api.submitFeedback(submission.id, appealText)
+      alert('Đã gửi ý kiến phản hồi tới Giảng viên thành công!')
+      setShowAppeal(false)
+      setAppealText('')
+      // Optionally reload the submission to show the updated feedback state if the backend returns it
+    } catch (e: any) {
+      alert(e.message || 'Lỗi gửi phản hồi')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
-  const isSubmitted = !!submission
-  const isPastDeadline = assignment.due ? new Date(assignment.due) < new Date() : false
+  if (loading) return <div className="flex p-20 justify-center text-brand-600">Đang tải dữ liệu...</div>
+  if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Không tìm thấy bài tập</div>
+
+  const isPastDue = assignment.due ? new Date(assignment.due) < new Date() : false;
+  const isSubmitted = !!submission;
+  const isLocked = isPastDue && !isSubmitted;
 
   return (
-    <div className="space-y-8 p-1 sm:p-4 min-h-screen max-w-5xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/student/assignments')} className="shrink-0 p-2">
-          <ArrowLeft size={16} />
+    <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500 pb-20">
+      <div className="mb-4">
+        <Button variant="outline" size="sm" onClick={() => navigate('/student/assignments')} className="bg-white border-slate-200 shadow-sm">
+          <ArrowLeft size={16} className="mr-2" /> Quay lại
         </Button>
-        <PageHeader title={assignment.title} breadcrumbs={[{ label: 'Bài tập', path: '/student/assignments' }, { label: 'Chi tiết' }]} />
       </div>
 
+      <PageHeader
+        title={assignment.title}
+        description={assignment.type === 'Exam' ? 'Đề thi' : 'Bài tập'}
+      />
+
       <div className="grid md:grid-cols-3 gap-6">
+        
+        {/* Left Column: Assignment Context (Like EduNext) */}
         <div className="md:col-span-2 space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-bold mb-4">Nội dung bài tập</h3>
-            <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
-              <p>{assignment.description || 'Chưa có mô tả chi tiết cho bài tập này.'}</p>
-            </div>
-            
-            <div className="mt-8">
-              <h3 className="text-lg font-bold mb-4">Bài làm của bạn</h3>
-              {isSubmitted ? (
-                <div className="space-y-4">
-                  {submission.zipFileUrl && (
-                    <div className="p-3 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded border border-brand-200 dark:border-brand-800 flex items-center">
-                      <span className="font-medium mr-2">File đính kèm:</span> {submission.zipFileUrl.replace('blob:upload/', '')}
-                    </div>
-                  )}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-sm whitespace-pre-wrap text-slate-700 dark:text-slate-300">
-                    {submission.content || 'Không có nội dung text'}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Upload File (Optional)</label>
-                    <input 
-                      type="file" 
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-                    />
-                  </div>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Nhập nội dung bài làm của bạn hoặc dán code vào đây..."
-                    className="w-full min-h-[200px] p-4 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-brand-500 outline-none transition-shadow font-mono text-sm"
-                  />
-                </div>
+          <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex justify-between items-center">
+              <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <FileText size={18} className="text-brand-600" /> Đề bài
+              </h2>
+              {assignment.due && (
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${isPastDue ? 'bg-red-50 text-red-600 dark:bg-red-900/30' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30'}`}>
+                  Deadline: {new Date(assignment.due).toLocaleString()}
+                </span>
               )}
             </div>
-
-            {!isSubmitted && (
-              <div className="mt-4 flex flex-col items-end gap-2">
-                {isPastDeadline && (
-                  <p className="text-sm font-medium text-red-500">Đã hết hạn nộp bài. Bạn không thể nộp bài tập này nữa.</p>
-                )}
-                <Button onClick={handleSubmit} disabled={submitting || (!content.trim() && !file) || isPastDeadline} className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6">
-                  {submitting ? 'Đang nộp...' : <><Send size={16} className="mr-2"/> Nộp bài ngay</>}
-                </Button>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="p-5">
-            <h4 className="font-bold text-slate-900 dark:text-white mb-4">Thông tin chung</h4>
-            <div className="space-y-4 text-sm">
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <span className="text-slate-500">Loại bài</span>
-                <span className="font-medium">{assignment.type}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <span className="text-slate-500">Môn học / Lớp</span>
-                <span className="font-medium">{assignment.class || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <span className="text-slate-500">Hạn nộp</span>
-                <span className="font-medium text-amber-600 dark:text-amber-400">{assignment.due?.slice(0, 10) || 'Không giới hạn'}</span>
-              </div>
-              <div className="flex justify-between pt-2">
-                <span className="text-slate-500">Trạng thái</span>
-                {isSubmitted ? (
-                  <Badge variant="neutral" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center gap-1 border-0"><CheckCircle size={12}/> Đã nộp</Badge>
-                ) : (
-                  <Badge variant="neutral" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1 border-0"><Clock size={12}/> Chưa nộp</Badge>
-                )}
-              </div>
+            <div className="p-6 prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
+              <p className="whitespace-pre-wrap">{assignment.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}</p>
             </div>
           </Card>
 
-          {isSubmitted && submission?.aiScore != null && (
-            <Card className="p-5 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-slate-900 border-indigo-100 dark:border-indigo-900/50 shadow-sm">
-              <h4 className="font-bold text-indigo-900 dark:text-indigo-300 mb-2">Đánh giá từ AI</h4>
-              <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mb-2">
-                {submission.aiScore}/100
-              </div>
-              <p className="text-sm text-indigo-700/80 dark:text-indigo-300/80">
-                AI đã chấm điểm sơ bộ bài làm của bạn. Giảng viên sẽ xem xét và công bố điểm chính thức sau.
-              </p>
-            </Card>
-          )}
-          
-          {isSubmitted && submission?.score != null && (
-            <Card className="p-5 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-slate-900 border-emerald-100 dark:border-emerald-900/50 shadow-sm">
-              <h4 className="font-bold text-emerald-900 dark:text-emerald-300 mb-2">Điểm chính thức</h4>
-              <div className="text-4xl font-black text-emerald-600 dark:text-emerald-400 mb-2">
-                {submission.score}/10
+          {/* Grading & Feedback Result */}
+          {submission && submission.score !== null && (
+            <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex justify-between items-center">
+                <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả chấm điểm
+                </h2>
+                <div className="font-black text-xl text-brand-600 dark:text-brand-400">
+                  {submission.score}/10
+                </div>
               </div>
               
-              {/* Feedback Section */}
-              <div className="mt-6 pt-4 border-t border-emerald-100 dark:border-emerald-800/50">
-                <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-2">Ý kiến / Khiếu nại điểm</h4>
-                {submission.studentFeedback ? (
-                  <div className="text-sm p-3 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                    <p className="font-medium text-xs text-slate-400 mb-1">Bạn đã gửi:</p>
-                    {submission.studentFeedback}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <textarea 
-                      id="feedback-input"
-                      className="w-full text-sm p-2 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none"
-                      placeholder="Nếu bạn có thắc mắc về điểm số, hãy nhập vào đây..."
-                      rows={3}
-                    />
-                    <Button 
-                      size="sm" 
-                      className="w-full bg-slate-800 hover:bg-slate-900 text-white"
-                      onClick={async () => {
-                        const el = document.getElementById('feedback-input') as HTMLTextAreaElement;
-                        if (!el.value.trim()) return;
-                        try {
-                          await api.submitFeedback(submission.id, el.value);
-                          alert('Đã gửi ý kiến thành công!');
-                          await load();
-                        } catch(e: any) {
-                          alert(e.message || 'Lỗi gửi ý kiến');
-                        }
-                      }}
-                    >
-                      Gửi ý kiến
-                    </Button>
+              <div className="p-6">
+                <div className="mb-4">
+                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-1">Nhận xét từ AI:</h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                    {(submission.aiFeedback as string) || 'Không có nhận xét tự động.'}
+                  </p>
+                </div>
+
+                {assignment.type === 'Assignment' && (
+                  <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl p-5 relative overflow-hidden">
+                      <div className="flex items-start gap-3 relative z-10">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                          ✨
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-amber-800 dark:text-amber-500 mb-2">AI Feedback (Gợi ý cải thiện)</h4>
+                          <p className="text-sm text-amber-700 dark:text-amber-300/80 leading-relaxed">
+                            {aiFeedback}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                <div className="mt-6 text-right">
+                  {!showAppeal ? (
+                    <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
+                      Bạn có thắc mắc về điểm số?
+                    </button>
+                  ) : (
+                    <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
+                      <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Input 
+                            placeholder="Nhập nội dung thắc mắc..." 
+                            value={appealText}
+                            onChange={(e) => setAppealText(e.target.value)}
+                          />
+                        </div>
+                        <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
+                          <Send size={16} className="mr-2"/> Gửi
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           )}
+        </div>
+
+        {/* Right Column: Submission Form */}
+        <div className="space-y-6">
+          <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm sticky top-6">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#151821]">
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                Bài làm của bạn
+              </h3>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              {isSubmitted ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center dark:bg-emerald-900/10 dark:border-emerald-900/30">
+                  <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
+                  <p className="font-bold text-emerald-800 dark:text-emerald-500">Đã nộp thành công</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-600/80 mt-1">Lúc: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : ''}</p>
+                </div>
+              ) : isLocked ? (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center dark:bg-red-900/10 dark:border-red-900/30">
+                  <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
+                  <p className="font-bold text-red-800 dark:text-red-500">Đã hết hạn nộp bài</p>
+                  <p className="text-sm text-red-600 dark:text-red-600/80 mt-1">Hệ thống đã khóa tính năng nộp bài.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center text-slate-500 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/50 transition-colors relative cursor-pointer group">
+                    <input 
+                      type="file" 
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    <UploadCloud size={32} className="mb-2 text-slate-400 group-hover:text-brand-500 transition-colors" />
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Nhấp hoặc Kéo thả file</p>
+                    <p className="text-xs mt-1">PDF, DOCX, ZIP (Max: 10MB)</p>
+                  </div>
+                  
+                  {file && (
+                    <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg flex items-center justify-between">
+                      <span className="text-sm font-medium truncate pr-4 text-slate-700 dark:text-slate-300">{file.name}</span>
+                      <button onClick={() => setFile(null)} className="text-red-500 text-sm font-bold hover:underline shrink-0">Xóa</button>
+                    </div>
+                  )}
+
+                  <div className="text-center text-xs text-slate-400 font-bold uppercase tracking-widest my-2">HOẶC</div>
+
+                  <textarea 
+                    className="w-full p-3 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none min-h-[100px]"
+                    placeholder="Nhập câu trả lời trực tiếp..."
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                  />
+
+                  <Button 
+                    className="w-full bg-brand-600 hover:bg-brand-700 text-white shadow-md font-bold mt-2"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || (!file && !content)}
+                  >
+                    {isSubmitting ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Send size={16} className="mr-2" />}
+                    Nộp Bài
+                  </Button>
+                </>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
     </div>

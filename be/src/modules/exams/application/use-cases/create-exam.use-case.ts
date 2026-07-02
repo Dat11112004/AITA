@@ -26,6 +26,10 @@ export class CreateExamUseCase implements IUseCase<CreateExamRequestDto, ExamRes
 
     await this.examRepo.create(exam)
 
+    if (data.classId) {
+      await this.examRepo.assignToClass(exam.id, data.classId, data.dueAt)
+    }
+
     return ExamResponseDto.from(exam as any)
   }
 }

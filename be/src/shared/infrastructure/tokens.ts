@@ -27,6 +27,7 @@ export const TOKENS = {
   EnrollmentRepository: Symbol.for('EnrollmentRepository'),
   ExamRepository: Symbol.for('ExamRepository'),
   SubmissionRepository: Symbol.for('SubmissionRepository'),
+  SemesterRepository: Symbol.for('SemesterRepository'),
   AiRepository: Symbol.for('AiRepository'),
   ReportsRepository: Symbol.for('ReportsRepository'),
   AuditRepository: Symbol.for('AuditRepository'),
@@ -61,5 +62,6 @@ export const TOKENS = {
   StatsController: Symbol.for('StatsController'),
   SettingsController: Symbol.for('SettingsController'),
   ExamsController: Symbol.for('ExamsController'),
+  SemestersController: Symbol.for('SemestersController'),
   OptionsController: Symbol.for('OptionsController'),
 } as const

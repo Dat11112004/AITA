@@ -5,6 +5,11 @@ export interface GenerateRubricDto {
   topic: string
   difficulty?: string
   totalScore?: number
+  file?: {
+    filename: string
+    buffer: Buffer
+    mimetype: string
+  }
 }
 
 export class GenerateRubricUseCase {
@@ -24,7 +29,8 @@ export class GenerateRubricUseCase {
       const rubric = await this.aiService.generateRubric({
         topic: dto.topic,
         difficulty: dto.difficulty,
-        totalScore: dto.totalScore
+        totalScore: dto.totalScore,
+        file: dto.file
       })
       
       return rubric

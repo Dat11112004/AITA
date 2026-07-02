@@ -8,6 +8,7 @@ export const CreateExamSchema = z.object({
   duration: z.number().optional(),
   dueAt: z.string().optional(),
   maxScore: z.number().optional(),
+  classId: z.string().optional(),
 })
 
 export type CreateExamRequestDtoType = z.infer<typeof CreateExamSchema>
@@ -46,20 +47,22 @@ export class ExamResponseDto {
     public readonly subjectId: string | null,
     public readonly maxScore: number | null,
     public readonly dueAt: number | null,
-    public readonly createdAt: string
+    public readonly createdAt: string,
+    public readonly classes: string[] | null
   ) {}
 
   static from(exam: any): ExamResponseDto {
     return new ExamResponseDto(
-      exam.Id,
-      exam.Title,
-      exam.Description,
-      exam.ExamType?.toLowerCase() ?? 'assignment',
-      exam.Status?.toLowerCase() ?? 'draft',
-      exam.SubjectId,
-      exam.TotalPoints,
-      exam.Duration,
-      exam.Id // using id as fallback for createdAt in legacy
+      exam.Id || exam.id,
+      exam.Title || exam.title,
+      exam.Description || exam.description,
+      (exam.ExamType || exam.type)?.toLowerCase() ?? 'assignment',
+      (exam.Status || exam.status)?.toLowerCase() ?? 'draft',
+      exam.SubjectId || exam.subjectId,
+      exam.TotalPoints || exam.totalPoints,
+      exam.Duration || exam.duration,
+      exam.Id || exam.id, // using id as fallback for createdAt in legacy
+      exam.classes || null
     )
   }
 }

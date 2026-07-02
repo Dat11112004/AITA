@@ -28,6 +28,9 @@ export class ExamMapper {
       (exam as any).subjectName = raw.Subject.SubjectName;
       (exam as any).subjectCode = raw.Subject.SubjectCode;
     }
+    if (raw.ExamClass) {
+      (exam as any).classes = raw.ExamClass.map((ec: any) => ec.ClassId);
+    }
     if (raw._count?.Submission !== undefined) {
       (exam as any).submissionCount = raw._count.Submission
     }

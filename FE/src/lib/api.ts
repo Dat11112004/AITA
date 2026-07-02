@@ -20,7 +20,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -105,6 +105,11 @@ export const api = {
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
+  // ─── Semesters CRUD ───
+  getSemesters: () => request<SemesterRow[]>(`/semesters`),
+  createSemester: (body: CreateSemesterBody) =>
+    request<SemesterRow>('/semesters', { method: 'POST', body: JSON.stringify(body) }),
+
   // ─── Exams CRUD ───
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
   getExam: (id: string) => request<ExamRow>(`/exams/${id}`),
@@ -144,8 +149,13 @@ export const api = {
   // ─── AI Features ───
   generateExerciseAI: (body: { topic: string, difficulty: string, type: string }) =>
     request<any>('/ai/generate-exercise', { method: 'POST', body: JSON.stringify(body) }),
-  generateRubricAI: (body: { topic: string, difficulty?: string, totalScore?: number }) =>
-    request<any>('/ai/generate-rubric', { method: 'POST', body: JSON.stringify(body) }),
+  generateRubricAI: (body: any) => {
+    const isFormData = body instanceof FormData;
+    return request<any>('/ai/generate-rubric', {
+      method: 'POST',
+      body: isFormData ? body : JSON.stringify(body),
+    })
+  },
   saveAIAssignment: (body: any) =>
     request<AssignmentRow>('/ai/save-assignment', { method: 'POST', body: JSON.stringify(body) }),
   assessSubmissionAI: (submissionId: string) =>
@@ -234,8 +244,8 @@ export interface ClassRow {
 export interface CreateClassBody {
   code: string
   name: string
-  subject?: string
-  semester?: string
+  subjectId?: string
+  semesterId?: string
   campus?: string
   schedule?: string
   lecturerId: string
@@ -343,6 +353,21 @@ export interface CreateSubjectBody {
   name: string
   credits?: number
   description?: string
+}
+
+export interface SemesterRow {
+  id: string
+  code: string
+  startDate?: string
+  endDate?: string
+  isActive: boolean
+}
+
+export interface CreateSemesterBody {
+  code: string
+  startDate?: string
+  endDate?: string
+  isActive?: boolean
 }
 
 export interface ExamRow {

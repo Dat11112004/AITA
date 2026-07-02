@@ -8,6 +8,7 @@ export class PrismaExamRepository implements IExamRepository {
   private get include() {
     return {
       Subject: true,
+      ExamClass: true,
       _count: { select: { Submission: true } }
     }
   }
@@ -64,5 +65,16 @@ export class PrismaExamRepository implements IExamRepository {
     } else {
       await this.create(exam)
     }
+  }
+
+  async assignToClass(examId: string, classId: string, dueDate?: string): Promise<void> {
+    await this.client.examClass.create({
+      data: {
+        ExamId: examId,
+        ClassId: classId,
+        AssignedAt: new Date(),
+        DueDate: dueDate ? new Date(dueDate) : null
+      }
+    })
   }
 }

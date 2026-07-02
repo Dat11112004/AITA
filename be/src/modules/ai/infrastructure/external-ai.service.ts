@@ -102,9 +102,12 @@ export class ExternalAiService implements IAIService {
         if (env.AI_STUB_MODE) {
             await wait(1000)
             const total = input.totalScore || 10
+            
+            const fileNotice = input.file ? ` (Dựa trên file: ${input.file.filename})` : ''
+            
             return {
                 criteria: [
-                    { name: 'Tính đúng đắn (Logic)', description: 'Chương trình chạy đúng yêu cầu cơ bản.', maxScore: total * 0.4 },
+                    { name: 'Tính đúng đắn (Logic)' + fileNotice, description: 'Chương trình chạy đúng yêu cầu cơ bản.', maxScore: total * 0.4 },
                     { name: 'Chất lượng mã (Code Quality)', description: 'Mã nguồn dễ đọc, chuẩn naming convention.', maxScore: total * 0.3 },
                     { name: 'Hiệu suất (Performance)', description: 'Sử dụng thuật toán và cấu trúc dữ liệu tối ưu.', maxScore: total * 0.3 }
                 ],
@@ -112,10 +115,33 @@ export class ExternalAiService implements IAIService {
             }
         }
 
+        let body: any;
+        let headers: any = {};
+        
+        if (input.file) {
+            const formData = new FormData();
+            formData.append('topic', input.topic);
+            if (input.difficulty) formData.append('difficulty', input.difficulty);
+            if (input.totalScore) formData.append('totalScore', input.totalScore.toString());
+            
+            const blob = new Blob([input.file.buffer], { type: input.file.mimetype });
+            formData.append('file', blob, input.file.filename);
+            
+            body = formData;
+            // browser/node-fetch will automatically set multipart/form-data boundary
+        } else {
+            body = JSON.stringify({
+                topic: input.topic,
+                difficulty: input.difficulty,
+                totalScore: input.totalScore
+            });
+            headers['Content-Type'] = 'application/json';
+        }
+
         const response = await fetch(`${env.AI_ENDPOINT}/generate-rubric`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(input),
+            headers,
+            body,
         })
 
         if (!response.ok) {

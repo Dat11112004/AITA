@@ -43,7 +43,13 @@ export class AiController {
             totalScore: z.coerce.number().optional(),
         }).parse(req.body)
 
-        const result = await this.generateRubricUseCase.execute(input)
+        const fileData = req.file ? {
+            filename: req.file.originalname,
+            buffer: req.file.buffer,
+            mimetype: req.file.mimetype
+        } : undefined;
+
+        const result = await this.generateRubricUseCase.execute({ ...input, file: fileData })
         res.status(200).json(ApiResponse.success('Generated rubric successfully', result))
     }
 

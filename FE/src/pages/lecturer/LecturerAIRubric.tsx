@@ -10,6 +10,7 @@ import { Sparkles, Save, ArrowLeft, Loader2, FileCheck2 } from 'lucide-react'
 export function LecturerAIRubric() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ topic: '', difficulty: 'medium', totalScore: 10 })
+  const [file, setFile] = useState<File | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -19,7 +20,15 @@ export function LecturerAIRubric() {
     setIsGenerating(true)
     setGeneratedContent(null)
     try {
-      const res = await api.generateRubricAI(form)
+      const formData = new FormData()
+      formData.append('topic', form.topic)
+      formData.append('difficulty', form.difficulty)
+      formData.append('totalScore', form.totalScore.toString())
+      if (file) {
+        formData.append('file', file)
+      }
+
+      const res = await api.generateRubricAI(formData)
       setGeneratedContent(res)
     } catch (error: any) {
       alert(error.message || 'Lỗi khi tạo rubric tự động')
@@ -79,6 +88,17 @@ export function LecturerAIRubric() {
                 value={form.difficulty}
                 onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
               />
+
+              <div>
+                <label className="block text-sm font-medium mb-1">File Đề thi / Bài tập (PDF, Word)</label>
+                <input 
+                  type="file" 
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                />
+                <p className="text-xs text-slate-500 mt-1">AI sẽ đọc file này, nếu trong file chưa có thang điểm, AI sẽ tự động phân bổ điểm cho từng tiêu chí.</p>
+              </div>
               
               <Input 
                 label="Tổng điểm tối đa"
@@ -129,8 +149,16 @@ export function LecturerAIRubric() {
               )}
 
               {generatedContent && !isGenerating && (
-                <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 font-mono text-sm whitespace-pre-wrap">
-                  {typeof generatedContent === 'object' ? JSON.stringify(generatedContent, null, 2) : generatedContent.toString()}
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
+                    <Sparkles className="text-amber-500 shrink-0 mt-0.5" size={20} />
+                    <div className="text-sm text-amber-800">
+                      <strong>Lưu ý:</strong> Vui lòng xem lại các tiêu chí và thang điểm do AI tự động phân bổ. Bạn có thể thay đổi trước khi nhấn Lưu.
+                    </div>
+                  </div>
+                  <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 font-mono text-sm whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                    {typeof generatedContent === 'object' ? JSON.stringify(generatedContent, null, 2) : generatedContent.toString()}
+                  </div>
                 </div>
               )}
             </div>

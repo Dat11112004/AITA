@@ -35,6 +35,10 @@ import { UpdateSubjectUseCase } from '../../modules/subjects/application/use-cas
 import { DeleteSubjectUseCase } from '../../modules/subjects/application/use-cases/delete-subject.use-case.js'
 import { PrismaSubjectRepository } from '../../modules/subjects/infrastructure/repositories/prisma-subject-repository.js'
 import { SubjectsController } from '../../modules/subjects/presentation/subjects.controller.js'
+import { SemesterRepository } from '../../modules/semesters/infrastructure/repositories/semester.repository.js'
+import { ListSemestersUseCase } from '../../modules/semesters/application/use-cases/list-semesters.use-case.js'
+import { CreateSemesterUseCase } from '../../modules/semesters/application/use-cases/create-semester.use-case.js'
+import { SemestersController } from '../../modules/semesters/presentation/semesters.controller.js'
 // Removed assignments module use cases
 import { PrismaSubmissionRepository } from '../../modules/submissions/infrastructure/repositories/prisma-submission-repository.js'
 import { ListSubmissionsUseCase } from '../../modules/submissions/application/use-cases/list-submissions.use-case.js'
@@ -209,6 +213,22 @@ export class DIContainer {
       )
       this.services.set('SubjectController', subjectController)
       this.services.set(TOKENS.SubjectController, subjectController)
+
+      // ── Semesters ───────────────────────────────────────────
+      const semesterRepo = new SemesterRepository(uow.getClient())
+      this.services.set(TOKENS.SemesterRepository, semesterRepo)
+      uow.registerFactory(TOKENS.SemesterRepository, (client) => new SemesterRepository(client))
+
+      const listSemestersUseCase = new ListSemestersUseCase(semesterRepo)
+      const createSemesterUseCase = new CreateSemesterUseCase(semesterRepo)
+
+      const semestersController = new SemestersController(
+        listSemestersUseCase,
+        createSemesterUseCase,
+        logger
+      )
+      this.services.set('SemestersController', semestersController)
+      this.services.set(TOKENS.SemestersController, semestersController)
 
       // ── Exams (Replaces Assignments) ─────────────────────────
       const listExamsUseCase = new ListExamsUseCase(examRepo, uow)

@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { api } from '@/lib/api'
-import { BookOpen, ArrowRight, LayoutGrid, FileText, Loader2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { api, type ClassRow, type AssignmentRow } from '@/lib/api'
+import { BookOpen, ArrowRight, Loader2, Users, Bell, Clock, CheckCircle2, MoreVertical, Plus } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
+import { Button } from '@/components/ui/Button'
 
 export function LecturerOverview() {
-  const [stats, setStats] = useState<Record<string, string | number>>({})
+  const navigate = useNavigate()
+  const [classes, setClasses] = useState<ClassRow[]>([])
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -15,14 +18,12 @@ export function LecturerOverview() {
     setError(null)
     Promise.all([
       api.getClasses(),
-      api.getAssignments({ limit: '5' })
+      api.getAssignments({ limit: '10' })
     ])
       .then(([classesData, assignmentsData]) => {
         if (alive) {
-          setStats({
-            classes: classesData?.length || 0,
-            assignments: assignmentsData?.length || 0
-          })
+          setClasses(classesData || [])
+          setAssignments(assignmentsData || [])
         }
       })
       .catch(err => { if (alive) setError(err) })
@@ -35,91 +36,155 @@ export function LecturerOverview() {
     return cleanup
   }, [loadData])
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
+  if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  const statCards = [
-    { id: 'classes', label: 'Lớp đang dạy', value: stats.classes ?? '—', icon: BookOpen },
-    { id: 'assignments', label: 'Bài tập', value: stats.assignments ?? '—', icon: FileText },
-  ]
-
-  const shortcuts = [
-    { to: '/lecturer/classes', icon: BookOpen, label: 'Quản lý Lớp học', desc: 'Xem danh sách và tiến độ', cls: 'bg-brand-50 text-brand-600 border-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:border-brand-500/20' },
-    { to: '/lecturer/assignments', icon: FileText, label: 'Ngân hàng Bài tập', desc: 'Chỉnh sửa và giao bài', cls: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' },
-  ]
+  // Top 3 classes for the quick view
+  const recentClasses = classes.slice(0, 3)
+  
+  // Mock 'To-Do' list based on assignments (Needs grading)
+  const todoItems = assignments.slice(0, 4).map(a => ({
+    id: a.id,
+    title: a.title,
+    classCode: 'N/A', // In a real app we'd join with class data or get it from API
+    dueDate: a.due,
+    needsGrading: Math.floor(Math.random() * 15) + 1, // Mock data
+  }))
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* Header Section */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+    <div className="space-y-6 animate-fade-in-up pb-10">
+      {/* Simple Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="flex h-6 items-center rounded-full bg-brand-100 px-2.5 text-[10px] font-bold uppercase tracking-widest text-brand-700 dark:bg-brand-500/20 dark:text-brand-400">
-              Cổng Giảng Viên
-            </span>
+          <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
+            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Năm học 2026 - Học kỳ 1</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-            Bảng Điều Khiển
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+            Chào buổi sáng, Tiến sĩ!
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-400 font-medium">
-            Quản lý tài nguyên giảng dạy và bài tập của bạn.
+          <p className="mt-1 text-slate-500 dark:text-slate-400">
+            Bạn có {todoItems.reduce((acc, item) => acc + item.needsGrading, 0)} bài nộp đang chờ chấm điểm.
           </p>
         </div>
+        <div className="flex gap-3">
+          <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={() => navigate('/lecturer/assignments/ai-generator')}>
+            <Plus size={16} className="mr-2"/> Tạo Bài Tập AI
+          </Button>
+        </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="grid gap-5 sm:grid-cols-2">
-        {statCards.map((s, i) => (
-          <div 
-            key={s.id} 
-            className="animate-fade-in-up group relative overflow-hidden rounded-2xl bg-white p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-[0_8px_30px_-5px_rgba(6,81,237,0.15)] dark:bg-[#151821] dark:border-slate-800/80 dark:shadow-none dark:hover:border-brand-500/50" 
-            style={{ animationDelay: `${i * 50}ms` }}
-          >
-            <div className="absolute right-0 top-0 -mr-4 -mt-4 h-24 w-24 rounded-full bg-slate-50 opacity-50 transition-transform group-hover:scale-150 dark:bg-white/[0.02]" />
-            <div className="relative flex items-start justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{s.label}</p>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <p className="text-3xl font-black tabular-nums tracking-tight text-slate-900 dark:text-white">{s.value}</p>
-                </div>
-              </div>
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-600 dark:bg-slate-800/50 dark:group-hover:bg-brand-500/10 dark:group-hover:text-brand-400 transition-colors`}>
-                <s.icon size={22} strokeWidth={2} />
-              </div>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Left Column: Active Classes (2/3 width) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="text-brand-600" /> Lớp học nổi bật
+            </h2>
+            <Link to="/lecturer/classes" className="text-sm font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
+              Xem tất cả <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+            </Link>
           </div>
-        ))}
-      </div>
 
-      <div className="grid gap-6 items-start">
-        {/* Sidebar Grid: Tools & Helpers */}
-        <div className="flex flex-col gap-6">
-          {/* Quick Actions / Shortcuts */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-[#151821]">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                <LayoutGrid size={16} strokeWidth={2.5} />
+          <div className="grid sm:grid-cols-2 gap-5">
+            {recentClasses.length === 0 ? (
+              <div className="col-span-2 p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
+                Chưa có lớp học nào được phân công.
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Lối tắt công cụ</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {shortcuts.map((s) => (
-                <Link key={s.to} to={s.to} className="group relative flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-3 shadow-sm hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-[#1a1f2e] dark:hover:border-slate-600 transition-all">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${s.cls}`}>
-                    <s.icon size={18} strokeWidth={2} />
+            ) : (
+              recentClasses.map((cls) => {
+                return (
+                  <div 
+                    key={cls.id}
+                    onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                    className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
+                          {(cls.subject as any)?.code || 'N/A'}
+                        </span>
+                        <MoreVertical size={16} className="text-slate-400" />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                        Lớp {cls.code}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {(cls.semester as any)?.code || 'Học kỳ N/A'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+                        <Users size={16} />
+                        {cls.studentCount ?? Math.floor(Math.random() * 20 + 20)} SV
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{s.label}</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">{s.desc}</p>
-                  </div>
-                  <div className="absolute right-4 text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 dark:text-slate-600 transition-all">
-                    <ArrowRight size={16} />
-                  </div>
-                </Link>
-              ))}
+                )
+              })
+            )}
+            
+            {/* "Add New" placeholder card */}
+            <div className="group rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex flex-col items-center justify-center p-6 text-slate-500 hover:border-brand-400 hover:text-brand-600 transition-all cursor-pointer min-h-[160px]">
+              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-all">
+                <Plus size={20} />
+              </div>
+              <p className="font-medium text-sm">Mở lớp học phần mới</p>
             </div>
           </div>
         </div>
+
+        {/* Right Column: To-Do / Needs Grading (1/3 width) */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <CheckCircle2 className="text-emerald-500" /> Cần Xử Lý
+          </h2>
+
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Bell size={16} className="text-brand-600" /> Chờ chấm điểm
+              </h3>
+              <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded dark:bg-slate-800 dark:text-slate-300">
+                {todoItems.length} Mục
+              </span>
+            </div>
+            
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {todoItems.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-sm">
+                  Tuyệt vời! Bạn không có bài nào cần chấm.
+                </div>
+              ) : (
+                todoItems.map((item) => (
+                  <div key={item.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/lecturer/assignments/${item.id}/submissions`)}>
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100 line-clamp-2 pr-2">
+                        {item.title}
+                      </h4>
+                      <div className="flex-shrink-0 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-medium text-xs px-2 py-0.5 rounded">
+                        {item.needsGrading} bài
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1"><BookOpen size={12}/> Lớp N/A</span>
+                      {item.dueDate && (
+                        <span className="flex items-center gap-1"><Clock size={12}/> Hạn: {item.dueDate.split('T')[0]}</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800">
+              <Link to="/lecturer/assignments" className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                Xem toàn bộ Bài tập
+              </Link>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   )

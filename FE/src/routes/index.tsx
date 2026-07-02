@@ -23,16 +23,19 @@ import { AdminNotifications } from '@/pages/admin/AdminNotifications'
 
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
+import { LecturerClassDetail } from '@/pages/lecturer/LecturerClassDetail'
 import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
+import { LecturerProfile } from '@/pages/lecturer/LecturerProfile'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail'
 import { StudentClasses } from '@/pages/student/StudentClasses'
 import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
+import { StudentProfile } from '@/pages/student/StudentProfile'
 
 export function AppRoutes() {
   return (
@@ -90,10 +93,12 @@ export function AppRoutes() {
       >
         <Route index element={<LecturerOverview />} />
         <Route path="classes" element={<LecturerClasses />} />
+        <Route path="classes/:id" element={<LecturerClassDetail />} />
         <Route path="assignments" element={<LecturerAssignments />} />
         <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />
         <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
+        <Route path="profile" element={<LecturerProfile />} />
       </Route>
 
       <Route
@@ -114,8 +119,10 @@ export function AppRoutes() {
         <Route index element={<StudentOverview />} />
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
+        <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
         <Route path="classes" element={<StudentClasses />} />
         <Route path="ai-feedback" element={<StudentAIFeedback />} />
+        <Route path="profile" element={<StudentProfile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

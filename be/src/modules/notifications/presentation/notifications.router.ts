@@ -18,6 +18,6 @@ export class NotificationsRouter {
 
         this.router.get('/', authenticate, asyncHandler((req, res) => ctrl.listMyNotifications(req, res)))
         this.router.put('/:id/read', authenticate, asyncHandler((req, res) => ctrl.markAsRead(req, res)))
-        this.router.post('/broadcast', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.broadcast(req, res)))
+        this.router.post('/broadcast', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => ctrl.broadcast(req, res)))
     }
 }
