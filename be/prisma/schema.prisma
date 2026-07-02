@@ -63,6 +63,7 @@ model Submission {
   TotalScore                       Decimal?             @db.Decimal
   FinalScore                       Decimal?             @db.Decimal
   InstructorFeedback               String?
+  StudentFeedback                  String?
   ReviewedBy                       String?              @db.UniqueIdentifier
   ReviewedAt                       DateTime?            @db.DateTime2
   GradedAt                         DateTime?            @db.DateTime2
@@ -219,6 +220,8 @@ model Exam {
   SubjectId             String?                 @db.UniqueIdentifier
   ExamType              String?
   Duration              Int?
+  StartDate             DateTime?               @db.DateTime2
+  DueDate               DateTime?               @db.DateTime2
   TotalPoints           Decimal?                @db.Decimal
   Status                String?
   SubmissionFormat      String?

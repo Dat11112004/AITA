@@ -39,7 +39,7 @@ export function StudentClasses() {
             <div className="p-4 sm:p-6">
               <p className="font-semibold text-brand-800 dark:text-brand-400">{c.code}</p>
               <p className="text-sm text-slate-800 dark:text-slate-200 mt-1">{c.name}</p>
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{c.schedule ?? c.semester}</p>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{c.schedule ?? ((c.semester as any)?.name || (c.semester as any)?.code || (typeof c.semester === 'string' ? c.semester : ''))}</p>
             </div>
           </Card>
         ))}
@@ -55,14 +55,14 @@ export function StudentClasses() {
                 render: (r) => <span className="font-mono text-sm text-slate-800 dark:text-slate-200">{(r as ClassRow).code}</span>
               },
               { 
-                key: 'name', 
+                key: 'subject', 
                 header: 'Môn học',
-                render: (r) => <span className="font-medium text-slate-900 dark:text-slate-100">{(r as ClassRow).name}</span>
+                render: (r: any) => <span className="font-medium text-slate-900 dark:text-slate-100">{r.subject?.name || r.subject?.code || (typeof r.subject === 'string' ? r.subject : '') || r.name}</span>
               },
               { 
                 key: 'semester', 
                 header: 'Học kỳ',
-                render: (r) => <span className="text-sm text-slate-600 dark:text-slate-400">{(r as ClassRow).semester}</span>
+                render: (r: any) => <span className="text-sm text-slate-600 dark:text-slate-400">{r.semester?.name || r.semester?.code || (typeof r.semester === 'string' ? r.semester : '')}</span>
               },
               { 
                 key: 'schedule', 

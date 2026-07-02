@@ -39,7 +39,7 @@ export function NotificationsDropdown() {
   const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      await api.markNotificationRead(id)
+      await api.markNotificationAsRead(id)
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
     } catch (e) {
       console.error(e)

@@ -6,6 +6,8 @@ import type {
     AssessInput,
     AssessOutput,
     LearningFeedbackOutput,
+    GenerateRubricInput,
+    GenerateRubricOutput
 } from '../../../shared/application/ports/ai-service.interface.js'
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -86,6 +88,34 @@ export class ExternalAiService implements IAIService {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ studentId }),
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error')
+            throw new Error(`AI Microservice error: ${errorText}`)
+        }
+
+        return response.json()
+    }
+
+    async generateRubric(input: GenerateRubricInput): Promise<GenerateRubricOutput> {
+        if (env.AI_STUB_MODE) {
+            await wait(1000)
+            const total = input.totalScore || 10
+            return {
+                criteria: [
+                    { name: 'Tính đúng đắn (Logic)', description: 'Chương trình chạy đúng yêu cầu cơ bản.', maxScore: total * 0.4 },
+                    { name: 'Chất lượng mã (Code Quality)', description: 'Mã nguồn dễ đọc, chuẩn naming convention.', maxScore: total * 0.3 },
+                    { name: 'Hiệu suất (Performance)', description: 'Sử dụng thuật toán và cấu trúc dữ liệu tối ưu.', maxScore: total * 0.3 }
+                ],
+                totalScore: total
+            }
+        }
+
+        const response = await fetch(`${env.AI_ENDPOINT}/generate-rubric`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input),
         })
 
         if (!response.ok) {

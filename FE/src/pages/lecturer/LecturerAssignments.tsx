@@ -23,6 +23,15 @@ export function LecturerAssignments() {
   const [rows, setRows] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newType, setNewType] = useState('Assignment')
+  const [newDue, setNewDue] = useState('')
+  const [newDesc, setNewDesc] = useState('')
+  const [newFile, setNewFile] = useState<File | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const load = useCallback(() => {
     let alive = true
@@ -41,6 +50,28 @@ export function LecturerAssignments() {
     const cleanup = load()
     return cleanup
   }, [load])
+
+  const handleCreateAssignment = async () => {
+    if (!newTitle.trim()) return
+    setCreating(true)
+    try {
+      // In a real app we might upload the file to get a URL, for now just pass filename if exists
+      const body = {
+        title: newTitle,
+        type: newType, // maps to examType in BE
+        description: newDesc + (newFile ? `\n[File đính kèm: ${newFile.name}]` : ''),
+        subjectId: '00000000-0000-0000-0000-000000000000', // Dummy subject ID for now, should pick from a dropdown
+        dueDate: newDue ? new Date(newDue).toISOString() : undefined
+      }
+      await api.createAssignment(body)
+      setIsModalOpen(false)
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Lỗi tạo bài tập')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={load} />
@@ -64,18 +95,103 @@ export function LecturerAssignments() {
           breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Bài tập' }]} 
           actions={
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => navigate('/lecturer/assignments/ai-generator')} className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
-                <Sparkles size={16} />
-                AI Ra Đề
-              </Button>
-              <Button size="sm" className="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-2">
-                <Plus size={16} />
-                Tạo bài tập
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 flex items-center gap-2 active:scale-95 transition-transform"
+              onClick={() => navigate('/lecturer/rubric-generator')}
+            >
+              <Sparkles size={16} />
+              Tạo Rubric AI
+            </Button>
+            <Button
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+              onClick={() => navigate('/lecturer/ai-generator')}
+            >
+              <Sparkles size={16} />
+              Tạo bài tập AI
+            </Button>
+            <Button
+              size="sm"
+              className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <Plus size={16} />
+              Tạo Assignment mới
+            </Button>
+          </div>
           }
         />  
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tạo Assignment mới</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Tên bài tập *</label>
+                <input 
+                  type="text" 
+                  value={newTitle} 
+                  onChange={(e) => setNewTitle(e.target.value)} 
+                  className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500" 
+                  placeholder="Ví dụ: Bài tập tự luyện OOP"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Loại</label>
+                  <select 
+                    value={newType} 
+                    onChange={(e) => setNewType(e.target.value)}
+                    className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="Assignment">Bài tập</option>
+                    <option value="Quiz">Trắc nghiệm</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Hạn nộp</label>
+                  <input 
+                    type="date" 
+                    value={newDue} 
+                    onChange={(e) => setNewDue(e.target.value)}
+                    className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Mô tả chi tiết</label>
+                <textarea 
+                  value={newDesc} 
+                  onChange={(e) => setNewDesc(e.target.value)} 
+                  rows={3} 
+                  className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Mô tả yêu cầu..."
+                ></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">File tiêu chí / Đề bài (Tùy chọn)</label>
+                <input 
+                  type="file" 
+                  onChange={(e) => setNewFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Hủy</Button>
+              <Button className="bg-brand-600 text-white hover:bg-brand-700" onClick={handleCreateAssignment} disabled={creating || !newTitle.trim()}>
+                {creating ? 'Đang tạo...' : 'Tạo bài tập'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Table Workspace Card */}
       <Card padding="none" className="overflow-hidden border-slate-200/80 bg-white shadow-sm dark:border-slate-800/80 dark:bg-[#151821]">

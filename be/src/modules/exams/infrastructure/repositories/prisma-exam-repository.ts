@@ -30,7 +30,6 @@ export class PrismaExamRepository implements IExamRepository {
       where,
       skip: options?.skip,
       take: options?.take,
-      orderBy: { CreatedAt: 'desc' },
       include: this.include
     })
 

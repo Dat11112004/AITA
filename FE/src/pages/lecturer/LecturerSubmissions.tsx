@@ -148,10 +148,18 @@ export function LecturerSubmissions() {
                 header: 'Trạng thái',
                 render: (r) => {
                   const s = (r as SubmissionRow).status
-                  return s === 'graded' ? (
-                    <Badge variant="success" className="flex w-max items-center gap-1"><CheckCircle size={12}/> Đã chấm</Badge>
-                  ) : (
-                    <Badge variant="warning" className="flex w-max items-center gap-1"><Clock size={12}/> Chờ chấm</Badge>
+                  const hasFeedback = !!(r as SubmissionRow).studentFeedback
+                  return (
+                    <div className="flex flex-col gap-1 w-max">
+                      {s === 'graded' ? (
+                        <Badge variant="success" className="flex items-center gap-1"><CheckCircle size={12}/> Đã chấm</Badge>
+                      ) : (
+                        <Badge variant="warning" className="flex items-center gap-1"><Clock size={12}/> Chờ chấm</Badge>
+                      )}
+                      {hasFeedback && (
+                        <Badge variant="danger" className="flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"><Activity size={12}/> Có khiếu nại</Badge>
+                      )}
+                    </div>
                   )
                 }
               },
@@ -161,7 +169,7 @@ export function LecturerSubmissions() {
                 render: (r) => (
                   <div className="flex justify-end gap-2 pr-2">
                     <Button size="sm" variant="outline" onClick={() => openGradeModal(r as SubmissionRow)}>
-                      Chấm bài
+                      {((r as SubmissionRow).studentFeedback) ? 'Xem khiếu nại & Chấm' : 'Chấm bài'}
                     </Button>
                   </div>
                 )
@@ -191,6 +199,15 @@ export function LecturerSubmissions() {
                   {gradingSub.content || 'Sinh viên không nộp nội dung văn bản.'}
                 </div>
               </div>
+
+              {gradingSub.studentFeedback && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg">
+                  <p className="font-bold text-red-800 dark:text-red-300">Ý kiến / Khiếu nại từ Sinh viên</p>
+                  <p className="text-sm text-red-700 dark:text-red-400 mt-2 whitespace-pre-wrap p-2 bg-white/50 dark:bg-black/20 rounded">
+                    {gradingSub.studentFeedback}
+                  </p>
+                </div>
+              )}
 
               {gradingSub.aiScore != null && (
                 <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-lg">

@@ -16,6 +16,7 @@ export class AiRouter {
         const ctrl = container.get<AiController>('AiController')
 
         this.router.post('/generate-exercise', authenticate, asyncHandler((req, res) => ctrl.generateExercise(req, res)))
+        this.router.post('/generate-rubric', authenticate, asyncHandler((req, res) => ctrl.generateRubric(req, res)))
         this.router.post('/save-assignment', authenticate, asyncHandler((req, res) => ctrl.saveAssignmentFromAI(req, res)))
         this.router.post('/assess/:submissionId', authenticate, asyncHandler((req, res) => ctrl.assessSubmission(req, res)))
         this.router.get('/feedback/:studentId', authenticate, asyncHandler((req, res) => ctrl.learningFeedback(req, res)))

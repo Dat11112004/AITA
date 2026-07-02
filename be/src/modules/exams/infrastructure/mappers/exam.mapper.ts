@@ -19,7 +19,8 @@ export class ExamMapper {
       raw.AiGeneratedContent,
       raw.OriginalPrompt,
       raw.PromptTemplateId,
-      raw.CreatedBy
+      raw.CreatedBy,
+      raw.DueDate ? new Date(raw.DueDate) : null
     )
     
     // Add additional unmapped fields safely if needed by DTOs or logic
@@ -51,7 +52,8 @@ export class ExamMapper {
       AiGeneratedContent: exam.aiGeneratedContent,
       OriginalPrompt: exam.originalPrompt,
       PromptTemplateId: exam.promptTemplateId,
-      CreatedBy: exam.createdBy
+      CreatedBy: exam.createdBy,
+      DueDate: exam.dueDate
     }
   }
 }

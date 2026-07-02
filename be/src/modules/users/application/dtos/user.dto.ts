@@ -18,21 +18,41 @@ export const UpdateUserDto = z.object({
 export type CreateUserDto = z.infer<typeof CreateUserDto>
 export type UpdateUserDto = z.infer<typeof UpdateUserDto>
 
+export const ImportUserDto = z.object({
+    fullName: z.string().min(2),
+    email: z.string().email(),
+    classCode: z.string().min(2).optional(),
+    semesterCode: z.string().min(2).optional(),
+    subjectCode: z.string().min(2).optional(),
+    role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])).default('STUDENT'),
+    status: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ACTIVE', 'INACTIVE', 'LOCKED'])).default('ACTIVE'),
+})
+
+export const ImportUsersBatchDto = z.object({
+    users: z.array(ImportUserDto)
+})
+
+export type ImportUserDto = z.infer<typeof ImportUserDto>
+export type ImportUsersBatchDto = z.infer<typeof ImportUsersBatchDto>
+
 export class UserResponseDto {
     static from(user: any) {
-        const primaryRole = user.UserRole?.[0]?.Role?.RoleName ?? 'STUDENT'
+        // Support both Domain User entity and raw Prisma object
+        const roles = user.roles || (user.UserRole?.map((ur: any) => ur.Role?.RoleName) || [])
+        const primaryRole = roles[0] ?? 'STUDENT'
+        
         return {
-            id: user.Id,
-            name: user.FullName,
-            fullName: user.FullName,
-            email: user.Email,
+            id: user.id || user.Id,
+            name: user.fullName || user.FullName,
+            fullName: user.fullName || user.FullName,
+            email: user.email || user.Email,
             role: primaryRole.toLowerCase(),
-            status: user.Status?.toLowerCase() ?? 'active',
-            studentCode: user.StudentCode,
-            phone: user.Phone,
-            avatar: user.Avatar,
-            lastLoginAt: user.LastLoginAt?.toISOString() ?? null,
-            roles: user.UserRole?.map((ur: any) => ur.Role?.RoleName) || []
+            status: (user.status || user.Status || 'active').toLowerCase(),
+            studentCode: user.studentCode || user.StudentCode,
+            phone: user.phone || user.Phone,
+            avatar: user.avatar || user.Avatar,
+            lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : (user.LastLoginAt ? user.LastLoginAt.toISOString() : null),
+            roles: roles
         }
     }
 }

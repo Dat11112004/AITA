@@ -7,7 +7,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Plus, Pencil, Trash2, Lock, Unlock, Users, AlertTriangle, Loader2, X, ShieldAlert } from 'lucide-react'
+import { Plus, Pencil, Trash2, Lock, Unlock, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet } from 'lucide-react'
 
 const ROLE_TABS = [
   { id: 'all', label: 'Tất cả tài khoản' },
@@ -26,6 +26,9 @@ export function AdminUsers() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [showImport, setShowImport] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importing, setImporting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
 
@@ -133,6 +136,51 @@ export function AdminUsers() {
     }
   }
 
+  const handleImport = async () => {
+    if (!importText.trim()) {
+      setError('Vui lòng dán dữ liệu CSV')
+      return
+    }
+    
+    setImporting(true)
+    setError('')
+    try {
+      const lines = importText.trim().split('\n')
+      // Skip header if it exists
+      const startIndex = lines[0].toLowerCase().includes('email') ? 1 : 0
+      
+      const usersToImport = []
+      for (let i = startIndex; i < lines.length; i++) {
+        // Split by either tab (Excel) or comma (CSV)
+        const parts = lines[i].split(/\t|,/).map(p => p.trim())
+        if (parts.length < 2) continue
+        
+        usersToImport.push({
+          fullName: parts[0],
+          email: parts[1],
+          classCode: parts[2] || undefined,
+          semesterCode: parts[3] || undefined,
+          subjectCode: parts[4] || undefined,
+          role: (parts[5]?.toUpperCase() || 'STUDENT') as any,
+          status: (parts[6]?.toUpperCase() || 'ACTIVE') as any
+        })
+      }
+      
+      if (usersToImport.length === 0) {
+        throw new Error('Không tìm thấy dữ liệu hợp lệ để import')
+      }
+
+      await api.importUsers({ users: usersToImport })
+      setImportText('')
+      setShowImport(false)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import thất bại')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const filteredUsers = search
     ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
     : users
@@ -145,14 +193,25 @@ export function AdminUsers() {
         description="Quản trị phân quyền, thiết lập trạng thái vận hành tài khoản giảng viên, sinh viên và nhân sự quản trị."
         breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Người dùng' }]}
         actions={
-          <Button
-            size="sm"
-            className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
-            onClick={handleOpenCreate}
-          >
-            <Plus size={16} />
-            Thêm người dùng mới
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2 bg-white"
+              onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
+            >
+              <Upload size={16} />
+              Import CSV
+            </Button>
+            <Button
+              size="sm"
+              className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+              onClick={handleOpenCreate}
+            >
+              <Plus size={16} />
+              Thêm người dùng mới
+            </Button>
+          </div>
         }
       />
 
@@ -170,6 +229,54 @@ export function AdminUsers() {
             <div className="flex gap-2 shrink-0">
               <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-400 hover:bg-slate-100" onClick={() => setConfirmDelete(null)}>Hủy</Button>
               <Button size="sm" onClick={() => handleDelete(confirmDelete)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-4">Xóa vĩnh viễn</Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Import Form */}
+      {showImport && (
+        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
+            <CardHeader
+              title="Import Danh sách người dùng (CSV)"
+              description="Dán nội dung file CSV. Cột bắt buộc: Tên, Email. Cột tùy chọn: Lớp, Kì học, Môn học, Vai trò (STUDENT/LECTURER/ADMIN), Trạng thái (ACTIVE/LOCKED)."
+            />
+            <button type="button" onClick={() => setShowImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <X size={18} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div><span className="font-semibold">Lỗi:</span> {error}</div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
+              <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Định dạng mẫu (có hoặc không có header):</span>
+              FullName, Email, ClassCode, SemesterCode, SubjectCode, Role, Status<br/>
+              Nguyễn Văn A, a@fpt.edu.vn, 18A01, FALL26, PRO, STUDENT, ACTIVE<br/>
+              Trần Thị B, b@fpt.edu.vn, , , , LECTURER, ACTIVE
+            </div>
+            
+            <div>
+              <textarea
+                className="w-full h-48 p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500 font-mono"
+                placeholder="Dán dữ liệu CSV vào đây..."
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Hủy bỏ</Button>
+              <Button onClick={handleImport} disabled={importing} className="bg-brand-600 hover:bg-brand-700 text-white">
+                {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                {importing ? 'Đang Import...' : 'Tiến hành Import'}
+              </Button>
             </div>
           </div>
         </Card>

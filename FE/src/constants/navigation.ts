@@ -10,6 +10,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: 'audit-logs', label: 'Nhật ký', path: '/admin/audit-logs', icon: 'FileText' },
   { id: 'ai-config', label: 'Cấu hình AI', path: '/admin/ai-config', icon: 'Bot' },
   { id: 'settings', label: 'Cài đặt', path: '/admin/settings', icon: 'Settings' },
+  { id: 'notifications', label: 'Thông báo', path: '/admin/notifications', icon: 'BellRing' },
 ]
 
 export const LECTURER_NAV: NavItem[] = [

@@ -19,12 +19,14 @@ import { AdminAIConfig } from '@/pages/admin/AdminAIConfig'
 import { AdminSettings } from '@/pages/admin/AdminSettings'
 import { AdminAuditLogs } from '@/pages/admin/AdminAuditLogs'
 import { AdminReports } from '@/pages/admin/AdminReports'
+import { AdminNotifications } from '@/pages/admin/AdminNotifications'
 
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
 import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
+import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
@@ -68,6 +70,7 @@ export function AppRoutes() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="notifications" element={<AdminNotifications />} />
       </Route>
 
       <Route
@@ -89,6 +92,7 @@ export function AppRoutes() {
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="assignments" element={<LecturerAssignments />} />
         <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />
+        <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
       </Route>
 
