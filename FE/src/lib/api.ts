@@ -343,7 +343,6 @@ export interface SubjectRow {
   id: string
   code: string
   name: string
-  credits?: number
   description?: string
   status: string
 }
@@ -351,7 +350,6 @@ export interface SubjectRow {
 export interface CreateSubjectBody {
   code: string
   name: string
-  credits?: number
   description?: string
 }
 

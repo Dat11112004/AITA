@@ -23,7 +23,8 @@ export const LECTURER_NAV: NavItem[] = [
 
 export const STUDENT_NAV: NavItem[] = [
   { id: 'overview', label: 'Tổng quan', path: '/student', icon: 'LayoutDashboard' },
-  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'BookOpen' },
+  { id: 'courses', label: 'Khóa học', path: '/student/courses', icon: 'BookOpen' },
+  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'GraduationCap' },
   { id: 'assignments', label: 'Bài tập', path: '/student/assignments', icon: 'ClipboardList' },
   { id: 'profile', label: 'Hồ sơ', path: '/student/profile', icon: 'UserCircle' },
 ]

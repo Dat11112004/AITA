@@ -10,7 +10,7 @@ import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, Trash2 } fro
 export function AdminSubjects() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', credits: 3, description: '' })
+  const [form, setForm] = useState({ code: '', name: '', description: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -42,10 +42,9 @@ export function AdminSubjects() {
       await api.createSubject({
         code: form.code,
         name: form.name,
-        credits: Number(form.credits) || 0,
         description: form.description,
       })
-      setForm({ code: '', name: '', credits: 3, description: '' })
+      setForm({ code: '', name: '', description: '' })
       setShowForm(false)
       load()
     } catch (error) {
@@ -97,7 +96,6 @@ export function AdminSubjects() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
               <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               <Input label="Tên môn" placeholder="Ví dụ: Java Web Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <Input label="Số tín chỉ" type="number" value={form.credits.toString()} onChange={(e) => setForm({ ...form, credits: parseInt(e.target.value) || 0 })} />
               <Input label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
@@ -164,11 +162,7 @@ export function AdminSubjects() {
                   render: (r) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{(r as SubjectRow).code}</span>
                 },
                 { key: 'name', header: 'Tên môn học' },
-                {
-                  key: 'credits',
-                  header: 'Tín chỉ',
-                  render: (r) => (r as SubjectRow).credits ?? <span className="text-slate-400">—</span>,
-                },
+
                 {
                   key: 'status',
                   header: 'Trạng thái',

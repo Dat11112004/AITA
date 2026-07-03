@@ -124,7 +124,7 @@ export class ExternalAiService implements IAIService {
             if (input.difficulty) formData.append('difficulty', input.difficulty);
             if (input.totalScore) formData.append('totalScore', input.totalScore.toString());
             
-            const blob = new Blob([input.file.buffer], { type: input.file.mimetype });
+            const blob = new Blob([input.file.buffer as any], { type: input.file.mimetype });
             formData.append('file', blob, input.file.filename);
             
             body = formData;
