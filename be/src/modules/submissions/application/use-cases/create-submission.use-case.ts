@@ -26,7 +26,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     if (!classId) throw new ValidationError(MESSAGES.SUBMISSION_MISSING_CLASS_ID)
 
     // Verify student is enrolled in the class using legacy repo access
-    const enrollmentRepo = { findMany: async (_f: any) => [] } // dummy
+    const enrollmentRepo = this.uow.resolve<any>(Symbol.for('EnrollmentRepository'))
     const enrollment = await enrollmentRepo.findMany({
       ClassId: classId,
       UserId: user.id,

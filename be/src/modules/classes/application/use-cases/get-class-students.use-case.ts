@@ -1,5 +1,6 @@
 import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { IClassRepository } from '../../domain/repositories/class-repository.interface.js'
+import type { IEnrollmentRepository } from '../../domain/repositories/enrollment-repository.interface.js'
 import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { NotFoundError } from '../../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
@@ -16,7 +17,7 @@ export class GetClassStudentsUseCase implements IUseCase<string, any[]> {
       throw new NotFoundError(MESSAGES.CLASS_NOT_FOUND)
     }
 
-    const enrollmentRepo = { findMany: async (_f: any) => [] } // dummy
+    const enrollmentRepo = this.uow.resolve<IEnrollmentRepository>(Symbol.for('EnrollmentRepository'))
     const enrollments = await enrollmentRepo.findMany({ ClassId: classId })
     const studentIds = enrollments.map((e: any) => e.UserId)
 
