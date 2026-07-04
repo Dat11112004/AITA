@@ -1,41 +1,52 @@
-name: Plane sync — PR merged → task Done
+name: Plane sync — PR opened → In Progress, PR merged → Done
 
-# Khi 1 PR được MERGE, lấy mã task ở tiêu đề PR rồi chuyển task tương ứng trên Plane sang Done.
+# Hai chiều đồng bộ theo mã task trong TIÊU ĐỀ PR (vd "[WEB-A-01] Import sinh viên"):
+#  - PR opened/reopened → task tương ứng chuyển In Progress (không hạ cấp task đã Done)
+#  - PR merged          → task tương ứng chuyển Done
 # Cần secret: PLANE_API_KEY (Settings → Secrets and variables → Actions → New repository secret).
 
 on:
   pull_request:
-    types: [closed]
+    types: [opened, reopened, closed]
 
 jobs:
-  mark-task-done:
-    if: github.event.pull_request.merged == true
+  sync-task-state:
+    # closed nhưng không merge (PR bị đóng bỏ) thì không làm gì
+    if: github.event.action != 'closed' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     env:
       PLANE_BASE_URL: https://api.plane.so
       PLANE_WORKSPACE_SLUG: alexpm
       PLANE_PROJECT_ID: cb0f325e-4791-4c57-96c4-6f1e5629c163
       STATE_DONE_UUID: b62a9f1f-0184-4b4c-b035-8aecf05c155a
+      STATE_IN_PROGRESS_UUID: 52c16ae6-cc74-4833-a4f3-6631601ae8b6
       # ── PLACEHOLDER ─────────────────────────────────────────────────────────────
       # Lấy token trong [ ] đầu tiêu đề PR. Khi team CHỐT quy ước mã task → chỉ cần sửa regex này.
       TASK_CODE_REGEX: '\[([^\]]+)\]'
       # ────────────────────────────────────────────────────────────────────────────
     steps:
-      - name: Mark matching Plane task as Done
+      - name: Sync matching Plane task state
         env:
           PLANE_API_KEY: ${{ secrets.PLANE_API_KEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
           set -euo pipefail
           if [ -z "${PLANE_API_KEY:-}" ]; then
-            echo "::warning::Chưa cấu hình secret PLANE_API_KEY → bỏ qua (không chặn merge)."; exit 0
+            echo "::warning::Chưa cấu hình secret PLANE_API_KEY → bỏ qua (không chặn PR)."; exit 0
           fi
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
           API="$PLANE_BASE_URL/api/v1/workspaces/$PLANE_WORKSPACE_SLUG/projects/$PLANE_PROJECT_ID"
 
+          if [ "$EVENT_ACTION" = "closed" ]; then
+            TARGET_UUID="$STATE_DONE_UUID"; TARGET_NAME="Done"
+          else
+            TARGET_UUID="$STATE_IN_PROGRESS_UUID"; TARGET_NAME="In Progress"
+          fi
+
           CODE=$(printf '%s' "$PR_TITLE" | python3 -c "import sys,os,re; m=re.search(os.environ['TASK_CODE_REGEX'], sys.stdin.read()); print(m.group(1) if m else '')")
           if [ -z "$CODE" ]; then echo "Không thấy mã task trong tiêu đề PR: '$PR_TITLE' → bỏ qua."; exit 0; fi
-          echo "Mã task lấy được: $CODE"
+          echo "Mã task: $CODE → $TARGET_NAME"
 
           curl -s -A "$UA" -H "X-API-Key: $PLANE_API_KEY" "$API/work-items/?per_page=100" > items.json
           cat > find.py <<'PY'
@@ -47,11 +58,18 @@ jobs:
               name = (w.get('name') or '').lower()
               seq = w.get('sequence_id')
               if f'[{code}]' in name or code == f'alexp-{seq}' or code in name:
-                  print(w['id']); break
+                  print(w['id'], w.get('state') or ''); break
           PY
-          UUID=$(CODE="$CODE" python3 find.py || true)
-          if [ -z "$UUID" ]; then echo "::warning::Không tìm thấy task khớp '$CODE' trên Plane → bỏ qua."; exit 0; fi
+          FOUND=$(CODE="$CODE" python3 find.py || true)
+          if [ -z "$FOUND" ]; then echo "::warning::Không tìm thấy task khớp '$CODE' trên Plane → bỏ qua."; exit 0; fi
+          UUID=$(echo "$FOUND" | cut -d' ' -f1)
+          CURRENT_STATE=$(echo "$FOUND" | cut -d' ' -f2)
 
-          echo "Work item $UUID → Done"
+          # Mở lại PR của task đã Done không được kéo task lùi về In Progress
+          if [ "$TARGET_UUID" = "$STATE_IN_PROGRESS_UUID" ] && [ "$CURRENT_STATE" = "$STATE_DONE_UUID" ]; then
+            echo "Task đã Done — không hạ cấp về In Progress. Bỏ qua."; exit 0
+          fi
+
+          echo "Work item $UUID → $TARGET_NAME"
           curl -s -A "$UA" -X PATCH -H "X-API-Key: $PLANE_API_KEY" -H "Content-Type: application/json" \
-            -d "{\"state\":\"$STATE_DONE_UUID\"}" "$API/work-items/$UUID/" -o /dev/null -w "Plane PATCH: HTTP %{http_code}\n"
+            -d "{\"state\":\"$TARGET_UUID\"}" "$API/work-items/$UUID/" -o /dev/null -w "Plane PATCH: HTTP %{http_code}\n"
