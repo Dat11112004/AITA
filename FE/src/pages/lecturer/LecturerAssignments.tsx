@@ -165,7 +165,7 @@ export function LecturerAssignments() {
             <Button
               size="sm"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
-              onClick={() => navigate('/lecturer/ai-generator')}
+              onClick={() => navigate('/lecturer/assignments/ai-generator')}
             >
               <Sparkles size={16} />
               Tạo bài tập AI
