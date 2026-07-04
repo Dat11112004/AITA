@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
-import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { ArrowLeft, Send, CheckCircle, Clock } from 'lucide-react'
+import { api, type AssignmentRow, type SubmissionRow, type AssignmentAttachment } from '@/lib/api'
+import { ArrowLeft, Send, CheckCircle, Clock, FileText, Download, Loader2 } from 'lucide-react'
 
 export function StudentAssignmentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
+  const [attachments, setAttachments] = useState<AssignmentAttachment[]>([])
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [submission, setSubmission] = useState<SubmissionRow | null>(null)
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
@@ -26,6 +28,8 @@ export function StudentAssignmentDetail() {
     try {
       const data = await api.getAssignment(id)
       setAssignment(data)
+      const files = await api.getAssignmentAttachments(id)
+      setAttachments(files || [])
       // Check if already submitted
       const subs = await api.getSubmissions({ assignmentId: id })
       if (subs && subs.length > 0) {
@@ -42,6 +46,24 @@ export function StudentAssignmentDetail() {
   useEffect(() => {
     load()
   }, [load])
+
+  const handleDownload = async (att: AssignmentAttachment) => {
+    if (!id) return
+    setDownloadingId(att.id)
+    try {
+      const blob = await api.downloadAssignmentAttachment(id, att.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = att.fileName || 'de-bai'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      alert(e.message || 'Lỗi khi tải tệp đính kèm')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   const handleSubmit = async () => {
     if (!id || !content.trim()) return
@@ -77,7 +99,29 @@ export function StudentAssignmentDetail() {
             <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
               <p>{assignment.description || 'Chưa có mô tả chi tiết cho bài tập này.'}</p>
             </div>
-            
+
+            {attachments.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-bold text-slate-900 dark:text-white mb-3">Tệp đề bài</h4>
+                <div className="space-y-2">
+                  {attachments.map((att) => (
+                    <div key={att.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText size={18} className="shrink-0 text-brand-600 dark:text-brand-400" />
+                        <span className="text-sm font-medium truncate">{att.fileName || 'Tệp đính kèm'}</span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(att)} disabled={downloadingId === att.id}>
+                        {downloadingId === att.id
+                          ? <Loader2 size={14} className="animate-spin mr-1.5" />
+                          : <Download size={14} className="mr-1.5" />}
+                        Tải xuống
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-8">
               <h3 className="text-lg font-bold mb-4">Bài làm của bạn</h3>
               {isSubmitted ? (

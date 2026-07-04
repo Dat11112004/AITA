@@ -5,7 +5,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { api } from '@/lib/api'
-import { Sparkles, Save, ArrowLeft, Loader2, Bot } from 'lucide-react'
+import { Sparkles, Save, ArrowLeft, Loader2, Bot, Paperclip } from 'lucide-react'
 
 export function LecturerAIGenerator() {
   const navigate = useNavigate()
@@ -13,6 +13,7 @@ export function LecturerAIGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
 
   const handleGenerate = async () => {
     if (!form.topic.trim()) return
@@ -32,13 +33,16 @@ export function LecturerAIGenerator() {
     if (!generatedContent) return
     setIsSaving(true)
     try {
-      await api.saveAIAssignment({
+      const saved = await api.saveAIAssignment({
         title: `Bài tập AI: ${form.topic}`,
         type: form.type,
         difficulty: form.difficulty,
         content: generatedContent,
       })
-      alert('Đã lưu bài tập thành công!')
+      if (attachmentFile && saved?.id) {
+        await api.uploadAssignmentAttachment(saved.id, attachmentFile)
+      }
+      alert(attachmentFile ? 'Đã lưu bài tập kèm tệp đính kèm thành công!' : 'Đã lưu bài tập thành công!')
       navigate('/lecturer/assignments')
     } catch (error: any) {
       alert(error.message || 'Lỗi khi lưu bài tập')
@@ -97,7 +101,23 @@ export function LecturerAIGenerator() {
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               />
 
-              <Button 
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Tệp đề bài đính kèm (PDF/Word, tùy chọn)
+                </label>
+                <label className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors text-sm text-slate-600 dark:text-slate-400">
+                  <Paperclip size={16} className="shrink-0" />
+                  <span className="truncate">{attachmentFile ? attachmentFile.name : 'Chọn tệp .pdf, .doc, .docx'}</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+
+              <Button
                 className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md shadow-indigo-200 dark:shadow-none transition-all duration-200"
                 onClick={handleGenerate}
                 disabled={isGenerating || !form.topic.trim()}

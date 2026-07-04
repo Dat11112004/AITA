@@ -1,5 +1,6 @@
 import { IExamRepository, ExamFilter } from '../../domain/repositories/exam-repository.interface.js'
 import { Exam } from '../../domain/entities/exam.entity.js'
+import { ExamAttachment } from '../../domain/entities/exam-attachment.value-object.js'
 import { ExamMapper } from '../mappers/exam.mapper.js'
 
 export class PrismaExamRepository implements IExamRepository {
@@ -65,5 +66,19 @@ export class PrismaExamRepository implements IExamRepository {
     } else {
       await this.create(exam)
     }
+  }
+
+  async addAttachment(attachment: ExamAttachment): Promise<void> {
+    await this.client.examAttachment.create({ data: ExamMapper.attachmentToPersistence(attachment) })
+  }
+
+  async listAttachments(examId: string): Promise<ExamAttachment[]> {
+    const rows = await this.client.examAttachment.findMany({ where: { ExamId: examId } })
+    return rows.map(ExamMapper.attachmentToDomain)
+  }
+
+  async findAttachmentById(attachmentId: string): Promise<ExamAttachment | null> {
+    const raw = await this.client.examAttachment.findUnique({ where: { Id: attachmentId } })
+    return raw ? ExamMapper.attachmentToDomain(raw) : null
   }
 }

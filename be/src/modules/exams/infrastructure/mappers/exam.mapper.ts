@@ -1,5 +1,6 @@
 import { Exam } from '../../domain/entities/exam.entity.js'
 import type { ExamTypeValue, ExamStatusValue } from '../../domain/entities/exam.entity.js'
+import { ExamAttachment } from '../../domain/entities/exam-attachment.value-object.js'
 
 export class ExamMapper {
   static toDomain(raw: any): Exam {
@@ -52,6 +53,20 @@ export class ExamMapper {
       OriginalPrompt: exam.originalPrompt,
       PromptTemplateId: exam.promptTemplateId,
       CreatedBy: exam.createdBy
+    }
+  }
+
+  static attachmentToDomain(raw: any): ExamAttachment {
+    return ExamAttachment.restore(raw.Id, raw.ExamId, raw.FileName, raw.FileUrl, raw.FileType)
+  }
+
+  static attachmentToPersistence(attachment: ExamAttachment): any {
+    return {
+      Id: attachment.id,
+      ExamId: attachment.examId,
+      FileName: attachment.fileName,
+      FileUrl: attachment.fileUrl,
+      FileType: attachment.fileType,
     }
   }
 }

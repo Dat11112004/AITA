@@ -17,10 +17,12 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
+  // FormData bodies must NOT get a JSON Content-Type — the browser sets the multipart boundary
+  const isFormData = options.body instanceof FormData
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -31,6 +33,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lỗi API', json.statusCode || res.status, json.error?.code)
   }
   return (json.Data !== undefined ? json.Data : json.data) as T
+}
+
+/** Authenticated binary fetch (file downloads) — same auth/error handling, returns a Blob. */
+async function requestBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
+  const res = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({} as any))
+    throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lỗi API', json.statusCode || res.status, json.error?.code)
+  }
+  return res.blob()
 }
 
 export const api = {
@@ -82,6 +97,15 @@ export const api = {
     request<AssignmentRow>('/assignments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssignment: (id: string, body: unknown) =>
     request<AssignmentRow>(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  getAssignmentAttachments: (id: string) =>
+    request<AssignmentAttachment[]>(`/assignments/${id}/attachments`),
+  uploadAssignmentAttachment: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<AssignmentAttachment>(`/assignments/${id}/attachments`, { method: 'POST', body: form })
+  },
+  downloadAssignmentAttachment: (assignmentId: string, attachmentId: string) =>
+    requestBlob(`/assignments/${assignmentId}/attachments/${attachmentId}/download`),
 
   getClassOptions: () => request<Option[]>(`/settings/options/classes`),
   getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
@@ -232,6 +256,14 @@ export interface AssignmentRow {
   status: string
   description?: string
   content?: unknown
+}
+
+export interface AssignmentAttachment {
+  id: string
+  examId: string | null
+  fileName: string | null
+  fileType: string | null
+  url: string
 }
 
 export interface SubmissionRow {

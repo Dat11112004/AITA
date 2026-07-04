@@ -16,6 +16,9 @@ import { ListExamsUseCase } from '../../modules/exams/application/use-cases/list
 import { CreateExamUseCase } from '../../modules/exams/application/use-cases/create-exam.use-case.js'
 import { UpdateExamUseCase } from '../../modules/exams/application/use-cases/update-exam.use-case.js'
 import { GetExamUseCase } from '../../modules/exams/application/use-cases/get-exam.use-case.js'
+import { UploadExamAttachmentUseCase } from '../../modules/exams/application/use-cases/upload-exam-attachment.use-case.js'
+import { ListExamAttachmentsUseCase } from '../../modules/exams/application/use-cases/list-exam-attachments.use-case.js'
+import { GetExamAttachmentUseCase } from '../../modules/exams/application/use-cases/get-exam-attachment.use-case.js'
 import { ExamsController } from '../../modules/exams/presentation/exams.controller.js'
 import { GetMeUseCase } from '../../modules/auth/application/use-cases/get-me.use-case.js'
 import { RefreshTokenUseCase } from '../../modules/auth/application/use-cases/refresh-token.use-case.js'
@@ -215,12 +218,18 @@ export class DIContainer {
       const createExamUseCase = new CreateExamUseCase(examRepo)
       const updateExamUseCase = new UpdateExamUseCase(examRepo)
       const getExamUseCase = new GetExamUseCase(examRepo)
+      const uploadExamAttachmentUseCase = new UploadExamAttachmentUseCase(examRepo)
+      const listExamAttachmentsUseCase = new ListExamAttachmentsUseCase(examRepo)
+      const getExamAttachmentUseCase = new GetExamAttachmentUseCase(examRepo)
 
       const examsController = new ExamsController(
         listExamsUseCase,
         createExamUseCase,
         updateExamUseCase,
         getExamUseCase,
+        uploadExamAttachmentUseCase,
+        listExamAttachmentsUseCase,
+        getExamAttachmentUseCase,
         logger
       )
       this.services.set('ExamsController', examsController)

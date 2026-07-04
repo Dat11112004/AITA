@@ -55,6 +55,11 @@ export const MESSAGES = {
   EXAM_CREATE_SUCCESS: 'Tạo bài tập/kiểm tra thành công',
   EXAM_UPDATE_SUCCESS: 'Cập nhật bài tập/kiểm tra thành công',
   EXAM_DELETE_SUCCESS: 'Xóa bài tập/kiểm tra thành công',
+  EXAM_ATTACHMENT_UPLOAD_SUCCESS: 'Tải tệp đính kèm lên thành công',
+  EXAM_ATTACHMENT_LIST_SUCCESS: 'Lấy danh sách tệp đính kèm thành công',
+  EXAM_ATTACHMENT_NOT_FOUND: 'Tệp đính kèm không tồn tại',
+  EXAM_ATTACHMENT_FILE_REQUIRED: 'Chưa chọn tệp đính kèm',
+  EXAM_ATTACHMENT_INVALID_TYPE: 'Chỉ chấp nhận tệp PDF hoặc Word (.pdf, .doc, .docx)',
 
   // Submissions
   SUBMISSION_NOT_FOUND: 'Bài nộp không tồn tại',

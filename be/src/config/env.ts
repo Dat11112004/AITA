@@ -15,6 +15,8 @@ const schema = z.object({
     .optional()
     .transform((v) => v !== 'false' && v !== '0'),
   AI_ENDPOINT: z.string().default('http://localhost:8000'),
+  UPLOAD_DIR: z.string().default('uploads'),
+  MAX_UPLOAD_MB: z.coerce.number().default(20),
   RATE_LIMIT_WINDOW: z.coerce.number().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   DB_TRANSACTION_TIMEOUT: z.coerce.number().default(10000),

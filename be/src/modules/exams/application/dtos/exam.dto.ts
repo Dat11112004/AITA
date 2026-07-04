@@ -35,6 +35,31 @@ export class UpdateExamRequestDto {
   }
 }
 
+export class ExamAttachmentResponseDto {
+  constructor(
+    public readonly id: string,
+    public readonly examId: string | null,
+    public readonly fileName: string | null,
+    public readonly fileType: string | null,
+    public readonly url: string
+  ) {}
+
+  static from(attachment: {
+    id: string
+    examId: string | null
+    fileName: string | null
+    fileType: string | null
+  }): ExamAttachmentResponseDto {
+    return new ExamAttachmentResponseDto(
+      attachment.id,
+      attachment.examId,
+      attachment.fileName,
+      attachment.fileType,
+      `/assignments/${attachment.examId}/attachments/${attachment.id}/download`
+    )
+  }
+}
+
 export class ExamResponseDto {
   constructor(
     public readonly id: string,

@@ -55,6 +55,7 @@ The backend must be running on `:3001` (see [`be/CONTRIBUTING.md`](../be/CONTRIB
 - **Auth:** token + user are stored in `localStorage` (`aita_token`, `aita_user`); `request()` attaches `Authorization: Bearer`. On boot, `AuthContext` calls `api.me()` and clears storage on failure.
 - **Roles are UPPERCASE from the server** (`ADMIN`/`LECTURER`/`STUDENT`) but the FE assumes **lowercase** in several places. **Lowercase role at the boundary** (in `AuthContext`/`api`) and rely on lowercase everywhere in the UI. (Today this is inconsistent and causes the broken Topbar "dashboard" link and missing role label/avatar — see [§8](#8-known-bugs--gotchas).)
 - **Method/shape drift exists:** e.g. FE `updateAssignment` uses `PATCH` but the BE serves `PUT`; class/assignment responses omit `studentCount`/`due`/`submitted`. When you add a call, **match the BE method/path/shape exactly** (check `be/CONTRIBUTING.md`).
+- **File upload/download (added 2026-07-04, WEB-L-05):** `request()` detects a `FormData` body and skips the JSON `Content-Type` (browser sets the multipart boundary); binary downloads go through `requestBlob()` which returns a `Blob` with the same auth/error handling. Methods: `api.uploadAssignmentAttachment(id, file)`, `api.getAssignmentAttachments(id)`, `api.downloadAssignmentAttachment(assignmentId, attachmentId)`; row type `AssignmentAttachment`. Used by `LecturerAIGenerator` (attach on create) and `StudentAssignmentDetail` (download).
 
 ---
 

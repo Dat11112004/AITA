@@ -3,7 +3,7 @@
 > **Service:** `be/` — the AITA API.
 > **Stack:** Node.js · Express 5 · TypeScript (ESM / NodeNext) · Prisma 6 + **SQL Server** · JWT (HS256, access+refresh) · bcryptjs · Zod · helmet · cors · morgan.
 > **Architecture:** **Clean Architecture only** (`src/modules/*` + `src/shared/*`). The legacy flat layer (`src/controllers`, `src/services`, `src/repositories`) was **deleted** in the refactor — it no longer exists.
-> **Last verified:** header re-synced 2026‑06‑29 after the Clean Architecture refactor (body sections below partially stale — see notice).
+> **Last verified:** header re-synced 2026‑06‑29 after the Clean Architecture refactor (body sections below partially stale — see notice). Exam-attachment endpoints (§2) + upload env vars (§8) verified 2026‑07‑04.
 >
 > ⚠️ **POST-REFACTOR NOTICE (2026-06-29).** This guide predates the refactor and **several sections below are still stale** (the §2 "15 endpoints / orphaned" narrative, the SQLite / `cuid()` / `{success,data}` claims, and the §7 walkthrough that references the flat layer). Corrected high-level facts:
 > - **DB:** SQL Server (not SQLite); ids use **`uuid()`** (not `cuid()`); `DATABASE_URL` is a `sqlserver://…` string (no committed `.env.example`).
@@ -73,6 +73,16 @@ The backend currently exposes **exactly 15 endpoints**, all under `/api`, define
 | PATCH | `/api/users/:id/lock` | `UsersController.toggleLock` | ✅ | ❌ none |
 
 > 🔴 The ❌/❌ rows are **active security holes** (anonymous class/assignment writes; any logged‑in student can mint an ADMIN via `POST /users`). Do **not** add features on top of these routes without fixing the gates first — see [§5](#5-auth--security-rules) and [CODEBASE_REVIEW §4 risks #1–#2](../docs/CODEBASE_REVIEW.md#4-top-risks-confirmed-criticalhigh-prioritized).
+
+**Exam attachments (WEB-L-05, added 2026-07-04 — wired via `src/shared/presentation/route-manager.ts` → `ExamsRouter`):**
+
+| Method | Path | Handler | Auth | Role check |
+|---|---|---|---|---|
+| GET | `/api/assignments/:id/attachments` | `ExamsController.listAttachments` | ✅ | — |
+| POST | `/api/assignments/:id/attachments` | `ExamsController.uploadAttachment` (multer, PDF/DOC/DOCX, ≤ `MAX_UPLOAD_MB`) | ✅ | LECTURER, ADMIN |
+| GET | `/api/assignments/:id/attachments/:attachmentId/download` | `ExamsController.downloadAttachment` | ✅ | — |
+
+Files are stored on disk under `UPLOAD_DIR/exam-attachments/` with generated names; metadata lives in the `ExamAttachment` table (`prisma/schema.prisma`). See `src/modules/exams/presentation/exam-attachment-upload.ts`.
 
 **Wired vs orphaned** at a glance:
 
@@ -234,6 +244,8 @@ Source of truth: `src/config/env.ts` (parsed/validated with Zod at startup).
 | `CORS_ORIGIN` | no | `http://localhost:5173` | set to the FE origin in prod |
 | `AI_ENDPOINT` | no | `http://localhost:8000` | base URL of the Python service |
 | `AI_STUB_MODE` | no | **ON when unset** | real Gemini only when explicitly `false` |
+| `UPLOAD_DIR` | no | `uploads` | disk root for uploaded files (exam attachments live in `uploads/exam-attachments/`); git-ignored |
+| `MAX_UPLOAD_MB` | no | `20` | multer per-file size limit for attachment uploads |
 
 ---
 
