@@ -3,11 +3,15 @@ import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { IExamRepository } from '../../domain/repositories/exam-repository.interface.js'
 import { CreateExamRequestDto, ExamResponseDto } from '../dtos/exam.dto.js'
 import { Exam } from '../../domain/entities/exam.entity.js'
+import type { SendAssignmentNotificationUseCase } from '../../../notifications/application/use-cases/send-assignment-notification.use-case.js'
 
-export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; file?: Express.Multer.File }, ExamResponseDto> {
-  constructor(private readonly examRepo: IExamRepository) { }
+export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; file?: Express.Multer.File; userId?: string }, ExamResponseDto> {
+  constructor(
+    private readonly examRepo: IExamRepository,
+    private readonly sendNotificationUseCase?: SendAssignmentNotificationUseCase
+  ) { }
 
-  async execute(input: { dto: CreateExamRequestDto; file?: Express.Multer.File }): Promise<ExamResponseDto> {
+  async execute(input: { dto: CreateExamRequestDto; file?: Express.Multer.File; userId?: string }): Promise<ExamResponseDto> {
     const { data } = input.dto
     const file = input.file
     const examType = data.type === 'quiz' ? 'Quiz' : (data.type || 'Assignment')
@@ -17,7 +21,7 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
       data.title,
       data.subjectId,
       examType as any,
-      'system', // createdBy, ideally should be passed from AuthUser
+      input.userId || 'system', // createdBy, ideally should be passed from AuthUser
       {
         description: data.description,
         totalPoints: data.maxScore ?? 10,
@@ -35,6 +39,16 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
       await Promise.all(specificClassIds.map(classId => 
         this.examRepo.assignToClass(exam.id, classId, due)
       ));
+
+      if (data.sendNotification && this.sendNotificationUseCase) {
+        this.sendNotificationUseCase.execute({
+          examId: exam.id,
+          title: data.title,
+          type: examType,
+          classIds: specificClassIds,
+          createdBy: input.userId || 'system' // ideally passed from auth context
+        }).catch(console.error)
+      }
     }
 
     if (file) {

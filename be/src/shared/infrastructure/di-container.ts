@@ -74,7 +74,9 @@ import { ConfigController } from '../../modules/config/presentation/config.contr
 import { PrismaNotificationRepository } from '../../modules/notifications/infrastructure/repositories/prisma-notification-repository.js'
 import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
 import { BroadcastNotificationUseCase } from '../../modules/notifications/application/use-cases/broadcast-notification.use-case.js'
+import { SendAssignmentNotificationUseCase } from '../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js'
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
+import { NodemailerService } from './email/nodemailer.service.js'
 import { PrismaRubricRepository } from '../../modules/rubric/infrastructure/repositories/prisma-rubric-repository.js'
 import { ListRubricRulesUseCase, GetRubricRuleWithCriteriaUseCase } from '../../modules/rubric/application/use-cases/rubric.use-case.js'
 import { SaveExamRubricUseCase } from '../../modules/rubric/application/use-cases/save-exam-rubric.use-case.js'
@@ -235,9 +237,13 @@ export class DIContainer {
       this.services.set('SemestersController', semestersController)
       this.services.set(TOKENS.SemestersController, semestersController)
 
+      // ── Email & Notifications for Exams ──────────────────────
+      const emailService = new NodemailerService()
+      const sendAssignmentNotificationUseCase = new SendAssignmentNotificationUseCase(emailService)
+
       // ── Exams (Replaces Assignments) ─────────────────────────
       const listExamsUseCase = new ListExamsUseCase(examRepo, uow)
-      const createExamUseCase = new CreateExamUseCase(examRepo)
+      const createExamUseCase = new CreateExamUseCase(examRepo, sendAssignmentNotificationUseCase)
       const updateExamUseCase = new UpdateExamUseCase(examRepo)
       const getExamUseCase = new GetExamUseCase(examRepo)
 

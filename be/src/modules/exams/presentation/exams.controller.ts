@@ -38,7 +38,7 @@ export class ExamsController extends BaseController {
   async create(req: Request, res: Response): Promise<void> {
     this.logger.debug('Received request to create exam')
     const dto = CreateExamRequestDto.from(req.body)
-    const result = await this.createExamUseCase.execute({ dto, file: req.file })
+    const result = await this.createExamUseCase.execute({ dto, file: req.file, userId: req.user?.id })
     this.created(res, result, MESSAGES.SUCCESS)
   }
 

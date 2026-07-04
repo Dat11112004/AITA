@@ -118,6 +118,7 @@ export function LecturerAssignments() {
       }
       
       if (newDue) body.dueDate = new Date(newDue).toISOString();
+      body.sendNotification = sendNotification;
 
       let payload: any = body;
       if (newFile) {
@@ -133,13 +134,7 @@ export function LecturerAssignments() {
       await api.createAssignment(payload)
       
       if (sendNotification) {
-        await api.broadcastNotification({
-          title: `Bài tập mới: ${newTitle}`,
-          message: `Giảng viên đã giao ${newType === 'Exam' ? 'đề thi' : 'bài tập'} mới. Vui lòng kiểm tra trên hệ thống.`,
-          targetRole: 'STUDENT'
-        }).catch(() => {}) // Ignore if broadcast fails for now
-        // Simulate sending email to class
-        console.log(`[Notification] Đã gửi thông báo cho các lớp: ${newClassIds.includes('all') ? 'Tất cả' : newClassIds.join(', ')}`)
+        console.log(`[Notification] Đã kích hoạt tính năng thông báo tự động (Backend sẽ xử lý)`)
       }
       
       setIsModalOpen(false)

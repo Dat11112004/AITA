@@ -15,6 +15,10 @@ export const CreateExamSchema = z.object({
     }
     return val || []
   }),
+  sendNotification: z.preprocess((val) => {
+    if (val === undefined) return undefined;
+    return val === 'true' || val === true;
+  }, z.boolean().optional()),
 })
 
 export type CreateExamRequestDtoType = z.infer<typeof CreateExamSchema>
