@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { ArrowLeft, CheckCircle, Clock, Save, X, Activity, Filter, BarChart, Bell, BrainCircuit, MessageSquareX, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, Save, X, Activity, Filter, BarChart, Bell, BrainCircuit, MessageSquareX, CheckCircle2, FileDown } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 
 export function LecturerSubmissions() {
@@ -291,6 +291,31 @@ export function LecturerSubmissions() {
                   {gradingSub.content || 'Sinh viên không nộp nội dung văn bản.'}
                 </div>
               </div>
+
+              {gradingSub.zipFileUrl && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-500 mb-2 uppercase">File đính kèm</h4>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg">
+                        <FileDown size={20} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm">Bài làm đính kèm</p>
+                        <p className="text-xs text-slate-500">Tải xuống để xem chi tiết</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.open(gradingSub.zipFileUrl, '_blank')}
+                      className="gap-2"
+                    >
+                      <FileDown size={16} /> Tải file
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {gradingSub.studentFeedback && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg space-y-3">
