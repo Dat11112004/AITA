@@ -153,7 +153,7 @@ export function StudentAssignmentDetail() {
           </Card>
 
           {/* Grading & Feedback Result */}
-          {submission && submission.score !== null && (
+          {submission && submission.reviewStatus === 'Reviewed' && submission.score !== null && (
             <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex justify-between items-center">
                 <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">

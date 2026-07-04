@@ -18,6 +18,7 @@ export class SubmissionsRouter {
 
         this.router.get('/', authenticate, asyncHandler((req: any, res: any) => ctrl.list(req, res)))
         this.router.get('/recent', authenticate, asyncHandler((req: any, res: any) => ctrl.recent(req, res)))
+        this.router.post('/bulk-publish', authenticate, asyncHandler((req: any, res: any) => ctrl.bulkPublish(req, res)))
         this.router.get('/:id', authenticate, asyncHandler((req: any, res: any) => ctrl.getOne(req, res)))
         this.router.post('/', authenticate, asyncHandler((req: any, res: any) => ctrl.submit(req, res)))
         this.router.patch('/:id/grade', authenticate, asyncHandler((req: any, res: any) => ctrl.publishGrade(req, res)))
