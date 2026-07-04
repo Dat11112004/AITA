@@ -46,6 +46,15 @@ export function NotificationsDropdown() {
     }
   }
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.markAllNotificationsAsRead()
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const displayUnread = notifications.length ? notifications.filter(n => !n.isRead).length : 3
 
   return (
@@ -78,7 +87,7 @@ export function NotificationsDropdown() {
           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Thông báo</h3>
             {displayUnread > 0 && (
-              <span className="text-xs text-brand-600 dark:text-brand-400 cursor-pointer hover:underline">Đánh dấu đã đọc tất cả</span>
+              <span onClick={handleMarkAllAsRead} className="text-xs text-brand-600 dark:text-brand-400 cursor-pointer hover:underline">Đánh dấu đã đọc tất cả</span>
             )}
           </div>
           
