@@ -50,6 +50,13 @@ export class PrismaNotificationRepository implements INotificationRepository {
         })
     }
 
+    async markAsRead(userId: string, notificationId: string): Promise<void> {
+        await (this.prisma as any).notificationRecipient.updateMany({
+            where: { UserId: userId, NotificationId: notificationId, IsRead: false },
+            data: { IsRead: true, ReadAt: new Date() }
+        })
+    }
+
     async markAllAsRead(userId: string): Promise<void> {
         await (this.prisma as any).notificationRecipient.updateMany({
             where: { UserId: userId, IsRead: false },

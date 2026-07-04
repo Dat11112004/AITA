@@ -74,7 +74,7 @@ import { PrismaConfigRepository } from '../../modules/config/infrastructure/repo
 import { ListProjectTypesUseCase, GetProjectTypeUseCase, UpdateProjectTypeUseCase } from '../../modules/config/application/use-cases/config.use-case.js'
 import { ConfigController } from '../../modules/config/presentation/config.controller.js'
 import { PrismaNotificationRepository } from '../../modules/notifications/infrastructure/repositories/prisma-notification-repository.js'
-import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
+import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
 import { BroadcastNotificationUseCase } from '../../modules/notifications/application/use-cases/broadcast-notification.use-case.js'
 import { SendAssignmentNotificationUseCase } from '../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js'
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
@@ -380,11 +380,13 @@ export class DIContainer {
 
       const listUserNotificationsUseCase = new ListUserNotificationsUseCase(notificationRepo)
       const markNotificationAsReadUseCase = new MarkNotificationAsReadUseCase(notificationRepo)
+      const markAllNotificationsAsReadUseCase = new MarkAllNotificationsAsReadUseCase(notificationRepo)
       const broadcastNotificationUseCase = new BroadcastNotificationUseCase(notificationRepo)
 
       const notificationsController = new NotificationsController(
         listUserNotificationsUseCase,
         markNotificationAsReadUseCase,
+        markAllNotificationsAsReadUseCase,
         broadcastNotificationUseCase,
         logger
       )

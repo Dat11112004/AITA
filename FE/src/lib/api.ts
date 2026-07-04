@@ -185,9 +185,10 @@ export const api = {
   getSettingsConfig: () => request<any>('/settings'),
   updateSettingsConfig: (body: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ─── Notifications ───
+  // 💡 Notifications 💡
   getNotifications: (page = 1, limit = 20) => request<any>(`/notifications?page=${page}&limit=${limit}`),
   markNotificationAsRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsAsRead: () => request<void>('/notifications/read-all', { method: 'PUT' }),
   broadcastNotification: (body: any) => request<any>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
 
   // ─── Audit Logs ───
