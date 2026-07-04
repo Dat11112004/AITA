@@ -7,8 +7,10 @@ import { UpdateUserUseCase } from '../application/use-cases/update-user.use-case
 import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case.js'
 import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
+import { ImportStudentsExcelUseCase } from '../application/use-cases/import-students-excel.use-case.js'
 import { CreateUserDto, UpdateUserDto, ImportUsersBatchDto } from '../application/dtos/user.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
+import fs from 'fs'
 
 export class UsersController extends BaseController {
     constructor(
@@ -18,6 +20,7 @@ export class UsersController extends BaseController {
         private readonly deleteUseCase: DeleteUserUseCase,
         private readonly toggleLockUseCase: ToggleLockUseCase,
         private readonly importUseCase: ImportUsersUseCase,
+        private readonly importStudentsExcelUseCase: ImportStudentsExcelUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -64,5 +67,33 @@ export class UsersController extends BaseController {
         const dto = ImportUsersBatchDto.parse(req.body)
         const result = await this.importUseCase.execute(dto)
         this.created(res, result, 'Users imported successfully')
+    }
+
+    async importStudentsExcel(req: Request, res: Response): Promise<void> {
+        this.logger.debug('Received import students excel request')
+        const file = req.file
+        if (!file) {
+            res.status(400).json({ status: 'error', message: 'File Excel là bắt buộc', data: null })
+            return
+        }
+
+        const importedByUserId = (req as any).user?.userId || ''
+
+        try {
+            const fileBuffer = fs.readFileSync(file.path)
+            
+            const result = await this.importStudentsExcelUseCase.execute({
+                fileBuffer,
+                fileName: file.originalname,
+                fileUrl: `/uploads/imports/${file.filename}`,
+                importedByUserId
+            })
+            this.created(res, result, 'Đã nhập danh sách sinh viên từ Excel thành công')
+        } finally {
+            // Cleanup the file after reading it into buffer
+            if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path)
+            }
+        }
     }
 }

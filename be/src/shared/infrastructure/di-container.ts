@@ -56,6 +56,7 @@ import { UpdateUserUseCase } from '../../modules/users/application/use-cases/upd
 import { DeleteUserUseCase } from '../../modules/users/application/use-cases/delete-user.use-case.js'
 import { ToggleLockUseCase } from '../../modules/users/application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../../modules/users/application/use-cases/import-users.use-case.js'
+import { ImportStudentsExcelUseCase } from '../../modules/users/application/use-cases/import-students-excel.use-case.js'
 import { UsersController as ModularUsersController } from '../../modules/users/presentation/users.controller.js'
 import { ExternalAiService } from '../../modules/ai/infrastructure/external-ai.service.js'
 import { GenerateExerciseUseCase } from '../../modules/ai/application/use-cases/generate-exercise.use-case.js'
@@ -310,6 +311,7 @@ export class DIContainer {
       const deleteUserUseCase = new DeleteUserUseCase(userRepo, logger)
       const toggleLockUseCase = new ToggleLockUseCase(userRepo, logger)
       const importUsersUseCase = new ImportUsersUseCase()
+      const importStudentsExcelUseCase = new ImportStudentsExcelUseCase(emailService)
 
       const modularUsersController = new ModularUsersController(
         listUsersUseCase,
@@ -318,6 +320,7 @@ export class DIContainer {
         deleteUserUseCase,
         toggleLockUseCase,
         importUsersUseCase,
+        importStudentsExcelUseCase,
         logger
       )
       this.services.set('UsersController', modularUsersController)

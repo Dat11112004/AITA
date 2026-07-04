@@ -100,6 +100,8 @@ export const api = {
     request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
   importUsers: (body: { users: ImportUserRow[] }) =>
     request<any>(`/users/import`, { method: 'POST', body: JSON.stringify(body) }),
+  importStudentsExcel: (body: FormData) =>
+    request<any>(`/users/import-students-excel`, { method: 'POST', body }),
 
   // ─── Subjects CRUD ───
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
