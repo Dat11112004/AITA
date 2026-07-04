@@ -28,6 +28,7 @@ import { GetClassStudentsUseCase } from '../../modules/classes/application/use-c
 import { EnrollStudentUseCase } from '../../modules/classes/application/use-cases/enroll-student.use-case.js'
 import { UpdateClassNoteUseCase } from '../../modules/classes/application/use-cases/update-class-note.use-case.js'
 import { PrismaClassRepository } from '../../modules/classes/infrastructure/repositories/prisma-class-repository.js'
+import { PrismaEnrollmentRepository } from '../../modules/classes/infrastructure/repositories/prisma-enrollment-repository.js'
 import { ClassesController } from '../../modules/classes/presentation/classes.controller.js'
 import { ListSubjectsUseCase } from '../../modules/subjects/application/use-cases/list-subjects.use-case.js'
 import { CreateSubjectUseCase } from '../../modules/subjects/application/use-cases/create-subject.use-case.js'
@@ -138,12 +139,14 @@ export class DIContainer {
       const examRepo = new PrismaExamRepository(uow.getClient())
       const submissionRepo = new PrismaSubmissionRepository(uow.getClient())
       const classRepo = new PrismaClassRepository(uow.getClient())
-      
+      const enrollmentRepo = new PrismaEnrollmentRepository(uow.getClient())
+
       this.services.set(TOKENS.UserRepository, userRepo)
       this.services.set(TOKENS.ActivityRepository, activityRepo)
       this.services.set(TOKENS.ExamRepository, examRepo)
       this.services.set(TOKENS.SubmissionRepository, submissionRepo)
       this.services.set(TOKENS.ClassRepository, classRepo)
+      this.services.set(TOKENS.EnrollmentRepository, enrollmentRepo)
 
       // Register repository factories for UoW transactions
       uow.registerFactory(TOKENS.UserRepository, (client) => new PrismaUserRepository(client))
@@ -151,6 +154,7 @@ export class DIContainer {
       uow.registerFactory(TOKENS.ExamRepository, (client) => new PrismaExamRepository(client))
       uow.registerFactory(TOKENS.SubmissionRepository, (client) => new PrismaSubmissionRepository(client))
       uow.registerFactory(TOKENS.ClassRepository, (client) => new PrismaClassRepository(client))
+      uow.registerFactory(TOKENS.EnrollmentRepository, (client) => new PrismaEnrollmentRepository(client))
       uow.registerFactory(TOKENS.RefreshTokenRepository, (client) => new PrismaRefreshTokenRepository(client))
 
       // ── Auth Module ─────────────────────────────────────────────

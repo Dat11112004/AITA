@@ -1,5 +1,6 @@
 import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { IClassRepository } from '../../domain/repositories/class-repository.interface.js'
+import type { IEnrollmentRepository } from '../../domain/repositories/enrollment-repository.interface.js'
 import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import { EnrollStudentRequestDto } from '../dtos/class.dto.js'
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../../../../shared/application/app.error.js'
@@ -42,7 +43,7 @@ export class EnrollStudentUseCase implements IUseCase<{ classId: string; dto: En
     }
 
     // Prevent duplicate enrollment
-    const enrollmentRepo = { findMany: async (_f: any) => [], create: async (_d: any) => ({}) } // Dummy as enrollment repo is removed
+    const enrollmentRepo = this.uow.resolve<IEnrollmentRepository>(Symbol.for('EnrollmentRepository'))
     const existingEnrollment = await enrollmentRepo.findMany({
       ClassId: classId,
       UserId: dto.data.studentId,

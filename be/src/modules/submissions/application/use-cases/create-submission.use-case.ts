@@ -27,14 +27,14 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     const classId = dto.data.classId || exam.subjectId
     if (!classId) throw new ValidationError(MESSAGES.SUBMISSION_MISSING_CLASS_ID)
 
-    const prisma = (this.uow as any).prisma || await this.uow.resolve<any>(Symbol.for('PrismaClient'));
-    if (prisma && prisma.studentClass) {
-      const enrollment = await prisma.studentClass.findFirst({
-        where: { ClassId: classId, UserId: user.id }
-      });
-      if (!enrollment) {
-        throw new ForbiddenError(MESSAGES.SUBMISSION_NOT_ENROLLED)
-      }
+    // Verify student is enrolled in the class using legacy repo access
+    const enrollmentRepo = this.uow.resolve<any>(Symbol.for('EnrollmentRepository'))
+    const enrollment = await enrollmentRepo.findMany({
+      ClassId: classId,
+      UserId: user.id,
+    })
+    if (!enrollment || enrollment.length === 0) {
+      throw new ForbiddenError(MESSAGES.SUBMISSION_NOT_ENROLLED)
     }
 
     // Check for duplicate submission using new domain filter
