@@ -4,10 +4,11 @@ export const CreateExamSchema = z.object({
   subjectId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().optional(),
-  type: z.enum(['assignment', 'quiz']).optional(),
-  duration: z.number().optional(),
+  type: z.string().optional(),
+  duration: z.coerce.number().optional(),
   dueAt: z.string().optional(),
-  maxScore: z.number().optional(),
+  dueDate: z.string().optional(),
+  maxScore: z.coerce.number().optional(),
   classId: z.string().optional(),
 })
 
@@ -48,7 +49,8 @@ export class ExamResponseDto {
     public readonly maxScore: number | null,
     public readonly dueAt: number | null,
     public readonly createdAt: string,
-    public readonly classes: string[] | null
+    public readonly classes: string[] | null,
+    public readonly attachments?: { id: string, fileName: string, fileUrl: string, fileType: string }[] | null
   ) {}
 
   static from(exam: any): ExamResponseDto {
@@ -62,7 +64,13 @@ export class ExamResponseDto {
       exam.TotalPoints || exam.totalPoints,
       exam.Duration || exam.duration,
       exam.Id || exam.id, // using id as fallback for createdAt in legacy
-      exam.classes || null
+      exam.classes || null,
+      exam.ExamAttachment ? exam.ExamAttachment.map((a: any) => ({
+        id: a.Id || a.id,
+        fileName: a.FileName || a.fileName,
+        fileUrl: a.FileUrl || a.fileUrl,
+        fileType: a.FileType || a.fileType
+      })) : null
     )
   }
 }

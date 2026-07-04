@@ -78,8 +78,10 @@ export const api = {
     return request<AssignmentRow[]>(`/assignments${q ? `?${q}` : ''}`)
   },
   getAssignment: (id: string) => request<AssignmentRow>(`/assignments/${id}`),
-  createAssignment: (body: unknown) =>
-    request<AssignmentRow>('/assignments', { method: 'POST', body: JSON.stringify(body) }),
+  createAssignment: (body: unknown) => {
+    const isFormData = body instanceof FormData;
+    return request<AssignmentRow>('/assignments', { method: 'POST', body: isFormData ? body : JSON.stringify(body) })
+  },
   updateAssignment: (id: string, body: unknown) =>
     request<AssignmentRow>(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
@@ -270,6 +272,7 @@ export interface AssignmentRow {
   status: string
   description?: string
   content?: unknown
+  attachments?: { id: string; fileName: string; fileUrl: string; fileType: string }[]
 }
 
 export interface SubmissionRow {

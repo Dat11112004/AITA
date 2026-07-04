@@ -102,15 +102,27 @@ export function LecturerAssignments() {
         (newFile ? `\n\n[File đính kèm: ${newFile.name}]` : '') + 
         (aiRubric ? `\n\n[Rubric Chấm Điểm AI]\n${aiRubric}` : '')
 
-      const body = {
+      const body: any = {
         title: newTitle,
         type: newType, 
         description: finalDesc,
         subjectId: newSubjectId,
-        classId: newClassId === 'all' ? undefined : newClassId, 
-        dueDate: newDue ? new Date(newDue).toISOString() : undefined
       }
-      await api.createAssignment(body)
+      if (newClassId !== 'all') body.classId = newClassId;
+      if (newDue) body.dueDate = new Date(newDue).toISOString();
+
+      let payload: any = body;
+      if (newFile) {
+        payload = new FormData();
+        Object.keys(body).forEach(key => {
+          if (body[key] !== undefined) {
+            payload.append(key, body[key]);
+          }
+        });
+        payload.append('file', newFile);
+      }
+
+      await api.createAssignment(payload)
       
       if (sendNotification) {
         await api.broadcastNotification({

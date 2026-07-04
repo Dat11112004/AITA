@@ -34,6 +34,9 @@ export class ExamMapper {
     if (raw._count?.Submission !== undefined) {
       (exam as any).submissionCount = raw._count.Submission
     }
+    if (raw.ExamAttachment) {
+      (exam as any).ExamAttachment = raw.ExamAttachment
+    }
 
     return exam
   }
