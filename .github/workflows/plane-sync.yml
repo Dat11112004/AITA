@@ -9,6 +9,10 @@ on:
   pull_request:
     types: [opened, reopened, closed]
 
+# Least privilege: workflow không cần ghi gì vào repo — GITHUB_TOKEN chỉ đọc
+permissions:
+  contents: read
+
 jobs:
   sync-task-state:
     # closed nhưng không merge (PR bị đóng bỏ) thì không làm gì
