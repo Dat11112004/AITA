@@ -73,6 +73,13 @@ export class PrismaUserRepository implements IUserRepository {
     await this.client.user.delete({ where: { Id: id } })
   }
 
+  async setRequirePasswordChange(userId: string, value: boolean): Promise<void> {
+    await this.client.user.update({
+      where: { Id: userId },
+      data: { RequirePasswordChange: value },
+    })
+  }
+
   async count(filter?: UserFilter): Promise<number> {
     const where: any = {}
     if (filter?.role) {

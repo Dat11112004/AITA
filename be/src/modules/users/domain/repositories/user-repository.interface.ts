@@ -31,4 +31,5 @@ export interface IUserRepository {
   count(filter?: UserFilter): Promise<number>
   findRoleByName(name: string): Promise<RoleInfo | null>
   assignRole(userId: string, roleId: string): Promise<void>
+  setRequirePasswordChange(userId: string, value: boolean): Promise<void>
 }

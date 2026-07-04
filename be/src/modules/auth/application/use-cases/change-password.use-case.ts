@@ -34,6 +34,8 @@ export class ChangePasswordUseCase implements IUseCase<ChangePasswordInput, void
     const hashedNewPassword = await this.hashService.hash(dto.newPassword)
     user.changePassword(hashedNewPassword)
     await this.userRepo.save(user)
+    // Đã tự đổi mật khẩu → gỡ cờ ép đổi lần đầu (đặt bởi luồng import sinh viên)
+    await this.userRepo.setRequirePasswordChange(userId, false)
 
     this.logger.info(`Password successfully changed for user ${userId}`)
   }

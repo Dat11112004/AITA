@@ -27,7 +27,7 @@ export class UserMapper {
       .map((ur) => ur.Role?.RoleName as UserRoleType)
       .filter(Boolean)
 
-    return User.restore(
+    const user = User.restore(
       raw.Id,
       raw.Email,
       raw.PasswordHash,
@@ -39,6 +39,9 @@ export class UserMapper {
       raw.LastLoginAt,
       roles,
     )
+    // Cờ ép đổi mật khẩu lần đầu — gắn ngoài entity (pattern như subjectName ở ExamMapper)
+    ;(user as any).requirePasswordChange = (raw as any).RequirePasswordChange ?? false
+    return user
   }
 
   /**

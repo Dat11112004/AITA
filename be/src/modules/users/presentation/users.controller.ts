@@ -77,7 +77,8 @@ export class UsersController extends BaseController {
             return
         }
 
-        const importedByUserId = (req as any).user?.userId || ''
+        // authenticate gắn req.user = { id, ... } — không phải userId
+        const importedByUserId = req.user?.id || ''
 
         try {
             const fileBuffer = fs.readFileSync(file.path)

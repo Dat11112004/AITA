@@ -17,6 +17,7 @@ model User {
   Avatar                                 String?
   Status                                 String?
   LastLoginAt                            DateTime?               @db.DateTime2
+  RequirePasswordChange                  Boolean?                @default(false)
   AiUsageLog                             AiUsageLog[]
   AuditLog                               AuditLog[]
   Exam                                   Exam[]

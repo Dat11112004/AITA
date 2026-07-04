@@ -126,6 +126,7 @@ export class AuthResponseDto {
     avatar: string | null
     role: string
     status: string | null
+    requirePasswordChange: boolean
   }
 
   static from(token: string, refreshToken: string, user: User, primaryRole?: string): AuthResponseDto {
@@ -143,7 +144,8 @@ export class AuthResponseDto {
       studentCode: user.studentCode,
       avatar: user.avatar,
       role: role.toLowerCase(),
-      status: (user.status || 'active').toLowerCase()
+      status: (user.status || 'active').toLowerCase(),
+      requirePasswordChange: (user as any).requirePasswordChange ?? false
     }
     return dto
   }
