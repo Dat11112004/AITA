@@ -19,18 +19,24 @@ import { AdminAIConfig } from '@/pages/admin/AdminAIConfig'
 import { AdminSettings } from '@/pages/admin/AdminSettings'
 import { AdminAuditLogs } from '@/pages/admin/AdminAuditLogs'
 import { AdminReports } from '@/pages/admin/AdminReports'
+import { AdminNotifications } from '@/pages/admin/AdminNotifications'
 
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
+import { LecturerClassDetail } from '@/pages/lecturer/LecturerClassDetail'
 import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
+import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
+import { LecturerProfile } from '@/pages/lecturer/LecturerProfile'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail'
 import { StudentClasses } from '@/pages/student/StudentClasses'
+import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
+import { StudentProfile } from '@/pages/student/StudentProfile'
 
 export function AppRoutes() {
   return (
@@ -68,6 +74,7 @@ export function AppRoutes() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="audit-logs" element={<AdminAuditLogs />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="notifications" element={<AdminNotifications />} />
       </Route>
 
       <Route
@@ -87,9 +94,14 @@ export function AppRoutes() {
       >
         <Route index element={<LecturerOverview />} />
         <Route path="classes" element={<LecturerClasses />} />
+        <Route path="classes/:id" element={<LecturerClassDetail />} />
         <Route path="assignments" element={<LecturerAssignments />} />
+        {/* Nav "Kỳ thi" — chưa có trang riêng, dùng chung trang bài tập (tạo/lọc Đề thi tại đây) */}
+        <Route path="exams" element={<LecturerAssignments />} />
         <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />
+        <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
+        <Route path="profile" element={<LecturerProfile />} />
       </Route>
 
       <Route
@@ -110,8 +122,11 @@ export function AppRoutes() {
         <Route index element={<StudentOverview />} />
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
+        <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
         <Route path="classes" element={<StudentClasses />} />
+        <Route path="courses" element={<StudentCourses />} />
         <Route path="ai-feedback" element={<StudentAIFeedback />} />
+        <Route path="profile" element={<StudentProfile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

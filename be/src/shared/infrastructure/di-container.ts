@@ -36,6 +36,10 @@ import { UpdateSubjectUseCase } from '../../modules/subjects/application/use-cas
 import { DeleteSubjectUseCase } from '../../modules/subjects/application/use-cases/delete-subject.use-case.js'
 import { PrismaSubjectRepository } from '../../modules/subjects/infrastructure/repositories/prisma-subject-repository.js'
 import { SubjectsController } from '../../modules/subjects/presentation/subjects.controller.js'
+import { SemesterRepository } from '../../modules/semesters/infrastructure/repositories/semester.repository.js'
+import { ListSemestersUseCase } from '../../modules/semesters/application/use-cases/list-semesters.use-case.js'
+import { CreateSemesterUseCase } from '../../modules/semesters/application/use-cases/create-semester.use-case.js'
+import { SemestersController } from '../../modules/semesters/presentation/semesters.controller.js'
 // Removed assignments module use cases
 import { PrismaSubmissionRepository } from '../../modules/submissions/infrastructure/repositories/prisma-submission-repository.js'
 import { ListSubmissionsUseCase } from '../../modules/submissions/application/use-cases/list-submissions.use-case.js'
@@ -43,12 +47,14 @@ import { CreateSubmissionUseCase } from '../../modules/submissions/application/u
 import { GetSubmissionUseCase } from '../../modules/submissions/application/use-cases/get-submission.use-case.js'
 import { PublishGradeUseCase } from '../../modules/submissions/application/use-cases/publish-grade.use-case.js'
 import { RecentSubmissionsUseCase } from '../../modules/submissions/application/use-cases/recent-submissions.use-case.js'
+import { SubmitFeedbackUseCase } from '../../modules/submissions/application/use-cases/submit-feedback.use-case.js'
 import { SubmissionsController } from '../../modules/submissions/presentation/submissions.controller.js'
 import { ListUsersUseCase } from '../../modules/users/application/use-cases/list-users.use-case.js'
 import { CreateUserUseCase } from '../../modules/users/application/use-cases/create-user.use-case.js'
 import { UpdateUserUseCase } from '../../modules/users/application/use-cases/update-user.use-case.js'
 import { DeleteUserUseCase } from '../../modules/users/application/use-cases/delete-user.use-case.js'
 import { ToggleLockUseCase } from '../../modules/users/application/use-cases/toggle-lock.use-case.js'
+import { ImportUsersUseCase } from '../../modules/users/application/use-cases/import-users.use-case.js'
 import { UsersController as ModularUsersController } from '../../modules/users/presentation/users.controller.js'
 import { ExternalAiService } from '../../modules/ai/infrastructure/external-ai.service.js'
 import { GenerateExerciseUseCase } from '../../modules/ai/application/use-cases/generate-exercise.use-case.js'
@@ -56,6 +62,7 @@ import { SaveAiAssignmentUseCase } from '../../modules/ai/application/use-cases/
 import { AssessSubmissionUseCase } from '../../modules/ai/application/use-cases/assess-submission.use-case.js'
 import { GetLearningFeedbackUseCase } from '../../modules/ai/application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../../modules/ai/application/use-cases/ai-config.use-case.js'
+import { GenerateRubricUseCase } from '../../modules/ai/application/use-cases/generate-rubric.use-case.js'
 import { AiController as ModularAiController } from '../../modules/ai/presentation/ai.controller.js'
 import { PrismaAuditRepository } from '../../modules/audit/infrastructure/repositories/prisma-audit-repository.js'
 import { GetAuditLogsUseCase } from '../../modules/audit/application/use-cases/get-audit-logs.use-case.js'
@@ -66,6 +73,7 @@ import { ListProjectTypesUseCase, GetProjectTypeUseCase, UpdateProjectTypeUseCas
 import { ConfigController } from '../../modules/config/presentation/config.controller.js'
 import { PrismaNotificationRepository } from '../../modules/notifications/infrastructure/repositories/prisma-notification-repository.js'
 import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
+import { BroadcastNotificationUseCase } from '../../modules/notifications/application/use-cases/broadcast-notification.use-case.js'
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
 import { PrismaRubricRepository } from '../../modules/rubric/infrastructure/repositories/prisma-rubric-repository.js'
 import { ListRubricRulesUseCase, GetRubricRuleWithCriteriaUseCase } from '../../modules/rubric/application/use-cases/rubric.use-case.js'
@@ -210,6 +218,22 @@ export class DIContainer {
       this.services.set('SubjectController', subjectController)
       this.services.set(TOKENS.SubjectController, subjectController)
 
+      // ── Semesters ───────────────────────────────────────────
+      const semesterRepo = new SemesterRepository(uow.getClient())
+      this.services.set(TOKENS.SemesterRepository, semesterRepo)
+      uow.registerFactory(TOKENS.SemesterRepository, (client) => new SemesterRepository(client))
+
+      const listSemestersUseCase = new ListSemestersUseCase(semesterRepo)
+      const createSemesterUseCase = new CreateSemesterUseCase(semesterRepo)
+
+      const semestersController = new SemestersController(
+        listSemestersUseCase,
+        createSemesterUseCase,
+        logger
+      )
+      this.services.set('SemestersController', semestersController)
+      this.services.set(TOKENS.SemestersController, semestersController)
+
       // ── Exams (Replaces Assignments) ─────────────────────────
       const listExamsUseCase = new ListExamsUseCase(examRepo, uow)
       const createExamUseCase = new CreateExamUseCase(examRepo)
@@ -226,12 +250,35 @@ export class DIContainer {
       this.services.set('ExamsController', examsController)
       this.services.set(TOKENS.ExamsController, examsController)
 
+      // ── AI (Moved up for Submissions) ───────────────────────
+      const aiService = new ExternalAiService()
+      const aiRepo = uow.getRepo(PrismaAiRepository)
+      const generateExerciseUseCase = new GenerateExerciseUseCase(aiService, aiRepo)
+      const saveAiAssignmentUseCase = new SaveAiAssignmentUseCase(uow)
+      const assessSubmissionUseCase = new AssessSubmissionUseCase(uow, aiService, aiRepo)
+      const getLearningFeedbackUseCase = new GetLearningFeedbackUseCase(aiService, aiRepo)
+      const getAiConfigUseCase = new GetAiConfigUseCase(uow)
+      const updateAiConfigUseCase = new UpdateAiConfigUseCase(uow)
+      const generateRubricUseCase = new GenerateRubricUseCase(aiService, logger)
+
+      const modularAiController = new ModularAiController(
+        generateExerciseUseCase,
+        saveAiAssignmentUseCase,
+        assessSubmissionUseCase,
+        getLearningFeedbackUseCase,
+        getAiConfigUseCase,
+        updateAiConfigUseCase,
+        generateRubricUseCase
+      )
+      this.services.set('AiController', modularAiController)
+
       // ── Submissions ──────────────────────────────────────────
       const listSubmissionsUseCase = new ListSubmissionsUseCase(submissionRepo)
-      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow)
+      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow, assessSubmissionUseCase)
       const getSubmissionUseCase = new GetSubmissionUseCase(submissionRepo)
       const publishGradeUseCase = new PublishGradeUseCase(submissionRepo)
       const recentSubmissionsUseCase = new RecentSubmissionsUseCase(submissionRepo)
+      const submitFeedbackUseCase = new SubmitFeedbackUseCase(uow.getClient())
 
       const submissionController = new SubmissionsController(
         listSubmissionsUseCase,
@@ -239,6 +286,7 @@ export class DIContainer {
         getSubmissionUseCase,
         submitSubmissionUseCase,
         publishGradeUseCase,
+        submitFeedbackUseCase,
         logger
       )
       this.services.set('SubmissionController', submissionController)
@@ -250,6 +298,7 @@ export class DIContainer {
       const updateUserUseCase = new UpdateUserUseCase(userRepo, hashService, logger)
       const deleteUserUseCase = new DeleteUserUseCase(userRepo, logger)
       const toggleLockUseCase = new ToggleLockUseCase(userRepo, logger)
+      const importUsersUseCase = new ImportUsersUseCase()
 
       const modularUsersController = new ModularUsersController(
         listUsersUseCase,
@@ -257,30 +306,12 @@ export class DIContainer {
         updateUserUseCase,
         deleteUserUseCase,
         toggleLockUseCase,
+        importUsersUseCase,
         logger
       )
       this.services.set('UsersController', modularUsersController)
       this.services.set(TOKENS.UsersController, modularUsersController)
 
-      // ── AI ───────────────────────────────────────────────────
-      const aiService = new ExternalAiService()
-      const aiRepo = uow.getRepo(PrismaAiRepository)
-      const generateExerciseUseCase = new GenerateExerciseUseCase(aiService, aiRepo)
-      const saveAiAssignmentUseCase = new SaveAiAssignmentUseCase(uow)
-      const assessSubmissionUseCase = new AssessSubmissionUseCase(uow, aiService, aiRepo)
-      const getLearningFeedbackUseCase = new GetLearningFeedbackUseCase(aiService, aiRepo)
-      const getAiConfigUseCase = new GetAiConfigUseCase(uow)
-      const updateAiConfigUseCase = new UpdateAiConfigUseCase(uow)
-
-      const modularAiController = new ModularAiController(
-        generateExerciseUseCase,
-        saveAiAssignmentUseCase,
-        assessSubmissionUseCase,
-        getLearningFeedbackUseCase,
-        getAiConfigUseCase,
-        updateAiConfigUseCase
-      )
-      this.services.set('AiController', modularAiController)
 
       // ── Reports ──────────────────────────────────────────────
       const reportsRepo = new PrismaReportsRepository(uow.getClient())
@@ -335,10 +366,12 @@ export class DIContainer {
 
       const listUserNotificationsUseCase = new ListUserNotificationsUseCase(notificationRepo)
       const markNotificationAsReadUseCase = new MarkNotificationAsReadUseCase(notificationRepo)
+      const broadcastNotificationUseCase = new BroadcastNotificationUseCase(notificationRepo)
 
       const notificationsController = new NotificationsController(
         listUserNotificationsUseCase,
         markNotificationAsReadUseCase,
+        broadcastNotificationUseCase,
         logger
       )
       this.services.set('NotificationsController', notificationsController)

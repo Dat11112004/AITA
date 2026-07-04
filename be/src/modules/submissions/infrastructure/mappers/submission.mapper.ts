@@ -19,7 +19,8 @@ export class SubmissionMapper {
       raw.InstructorFeedback,
       raw.ReviewedBy,
       raw.ReviewedAt,
-      raw.GradedAt
+      raw.GradedAt,
+      raw.StudentFeedback
     )
     
     // Attach unmapped fields for DTO compatibility
@@ -37,6 +38,9 @@ export class SubmissionMapper {
     }
     if (raw.Class) {
       (submission as any).className = raw.Class.ClassName
+    }
+    if (raw.StudentFeedback) {
+      (submission as any).studentFeedback = raw.StudentFeedback
     }
 
     return submission
@@ -57,6 +61,7 @@ export class SubmissionMapper {
       TotalScore: submission.totalScore,
       FinalScore: submission.finalScore,
       InstructorFeedback: submission.instructorFeedback,
+      StudentFeedback: submission.studentFeedback,
       ReviewedBy: submission.reviewedBy,
       ReviewedAt: submission.reviewedAt,
       GradedAt: submission.gradedAt

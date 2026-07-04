@@ -1,10 +1,11 @@
 import { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import { prisma } from '../../../../database/prisma.js'
 
 export class GetAiConfigUseCase {
-    constructor(private readonly uow: IUnitOfWork) { }
+    constructor(_uow: IUnitOfWork) { }
 
     async execute() {
-        const settings = await (this.uow as any).prisma.systemConfig.findMany()
+        const settings = await prisma.systemConfig.findMany()
         const map = Object.fromEntries(settings.map((s: any) => [s.Key, s.Value]))
         return {
             aiEndpoint: map.aiEndpoint ?? '',
@@ -16,11 +17,10 @@ export class GetAiConfigUseCase {
 }
 
 export class UpdateAiConfigUseCase {
-    constructor(private readonly uow: IUnitOfWork) { }
+    constructor(_uow: IUnitOfWork) { }
 
     async execute(body: Record<string, string>) {
         const keys = ['aiEndpoint', 'aiModel', 'aiTimeout', 'aiStubMode']
-        const prisma = (this.uow as any).prisma
         for (const key of keys) {
             if (body[key] !== undefined) {
                 await prisma.systemConfig.upsert({

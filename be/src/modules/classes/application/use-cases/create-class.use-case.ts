@@ -16,17 +16,23 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
 
     // We can resolve the class repo outside transaction for reads
     const classRepo = this.uow.resolve<IClassRepository>(TOKENS.ClassRepository)
-    const subjectRepo = this.uow.resolve<any>(Symbol.for('SubjectRepository'))
-    const userRepo = this.uow.resolve<any>(Symbol.for('UserRepository'))
+    const subjectRepo = this.uow.resolve<any>(TOKENS.SubjectRepository)
+    const semesterRepo = this.uow.resolve<any>(TOKENS.SemesterRepository)
+    const userRepo = this.uow.resolve<any>(TOKENS.UserRepository)
     
     const existingClass = await classRepo.findByCode(data.code)
     if (existingClass) {
       throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS)
     }
 
-    const subject = await subjectRepo.findById(data.subject)
+    const subject = await subjectRepo.findById(data.subjectId)
     if (!subject) {
       throw new NotFoundError(MESSAGES.SUBJECT_NOT_FOUND)
+    }
+
+    const semester = await semesterRepo.findById(data.semesterId)
+    if (!semester) {
+      throw new NotFoundError('Không tìm thấy kỳ học')
     }
 
     if (data.lecturerId) {
@@ -43,8 +49,8 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
       const cls = Class.create(
         randomUUID(),
         data.code,
-        data.subject as string,
-        data.semester as string
+        data.subjectId as string,
+        data.semesterId as string
       )
 
       await txClassRepo.create(cls)

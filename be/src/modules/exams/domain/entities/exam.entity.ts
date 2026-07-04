@@ -98,6 +98,7 @@ export class Exam extends AggregateRoot {
   originalPrompt: string | null
   promptTemplateId: string | null
   createdBy: string | null
+  dueDate: Date | null
 
   private constructor(
     id: string,
@@ -115,7 +116,8 @@ export class Exam extends AggregateRoot {
     aiGeneratedContent: string | null,
     originalPrompt: string | null,
     promptTemplateId: string | null,
-    createdBy: string | null
+    createdBy: string | null,
+    dueDate: Date | null = null
   ) {
     super()
     this.id = id
@@ -134,6 +136,7 @@ export class Exam extends AggregateRoot {
     this.originalPrompt = originalPrompt
     this.promptTemplateId = promptTemplateId
     this.createdBy = createdBy
+    this.dueDate = dueDate
   }
 
   // ── Factory Methods ──
@@ -152,6 +155,7 @@ export class Exam extends AggregateRoot {
       gradingProfileId?: string
       assignmentTemplateId?: string
       submissionFormat?: string
+      dueDate?: Date
     }
   ): Exam {
     const exam = new Exam(
@@ -170,7 +174,8 @@ export class Exam extends AggregateRoot {
       null,   // aiGeneratedContent
       null,   // originalPrompt
       null,   // promptTemplateId
-      createdBy
+      createdBy,
+      params?.dueDate ?? null
     )
     exam.addDomainEvent(new ExamCreatedEvent(exam.id, exam.title, exam.createdBy))
     return exam
@@ -192,13 +197,14 @@ export class Exam extends AggregateRoot {
     aiGeneratedContent: string | null,
     originalPrompt: string | null,
     promptTemplateId: string | null,
-    createdBy: string | null
+    createdBy: string | null,
+    dueDate: Date | null = null
   ): Exam {
     return new Exam(
       id, title, description, assignmentTemplateId, projectTypeId,
       gradingProfileId, subjectId, examType, duration, totalPoints,
       status, submissionFormat, aiGeneratedContent, originalPrompt,
-      promptTemplateId, createdBy
+      promptTemplateId, createdBy, dueDate
     )
   }
 

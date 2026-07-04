@@ -16,7 +16,7 @@ export class ClassMapper {
       (classEntity as any).subjectCode = raw.Subject.SubjectCode;
     }
     if (raw.Semester) {
-      (classEntity as any).semesterName = raw.Semester.SemesterName
+      (classEntity as any).semesterName = raw.Semester.Code
     }
     if (raw.InstructorClass && raw.InstructorClass.length > 0) {
       (classEntity as any).instructorName = raw.InstructorClass[0].User?.FullName;

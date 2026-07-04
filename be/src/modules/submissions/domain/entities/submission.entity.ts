@@ -87,6 +87,7 @@ export class Submission extends AggregateRoot {
   totalScore: number | null
   finalScore: number | null
   instructorFeedback: string | null
+  studentFeedback: string | null
   reviewedBy: string | null
   reviewedAt: Date | null
   gradedAt: Date | null
@@ -105,6 +106,7 @@ export class Submission extends AggregateRoot {
     totalScore: number | null,
     finalScore: number | null,
     instructorFeedback: string | null,
+    studentFeedback: string | null,
     reviewedBy: string | null,
     reviewedAt: Date | null,
     gradedAt: Date | null
@@ -123,6 +125,7 @@ export class Submission extends AggregateRoot {
     this.totalScore = totalScore
     this.finalScore = finalScore
     this.instructorFeedback = instructorFeedback
+    this.studentFeedback = studentFeedback
     this.reviewedBy = reviewedBy
     this.reviewedAt = reviewedAt
     this.gradedAt = gradedAt
@@ -142,7 +145,7 @@ export class Submission extends AggregateRoot {
       id, examId, studentId, classId,
       attemptNumber, true, new Date(), zipFileUrl,
       'Pending', 'PendingReview',
-      null, null, null, null, null, null
+      null, null, null, null, null, null, null
     )
     submission.addDomainEvent(
       new SubmissionCreatedEvent(submission.id, submission.studentId, submission.examId)
@@ -166,12 +169,13 @@ export class Submission extends AggregateRoot {
     instructorFeedback: string | null,
     reviewedBy: string | null,
     reviewedAt: Date | null,
-    gradedAt: Date | null
+    gradedAt: Date | null,
+    studentFeedback?: string | null
   ): Submission {
     return new Submission(
       id, examId, studentId, classId, attemptNumber, isLatest,
       submittedAt, zipFileUrl, gradingStatus, reviewStatus,
-      totalScore, finalScore, instructorFeedback, reviewedBy,
+      totalScore, finalScore, instructorFeedback, studentFeedback || null, reviewedBy,
       reviewedAt, gradedAt
     )
   }

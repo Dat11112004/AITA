@@ -20,7 +20,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -93,6 +93,8 @@ export const api = {
     request<void>(`/users/${id}`, { method: 'DELETE' }),
   toggleUserLock: (id: string, locked: boolean) =>
     request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
+  importUsers: (body: { users: ImportUserRow[] }) =>
+    request<any>(`/users/import`, { method: 'POST', body: JSON.stringify(body) }),
 
   // ─── Subjects CRUD ───
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
@@ -103,6 +105,11 @@ export const api = {
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
+  // ─── Semesters CRUD ───
+  getSemesters: () => request<SemesterRow[]>(`/semesters`),
+  createSemester: (body: CreateSemesterBody) =>
+    request<SemesterRow>('/semesters', { method: 'POST', body: JSON.stringify(body) }),
+
   // ─── Exams CRUD ───
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
   getExam: (id: string) => request<ExamRow>(`/exams/${id}`),
@@ -112,13 +119,25 @@ export const api = {
     request<ExamRow>(`/exams/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   // ─── Submissions ───
-  getSubmissions: (params?: Record<string, string>) => {
-    const q = new URLSearchParams(params).toString()
-    return request<SubmissionRow[]>(`/submissions${q ? `?${q}` : ''}`)
+  async getSubmissions(params?: { assignmentId?: string; status?: string }) {
+    const q = new URLSearchParams(params as Record<string, string>).toString()
+    return request<SubmissionRow[]>(`/submissions?${q}`)
   },
-  getSubmission: (id: string) => request<SubmissionRow>(`/submissions/${id}`),
-  submitAssignment: (body: { assignmentId: string, content: string, files?: any[] }) =>
-    request<SubmissionRow>('/submissions', { method: 'POST', body: JSON.stringify(body) }),
+  async getSubmission(id: string) {
+    return request<SubmissionRow>(`/submissions/${id}`)
+  },
+  async submitAssignment(data: { assignmentId: string; content?: string; zipFileUrl?: string }) {
+    return request<SubmissionRow>(`/submissions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+  async submitFeedback(submissionId: string, feedback: string) {
+    return request<{ success: boolean; feedback: string }>(`/submissions/${submissionId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    })
+  },
   gradeSubmission: (id: string, body: { score: number, feedback?: string, rubricScores?: Record<string, number> }) =>
     request<SubmissionRow>(`/submissions/${id}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
 
@@ -130,6 +149,13 @@ export const api = {
   // ─── AI Features ───
   generateExerciseAI: (body: { topic: string, difficulty: string, type: string }) =>
     request<any>('/ai/generate-exercise', { method: 'POST', body: JSON.stringify(body) }),
+  generateRubricAI: (body: any) => {
+    const isFormData = body instanceof FormData;
+    return request<any>('/ai/generate-rubric', {
+      method: 'POST',
+      body: isFormData ? body : JSON.stringify(body),
+    })
+  },
   saveAIAssignment: (body: any) =>
     request<AssignmentRow>('/ai/save-assignment', { method: 'POST', body: JSON.stringify(body) }),
   assessSubmissionAI: (submissionId: string) =>
@@ -142,8 +168,13 @@ export const api = {
     request<any>('/ai/config', { method: 'PUT', body: JSON.stringify(body) }),
 
   // ─── Settings ───
-  getSettingsConfig: () => request<any>('/settings/config'),
-  updateSettingsConfig: (body: any) => request<any>('/settings/config', { method: 'PUT', body: JSON.stringify(body) }),
+  getSettingsConfig: () => request<any>('/settings'),
+  updateSettingsConfig: (body: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // ─── Notifications ───
+  getNotifications: (page = 1, limit = 20) => request<any>(`/notifications?page=${page}&limit=${limit}`),
+  markNotificationAsRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
+  broadcastNotification: (body: any) => request<any>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
 
   // ─── Audit Logs ───
   getAuditLogs: () => request<any[]>('/audit/logs'),
@@ -153,9 +184,6 @@ export const api = {
   getSystemReports: () => request<any>('/reports'),
   getHealthReports: () => request<any>('/reports/health'),
 
-  // ─── Notifications ───
-  getNotifications: () => request<any[]>('/notifications'),
-  markNotificationRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
 }
 
 /* ═══════════════════════════════════════════
@@ -178,6 +206,16 @@ export interface UserRow {
   email: string
   role: string
   status: string
+}
+
+export interface ImportUserRow {
+  fullName: string
+  email: string
+  classCode?: string
+  semesterCode?: string
+  subjectCode?: string
+  role: 'ADMIN' | 'LECTURER' | 'STUDENT'
+  status: 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 }
 
 export interface CreateUserBody {
@@ -206,8 +244,8 @@ export interface ClassRow {
 export interface CreateClassBody {
   code: string
   name: string
-  subject?: string
-  semester?: string
+  subjectId?: string
+  semesterId?: string
   campus?: string
   schedule?: string
   lecturerId: string
@@ -246,7 +284,9 @@ export interface SubmissionRow {
   content?: string
   language?: string
   score?: number | null
+  zipFileUrl?: string
   aiFeedback?: unknown
+  studentFeedback?: string
 }
 
 export interface AIReviewRow {
@@ -303,7 +343,6 @@ export interface SubjectRow {
   id: string
   code: string
   name: string
-  credits?: number
   description?: string
   status: string
 }
@@ -311,8 +350,22 @@ export interface SubjectRow {
 export interface CreateSubjectBody {
   code: string
   name: string
-  credits?: number
   description?: string
+}
+
+export interface SemesterRow {
+  id: string
+  code: string
+  startDate?: string
+  endDate?: string
+  isActive: boolean
+}
+
+export interface CreateSemesterBody {
+  code: string
+  startDate?: string
+  endDate?: string
+  isActive?: boolean
 }
 
 export interface ExamRow {

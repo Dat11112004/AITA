@@ -23,6 +23,19 @@ export class AssessSubmissionUseCase {
 
         await this.aiRepo.logInteraction((sub as any).StudentId ?? '', 'assess', submissionId, JSON.stringify(result))
 
+        // Update submission with AI score and feedback
+        const prisma = (this.uow as any).prisma || await this.uow.resolve<any>(Symbol.for('PrismaClient'))
+        if (prisma && prisma.submission) {
+            await prisma.submission.update({
+                where: { Id: submissionId },
+                data: {
+                    TotalScore: (result as any).aiScore,
+                    InstructorFeedback: (result as any).feedback,
+                    GradingStatus: 'GRADED_BY_AI',
+                }
+            })
+        }
+
         return { submission: sub, aiScore: (result as any).aiScore, feedback: (result as any).feedback }
     }
 }

@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
-import { api } from '@/lib/api'
+import { api, type ClassRow } from '@/lib/api'
 import { Sparkles, Save, ArrowLeft, Loader2, Bot } from 'lucide-react'
 
 export function LecturerAIGenerator() {
@@ -13,6 +13,18 @@ export function LecturerAIGenerator() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedContent, setGeneratedContent] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
+  
+  const [classes, setClasses] = useState<ClassRow[]>([])
+  const [selectedClassId, setSelectedClassId] = useState('all')
+  const [examType, setExamType] = useState('Assignment')
+  const [sendNotification, setSendNotification] = useState(true)
+  
+  useEffect(() => {
+    api.getClasses(1, 1000).then(res => {
+      setClasses(res || [])
+      if (res?.length > 0) setSelectedClassId(res[0].id)
+    }).catch(console.error)
+  }, [])
 
   const handleGenerate = async () => {
     if (!form.topic.trim()) return
@@ -33,12 +45,24 @@ export function LecturerAIGenerator() {
     setIsSaving(true)
     try {
       await api.saveAIAssignment({
-        title: `Bài tập AI: ${form.topic}`,
-        type: form.type,
+        classId: selectedClassId === 'all' ? undefined : selectedClassId,
+        title: `AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'}: ${form.topic}`,
+        type: form.type, // Sub-type: quiz, coding, essay
         difficulty: form.difficulty,
         content: generatedContent,
+        examType: examType, 
       })
-      alert('Đã lưu bài tập thành công!')
+
+      if (sendNotification) {
+        await api.broadcastNotification({
+          title: `Đã tự động tạo: AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'} mới`,
+          message: `Giảng viên vừa publish 1 AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'} lên hệ thống. Vui lòng kiểm tra mục Bài tập.`,
+          targetRole: 'STUDENT'
+        }).catch(() => {})
+        console.log(`[Notification] Đã gửi thông báo cho lớp ${selectedClassId === 'all' ? 'Tất cả' : selectedClassId}`)
+      }
+
+      alert('Đã lưu thành công!')
       navigate('/lecturer/assignments')
     } catch (error: any) {
       alert(error.message || 'Lỗi khi lưu bài tập')
@@ -85,17 +109,49 @@ export function LecturerAIGenerator() {
                 value={form.difficulty}
                 onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
               />
-              
+
+              <div className="grid grid-cols-2 gap-2">
+                <Select 
+                  label="Mục đích"
+                  options={[
+                    { value: 'Assignment', label: 'Bài tập (Chấm ngầm)' },
+                    { value: 'Exam', label: 'Đề thi (Chấm thủ công)' },
+                  ]}
+                  value={examType}
+                  onChange={(e) => setExamType(e.target.value)}
+                />
+                
+                <Select 
+                  label="Loại hình cụ thể"
+                  options={[
+                    { value: 'quiz', label: 'Trắc nghiệm' },
+                    { value: 'coding', label: 'Lập trình' },
+                    { value: 'essay', label: 'Tự luận' },
+                  ]}
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                />
+              </div>
+
               <Select 
-                label="Loại bài tập"
-                options={[
-                  { value: 'quiz', label: 'Trắc nghiệm (Quiz)' },
-                  { value: 'coding', label: 'Lập trình (Coding)' },
-                  { value: 'essay', label: 'Tự luận (Essay)' },
-                ]}
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                label="Áp dụng cho Lớp"
+                options={[{value: 'all', label: 'Tất cả các lớp'}, ...classes.map(c => ({ value: c.id, label: c.code }))]}
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
               />
+
+              <div className="flex items-center gap-2 pt-2">
+                <input 
+                  type="checkbox" 
+                  id="notifyStudents" 
+                  checked={sendNotification} 
+                  onChange={(e) => setSendNotification(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="notifyStudents" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Gửi thông báo (Email/App) cho sinh viên
+                </label>
+              </div>
 
               <Button 
                 className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md shadow-indigo-200 dark:shadow-none transition-all duration-200"

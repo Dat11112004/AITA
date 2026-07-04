@@ -21,6 +21,7 @@ export class UpdateSubjectUseCase implements IUseCase<{ id: string; dto: Subject
     subject.updateInfo({
       subjectCode: params.dto.data.code,
       subjectName: params.dto.data.name,
+      description: params.dto.data.description,
     })
 
     await this.subjectRepo.save(subject)

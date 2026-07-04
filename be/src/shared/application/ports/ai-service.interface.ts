@@ -57,10 +57,31 @@ export interface LearningFeedbackOutput {
   recommendations: LearningRecommendation[]
 }
 
+export interface GenerateRubricInput {
+  topic: string
+  difficulty?: string
+  totalScore?: number
+  file?: {
+    filename: string
+    buffer: Buffer
+    mimetype: string
+  }
+}
+
+export interface GenerateRubricOutput {
+  criteria: Array<{
+    name: string
+    description: string
+    maxScore: number
+  }>
+  totalScore: number
+}
+
 // ── Service Interface ────────────────────────────────────────
 
 export interface IAIService {
   generateExercise(input: GenerateExerciseInput): Promise<GenerateExerciseOutput>
   assess(input: AssessInput): Promise<AssessOutput>
   learningFeedback(studentId: string): Promise<LearningFeedbackOutput>
+  generateRubric(input: GenerateRubricInput): Promise<GenerateRubricOutput>
 }

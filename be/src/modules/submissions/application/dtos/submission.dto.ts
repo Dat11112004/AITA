@@ -65,6 +65,7 @@ export class SubmissionResponseDto {
       totalScore: submission.TotalScore === null || submission.TotalScore === undefined ? null : Number(submission.TotalScore),
       finalScore: submission.FinalScore === null || submission.FinalScore === undefined ? null : Number(submission.FinalScore),
       instructorFeedback: submission.InstructorFeedback,
+      studentFeedback: submission.StudentFeedback,
       reviewedBy: submission.ReviewedBy,
       reviewedAt: submission.ReviewedAt,
       gradedAt: submission.GradedAt,

@@ -14,17 +14,21 @@ export class CreateExamUseCase implements IUseCase<CreateExamRequestDto, ExamRes
     const exam = Exam.create(
       randomUUID(),
       data.title,
-      data.classId,
+      data.subjectId,
       examType as any,
       'system', // createdBy, ideally should be passed from AuthUser
       {
         description: data.description,
         totalPoints: data.maxScore ?? 10,
-        duration: data.dueAt ? Math.floor((new Date(data.dueAt).getTime() - Date.now()) / 60000) : undefined,
+        duration: data.duration,
       }
     )
 
     await this.examRepo.create(exam)
+
+    if (data.classId) {
+      await this.examRepo.assignToClass(exam.id, data.classId, data.dueAt)
+    }
 
     return ExamResponseDto.from(exam as any)
   }

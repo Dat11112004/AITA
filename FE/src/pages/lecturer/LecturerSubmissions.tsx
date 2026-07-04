@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/Badge'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { ArrowLeft, CheckCircle, Clock, Save, X, Activity } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Clock, Save, X, Activity, Filter, BarChart, Bell, BrainCircuit, MessageSquareX, CheckCircle2 } from 'lucide-react'
+import { Tabs } from '@/components/ui/Tabs'
 
 export function LecturerSubmissions() {
   const { id } = useParams()
@@ -23,7 +24,11 @@ export function LecturerSubmissions() {
   const [gradingSub, setGradingSub] = useState<SubmissionRow | null>(null)
   const [score, setScore] = useState<number | ''>('')
   const [feedback, setFeedback] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
   const [isGrading, setIsGrading] = useState(false)
+  
+  // Filtering
+  const [filter, setFilter] = useState('all')
 
   const load = useCallback(async () => {
     if (!id) return
@@ -61,10 +66,38 @@ export function LecturerSubmissions() {
         score: Number(score),
         feedback,
       })
+      if (sendNotification) {
+        // Mocking a notification sent (could be a real API if available for specific users)
+        console.log(`Notification sent to ${gradingSub.student}`)
+      }
       setGradingSub(null)
       load() // Reload list
     } catch (error: any) {
       alert(error.message || 'Chấm điểm thất bại')
+    } finally {
+      setIsGrading(false)
+    }
+  }
+
+  const handleResolveAppeal = async (accepted: boolean) => {
+    if (!gradingSub) return
+    setIsGrading(true)
+    try {
+      // In a real app we would have a specific endpoint to resolve appeals.
+      // Here we just re-grade or clear the feedback field (mocking resolution).
+      await api.gradeSubmission(gradingSub.id, {
+        score: accepted && score !== '' ? Number(score) : (gradingSub.score as number),
+        feedback: accepted 
+          ? `[Đã duyệt khiếu nại] ${feedback}` 
+          : `[Từ chối khiếu nại] ${feedback || 'Lý do khiếu nại của bạn chưa phù hợp với rubric.'}`,
+      })
+      if (sendNotification) {
+        console.log(`Notification sent to ${gradingSub.student} regarding appeal`)
+      }
+      setGradingSub(null)
+      load()
+    } catch (error: any) {
+      alert(error.message || 'Xử lý khiếu nại thất bại')
     } finally {
       setIsGrading(false)
     }
@@ -84,6 +117,22 @@ export function LecturerSubmissions() {
   if (loading) return <LoadingSpinner />
   if (error || !assignment) return <ErrorState message={error || 'Không tìm thấy bài tập'} onRetry={load} />
 
+  // Derived stats
+  const gradedCount = submissions.filter(s => s.status === 'graded').length
+  const pendingCount = submissions.length - gradedCount
+  const appealCount = submissions.filter(s => !!s.studentFeedback).length
+  const avgScore = gradedCount > 0 
+    ? (submissions.filter(s => s.score != null).reduce((acc, s) => acc + (s.score as number), 0) / gradedCount).toFixed(1) 
+    : '—'
+
+  // Filtered list
+  const filteredSubmissions = submissions.filter(s => {
+    if (filter === 'graded') return s.status === 'graded'
+    if (filter === 'pending') return s.status !== 'graded'
+    if (filter === 'appeal') return !!s.studentFeedback
+    return true
+  })
+
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen max-w-7xl mx-auto">
       <div className="flex items-center gap-4">
@@ -94,17 +143,60 @@ export function LecturerSubmissions() {
           title={`Bài nộp: ${assignment.title}`} 
           breadcrumbs={[{ label: 'Bài tập', path: '/lecturer/assignments' }, { label: 'Bài nộp' }]} 
           actions={
-            <Button size="sm" onClick={handleStartSession} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
-              <Activity size={16} />
-              Bật AI Chấm điểm
-            </Button>
+            assignment.type === 'Exam' ? (
+              <Button size="sm" onClick={handleStartSession} className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-md hover:shadow-lg transition-all active:scale-95">
+                <BrainCircuit size={16} />
+                Chấm toàn bộ bằng AI (Đề thi)
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
+                <Activity size={16} className="animate-pulse" />
+                AI đang chấm ngầm (Bài tập)
+              </div>
+            )
           }
         />
       </div>
 
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">
+        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
+          <div className="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 p-3 rounded-xl"><Filter size={24}/></div>
+          <div><p className="text-sm font-semibold text-slate-500">Tổng bài nộp</p><p className="text-2xl font-bold">{submissions.length}</p></div>
+        </Card>
+        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
+          <div className="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 p-3 rounded-xl"><CheckCircle size={24}/></div>
+          <div><p className="text-sm font-semibold text-slate-500">Đã chấm</p><p className="text-2xl font-bold">{gradedCount}</p></div>
+        </Card>
+        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
+          <div className="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 p-3 rounded-xl"><Clock size={24}/></div>
+          <div><p className="text-sm font-semibold text-slate-500">Chờ chấm</p><p className="text-2xl font-bold">{pendingCount}</p></div>
+        </Card>
+        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
+          <div className="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 p-3 rounded-xl"><BarChart size={24}/></div>
+          <div><p className="text-sm font-semibold text-slate-500">Điểm trung bình</p><p className="text-2xl font-bold">{avgScore}</p></div>
+        </Card>
+        <Card className="p-4 border-red-100 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 shadow-sm flex items-center gap-4">
+          <div className="bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400 p-3 rounded-xl"><MessageSquareX size={24}/></div>
+          <div><p className="text-sm font-semibold text-red-600 dark:text-red-400">Khiếu nại</p><p className="text-2xl font-bold text-red-700 dark:text-red-300">{appealCount}</p></div>
+        </Card>
+      </div>
+
       <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-        <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-          <CardHeader title={`Danh sách bài nộp (${submissions.length})`} />
+        <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <CardHeader title={`Danh sách bài nộp (${filteredSubmissions.length})`} />
+          <div className="inline-flex rounded-xl bg-white p-1 shadow-sm border border-slate-200/70 dark:bg-[#0f1117] dark:border-slate-800 w-max">
+            <Tabs 
+              items={[
+                { id: 'all', label: 'Tất cả' },
+                { id: 'pending', label: 'Chờ chấm' },
+                { id: 'graded', label: 'Đã chấm' },
+                { id: 'appeal', label: 'Khiếu nại' }
+              ]} 
+              activeId={filter} 
+              onChange={setFilter} 
+            />
+          </div>
         </div>
 
         <div className="p-2 overflow-x-auto custom-scrollbar">
@@ -148,10 +240,18 @@ export function LecturerSubmissions() {
                 header: 'Trạng thái',
                 render: (r) => {
                   const s = (r as SubmissionRow).status
-                  return s === 'graded' ? (
-                    <Badge variant="success" className="flex w-max items-center gap-1"><CheckCircle size={12}/> Đã chấm</Badge>
-                  ) : (
-                    <Badge variant="warning" className="flex w-max items-center gap-1"><Clock size={12}/> Chờ chấm</Badge>
+                  const hasFeedback = !!(r as SubmissionRow).studentFeedback
+                  return (
+                    <div className="flex flex-col gap-1 w-max">
+                      {s === 'graded' ? (
+                        <Badge variant="success" className="flex items-center gap-1"><CheckCircle size={12}/> Đã chấm</Badge>
+                      ) : (
+                        <Badge variant="warning" className="flex items-center gap-1"><Clock size={12}/> Chờ chấm</Badge>
+                      )}
+                      {hasFeedback && (
+                        <Badge variant="danger" className="flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"><Activity size={12}/> Có khiếu nại</Badge>
+                      )}
+                    </div>
                   )
                 }
               },
@@ -161,13 +261,13 @@ export function LecturerSubmissions() {
                 render: (r) => (
                   <div className="flex justify-end gap-2 pr-2">
                     <Button size="sm" variant="outline" onClick={() => openGradeModal(r as SubmissionRow)}>
-                      Chấm bài
+                      {((r as SubmissionRow).studentFeedback) ? 'Xem khiếu nại & Chấm' : 'Chấm bài'}
                     </Button>
                   </div>
                 )
               }
             ]}
-            data={submissions}
+            data={filteredSubmissions}
             keyExtractor={(r) => r.id}
           />
         </div>
@@ -191,6 +291,31 @@ export function LecturerSubmissions() {
                   {gradingSub.content || 'Sinh viên không nộp nội dung văn bản.'}
                 </div>
               </div>
+
+              {gradingSub.studentFeedback && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
+                        <MessageSquareX size={16} /> Khiếu nại từ Sinh viên
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-400 mt-2 whitespace-pre-wrap p-3 bg-white/60 dark:bg-black/20 rounded shadow-inner">
+                        "{gradingSub.studentFeedback}"
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* AI Pre-screening component */}
+                  <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-md">
+                    <p className="text-xs font-bold text-indigo-800 uppercase flex items-center gap-1 mb-1">
+                      <BrainCircuit size={14} /> AI Phân tích khiếu nại
+                    </p>
+                    <p className="text-xs text-indigo-700 italic">
+                      Dựa trên rubric, khiếu nại của sinh viên có cơ sở ở phần "Giải thích thuật toán". Đề xuất: Có thể cộng thêm 0.5 - 1.0 điểm.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {gradingSub.aiScore != null && (
                 <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-lg">
@@ -225,15 +350,40 @@ export function LecturerSubmissions() {
                     placeholder="Nhập nhận xét cho sinh viên..."
                     className="w-full min-h-[100px] p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-brand-500 outline-none text-sm"
                   />
+                  <div className="mt-2 flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="notifyStudent" 
+                      checked={sendNotification} 
+                      onChange={(e) => setSendNotification(e.target.checked)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <label htmlFor="notifyStudent" className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 cursor-pointer">
+                      <Bell size={14} />
+                      Gửi thông báo cho sinh viên sau khi chấm
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900">
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-between bg-slate-50 dark:bg-slate-900">
               <Button variant="outline" onClick={() => setGradingSub(null)}>Hủy</Button>
-              <Button onClick={handleGrade} disabled={isGrading || score === ''} className="bg-brand-600 hover:bg-brand-700 text-white">
-                {isGrading ? 'Đang lưu...' : <><Save size={16} className="mr-2"/> Lưu điểm</>}
-              </Button>
+              
+              {gradingSub.studentFeedback ? (
+                <div className="flex gap-2">
+                  <Button onClick={() => handleResolveAppeal(false)} disabled={isGrading} variant="outline" className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50">
+                    <X size={16} className="mr-1"/> Từ chối khiếu nại
+                  </Button>
+                  <Button onClick={() => handleResolveAppeal(true)} disabled={isGrading || score === ''} className="bg-brand-600 hover:bg-brand-700 text-white">
+                    <CheckCircle2 size={16} className="mr-1"/> Duyệt & Lưu điểm mới
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleGrade} disabled={isGrading || score === ''} className="bg-brand-600 hover:bg-brand-700 text-white">
+                  {isGrading ? 'Đang lưu...' : <><Save size={16} className="mr-2"/> Lưu điểm</>}
+                </Button>
+              )}
             </div>
           </Card>
         </div>

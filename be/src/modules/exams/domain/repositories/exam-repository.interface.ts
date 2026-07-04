@@ -14,4 +14,5 @@ export interface IExamRepository {
   create(exam: Exam): Promise<void>
   update(exam: Exam): Promise<void>
   save(exam: Exam): Promise<void>
+  assignToClass(examId: string, classId: string, dueDate?: string): Promise<void>
 }

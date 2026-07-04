@@ -18,7 +18,8 @@ export class CreateSubjectUseCase implements IUseCase<SubjectRequestDto, ReturnT
     const subject = Subject.create(
       randomUUID(),
       dto.data.code,
-      dto.data.name
+      dto.data.name,
+      dto.data.description
     )
 
     await this.subjectRepo.create(subject)

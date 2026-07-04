@@ -1,98 +1,164 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { StatCard } from '@/components/ui/StatCard'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { api } from '@/lib/api'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { ErrorState } from '@/components/common/ErrorState'
-import { BookOpen, ArrowRight, ClipboardList } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { api, type AssignmentRow } from '@/lib/api'
+import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar } from 'lucide-react'
+import { APIError } from '@/components/common/ErrorState'
 
 export function StudentOverview() {
-  const [stats, setStats] = useState<Record<string, string | number>>({})
+  const navigate = useNavigate()
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
+  const [classes, setClasses] = useState<any[]>([])
+
+  const loadData = useCallback(() => {
     let alive = true
+    setLoading(true)
+    setError(null)
     Promise.all([
-      api.getClasses(),
-      api.getAssignments({ limit: '5' })
-    ]).then(([classesData, assignmentsData]) => {
-      if (alive) {
-        setStats({
-          classes: classesData?.length || 0,
-          assignments: assignmentsData?.length || 0
-        })
-      }
-    }).catch((e) => {
-      if (alive) setError(e.message)
-    }).finally(() => {
-      if (alive) setLoading(false)
-    })
+      api.getAssignments({ limit: '10' }),
+      api.getClasses()
+    ])
+      .then(([assignmentsData, classesData]) => {
+        if (alive) {
+          setAssignments(assignmentsData || [])
+          setClasses(classesData || [])
+        }
+      })
+      .catch(err => { if (alive) setError(err) })
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [])
 
-  const statCards = [
-    { id: 'classes', label: 'Lớp đang học', value: stats.classes ?? '—', icon: BookOpen },
-    { id: 'assignments', label: 'Bài tập', value: stats.assignments ?? '—', icon: ClipboardList },
-  ]
+  useEffect(() => {
+    const cleanup = loadData()
+    return cleanup
+  }, [loadData])
 
-  const shortcuts = [
-    { to: '/student/classes', icon: BookOpen, label: 'Lớp học', cls: 'bg-brand-50 text-brand-700 border-brand-100 dark:bg-brand-500/10 dark:text-brand-400 dark:border-brand-500/20' },
-    { to: '/student/assignments', icon: ClipboardList, label: 'Bài tập', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' },
-  ]
+  if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
+  if (error) return <APIError error={error} onRetry={loadData} />
 
-  if (loading) return <LoadingSpinner />
-  if (error) return <ErrorState message={error} />
+  // Filter out upcoming tasks
+  const upcomingTasks = assignments.filter(a => a.due && new Date(a.due) > new Date()).slice(0, 5)
+
+  // Mapped enrolled subjects from classes
+  const subjects = classes.map(c => ({
+    id: c.id,
+    code: typeof c.subject === 'object' ? c.subject.code : c.subject || 'N/A',
+    name: typeof c.subject === 'object' ? c.subject.name : 'Môn học',
+    teacher: c.lecturer?.fullName || c.lecturer?.name || 'Chưa phân công',
+  }))
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          title="Bảng học tập"
-          description="Theo dõi bài tập và lớp học của bạn."
-          breadcrumbs={[{ label: 'Sinh viên', path: '/student' }, { label: 'Tổng quan' }]}
-        />
-        <Link to="/student/assignments">
-          <Button variant="primary" size="sm" className="gap-2 shrink-0">
-            Xem bài tập <ArrowRight size={14} />
-          </Button>
-        </Link>
+    <div className="space-y-6 animate-fade-in-up pb-10">
+      {/* Simple Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div>
+          <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
+            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên - Học kỳ 1 (2026)</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+            Chào bạn, chúc một ngày tốt lành!
+          </h1>
+          <p className="mt-1 text-slate-500 dark:text-slate-400">
+            Bạn có {upcomingTasks.length} bài tập sắp đến hạn. Hãy hoàn thành sớm nhé.
+          </p>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {statCards.map((s, i) => (
-          <div key={s.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
-            <StatCard {...s} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column: Enrolled Subjects */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen className="text-brand-600" size={20} /> Các môn học hiện tại
+            </h2>
+            <Link to="/student/classes" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
+              Xem bảng điểm <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+            </Link>
           </div>
-        ))}
-      </div>
 
-      {/* Content */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Shortcuts */}
-        <Card padding="none" className="overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
-            <BookOpen size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Lối tắt học tập</span>
-          </div>
-          <div className="p-4 grid grid-cols-2 gap-3">
-            {shortcuts.map((s) => (
-              <Link key={s.to} to={s.to}
-                className={`flex flex-col items-center justify-center gap-2.5 rounded-2xl border ${s.cls} bg-white dark:bg-[#161b27] p-5 text-center hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {subjects.map((sub, idx) => (
+              <div 
+                key={idx}
+                onClick={() => navigate(`/student/classes`)}
+                className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
               >
-                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${s.cls}`}>
-                  <s.icon size={20} />
+                <div>
+                  <span className="text-xs font-bold bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 px-2 py-1 rounded mb-2 inline-block">
+                    {sub.code}
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1">
+                    {sub.name}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    GV: {sub.teacher}
+                  </p>
                 </div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 leading-tight">{s.label}</span>
-              </Link>
+              </div>
             ))}
           </div>
-        </Card>
+        </div>
+
+        {/* Right Column: Upcoming Deadlines */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Clock className="text-amber-500" size={20} /> Việc cần làm
+          </h2>
+
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 text-sm">
+                Sắp đến hạn
+              </h3>
+              <span className="bg-white border border-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
+                {upcomingTasks.length}
+              </span>
+            </div>
+            
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {upcomingTasks.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-sm flex flex-col items-center">
+                  <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
+                  Bạn đã hoàn thành mọi bài tập!
+                </div>
+              ) : (
+                upcomingTasks.map((item) => (
+                  <div key={item.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/student/assignments/${item.id}`)}>
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1">
+                        {item.type === 'Exam' ? (
+                          <Calendar size={16} className="text-indigo-500" />
+                        ) : (
+                          <FileText size={16} className="text-emerald-500" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
+                          {item.title}
+                        </h4>
+                        {item.due && (
+                          <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
+                            <Clock size={12} /> Hạn: {new Date(item.due).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800">
+              <Link to="/student/assignments" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                Xem tất cả bài tập
+              </Link>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   )

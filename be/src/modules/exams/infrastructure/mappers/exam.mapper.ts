@@ -19,13 +19,17 @@ export class ExamMapper {
       raw.AiGeneratedContent,
       raw.OriginalPrompt,
       raw.PromptTemplateId,
-      raw.CreatedBy
+      raw.CreatedBy,
+      raw.DueDate ? new Date(raw.DueDate) : null
     )
     
     // Add additional unmapped fields safely if needed by DTOs or logic
     if (raw.Subject) {
       (exam as any).subjectName = raw.Subject.SubjectName;
       (exam as any).subjectCode = raw.Subject.SubjectCode;
+    }
+    if (raw.ExamClass) {
+      (exam as any).classes = raw.ExamClass.map((ec: any) => ec.ClassId);
     }
     if (raw._count?.Submission !== undefined) {
       (exam as any).submissionCount = raw._count.Submission
@@ -51,7 +55,8 @@ export class ExamMapper {
       AiGeneratedContent: exam.aiGeneratedContent,
       OriginalPrompt: exam.originalPrompt,
       PromptTemplateId: exam.promptTemplateId,
-      CreatedBy: exam.createdBy
+      CreatedBy: exam.createdBy,
+      DueDate: exam.dueDate
     }
   }
 }

@@ -40,7 +40,7 @@ export function rateLimiter(limit: number = 100, windowMs: number = 60000) {
 }
 
 // Cleanup interval to prevent memory leaks
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   const now = Date.now()
   for (const ip in store) {
     if (now > store[ip].resetTime) {
@@ -48,3 +48,5 @@ setInterval(() => {
     }
   }
 }, 60000)
+
+cleanupInterval.unref()

@@ -1,5 +1,5 @@
 ## Task
-<!-- BẮT BUỘC để track: mã task liên quan, vd: [FE-S-04] Course Dashboard -->
+<!-- BẮT BUỘC để track: đặt mã task ở ĐẦU tiêu đề PR. Quy ước mã TẠM (team chốt sau) — vd: [TASK-ID] / [FE-S-04] / [ALEXP-32] -->
 -
 
 ## Thay đổi

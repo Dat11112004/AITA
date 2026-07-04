@@ -6,7 +6,8 @@ import { CreateUserUseCase } from '../application/use-cases/create-user.use-case
 import { UpdateUserUseCase } from '../application/use-cases/update-user.use-case.js'
 import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case.js'
 import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case.js'
-import { CreateUserDto, UpdateUserDto } from '../application/dtos/user.dto.js'
+import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
+import { CreateUserDto, UpdateUserDto, ImportUsersBatchDto } from '../application/dtos/user.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class UsersController extends BaseController {
@@ -16,6 +17,7 @@ export class UsersController extends BaseController {
         private readonly updateUseCase: UpdateUserUseCase,
         private readonly deleteUseCase: DeleteUserUseCase,
         private readonly toggleLockUseCase: ToggleLockUseCase,
+        private readonly importUseCase: ImportUsersUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -55,5 +57,12 @@ export class UsersController extends BaseController {
         const { locked } = req.body
         const result = await this.toggleLockUseCase.execute({ id: String(req.params.id), locked })
         this.ok(res, result, MESSAGES.USER_TOGGLE_LOCK_SUCCESS)
+    }
+
+    async import(req: Request, res: Response): Promise<void> {
+        this.logger.debug('Received import users request')
+        const dto = ImportUsersBatchDto.parse(req.body)
+        const result = await this.importUseCase.execute(dto)
+        this.created(res, result, 'Users imported successfully')
     }
 }

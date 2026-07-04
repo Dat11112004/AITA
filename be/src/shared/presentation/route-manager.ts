@@ -15,6 +15,7 @@ import { GradingRouter } from '../../modules/grading/presentation/grading.router
 import { StatsRouter } from '../../modules/stats/presentation/stats.router.js'
 import { SettingsRouter } from '../../modules/settings/presentation/settings.router.js'
 import { OptionsRouter } from '../../modules/settings/presentation/options.router.js'
+import { SemestersRouter } from '../../modules/semesters/presentation/semesters.router.js'
 /**
  * ApiRouteManager — centrally manages all API routes.
  *
@@ -40,6 +41,7 @@ export class ApiRouteManager {
 
     // ── Clean Architecture Modules ───────────────────────────────
     this.router.use('/auth', new AuthRouter().router)
+    this.router.use('/semesters', new SemestersRouter().router)
     this.router.use('/classes', new ClassesRouter().router)
     this.router.use('/subjects', new SubjectsRouter().router)
     this.router.use('/assignments', new ExamsRouter().router) // Legacy UI still calls /assignments

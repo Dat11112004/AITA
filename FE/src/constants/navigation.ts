@@ -10,6 +10,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: 'audit-logs', label: 'Nhật ký', path: '/admin/audit-logs', icon: 'FileText' },
   { id: 'ai-config', label: 'Cấu hình AI', path: '/admin/ai-config', icon: 'Bot' },
   { id: 'settings', label: 'Cài đặt', path: '/admin/settings', icon: 'Settings' },
+  { id: 'notifications', label: 'Thông báo', path: '/admin/notifications', icon: 'BellRing' },
 ]
 
 export const LECTURER_NAV: NavItem[] = [
@@ -17,14 +18,15 @@ export const LECTURER_NAV: NavItem[] = [
   { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen' },
   { id: 'assignments', label: 'Bài tập', path: '/lecturer/assignments', icon: 'FileText' },
   { id: 'exams', label: 'Kỳ thi', path: '/lecturer/exams', icon: 'FileSignature' },
+  { id: 'profile', label: 'Hồ sơ', path: '/lecturer/profile', icon: 'UserCircle' },
 ]
 
 export const STUDENT_NAV: NavItem[] = [
   { id: 'overview', label: 'Tổng quan', path: '/student', icon: 'LayoutDashboard' },
-  { id: 'classes', label: 'Lớp học', path: '/student/classes', icon: 'BookOpen' },
+  { id: 'courses', label: 'Khóa học', path: '/student/courses', icon: 'BookOpen' },
+  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'GraduationCap' },
   { id: 'assignments', label: 'Bài tập', path: '/student/assignments', icon: 'ClipboardList' },
-  { id: 'exams', label: 'Kỳ thi', path: '/student/exams', icon: 'FileSignature' },
-  { id: 'ai-feedback', label: 'AI Feedback', path: '/student/ai-feedback', icon: 'Bot' },
+  { id: 'profile', label: 'Hồ sơ', path: '/student/profile', icon: 'UserCircle' },
 ]
 
 export const PUBLIC_NAV = [

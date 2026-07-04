@@ -7,11 +7,13 @@ import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '.
 import { CreateSubmissionRequestDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 import { Submission } from '../../domain/entities/submission.entity.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
+import type { AssessSubmissionUseCase } from '../../../ai/application/use-cases/assess-submission.use-case.js'
 
 export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmissionRequestDto; user: AuthUser }, ReturnType<typeof SubmissionResponseDto.from>> {
   constructor(
     private readonly submissionRepo: ISubmissionRepository,
-    private readonly uow: IUnitOfWork
+    private readonly uow: IUnitOfWork,
+    private readonly assessSubmissionUseCase?: AssessSubmissionUseCase
   ) { }
 
   async execute({ dto, user }: { dto: CreateSubmissionRequestDto; user: AuthUser }) {
@@ -50,13 +52,13 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     }
 
     // Check deadline
-    // const now = new Date()
-    // const duration = exam.duration ?? 0 
-    // Ideally we track Exam DueDate. For now we just use legacy logic or pass due date checks.
-    // If exam has due date...
-    // if (dueDate && new Date(dueDate) < now) {
-    //   throw new ValidationError('Hạn nộp bài đã hết')
-    // }
+    if (exam.dueDate) {
+      const now = new Date()
+      const dueDate = new Date(exam.dueDate)
+      if (now > dueDate) {
+        throw new ValidationError('Hạn nộp bài đã hết')
+      }
+    }
 
     const submission = Submission.create(
       randomUUID(),
@@ -69,15 +71,25 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
 
     await this.submissionRepo.create(submission)
 
+    // Trigger AI background grading if it is an assignment
+    if (exam.examType === 'Assignment' && this.assessSubmissionUseCase) {
+      // Run asynchronously without awaiting
+      this.assessSubmissionUseCase.execute(submission.id).catch(err => {
+        console.error(`[Background Grading] Error assessing submission ${submission.id}:`, err);
+      });
+    }
+
     return SubmissionResponseDto.from(submission as any)
   }
 
   private isValidFileUrl(url: string): boolean {
     try {
-      new URL(url)
-      return url.endsWith('.zip') || url.includes('blob:')
+      if (url.startsWith('data:')) return true;
+      if (url.startsWith('blob:')) return true;
+      new URL(url);
+      return true;
     } catch {
-      return false
+      return false;
     }
   }
 }

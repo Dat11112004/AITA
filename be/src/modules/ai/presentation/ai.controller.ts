@@ -5,6 +5,7 @@ import { SaveAiAssignmentUseCase } from '../application/use-cases/save-ai-assign
 import { AssessSubmissionUseCase } from '../application/use-cases/assess-submission.use-case.js'
 import { GetLearningFeedbackUseCase } from '../application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../application/use-cases/ai-config.use-case.js'
+import { GenerateRubricUseCase } from '../application/use-cases/generate-rubric.use-case.js'
 import { ApiResponse } from '../../../shared/presentation/api-response.js'
 import { ForbiddenError } from '../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
@@ -16,7 +17,8 @@ export class AiController {
         private readonly assessSubmissionUseCase: AssessSubmissionUseCase,
         private readonly getLearningFeedbackUseCase: GetLearningFeedbackUseCase,
         private readonly getConfigUseCase: GetAiConfigUseCase,
-        private readonly updateConfigUseCase: UpdateAiConfigUseCase
+        private readonly updateConfigUseCase: UpdateAiConfigUseCase,
+        private readonly generateRubricUseCase: GenerateRubricUseCase
     ) { }
 
     async generateExercise(req: Request, res: Response): Promise<void> {
@@ -32,6 +34,23 @@ export class AiController {
 
         const result = await this.generateExerciseUseCase.execute(input)
         res.status(200).json(ApiResponse.success(MESSAGES.AI_GENERATE_SUCCESS, { result, assignment: null }))
+    }
+
+    async generateRubric(req: Request, res: Response): Promise<void> {
+        const input = z.object({
+            topic: z.string().min(1),
+            difficulty: z.string().optional(),
+            totalScore: z.coerce.number().optional(),
+        }).parse(req.body)
+
+        const fileData = req.file ? {
+            filename: req.file.originalname,
+            buffer: req.file.buffer,
+            mimetype: req.file.mimetype
+        } : undefined;
+
+        const result = await this.generateRubricUseCase.execute({ ...input, file: fileData })
+        res.status(200).json(ApiResponse.success('Generated rubric successfully', result))
     }
 
     async saveAssignmentFromAI(req: Request, res: Response): Promise<void> {
