@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
 import { api, type AuthUser } from '@/lib/api'
-import { DEV_PREVIEW, mockUser } from '@/lib/devPreview'
+import { DEV_AUTOLOGIN, DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD, DEV_PREVIEW, mockUser } from '@/lib/devPreview'
 import { secureStore } from '@/lib/secureStore'
 
 // Mirrors the web AuthContext (FE/src/store/AuthContext): login / logout / boot-time me().
@@ -33,6 +33,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const token = await secureStore.getToken()
       if (!token) {
+        // Dev bypass: real login with the seeded test account so review lands straight
+        // on the dashboard with live BE data. Falls back to the login screen on failure.
+        if (DEV_AUTOLOGIN) {
+          try {
+            const res = await api.login(DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD)
+            await secureStore.setToken(res.token)
+            if (res.refreshToken) await secureStore.setRefresh(res.refreshToken)
+            await secureStore.setUser(res.user)
+            if (alive) {
+              setUser(res.user)
+              setStatus('authed')
+            }
+            return
+          } catch {
+            // BE not running or account missing — behave like a normal guest
+          }
+        }
         if (alive) setStatus('guest')
         return
       }

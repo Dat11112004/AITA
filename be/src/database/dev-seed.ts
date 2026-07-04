@@ -1,0 +1,40 @@
+import bcrypt from 'bcryptjs'
+import { prisma } from './prisma.js'
+
+/**
+ * Dev-only bootstrap: upsert the three demo accounts on server start so a fresh
+ * DB is immediately loginable (mobile/web review) without running `npm run db:seed`.
+ * Idempotent — safe to run on every boot. Full demo data (class, enrollment, exams)
+ * still comes from `prisma/seed.ts` via `npm run setup`.
+ */
+const ACCOUNTS = [
+  { role: 'ADMIN', email: 'admin@fpt.edu.vn', password: 'admin123', fullName: 'Quản trị AITA', code: 'ADM001' },
+  { role: 'LECTURER', email: 'lecturer@fpt.edu.vn', password: 'lecturer123', fullName: 'Nguyễn Văn Giảng', code: 'GV001' },
+  { role: 'STUDENT', email: 'student@fpt.edu.vn', password: 'student123', fullName: 'Trần Thị Sinh', code: 'HE170001' },
+] as const
+
+export async function seedTestAccounts(): Promise<void> {
+  for (const acc of ACCOUNTS) {
+    const role = await prisma.role.upsert({
+      where: { RoleName: acc.role },
+      update: {},
+      create: { RoleName: acc.role },
+    })
+    const user = await prisma.user.upsert({
+      where: { Email: acc.email },
+      update: {},
+      create: {
+        Email: acc.email,
+        PasswordHash: await bcrypt.hash(acc.password, 10),
+        FullName: acc.fullName,
+        StudentCode: acc.code,
+        Status: 'Active',
+      },
+    })
+    await prisma.userRole.upsert({
+      where: { UserId_RoleId: { UserId: user.Id, RoleId: role.Id } },
+      update: {},
+      create: { UserId: user.Id, RoleId: role.Id },
+    })
+  }
+}

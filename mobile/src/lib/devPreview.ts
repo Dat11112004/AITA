@@ -5,6 +5,13 @@ import type { AssignmentRow, AuthUser, ClassRow } from './api'
 // path is unaffected when the flag is off. Safe to delete once on-device review against the BE is set up.
 export const DEV_PREVIEW = process.env.EXPO_PUBLIC_DEV_PREVIEW === '1'
 
+// DEV-ONLY autologin against the REAL backend: skips the login screen by signing in
+// with the seeded test account on boot (BE dev server upserts it — see be/src/database/dev-seed.ts).
+// Unlike DEV_PREVIEW this uses real API data end-to-end. Off unless explicitly '1'.
+export const DEV_AUTOLOGIN = process.env.EXPO_PUBLIC_DEV_AUTOLOGIN === '1'
+export const DEV_LOGIN_EMAIL = process.env.EXPO_PUBLIC_DEV_LOGIN_EMAIL || 'student@fpt.edu.vn'
+export const DEV_LOGIN_PASSWORD = process.env.EXPO_PUBLIC_DEV_LOGIN_PASSWORD || 'student123'
+
 export const mockUser: AuthUser = {
   id: 'dev-student-1',
   email: 'student@fpt.edu.vn',

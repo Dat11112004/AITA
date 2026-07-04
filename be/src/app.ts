@@ -16,7 +16,8 @@ export function createApp() {
   // Accept both :5173 and :5174 for frontend dev
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-      const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']
+      // :8081 = Expo/Metro web (mobile app reviewed in the browser)
+      const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:8081']
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true)
       } else {
