@@ -70,3 +70,38 @@ export const uploadAvatarMiddleware = multer({
     }
   },
 });
+
+const EXCEL_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'imports');
+if (!fs.existsSync(EXCEL_UPLOAD_DIR)) {
+  fs.mkdirSync(EXCEL_UPLOAD_DIR, { recursive: true });
+}
+
+const excelStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, EXCEL_UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const id = randomUUID();
+    cb(null, `${id}${ext}`);
+  },
+});
+
+export const uploadExcelMiddleware = multer({
+  storage: excelStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+      'application/vnd.ms-excel', // xls
+      'text/csv', // csv
+    ];
+    if (allowedMimeTypes.includes(file.mimetype) || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only Excel and CSV files are allowed.'));
+    }
+  },
+});

@@ -27,7 +27,7 @@ export function AdminUsers() {
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
-  const [importText, setImportText] = useState('')
+  const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -137,41 +137,19 @@ export function AdminUsers() {
   }
 
   const handleImport = async () => {
-    if (!importText.trim()) {
-      setError('Vui lòng dán dữ liệu CSV')
+    if (!importFile) {
+      setError('Vui lòng chọn file Excel')
       return
     }
     
     setImporting(true)
     setError('')
     try {
-      const lines = importText.trim().split('\n')
-      // Skip header if it exists
-      const startIndex = lines[0].toLowerCase().includes('email') ? 1 : 0
-      
-      const usersToImport = []
-      for (let i = startIndex; i < lines.length; i++) {
-        // Split by either tab (Excel) or comma (CSV)
-        const parts = lines[i].split(/\t|,/).map(p => p.trim())
-        if (parts.length < 2) continue
-        
-        usersToImport.push({
-          fullName: parts[0],
-          email: parts[1],
-          classCode: parts[2] || undefined,
-          semesterCode: parts[3] || undefined,
-          subjectCode: parts[4] || undefined,
-          role: (parts[5]?.toUpperCase() || 'STUDENT') as any,
-          status: (parts[6]?.toUpperCase() || 'ACTIVE') as any
-        })
-      }
-      
-      if (usersToImport.length === 0) {
-        throw new Error('Không tìm thấy dữ liệu hợp lệ để import')
-      }
+      const formData = new FormData()
+      formData.append('file', importFile)
 
-      await api.importUsers({ users: usersToImport })
-      setImportText('')
+      await api.importStudentsExcel(formData)
+      setImportFile(null)
       setShowImport(false)
       load()
     } catch (e) {
@@ -201,7 +179,7 @@ export function AdminUsers() {
               onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
             >
               <Upload size={16} />
-              Import CSV
+              Import Sinh viên (Excel)
             </Button>
             <Button
               size="sm"
@@ -239,8 +217,8 @@ export function AdminUsers() {
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader
-              title="Import Danh sách người dùng (CSV)"
-              description="Dán nội dung file CSV. Cột bắt buộc: Tên, Email. Cột tùy chọn: Lớp, Kì học, Môn học, Vai trò (STUDENT/LECTURER/ADMIN), Trạng thái (ACTIVE/LOCKED)."
+              title="Import Danh sách Sinh viên (Excel)"
+              description="Tải lên file Excel theo chuẩn template quy định."
             />
             <button type="button" onClick={() => setShowImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
               <X size={18} />
@@ -256,18 +234,17 @@ export function AdminUsers() {
 
           <div className="space-y-4">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-              <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Định dạng mẫu (có hoặc không có header):</span>
-              FullName, Email, ClassCode, SemesterCode, SubjectCode, Role, Status<br/>
-              Nguyễn Văn A, a@fpt.edu.vn, 18A01, FALL26, PRO, STUDENT, ACTIVE<br/>
-              Trần Thị B, b@fpt.edu.vn, , , , LECTURER, ACTIVE
+              <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+              MSSV | Họ và tên | Email | Số điện thoại | Kỳ học | Lớp học<br/>
+              QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | 0912345678 | 8 | SE18C01
             </div>
             
             <div>
-              <textarea
-                className="w-full h-48 p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500 font-mono"
-                placeholder="Dán dữ liệu CSV vào đây..."
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
+              <input
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
               />
             </div>
             
