@@ -1,15 +1,33 @@
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield } from 'lucide-react'
+import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield, GraduationCap, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/store/AuthContext'
-import { api } from '@/lib/api'
+import { api, type ClassRow } from '@/lib/api'
 
 export function Profile() {
   const { user } = useAuth()
-  
+  const [params] = useSearchParams()
+  // Tài khoản import vào bằng mật khẩu tạm → LoginPage đẩy về đây kèm ?forcePasswordChange=1
+  const mustChangePassword = params.get('forcePasswordChange') === '1' || !!user?.requirePasswordChange
+
+  // Giảng viên: danh sách lớp/môn đang dạy theo kỳ (GET /classes đã tự lọc theo instructor)
+  const [teaching, setTeaching] = useState<ClassRow[]>([])
+  const [teachingLoading, setTeachingLoading] = useState(false)
+  useEffect(() => {
+    if (user?.role !== 'lecturer') return
+    let alive = true
+    setTeachingLoading(true)
+    api.getClasses(1, 100)
+      .then(res => { if (alive) setTeaching(res || []) })
+      .catch(() => { if (alive) setTeaching([]) })
+      .finally(() => { if (alive) setTeachingLoading(false) })
+    return () => { alive = false }
+  }, [user?.role])
+
   const [profile, setProfile] = useState({
     fullName: '',
     phone: '',
@@ -105,11 +123,21 @@ export function Profile() {
 
   return (
     <div className="space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <PageHeader 
-        title="Hồ sơ Cá nhân" 
+      <PageHeader
+        title="Hồ sơ Cá nhân"
         description="Quản lý thông tin cá nhân và bảo mật tài khoản của bạn."
-        breadcrumbs={[{ label: 'Hồ sơ' }]} 
+        breadcrumbs={[{ label: 'Hồ sơ' }]}
       />
+
+      {mustChangePassword && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300">
+          <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold">Bạn đang dùng mật khẩu tạm.</p>
+            <p>Vui lòng đổi mật khẩu ngay tại mục <strong>Đổi Mật Khẩu</strong> bên dưới trước khi sử dụng hệ thống.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-8">
         
@@ -148,6 +176,36 @@ export function Profile() {
             </div>
           </Card>
           
+          {user.role === 'lecturer' && (
+            <Card className="p-0 border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
+                <GraduationCap size={16} className="text-brand-600" /> Phân công giảng dạy
+              </div>
+              <div className="p-4 space-y-2 text-sm">
+                {teachingLoading && <p className="text-slate-500">Đang tải...</p>}
+                {!teachingLoading && teaching.length === 0 && (
+                  <p className="text-slate-500">Chưa được phân công lớp nào.</p>
+                )}
+                {!teachingLoading && teaching.map((cls) => {
+                  const semesterLabel = typeof cls.semester === 'string'
+                    ? cls.semester
+                    : (cls.semester as any)?.name || (cls.semester as any)?.code || 'Chưa rõ kỳ'
+                  return (
+                    <div key={cls.id} className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800 dark:text-slate-200 truncate">{cls.subject || cls.name || cls.code}</p>
+                        <p className="text-xs text-slate-500">Lớp {cls.code}</p>
+                      </div>
+                      <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
+                        {semesterLabel}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
+
           <Card className="p-0 border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
               <Shield size={16} className="text-brand-600" /> Trạng thái tài khoản

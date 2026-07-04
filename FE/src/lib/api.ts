@@ -211,6 +211,8 @@ export interface AuthUser {
   role: 'admin' | 'lecturer' | 'student'
   status: string
   externalId?: string | null
+  // true khi tài khoản được tạo qua import — hệ thống ép đổi mật khẩu lần đầu đăng nhập
+  requirePasswordChange?: boolean
 }
 
 export interface UserRow {

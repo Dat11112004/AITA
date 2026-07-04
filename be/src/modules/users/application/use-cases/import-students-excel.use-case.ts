@@ -7,13 +7,28 @@ import { AppError } from '../../../../shared/application/app.error.js'
 
 const prisma = new PrismaClient()
 
-interface ImportStudentRow {
-    MSSV?: string;
-    'Họ và tên'?: string;
-    Email?: string;
-    'Số điện thoại'?: string;
-    'Kỳ học'?: string;
-    'Lớp học'?: string;
+type ImportStudentRow = Record<string, unknown>
+
+// Chấp nhận cả header tiếng Việt lẫn tiếng Anh (file của Admin có thể xuất từ template khác nhau).
+// So khớp không phân biệt hoa thường và bỏ khoảng trắng thừa.
+const HEADER_ALIASES: Record<string, string[]> = {
+    mssv: ['mssv', 'student id', 'studentid', 'student code'],
+    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname'],
+    email: ['email'],
+    phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone'],
+    semester: ['kỳ học', 'ky hoc', 'semester'],
+    classCode: ['lớp học', 'lop hoc', 'class'],
+}
+
+function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
+    const aliases = HEADER_ALIASES[key]
+    for (const [header, value] of Object.entries(row)) {
+        if (aliases.includes(header.trim().toLowerCase())) {
+            const s = value?.toString().trim()
+            if (s) return s
+        }
+    }
+    return undefined
 }
 
 export class ImportStudentsExcelUseCase {
@@ -55,9 +70,10 @@ export class ImportStudentsExcelUseCase {
                 data: { TotalRows: rows.length }
             })
 
-            const studentRole = await prisma.role.findUnique({ where: { RoleName: 'student' } })
+            // Roles trong DB là UPPERCASE (xem seed/auth) — 'student' thường sẽ không bao giờ khớp
+            const studentRole = await prisma.role.findUnique({ where: { RoleName: 'STUDENT' } })
             if (!studentRole) {
-                throw new AppError('SYSTEM_ERROR', 'Chưa cấu hình role student trong hệ thống', 500)
+                throw new AppError('SYSTEM_ERROR', 'Chưa cấu hình role STUDENT trong hệ thống', 500)
             }
 
             // Process row by row
@@ -66,12 +82,12 @@ export class ImportStudentsExcelUseCase {
                 const rowIndex = i + 2 // +2 because 0-index and header row
 
                 try {
-                    const mssv = row['MSSV']?.toString().trim()
-                    const fullName = row['Họ và tên']?.toString().trim()
-                    const email = row['Email']?.toString().trim()
-                    const phone = row['Số điện thoại']?.toString().trim()
-                    const semesterCode = row['Kỳ học']?.toString().trim()
-                    const classCode = row['Lớp học']?.toString().trim()
+                    const mssv = getField(row, 'mssv')
+                    const fullName = getField(row, 'fullName')
+                    const email = getField(row, 'email')
+                    const phone = getField(row, 'phone')
+                    const semesterCode = getField(row, 'semester')
+                    const classCode = getField(row, 'classCode')
 
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
                         throw new Error('Thiếu thông tin bắt buộc (MSSV, Họ và tên, Email, Kỳ học, Lớp học)')
@@ -128,6 +144,7 @@ export class ImportStudentsExcelUseCase {
                             Phone: phone,
                             PasswordHash: passwordHash,
                             Status: 'Active',
+                            RequirePasswordChange: true,
                             UserRole: {
                                 create: {
                                     RoleId: studentRole.Id,
@@ -161,14 +178,14 @@ export class ImportStudentsExcelUseCase {
                                 <li><strong>Lớp học:</strong> ${classCode}</li>
                                 <li><strong>Các môn tham gia:</strong> ${subjectsList || 'Không có'}</li>
                             </ul>
-                            <p>Vui lòng đăng nhập và thay đổi mật khẩu trong lần đăng nhập đầu tiên để đảm bảo an toàn thông tin.</p>
+                            <p><strong>Lưu ý:</strong> đây là mật khẩu tạm. Khi đăng nhập lần đầu trên website, hệ thống sẽ yêu cầu bạn đổi mật khẩu mới trước khi vào lớp học và nộp bài.</p>
                         `
                     )
 
                     successCount++
                 } catch (err: any) {
                     errorCount++
-                    errors.push(`Dòng ${rowIndex} (${row.Email || 'Không rõ'}): ${err.message}`)
+                    errors.push(`Dòng ${rowIndex} (${getField(row, 'email') || 'Không rõ'}): ${err.message}`)
                 }
             }
 

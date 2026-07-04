@@ -52,6 +52,7 @@ export class UserResponseDto {
             phone: user.phone || user.Phone,
             avatar: user.avatar || user.Avatar,
             lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : (user.LastLoginAt ? user.LastLoginAt.toISOString() : null),
+            requirePasswordChange: user.requirePasswordChange ?? user.RequirePasswordChange ?? false,
             roles: roles
         }
     }

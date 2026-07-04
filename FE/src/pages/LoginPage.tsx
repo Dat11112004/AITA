@@ -39,6 +39,14 @@ export function LoginPage() {
   const go = (role: UserRole) => {
     const r = params.get('redirect')
     const lowerRole = role.toLowerCase()
+    // Tài khoản import bắt buộc đổi mật khẩu tạm trước khi dùng hệ thống
+    try {
+      const stored = JSON.parse(localStorage.getItem('aita_user') || 'null')
+      if (stored?.requirePasswordChange) {
+        navigate(`/${lowerRole}/profile?forcePasswordChange=1`)
+        return
+      }
+    } catch { /* user JSON hỏng thì đi luồng thường */ }
     navigate(r?.startsWith(`/${lowerRole}`) ? r : roleRedirect[lowerRole])
   }
 
