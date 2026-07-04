@@ -158,6 +158,13 @@ export const api = {
       body: isFormData ? body : JSON.stringify(body),
     })
   },
+  saveExamRubric: (examId: string, body: any) => {
+    const isFormData = body instanceof FormData;
+    return request<any>(`/rubrics/exams/${examId}`, {
+      method: 'POST',
+      body: isFormData ? body : JSON.stringify(body),
+    })
+  },
   saveAIAssignment: (body: any) =>
     request<AssignmentRow>('/ai/save-assignment', { method: 'POST', body: JSON.stringify(body) }),
   assessSubmissionAI: (submissionId: string) =>

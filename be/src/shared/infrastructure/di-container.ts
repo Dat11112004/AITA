@@ -77,6 +77,7 @@ import { BroadcastNotificationUseCase } from '../../modules/notifications/applic
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
 import { PrismaRubricRepository } from '../../modules/rubric/infrastructure/repositories/prisma-rubric-repository.js'
 import { ListRubricRulesUseCase, GetRubricRuleWithCriteriaUseCase } from '../../modules/rubric/application/use-cases/rubric.use-case.js'
+import { SaveExamRubricUseCase } from '../../modules/rubric/application/use-cases/save-exam-rubric.use-case.js'
 import { RubricController } from '../../modules/rubric/presentation/rubric.controller.js'
 import { PrismaGradingRepository } from '../../modules/grading/infrastructure/repositories/prisma-grading-repository.js'
 import { GetGradingSessionStatusUseCase, StartGradingSessionUseCase } from '../../modules/grading/application/use-cases/grading.use-case.js'
@@ -384,10 +385,12 @@ export class DIContainer {
 
       const listRubricRulesUseCase = new ListRubricRulesUseCase(rubricRepo)
       const getRubricRuleWithCriteriaUseCase = new GetRubricRuleWithCriteriaUseCase(rubricRepo)
+      const saveExamRubricUseCase = new SaveExamRubricUseCase(rubricRepo)
 
       const rubricController = new RubricController(
         listRubricRulesUseCase,
         getRubricRuleWithCriteriaUseCase,
+        saveExamRubricUseCase,
         logger
       )
       this.services.set('RubricController', rubricController)
