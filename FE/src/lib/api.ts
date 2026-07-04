@@ -139,14 +139,12 @@ export const api = {
       body: JSON.stringify(data),
     })
   },
-  async submitFeedback(submissionId: string, feedback: string) {
-    return request<{ success: boolean; feedback: string }>(`/submissions/${submissionId}/feedback`, {
-      method: 'POST',
-      body: JSON.stringify({ feedback }),
-    })
-  },
-  gradeSubmission: (id: string, body: { score: number, feedback?: string, rubricScores?: Record<string, number> }) =>
-    request<SubmissionRow>(`/submissions/${id}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
+  gradeSubmission: (submissionId: string, body: any) =>
+    request<SubmissionRow>(`/submissions/${submissionId}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
+  submitFeedback: (submissionId: string, feedback: string) =>
+    request<void>(`/submissions/${submissionId}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }),
+  bulkPublishGrades: (assignmentId: string) =>
+    request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
 
   // ─── Grading & Rubric ───
   startGradingSession: (assignmentId: string) =>
@@ -297,6 +295,7 @@ export interface SubmissionRow {
   submittedAt: string | null
   aiScore: number | string | null
   status: string
+  reviewStatus?: string
   content?: string
   language?: string
   score?: number | null

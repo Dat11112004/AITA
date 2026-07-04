@@ -7,6 +7,7 @@ import { GetSubmissionUseCase } from '../application/use-cases/get-submission.us
 import { PublishGradeUseCase } from '../application/use-cases/publish-grade.use-case.js'
 import { RecentSubmissionsUseCase } from '../application/use-cases/recent-submissions.use-case.js'
 import { SubmitFeedbackUseCase } from '../application/use-cases/submit-feedback.use-case.js'
+import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-grades.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class SubmissionsController extends BaseController {
@@ -17,6 +18,7 @@ export class SubmissionsController extends BaseController {
         private readonly submitUseCase: CreateSubmissionUseCase,
         private readonly publishGradeUseCase: PublishGradeUseCase,
         private readonly submitFeedbackUseCase: SubmitFeedbackUseCase,
+        private readonly bulkPublishGradesUseCase: BulkPublishGradesUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -53,8 +55,15 @@ export class SubmissionsController extends BaseController {
 
     async publishGrade(req: Request, res: Response): Promise<void> {
         this.logger.debug(`Received request to publish grade for submission: ${req.params.id}`)
-        const result = await this.publishGradeUseCase.execute({ id: String(req.params.id), dto: { data: req.body } as any })
+        const result = await this.publishGradeUseCase.execute({ id: String(req.params.id), dto: { data: req.body } as any, user: req.user! })
         this.ok(res, result, MESSAGES.SUBMISSION_PUBLISH_SUCCESS)
+    }
+
+    async bulkPublish(req: Request, res: Response): Promise<void> {
+        this.logger.debug(`Received request to bulk publish grades for assignment: ${req.body.assignmentId}`)
+        // @ts-ignore - Will inject this use case later
+        const result = await this.bulkPublishGradesUseCase.execute({ assignmentId: String(req.body.assignmentId), user: req.user! })
+        this.ok(res, result, 'Đã công bố điểm cho tất cả sinh viên thành công')
     }
 
     async submitFeedback(req: Request, res: Response): Promise<void> {

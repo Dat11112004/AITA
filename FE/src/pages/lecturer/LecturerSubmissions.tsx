@@ -114,6 +114,17 @@ export function LecturerSubmissions() {
     }
   }
 
+  const handleBulkPublish = async () => {
+    if (!id || !window.confirm('Bạn có chắc chắn muốn công bố điểm cho tất cả sinh viên?')) return
+    try {
+      await api.bulkPublishGrades(id)
+      alert('Đã công bố điểm cho tất cả sinh viên!')
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Công bố điểm thất bại')
+    }
+  }
+
   if (loading) return <LoadingSpinner />
   if (error || !assignment) return <ErrorState message={error || 'Không tìm thấy bài tập'} onRetry={load} />
 
@@ -143,17 +154,22 @@ export function LecturerSubmissions() {
           title={`Bài nộp: ${assignment.title}`} 
           breadcrumbs={[{ label: 'Bài tập', path: '/lecturer/assignments' }, { label: 'Bài nộp' }]} 
           actions={
-            assignment.type === 'Exam' ? (
-              <Button size="sm" onClick={handleStartSession} className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-md hover:shadow-lg transition-all active:scale-95">
-                <BrainCircuit size={16} />
-                Chấm toàn bộ bằng AI (Đề thi)
+            <div className="flex gap-2">
+              {assignment.type === 'Exam' ? (
+                <Button size="sm" onClick={handleStartSession} className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-md hover:shadow-lg transition-all active:scale-95">
+                  <BrainCircuit size={16} />
+                  Chấm toàn bộ bằng AI (Đề thi)
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
+                  <Activity size={16} className="animate-pulse" />
+                  AI đang chấm ngầm (Bài tập)
+                </div>
+              )}
+              <Button size="sm" onClick={handleBulkPublish} className="bg-brand-600 hover:bg-brand-700 text-white gap-2 shadow-md">
+                <CheckCircle2 size={16} /> Công bố tất cả điểm
               </Button>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
-                <Activity size={16} className="animate-pulse" />
-                AI đang chấm ngầm (Bài tập)
-              </div>
-            )
+            </div>
           }
         />
       </div>

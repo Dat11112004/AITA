@@ -47,6 +47,7 @@ import { ListSubmissionsUseCase } from '../../modules/submissions/application/us
 import { CreateSubmissionUseCase } from '../../modules/submissions/application/use-cases/create-submission.use-case.js'
 import { GetSubmissionUseCase } from '../../modules/submissions/application/use-cases/get-submission.use-case.js'
 import { PublishGradeUseCase } from '../../modules/submissions/application/use-cases/publish-grade.use-case.js'
+import { BulkPublishGradesUseCase } from '../../modules/submissions/application/use-cases/bulk-publish-grades.use-case.js'
 import { RecentSubmissionsUseCase } from '../../modules/submissions/application/use-cases/recent-submissions.use-case.js'
 import { SubmitFeedbackUseCase } from '../../modules/submissions/application/use-cases/submit-feedback.use-case.js'
 import { SubmissionsController } from '../../modules/submissions/presentation/submissions.controller.js'
@@ -289,6 +290,7 @@ export class DIContainer {
       const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow, assessSubmissionUseCase)
       const getSubmissionUseCase = new GetSubmissionUseCase(submissionRepo)
       const publishGradeUseCase = new PublishGradeUseCase(submissionRepo)
+      const bulkPublishGradesUseCase = new BulkPublishGradesUseCase(submissionRepo)
       const recentSubmissionsUseCase = new RecentSubmissionsUseCase(submissionRepo)
       const submitFeedbackUseCase = new SubmitFeedbackUseCase(uow.getClient())
 
@@ -299,6 +301,7 @@ export class DIContainer {
         submitSubmissionUseCase,
         publishGradeUseCase,
         submitFeedbackUseCase,
+        bulkPublishGradesUseCase,
         logger
       )
       this.services.set('SubmissionController', submissionController)
