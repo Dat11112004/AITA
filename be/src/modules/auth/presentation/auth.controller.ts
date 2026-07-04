@@ -7,7 +7,8 @@ import { GetMeUseCase } from '../application/use-cases/get-me.use-case.js'
 import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case.js'
 import { LogoutUseCase } from '../application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case.js'
-import { LoginRequestDto, RegisterStudentRequestDto, RefreshTokenRequestDto, LogoutRequestDto, ChangePasswordRequestDto } from '../application/dtos/auth.dto.js'
+import { UpdateProfileUseCase } from '../application/use-cases/update-profile.use-case.js'
+import { LoginRequestDto, RegisterStudentRequestDto, RefreshTokenRequestDto, LogoutRequestDto, ChangePasswordRequestDto, UpdateProfileRequestDto } from '../application/dtos/auth.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class AuthController extends BaseController {
@@ -18,6 +19,7 @@ export class AuthController extends BaseController {
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
+    private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly logger: ILogger,
   ) {
     super()
@@ -62,5 +64,26 @@ export class AuthController extends BaseController {
     const dto = ChangePasswordRequestDto.from(req.body)
     await this.changePasswordUseCase.execute({ userId: req.user!.id, dto })
     this.ok(res, null, MESSAGES.AUTH_PASSWORD_CHANGED_SUCCESS)
+  }
+
+  async updateProfile(req: Request, res: Response): Promise<void> {
+    this.logger.info(`Received update profile request for user: ${req.user?.id}`)
+    const dto = UpdateProfileRequestDto.from(req.body)
+    
+    // If an avatar was uploaded, req.file will be populated
+    // We map the avatarUrl to the static route
+    let avatarUrl: string | undefined = undefined
+    if (req.file) {
+      avatarUrl = `/uploads/avatars/${req.file.filename}`
+    }
+
+    const result = await this.updateProfileUseCase.execute({ 
+      userId: req.user!.id, 
+      dto,
+      avatarUrl
+    })
+    
+    // AuthResponseDto contains the updated user
+    this.ok(res, result.user, 'Cập nhật hồ sơ thành công')
   }
 }

@@ -21,6 +21,7 @@ import { GetMeUseCase } from '../../modules/auth/application/use-cases/get-me.us
 import { RefreshTokenUseCase } from '../../modules/auth/application/use-cases/refresh-token.use-case.js'
 import { LogoutUseCase } from '../../modules/auth/application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../../modules/auth/application/use-cases/change-password.use-case.js'
+import { UpdateProfileUseCase } from '../../modules/auth/application/use-cases/update-profile.use-case.js'
 import { AuthController } from '../../modules/auth/presentation/auth.controller.js'
 import { ListClassesUseCase } from '../../modules/classes/application/use-cases/list-classes.use-case.js'
 import { CreateClassUseCase } from '../../modules/classes/application/use-cases/create-class.use-case.js'
@@ -170,6 +171,7 @@ export class DIContainer {
       const refreshTokenUseCase = new RefreshTokenUseCase(refreshTokenRepo, userRepo, tokenService, logger)
       const logoutUseCase = new LogoutUseCase(refreshTokenRepo, logger)
       const changePasswordUseCase = new ChangePasswordUseCase(userRepo, hashService, logger)
+      const updateProfileUseCase = new UpdateProfileUseCase(userRepo)
 
       const authController = new AuthController(
         loginUseCase,
@@ -178,6 +180,7 @@ export class DIContainer {
         refreshTokenUseCase,
         logoutUseCase,
         changePasswordUseCase,
+        updateProfileUseCase,
         logger
       )
       this.services.set('AuthController', authController)

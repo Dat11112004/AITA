@@ -57,6 +57,9 @@ export const api = {
     return u
   }),
 
+  updateProfile: (body: FormData) => request<AuthUser>('/auth/profile', { method: 'PATCH', body }),
+  changePassword: (body: unknown) => request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
+
   getStatsOverview: () => request<Record<string, string | number>>('/stats/overview'),
   getActivity: () => request<ActivityLog[]>('/stats/activity'),
   getSystemHealth: () => request<Record<string, { status: string }>>('/reports/health'),

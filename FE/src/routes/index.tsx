@@ -20,6 +20,7 @@ import { AdminSettings } from '@/pages/admin/AdminSettings'
 import { AdminAuditLogs } from '@/pages/admin/AdminAuditLogs'
 import { AdminReports } from '@/pages/admin/AdminReports'
 import { AdminNotifications } from '@/pages/admin/AdminNotifications'
+import { Profile } from '@/pages/profile/Profile'
 
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
@@ -29,7 +30,6 @@ import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
 import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
-import { LecturerProfile } from '@/pages/lecturer/LecturerProfile'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
@@ -37,7 +37,6 @@ import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail
 import { StudentClasses } from '@/pages/student/StudentClasses'
 import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
-import { StudentProfile } from '@/pages/student/StudentProfile'
 
 export function AppRoutes() {
   return (
@@ -76,6 +75,7 @@ export function AppRoutes() {
         <Route path="audit-logs" element={<AdminAuditLogs />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="notifications" element={<AdminNotifications />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       <Route
@@ -103,7 +103,7 @@ export function AppRoutes() {
         <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />
         <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
-        <Route path="profile" element={<LecturerProfile />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       <Route
@@ -128,7 +128,7 @@ export function AppRoutes() {
         <Route path="classes" element={<StudentClasses />} />
         <Route path="courses" element={<StudentCourses />} />
         <Route path="ai-feedback" element={<StudentAIFeedback />} />
-        <Route path="profile" element={<StudentProfile />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
