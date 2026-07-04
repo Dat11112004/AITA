@@ -9,4 +9,6 @@ export interface IRubricRepository {
     listCriteria(ruleId: string): Promise<RubricCriterion[]>
     saveCriterion(criterion: RubricCriterion): Promise<void>
     deleteCriterion(id: string): Promise<void>
+
+    saveExamRubric(examId: string, rule: Partial<RubricRule>, criteria: Partial<RubricCriterion>[]): Promise<void>
 }

@@ -28,6 +28,7 @@ import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
+import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
 import { LecturerProfile } from '@/pages/lecturer/LecturerProfile'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
@@ -96,6 +97,7 @@ export function AppRoutes() {
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="classes/:id" element={<LecturerClassDetail />} />
         <Route path="assignments" element={<LecturerAssignments />} />
+        <Route path="assignments/:id/rubric" element={<LecturerAssignmentRubric />} />
         {/* Nav "Kỳ thi" — chưa có trang riêng, dùng chung trang bài tập (tạo/lọc Đề thi tại đây) */}
         <Route path="exams" element={<LecturerAssignments />} />
         <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />

@@ -445,6 +445,9 @@ export function LecturerAssignments() {
                   header: '',
                   render: (r) => (
                     <div className="flex justify-end gap-2 pr-4">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/lecturer/assignments/${(r as AssignmentRow).id}/rubric`)}>
+                        Cấu hình Rubric
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => navigate(`/lecturer/assignments/${(r as AssignmentRow).id}/submissions`)}>
                         Chấm bài
                       </Button>
