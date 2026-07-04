@@ -9,7 +9,12 @@ export const CreateExamSchema = z.object({
   dueAt: z.string().optional(),
   dueDate: z.string().optional(),
   maxScore: z.coerce.number().optional(),
-  classId: z.string().optional(),
+  classIds: z.union([z.string(), z.array(z.string())]).optional().transform(val => {
+    if (typeof val === 'string') {
+      return val.split(',').map(s => s.trim()).filter(Boolean)
+    }
+    return val || []
+  }),
 })
 
 export type CreateExamRequestDtoType = z.infer<typeof CreateExamSchema>

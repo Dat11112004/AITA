@@ -27,10 +27,14 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
 
     await this.examRepo.create(exam)
 
-    if (data.classId) {
+    if (data.classIds && Array.isArray(data.classIds) && data.classIds.length > 0) {
       // Use dueDate if dueAt is not provided (due to FE changes)
       const due = data.dueAt || data.dueDate;
-      await this.examRepo.assignToClass(exam.id, data.classId, due)
+      // Filter out 'all' just in case, though FE will send specific IDs
+      const specificClassIds = data.classIds.filter(id => id !== 'all');
+      await Promise.all(specificClassIds.map(classId => 
+        this.examRepo.assignToClass(exam.id, classId, due)
+      ));
     }
 
     if (file) {

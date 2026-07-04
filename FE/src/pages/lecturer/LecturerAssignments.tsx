@@ -34,7 +34,7 @@ export function LecturerAssignments() {
   const [newDue, setNewDue] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newSubjectId, setNewSubjectId] = useState('')
-  const [newClassId, setNewClassId] = useState('all')
+  const [newClassIds, setNewClassIds] = useState<string[]>(['all'])
   const [newFile, setNewFile] = useState<File | null>(null)
   const [sendNotification, setSendNotification] = useState(true)
   
@@ -108,7 +108,15 @@ export function LecturerAssignments() {
         description: finalDesc,
         subjectId: newSubjectId,
       }
-      if (newClassId !== 'all') body.classId = newClassId;
+      
+      let finalClassIds = newClassIds;
+      if (newClassIds.includes('all')) {
+        finalClassIds = classes.map(c => c.id);
+      }
+      if (finalClassIds.length > 0) {
+        body.classIds = finalClassIds.join(',');
+      }
+      
       if (newDue) body.dueDate = new Date(newDue).toISOString();
 
       let payload: any = body;
@@ -131,7 +139,7 @@ export function LecturerAssignments() {
           targetRole: 'STUDENT'
         }).catch(() => {}) // Ignore if broadcast fails for now
         // Simulate sending email to class
-        console.log(`[Notification] Đã gửi thông báo cho lớp ${newClassId === 'all' ? 'Tất cả' : newClassId}`)
+        console.log(`[Notification] Đã gửi thông báo cho các lớp: ${newClassIds.includes('all') ? 'Tất cả' : newClassIds.join(', ')}`)
       }
       
       setIsModalOpen(false)
@@ -267,11 +275,19 @@ export function LecturerAssignments() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Áp dụng cho Lớp</label>
                   <select 
-                    value={newClassId} 
-                    onChange={(e) => setNewClassId(e.target.value)}
-                    className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
+                    multiple
+                    value={newClassIds} 
+                    onChange={(e) => {
+                      const values = Array.from(e.target.selectedOptions, option => option.value);
+                      if (values.includes('all')) {
+                        setNewClassIds(['all']);
+                      } else {
+                        setNewClassIds(values.filter(v => v !== 'all'));
+                      }
+                    }}
+                    className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500 h-24"
                   >
-                    <option value="all">Tất cả các lớp</option>
+                    <option value="all">-- Tất cả các lớp --</option>
                     {classes.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                   </select>
                 </div>
