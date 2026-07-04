@@ -97,6 +97,24 @@ export class ChangePasswordRequestDto {
   }
 }
 
+export class UpdateProfileRequestDto {
+  fullName?: string
+  phone?: string
+
+  static readonly schema = z.object({
+    fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự').optional().or(z.literal('')),
+    phone: z.string().optional().or(z.literal('')),
+  })
+
+  static from(data: unknown): UpdateProfileRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new UpdateProfileRequestDto()
+    if (parsed.fullName) dto.fullName = parsed.fullName
+    if (parsed.phone) dto.phone = parsed.phone
+    return dto
+  }
+}
+
 export class AuthResponseDto {
   token!: string
   refreshToken!: string

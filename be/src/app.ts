@@ -1,4 +1,5 @@
 import express from 'express'
+import path from 'path'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
@@ -28,6 +29,8 @@ export function createApp() {
   app.use(requestLogger)
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
   app.use(express.json({ limit: '2mb' }))
+  
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 
   app.use('/api', routeManager.getRouter())
 
