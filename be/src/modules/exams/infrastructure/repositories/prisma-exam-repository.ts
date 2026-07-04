@@ -9,6 +9,7 @@ export class PrismaExamRepository implements IExamRepository {
     return {
       Subject: true,
       ExamClass: true,
+      ExamAttachment: true,
       _count: { select: { Submission: true } }
     }
   }
@@ -76,5 +77,27 @@ export class PrismaExamRepository implements IExamRepository {
         DueDate: dueDate ? new Date(dueDate) : null
       }
     })
+  }
+
+  async addAttachment(examId: string, attachment: { fileName: string, fileUrl: string, fileType: string }): Promise<void> {
+    await this.client.examAttachment.create({
+      data: {
+        ExamId: examId,
+        FileName: attachment.fileName,
+        FileUrl: attachment.fileUrl,
+        FileType: attachment.fileType
+      }
+    })
+  }
+
+  async getAttachment(attachmentId: string): Promise<{ fileUrl: string, fileName: string } | null> {
+    const attachment = await this.client.examAttachment.findUnique({
+      where: { Id: attachmentId }
+    })
+    if (!attachment) return null;
+    return {
+      fileUrl: attachment.FileUrl,
+      fileName: attachment.FileName
+    }
   }
 }

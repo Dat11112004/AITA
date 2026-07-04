@@ -13,7 +13,11 @@ const tokenService = new JwtTokenService()
  * Express middleware that verifies the Bearer token and attaches user info to `req.user`.
  */
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
-  const header = req.headers.authorization
+  let header = req.headers.authorization;
+  if (!header && req.query.token) {
+    header = `Bearer ${req.query.token}`;
+  }
+
   if (!header?.startsWith('Bearer ')) {
     logger.debug('Authentication failed: Missing or invalid Authorization header')
     return next(new UnauthorizedError())

@@ -127,6 +127,28 @@ export function StudentAssignmentDetail() {
             </div>
             <div className="p-6 prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300">
               <p className="whitespace-pre-wrap">{assignment.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}</p>
+              
+              {assignment.attachments && assignment.attachments.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                    <FileText size={16} className="text-brand-500" /> File đính kèm
+                  </h4>
+                  <div className="flex flex-col gap-2">
+                    {assignment.attachments.map(att => (
+                      <a 
+                        key={att.id}
+                        href={`${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${localStorage.getItem('aita_token')}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 transition-colors group"
+                      >
+                        <FileText size={20} className="text-blue-500" />
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-brand-600 transition-colors flex-1">{att.fileName}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 

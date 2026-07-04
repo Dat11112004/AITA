@@ -245,7 +245,8 @@ export class DIContainer {
         createExamUseCase,
         updateExamUseCase,
         getExamUseCase,
-        logger
+        logger,
+        examRepo
       )
       this.services.set('ExamsController', examsController)
       this.services.set(TOKENS.ExamsController, examsController)

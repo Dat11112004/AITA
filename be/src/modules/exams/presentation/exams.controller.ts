@@ -7,6 +7,9 @@ import { CreateExamUseCase } from '../application/use-cases/create-exam.use-case
 import { UpdateExamUseCase } from '../application/use-cases/update-exam.use-case.js'
 import { GetExamUseCase } from '../application/use-cases/get-exam.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
+import type { IExamRepository } from '../domain/repositories/exam-repository.interface.js'
+import path from 'path'
+import fs from 'fs'
 
 export class ExamsController extends BaseController {
   constructor(
@@ -14,7 +17,8 @@ export class ExamsController extends BaseController {
     private readonly createExamUseCase: CreateExamUseCase,
     private readonly updateExamUseCase: UpdateExamUseCase,
     private readonly getExamUseCase: GetExamUseCase,
-    private readonly logger: ILogger
+    private readonly logger: ILogger,
+    private readonly examRepo: IExamRepository
   ) {
     super()
   }
@@ -22,10 +26,10 @@ export class ExamsController extends BaseController {
   async list(req: Request, res: Response): Promise<void> {
     this.logger.debug('Received request to list exams')
     const params = {
-      classId: req.query.classId,
-      status: req.query.status,
-      type: req.query.type,
-      tab: req.query.tab,
+      classId: req.query.classId as string | undefined,
+      status: req.query.status as any,
+      type: req.query.type as any,
+      tab: req.query.tab as string | undefined,
     }
     const result = await this.listExamsUseCase.execute({ user: req.user!, params })
     this.ok(res, result, MESSAGES.SUCCESS)
@@ -34,7 +38,7 @@ export class ExamsController extends BaseController {
   async create(req: Request, res: Response): Promise<void> {
     this.logger.debug('Received request to create exam')
     const dto = CreateExamRequestDto.from(req.body)
-    const result = await this.createExamUseCase.execute(dto)
+    const result = await this.createExamUseCase.execute({ dto, file: req.file })
     this.created(res, result, MESSAGES.SUCCESS)
   }
 
@@ -51,5 +55,25 @@ export class ExamsController extends BaseController {
     this.logger.debug(`Received request to get exam details: ${id}`)
     const result = await this.getExamUseCase.execute(id)
     this.ok(res, result, MESSAGES.SUCCESS)
+  }
+
+  async downloadAttachment(req: Request, res: Response): Promise<void> {
+    const attachmentId = req.params.attachmentId as string
+    this.logger.debug(`Received request to download attachment: ${attachmentId}`)
+    
+    const attachment = await this.examRepo.getAttachment(attachmentId)
+    if (!attachment) {
+      res.status(404).json({ success: false, Message: 'Attachment not found' })
+      return
+    }
+
+    const filePath = path.join(process.cwd(), attachment.fileUrl)
+    if (!fs.existsSync(filePath)) {
+      this.logger.error(`File not found on disk: ${filePath}`)
+      res.status(404).json({ success: false, Message: 'File not found on disk' })
+      return
+    }
+
+    res.download(filePath, attachment.fileName)
   }
 }
