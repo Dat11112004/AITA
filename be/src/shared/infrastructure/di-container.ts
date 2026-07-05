@@ -22,6 +22,7 @@ import { RefreshTokenUseCase } from '../../modules/auth/application/use-cases/re
 import { LogoutUseCase } from '../../modules/auth/application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../../modules/auth/application/use-cases/change-password.use-case.js'
 import { UpdateProfileUseCase } from '../../modules/auth/application/use-cases/update-profile.use-case.js'
+import { DismissPasswordChangeUseCase } from '../../modules/auth/application/use-cases/dismiss-password-change.use-case.js'
 import { AuthController } from '../../modules/auth/presentation/auth.controller.js'
 import { ListClassesUseCase } from '../../modules/classes/application/use-cases/list-classes.use-case.js'
 import { CreateClassUseCase } from '../../modules/classes/application/use-cases/create-class.use-case.js'
@@ -40,6 +41,8 @@ import { SubjectsController } from '../../modules/subjects/presentation/subjects
 import { SemesterRepository } from '../../modules/semesters/infrastructure/repositories/semester.repository.js'
 import { ListSemestersUseCase } from '../../modules/semesters/application/use-cases/list-semesters.use-case.js'
 import { CreateSemesterUseCase } from '../../modules/semesters/application/use-cases/create-semester.use-case.js'
+import { UpdateSemesterUseCase } from '../../modules/semesters/application/use-cases/update-semester.use-case.js'
+import { DeleteSemesterUseCase } from '../../modules/semesters/application/use-cases/delete-semester.use-case.js'
 import { SemestersController } from '../../modules/semesters/presentation/semesters.controller.js'
 // Removed assignments module use cases
 import { PrismaSubmissionRepository } from '../../modules/submissions/infrastructure/repositories/prisma-submission-repository.js'
@@ -174,6 +177,7 @@ export class DIContainer {
       const logoutUseCase = new LogoutUseCase(refreshTokenRepo, logger)
       const changePasswordUseCase = new ChangePasswordUseCase(userRepo, hashService, logger)
       const updateProfileUseCase = new UpdateProfileUseCase(userRepo)
+      const dismissPasswordChangeUseCase = new DismissPasswordChangeUseCase(userRepo)
 
       const authController = new AuthController(
         loginUseCase,
@@ -183,6 +187,7 @@ export class DIContainer {
         logoutUseCase,
         changePasswordUseCase,
         updateProfileUseCase,
+        dismissPasswordChangeUseCase,
         logger
       )
       this.services.set('AuthController', authController)
@@ -233,10 +238,14 @@ export class DIContainer {
 
       const listSemestersUseCase = new ListSemestersUseCase(semesterRepo)
       const createSemesterUseCase = new CreateSemesterUseCase(semesterRepo)
+      const updateSemesterUseCase = new UpdateSemesterUseCase(semesterRepo)
+      const deleteSemesterUseCase = new DeleteSemesterUseCase(semesterRepo)
 
       const semestersController = new SemestersController(
         listSemestersUseCase,
         createSemesterUseCase,
+        updateSemesterUseCase,
+        deleteSemesterUseCase,
         logger
       )
       this.services.set('SemestersController', semestersController)

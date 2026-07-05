@@ -10,6 +10,8 @@ export function createSemestersRouter(controller: SemestersController): Router {
 
   router.get('/', requireRoles('ADMIN', 'LECTURER', 'STUDENT'), asyncHandler(controller.list.bind(controller)))
   router.post('/', requireRoles('ADMIN'), asyncHandler(controller.create.bind(controller)))
+  router.patch('/:id', requireRoles('ADMIN'), asyncHandler(controller.update.bind(controller)))
+  router.delete('/:id', requireRoles('ADMIN'), asyncHandler(controller.delete.bind(controller)))
 
   return router
 }

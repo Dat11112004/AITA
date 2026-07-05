@@ -10,6 +10,7 @@ export const MESSAGES = {
   FORBIDDEN: 'Bị từ chối truy cập',
   INTERNAL_ERROR: 'Lỗi hệ thống',
   INVALID_DATA: 'Dữ liệu không hợp lệ',
+  SEMESTER_NOT_FOUND: 'Không tìm thấy kỳ học',
 
   // Subjects
   SUBJECT_CREATE_SUCCESS: 'Tạo môn học thành công',

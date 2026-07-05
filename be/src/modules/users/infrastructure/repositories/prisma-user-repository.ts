@@ -45,6 +45,9 @@ export class PrismaUserRepository implements IUserRepository {
         { StudentCode: { contains: filter.search } },
       ]
     }
+    if (filter?.ids) {
+      where.Id = { in: filter.ids }
+    }
 
     const raws = await this.client.user.findMany({
       where,
@@ -70,7 +73,34 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.client.user.delete({ where: { Id: id } })
+    try {
+      await this.client.$transaction([
+        // Nullify optional foreign keys to avoid P2003 constraint failures
+        this.client.exam.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
+        this.client.promptTemplate.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
+        this.client.notification.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
+        this.client.gradingSession.updateMany({ where: { TriggeredBy: id }, data: { TriggeredBy: null } }),
+        this.client.examGenerationHistory.updateMany({ where: { GeneratedBy: id }, data: { GeneratedBy: null } }),
+        this.client.importBatch.updateMany({ where: { ImportedBy: id }, data: { ImportedBy: null } }),
+        this.client.submission.updateMany({ where: { ReviewedBy: id }, data: { ReviewedBy: null } }),
+        this.client.submission.updateMany({ where: { StudentId: id }, data: { StudentId: null } }),
+        this.client.appeal.updateMany({ where: { StudentId: id }, data: { StudentId: null } }),
+
+        // Delete dependent records
+        this.client.userRole.deleteMany({ where: { UserId: id } }),
+        this.client.studentClass.deleteMany({ where: { UserId: id } }),
+        this.client.instructorClass.deleteMany({ where: { UserId: id } }),
+        this.client.refreshToken.deleteMany({ where: { UserId: id } }),
+        this.client.oAuthIdentity.deleteMany({ where: { UserId: id } }),
+        this.client.auditLog.deleteMany({ where: { UserId: id } }),
+        this.client.aiUsageLog.deleteMany({ where: { UserId: id } }),
+        this.client.notificationRecipient.deleteMany({ where: { UserId: id } }),
+        this.client.user.delete({ where: { Id: id } })
+      ])
+    } catch (e: any) {
+      require('fs').writeFileSync('delete_error.txt', e.stack || e.message)
+      throw e
+    }
   }
 
   async setRequirePasswordChange(userId: string, value: boolean): Promise<void> {

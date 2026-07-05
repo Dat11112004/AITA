@@ -9,6 +9,7 @@ export interface UserFilter {
   role?: UserRoleType
   status?: string
   search?: string
+  ids?: string[]
 }
 
 export interface Pagination {

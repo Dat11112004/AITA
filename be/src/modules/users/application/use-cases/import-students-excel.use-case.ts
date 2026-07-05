@@ -18,6 +18,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
     phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone'],
     semester: ['kỳ học', 'ky hoc', 'semester'],
     classCode: ['lớp học', 'lop hoc', 'class'],
+    outOfSemesterSubjects: ['môn khác kỳ hiện tại (nợ/học vượt)', 'mon khac ky hien tai', 'out of semester subjects', 'nợ/học vượt', 'khác kỳ'],
+    passedSubjects: ['môn đã học vượt thành công', 'mon da hoc vuot thanh cong', 'passed subjects', 'học vượt thành công', 'đã học'],
 }
 
 function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
@@ -32,11 +34,11 @@ function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): stri
 }
 
 export class ImportStudentsExcelUseCase {
-    constructor(private readonly emailService: IEmailService) {}
+    constructor(private readonly emailService: IEmailService) { }
 
     async execute(input: { fileBuffer: Buffer; fileName: string; fileUrl: string; importedByUserId: string }) {
         const { fileBuffer, fileName, fileUrl, importedByUserId } = input
-        
+
         let successCount = 0
         let errorCount = 0
         const errors: string[] = []
@@ -64,7 +66,7 @@ export class ImportStudentsExcelUseCase {
 
             const sheet = workbook.Sheets[sheetName]
             const rows: ImportStudentRow[] = xlsx.utils.sheet_to_json(sheet)
-            
+
             await prisma.importBatch.update({
                 where: { Id: batch.Id },
                 data: { TotalRows: rows.length }
@@ -88,6 +90,8 @@ export class ImportStudentsExcelUseCase {
                     const phone = getField(row, 'phone')
                     const semesterCode = getField(row, 'semester')
                     const classCode = getField(row, 'classCode')
+                    const outOfSemesterStr = getField(row, 'outOfSemesterSubjects') || ''
+                    const passedStr = getField(row, 'passedSubjects') || ''
 
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
                         throw new Error('Thiếu thông tin bắt buộc (MSSV, Họ và tên, Email, Kỳ học, Lớp học)')
@@ -136,7 +140,7 @@ export class ImportStudentsExcelUseCase {
                     const passwordHash = await bcrypt.hash(rawPassword, 10)
 
                     // Note: Since we want LastLoginAt to be null for FirstLogin=true, it will be null by default
-                    await prisma.user.create({
+                    const newUser = await prisma.user.create({
                         data: {
                             StudentCode: mssv,
                             FullName: fullName,
@@ -161,9 +165,52 @@ export class ImportStudentsExcelUseCase {
                         }
                     })
 
-                    // 5. Send Email
+                    // 5. Enroll into extra classes (out-of-semester and passed subjects)
+                    const extraClassesStrs = [
+                        ...outOfSemesterStr.split(',').map(s => s.trim()).filter(Boolean),
+                        ...passedStr.split(',').map(s => s.trim()).filter(Boolean)
+                    ]
+
+                    const extraClassIds: string[] = []
+                    for (const extraStr of extraClassesStrs) {
+                        const parts = extraStr.split('-')
+                        if (parts.length >= 2) {
+                            const subjectCode = parts[0].trim()
+                            const clsCode = parts.slice(1).join('-').trim()
+
+                            // Find the class that matches this subject code and class code
+                            // Since we don't have exact semester for extra classes in the string, we find the most recent/active one
+                            const cls = await prisma.class.findFirst({
+                                where: {
+                                    ClassCode: clsCode,
+                                    Subject: { SubjectCode: subjectCode }
+                                }
+                            })
+                            if (cls) {
+                                extraClassIds.push(cls.Id)
+                            }
+                        }
+                    }
+
+                    if (extraClassIds.length > 0) {
+                        // Avoid duplicate enrollments
+                        const existingEnrollments = classes.map(c => c.Id)
+                        const uniqueExtraClassIds = [...new Set(extraClassIds)].filter(id => !existingEnrollments.includes(id))
+
+                        if (uniqueExtraClassIds.length > 0) {
+                            await prisma.studentClass.createMany({
+                                data: uniqueExtraClassIds.map(id => ({
+                                    UserId: newUser.Id,
+                                    ClassId: id,
+                                    EnrolledAt: new Date()
+                                }))
+                            })
+                        }
+                    }
+
+                    // 6. Send Email
                     const subjectsList = classes.map(c => c.Subject?.SubjectCode).filter(Boolean).join(', ')
-                    
+
                     await this.emailService.sendEmail(
                         email,
                         'Thông tin tài khoản sinh viên AITA',

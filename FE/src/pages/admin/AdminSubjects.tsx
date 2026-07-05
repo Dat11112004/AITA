@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type SubjectRow } from '@/lib/api'
-import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, Trash2 } from 'lucide-react'
+import { Plus, Library, TableProperties, Loader2, X, AlertTriangle } from 'lucide-react'
 
 export function AdminSubjects() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null)
   const [form, setForm] = useState({ code: '', name: '', description: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -39,12 +40,21 @@ export function AdminSubjects() {
     if (isSubmitting) return
     setIsSubmitting(true)
     try {
-      await api.createSubject({
-        code: form.code,
-        name: form.name,
-        description: form.description,
-      })
+      if (editingSubject) {
+        await api.updateSubject(editingSubject.id, {
+          code: form.code,
+          name: form.name,
+          description: form.description,
+        })
+      } else {
+        await api.createSubject({
+          code: form.code,
+          name: form.name,
+          description: form.description,
+        })
+      }
       setForm({ code: '', name: '', description: '' })
+      setEditingSubject(null)
       setShowForm(false)
       load()
     } catch (error) {
@@ -53,6 +63,13 @@ export function AdminSubjects() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleEdit = (subject: SubjectRow) => {
+    setEditingSubject(subject)
+    setForm({ code: subject.code, name: subject.name || '', description: subject.description || '' })
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (id: string) => {
@@ -73,7 +90,15 @@ export function AdminSubjects() {
         actions={
           <Button
             size="sm"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false)
+                setEditingSubject(null)
+                setForm({ code: '', name: '', description: '' })
+              } else {
+                setShowForm(true)
+              }
+            }}
             className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showForm
               ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
               : 'bg-brand-600 hover:bg-brand-700 text-white'
@@ -89,7 +114,7 @@ export function AdminSubjects() {
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
             <Library className="text-brand-500 w-5 h-5 ml-2" />
-            <CardHeader title="Tạo môn học mới" />
+            <CardHeader title={editingSubject ? `Chỉnh sửa môn học: ${editingSubject.code}` : "Tạo môn học mới"} />
           </div>
 
           <div className="p-6">
@@ -180,9 +205,12 @@ export function AdminSubjects() {
                   key: 'actions',
                   header: '',
                   render: (r) => (
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" className="bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-none border-0" onClick={() => handleDelete((r as SubjectRow).id)}>
-                        <Trash2 size={16} />
+                    <div className="flex items-center gap-1 justify-end">
+                      <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => handleEdit(r as SubjectRow)}>
+                        Chỉnh sửa
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete((r as SubjectRow).id)}>
+                        Xoá
                       </Button>
                     </div>
                   )

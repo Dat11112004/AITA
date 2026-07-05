@@ -16,11 +16,9 @@ export class DeleteUserUseCase implements IUseCase<string, { success: boolean; m
         const user = await this.userRepo.findById(id)
         if (!user) throw new NotFoundError(MESSAGES.USER_NOT_FOUND)
 
-        // Domain-driven soft delete
-        user.suspend()
-        await this.userRepo.save(user)
+        await this.userRepo.delete(id)
 
-        this.logger.info(`User suspended: ${id}`)
+        this.logger.info(`User hard deleted: ${id}`)
         return { success: true, message: MESSAGES.USER_DELETE_SUCCESS }
     }
 }

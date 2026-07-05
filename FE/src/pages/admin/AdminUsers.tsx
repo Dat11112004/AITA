@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -7,13 +8,12 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Plus, Pencil, Trash2, Lock, Unlock, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet } from 'lucide-react'
 
 const ROLE_TABS = [
-  { id: 'all', label: 'Tất cả tài khoản' },
+  { id: 'all', label: 'Tất cả' },
   { id: 'lecturer', label: 'Giảng viên' },
   { id: 'student', label: 'Sinh viên' },
-  { id: 'admin', label: 'Quản trị' },
 ]
 
 export function AdminUsers() {
@@ -26,6 +26,13 @@ export function AdminUsers() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [showBulkEditForm, setShowBulkEditForm] = useState(false)
+  const [bulkEditRole, setBulkEditRole] = useState('student')
+  const [bulkEditing, setBulkEditing] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
@@ -36,8 +43,9 @@ export function AdminUsers() {
     setLoading(true)
     setLoadError('')
     try {
-      const data = await api.getUsers(activeTab)
+      const data = await api.getUsers(activeTab, 1, 100, search)
       setUsers(data || [])
+      setSelectedIds(new Set())
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Không thể tải danh sách người dùng'
       setLoadError(msg)
@@ -45,10 +53,13 @@ export function AdminUsers() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab])
+  }, [activeTab, search])
 
   useEffect(() => {
-    load()
+    const timer = setTimeout(() => {
+      load()
+    }, 400)
+    return () => clearTimeout(timer)
   }, [load])
 
   const resetForm = () => {
@@ -126,13 +137,60 @@ export function AdminUsers() {
     }
   }
 
-  const handleToggleLock = async (user: UserRow) => {
-    const isLocked = ['inactive', 'banned', 'locked'].includes(user.status?.toLowerCase() || '')
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode)
+    if (isSelectionMode) {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredUsers.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredUsers.map(u => u.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) newSet.delete(id)
+    else newSet.add(id)
+    setSelectedIds(newSet)
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleting(true)
+    setError('')
     try {
-      await api.toggleUserLock(user.id, !isLocked)
+      await Promise.all(Array.from(selectedIds).map(id => api.deleteUser(id)))
+      setConfirmBulkDelete(false)
+      setSelectedIds(new Set())
+      setIsSelectionMode(false)
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Thay đổi trạng thái khóa thất bại')
+      setError(e instanceof Error ? e.message : 'Xóa hàng loạt thất bại')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const handleBulkEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedIds.size === 0) return
+    setBulkEditing(true)
+    setError('')
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => api.updateUser(id, { role: bulkEditRole })))
+      setShowBulkEditForm(false)
+      setSelectedIds(new Set())
+      setIsSelectionMode(false)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Cập nhật hàng loạt thất bại')
+    } finally {
+      setBulkEditing(false)
     }
   }
 
@@ -159,9 +217,7 @@ export function AdminUsers() {
     }
   }
 
-  const filteredUsers = search
-    ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
-    : users
+  const filteredUsers = users
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -171,45 +227,177 @@ export function AdminUsers() {
         description="Quản trị phân quyền, thiết lập trạng thái vận hành tài khoản giảng viên, sinh viên và nhân sự quản trị."
         breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Người dùng' }]}
         actions={
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2 bg-white"
-              onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
-            >
-              <Upload size={16} />
-              Import Sinh viên (Excel)
-            </Button>
-            <Button
-              size="sm"
-              className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
-              onClick={handleOpenCreate}
-            >
-              <Plus size={16} />
-              Thêm người dùng mới
-            </Button>
+          <div className="flex gap-2 items-center flex-wrap">
+            {isSelectionMode ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={toggleSelectionMode} className="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                  Hủy chọn
+                </Button>
+                {selectedIds.size > 0 && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2 bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:text-blue-700 transition"
+                      onClick={() => {
+                        if (selectedIds.size === 1) {
+                          const id = Array.from(selectedIds)[0]
+                          const u = users.find(u => u.id === id)
+                          if (u) {
+                            handleOpenEdit(u)
+                            toggleSelectionMode()
+                          }
+                        } else {
+                          setShowBulkEditForm(true)
+                        }
+                      }}
+                    >
+                      <Pencil size={16} />
+                      Sửa {selectedIds.size} đã chọn
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 transition"
+                      onClick={() => setConfirmBulkDelete(true)}
+                    >
+                      <Trash2 size={16} />
+                      Xóa {selectedIds.size} đã chọn
+                    </Button>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                  onClick={toggleSelectionMode}
+                >
+                  <div className="w-3.5 h-3.5 border-2 border-slate-400 rounded-sm"></div>
+                  Chọn
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-white"
+                  onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
+                >
+                  <Upload size={16} />
+                  Import Sinh viên (Excel)
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+                  onClick={handleOpenCreate}
+                >
+                  <Plus size={16} />
+                  Thêm người dùng mới
+                </Button>
+              </>
+            )}
           </div>
         }
       />
 
-      {/* Delete Confirmation */}
-      {confirmDelete && (
-        <Card className="border border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 p-4 shadow-sm animate-in slide-in-from-top-3 duration-300">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="text-red-600 dark:text-red-400 w-5 h-5 shrink-0 mt-0.5 animate-pulse" />
-              <div>
-                <p className="font-semibold text-red-800 dark:text-red-300 text-sm">Xác nhận gỡ bỏ tài khoản vĩnh viễn?</p>
-                <p className="text-xs text-red-600 dark:text-red-400/80 mt-0.5">Mọi thông tin định danh, lịch sử làm bài nộp hoặc tiến trình chấm bài AI gắn liền sẽ bị hủy bỏ hoàn toàn.</p>
+      {/* Bulk Edit Form Modal */}
+      {showBulkEditForm && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+            <form onSubmit={handleBulkEdit}>
+              <div className="p-6">
+                <div className="text-center space-y-2 mb-6">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Thay đổi vai trò hàng loạt</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Chọn vai trò mới cho <span className="font-bold text-blue-600">{selectedIds.size}</span> tài khoản đã chọn.
+                  </p>
+                </div>
+                <div className="space-y-4 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Vai trò mới</label>
+                    <Select 
+                      value={bulkEditRole} 
+                      onChange={(e) => setBulkEditRole(e.target.value)}
+                      options={[
+                        { value: 'student', label: 'Sinh viên' },
+                        { value: 'lecturer', label: 'Giảng viên' },
+                        { value: 'admin', label: 'Quản trị viên' }
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setShowBulkEditForm(false)} disabled={bulkEditing}>
+                    Hủy bỏ
+                  </Button>
+                  <Button type="submit" disabled={bulkEditing} className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center justify-center">
+                    {bulkEditing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    {bulkEditing ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </Card>
+        </div>,
+        document.body
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {confirmBulkDelete && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2 mb-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Xác nhận xóa hàng loạt?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Bạn đang chuẩn bị xóa vĩnh viễn <span className="font-bold text-red-600">{selectedIds.size}</span> tài khoản. Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmBulkDelete(false)} disabled={bulkDeleting}>
+                  Hủy bỏ
+                </Button>
+                <Button onClick={handleBulkDelete} disabled={bulkDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium flex items-center justify-center">
+                  {bulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {bulkDeleting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+                </Button>
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-400 hover:bg-slate-100" onClick={() => setConfirmDelete(null)}>Hủy</Button>
-              <Button size="sm" onClick={() => handleDelete(confirmDelete)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-4">Xóa vĩnh viễn</Button>
+          </Card>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2 mb-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bạn có chắc chắn muốn xóa tài khoản này?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Hành động này sẽ xóa vĩnh viễn tài khoản khỏi cơ sở dữ liệu. Mọi thông tin định danh, lịch sử làm bài nộp sẽ bị hủy bỏ hoàn toàn và không thể khôi phục.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>
+                  Hủy bỏ
+                </Button>
+                <Button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
+                  Xóa vĩnh viễn
+                </Button>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>,
+        document.body
       )}
 
       {/* Import Form */}
@@ -235,8 +423,8 @@ export function AdminUsers() {
           <div className="space-y-4">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
               <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
-              MSSV | Họ và tên | Email | Số điện thoại | Kỳ học | Lớp học<br/>
-              QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | 0912345678 | 8 | SE18C01
+              MSSV | Họ và tên | Email | Số điện thoại | Kỳ học | Lớp học | Môn khác kỳ hiện tại (nợ/học vượt) | Môn đã học vượt thành công<br/>
+              QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | SWE201-SE1701
             </div>
             
             <div>
@@ -393,6 +581,26 @@ export function AdminUsers() {
           <div className="overflow-x-auto">
             <DataTable
               columns={[
+                ...(isSelectionMode ? [{
+                  key: 'select',
+                  header: (
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      checked={filteredUsers.length > 0 && selectedIds.size === filteredUsers.length}
+                      onChange={toggleSelectAll}
+                    />
+                  ),
+                  render: (r: any) => (
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                      checked={selectedIds.has((r as UserRow).id)}
+                      onChange={() => toggleSelect((r as UserRow).id)}
+                    />
+                  ),
+                  className: 'w-12 pl-4'
+                }] : []),
                 {
                   key: 'id',
                   header: 'Mã số hệ thống',
@@ -420,47 +628,45 @@ export function AdminUsers() {
                   },
                   className: 'w-32'
                 },
-                {
-                  key: 'status',
-                  header: 'Trạng thái',
-                  render: (r) => {
-                    const u = r as UserRow
-                    const isLocked = ['inactive', 'banned', 'locked'].includes(u.status?.toLowerCase() || '')
-                    return (
-                      <Badge variant={isLocked ? 'danger' : 'success'} className="shadow-none px-2 py-0.5 text-[11px]">
-                        {isLocked ? 'Locked' : 'Active'}
-                      </Badge>
-                    )
-                  },
-                  className: 'w-32'
-                },
+
                 {
                   key: 'actions',
                   header: 'Thao tác bảo mật',
                   render: (r) => {
                     const u = r as UserRow
-                    const isLocked = ['inactive', 'banned', 'locked'].includes(u.status?.toLowerCase() || '')
                     return (
                       <div className="flex gap-1 justify-end pr-2">
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(u)}
+                          onClick={() => {
+                            if (isSelectionMode && selectedIds.size > 0) {
+                              if (selectedIds.size === 1) {
+                                const id = Array.from(selectedIds)[0]
+                                const targetU = users.find(x => x.id === id) || u
+                                handleOpenEdit(targetU)
+                                toggleSelectionMode()
+                              } else {
+                                setShowBulkEditForm(true)
+                              }
+                            } else {
+                              handleOpenEdit(u)
+                            }
+                          }}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
                           title="Sửa thông tin tài khoản"
                         >
                           <Pencil size={14} />
                         </button>
+
                         <button
                           type="button"
-                          onClick={() => handleToggleLock(u)}
-                          className={`rounded-lg p-1.5 transition ${isLocked ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30'}`}
-                          title={isLocked ? 'Mở khóa tài khoản' : 'Khóa truy cập'}
-                        >
-                          {isLocked ? <Unlock size={14} /> : <Lock size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(u.id)}
+                          onClick={() => {
+                            if (isSelectionMode && selectedIds.size > 0) {
+                              setConfirmBulkDelete(true)
+                            } else {
+                              setConfirmDelete(u.id)
+                            }
+                          }}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
                           title="Xóa tài khoản vĩnh viễn"
                         >

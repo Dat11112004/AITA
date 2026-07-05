@@ -8,6 +8,7 @@ import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-
 import { LogoutUseCase } from '../application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case.js'
 import { UpdateProfileUseCase } from '../application/use-cases/update-profile.use-case.js'
+import { DismissPasswordChangeUseCase } from '../application/use-cases/dismiss-password-change.use-case.js'
 import { LoginRequestDto, RegisterStudentRequestDto, RefreshTokenRequestDto, LogoutRequestDto, ChangePasswordRequestDto, UpdateProfileRequestDto } from '../application/dtos/auth.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
@@ -20,6 +21,7 @@ export class AuthController extends BaseController {
     private readonly logoutUseCase: LogoutUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
+    private readonly dismissPasswordChangeUseCase: DismissPasswordChangeUseCase,
     private readonly logger: ILogger,
   ) {
     super()
@@ -85,5 +87,11 @@ export class AuthController extends BaseController {
     
     // AuthResponseDto contains the updated user
     this.ok(res, result.user, 'Cập nhật hồ sơ thành công')
+  }
+
+  async dismissPasswordChange(req: Request, res: Response): Promise<void> {
+    this.logger.info(`Received dismiss password change request for user: ${req.user?.id}`)
+    await this.dismissPasswordChangeUseCase.execute(req.user!.id)
+    this.ok(res, null, 'Bỏ qua đổi mật khẩu thành công')
   }
 }

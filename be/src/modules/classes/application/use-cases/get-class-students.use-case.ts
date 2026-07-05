@@ -19,18 +19,12 @@ export class GetClassStudentsUseCase implements IUseCase<string, any[]> {
 
     const enrollmentRepo = this.uow.resolve<IEnrollmentRepository>(Symbol.for('EnrollmentRepository'))
     const enrollments = await enrollmentRepo.findMany({ ClassId: classId })
-    const studentIds = enrollments.map((e: any) => e.UserId)
 
-    if (studentIds.length === 0) return []
-
-    const userRepo = this.uow.resolve<any>(Symbol.for('UserRepository'))
-    const students = await userRepo.findMany({ Id: { in: studentIds } })
-
-    return students.map((s: any) => ({
-      id: s.Id,
-      studentId: s.StudentCode ?? s.Id,
-      name: s.FullName,
-      email: s.Email,
+    return enrollments.filter((e: any) => e.User).map((e: any) => ({
+      id: e.User.Id,
+      studentId: e.User.StudentCode ?? e.User.Id,
+      name: e.User.FullName,
+      email: e.User.Email,
       progress: '—',
       grade: '—',
     }))

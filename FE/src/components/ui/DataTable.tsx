@@ -3,7 +3,7 @@ import { EmptyState } from './EmptyState'
 
 export interface Column<T> {
   key: string
-  header: string
+  header: ReactNode | string
   render?: (row: T) => ReactNode
   className?: string
 }

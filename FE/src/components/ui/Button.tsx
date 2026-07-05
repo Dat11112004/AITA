@@ -8,7 +8,6 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size
   children: ReactNode
   fullWidth?: boolean
-  onClick?: any
   type?: 'button' | 'submit' | 'reset'
   className?: string
   disabled?: boolean

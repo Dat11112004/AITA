@@ -31,7 +31,8 @@ export class UsersController extends BaseController {
         const role = String(req.query.role ?? 'all')
         const page = parseInt(req.query.page as string) || 1
         const limit = parseInt(req.query.limit as string) || 10
-        const result = await this.listUseCase.execute({ role, page, limit })
+        const search = req.query.search ? String(req.query.search) : undefined
+        const result = await this.listUseCase.execute({ role, page, limit, search })
         this.ok(res, result, MESSAGES.USER_LIST_SUCCESS)
     }
 

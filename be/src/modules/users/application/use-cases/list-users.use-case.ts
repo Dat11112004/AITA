@@ -8,6 +8,7 @@ export interface ListUsersInput {
     role?: string
     page?: number
     limit?: number
+    search?: string
 }
 
 export class ListUsersUseCase implements IUseCase<ListUsersInput, UserResponseDto[]> {
@@ -16,10 +17,13 @@ export class ListUsersUseCase implements IUseCase<ListUsersInput, UserResponseDt
         private readonly logger: ILogger
     ) { }
 
-    async execute({ role = 'all', page = 1, limit = 10 }: ListUsersInput): Promise<UserResponseDto[]> {
-        this.logger.debug(`Fetching users: role=${role}, page=${page}`)
+    async execute({ role = 'all', page = 1, limit = 10, search }: ListUsersInput): Promise<UserResponseDto[]> {
+        this.logger.debug(`Fetching users: role=${role}, page=${page}, search=${search}`)
         
-        const filter = role !== 'all' ? { role: role.toUpperCase() as UserRoleType } : undefined
+        const filter = {
+            ...(role !== 'all' ? { role: role.toUpperCase() as UserRoleType } : {}),
+            ...(search ? { search } : {})
+        }
         const skip = (page - 1) * limit
         
         const users = await this.userRepo.findMany(filter, { skip, take: limit })

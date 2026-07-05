@@ -57,21 +57,26 @@ export const api = {
     return u
   }),
 
-  updateProfile: (body: FormData) => request<AuthUser>('/auth/profile', { method: 'PATCH', body }),
+  updateProfile: (data: FormData) => request<any>('/auth/profile', { method: 'PATCH', body: data }),
+  dismissPasswordChange: () => request<void>('/auth/dismiss-password-change', { method: 'POST' }),
   changePassword: (body: unknown) => request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
 
   getStatsOverview: () => request<Record<string, string | number>>('/stats/overview'),
   getActivity: () => request<ActivityLog[]>('/stats/activity'),
   getSystemHealth: () => request<Record<string, { status: string }>>('/reports/health'),
 
-  getUsers: (role = 'all', page = 1, limit = 10) => 
-    request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}`),
+  getUsers: (role = 'all', page = 1, limit = 10, search?: string) => 
+    request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   createUser: (body: CreateUserBody) =>
     request<UserRow>('/users', { method: 'POST', body: JSON.stringify(body) }),
 
   getClasses: (page = 1, limit = 10) => request<ClassRow[]>(`/classes?page=${page}&limit=${limit}`),
   createClass: (body: CreateClassBody) =>
     request<ClassRow>('/classes', { method: 'POST', body: JSON.stringify(body) }),
+  updateClass: (id: string, body: Partial<CreateClassBody>) =>
+    request<ClassRow>(`/classes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteClass: (id: string) =>
+    request<void>(`/classes/${id}`, { method: 'DELETE' }),
   getClassStudents: (classId: string) => request<StudentRow[]>(`/classes/${classId}/students`),
   updateClassNote: (classId: string, note: string) =>
     request<ClassRow>(`/classes/${classId}/note`, { method: 'PATCH', body: JSON.stringify({ note }) }),
@@ -116,6 +121,10 @@ export const api = {
   getSemesters: () => request<SemesterRow[]>(`/semesters`),
   createSemester: (body: CreateSemesterBody) =>
     request<SemesterRow>('/semesters', { method: 'POST', body: JSON.stringify(body) }),
+  updateSemester: (id: string, body: Partial<CreateSemesterBody>) =>
+    request<SemesterRow>(`/semesters/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteSemester: (id: string) =>
+    request<void>(`/semesters/${id}`, { method: 'DELETE' }),
 
   // ─── Exams CRUD ───
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
@@ -245,11 +254,12 @@ export interface ClassRow {
   id: string
   code: string
   name: string
-  subject: string
-  semester: string
+  subject: string | { id: string; code: string; name: string }
+  semester: string | { id: string; code: string }
   campus?: string
   schedule?: string
   lecturer?: AuthUser
+  lecturers?: AuthUser[]
   studentCount?: number
   count?: number
   // Internal staff note — present only for ADMIN/LECTURER (BE omits it for students).
