@@ -38,14 +38,28 @@ export class GetOptionsUseCase {
         if (user.role === 'LECTURER') where.InstructorClass = { some: { UserId: user.id } }
         if (user.role === 'STUDENT') where.StudentClass = { some: { UserId: user.id } }
 
-        return this.settingsRepo.getClassOptions(where)
+        const rows = await this.settingsRepo.getClassOptions(where)
+        return rows.map((r: any) => ({
+            value: r.Id,
+            label: `${r.ClassCode} - ${r.Subject?.SubjectCode || ''}`
+        }))
     }
 
     async getLecturerOptions() {
-        return this.settingsRepo.getLecturerOptions()
+        const rows = await this.settingsRepo.getLecturerOptions()
+        console.log('--- DEBUG getLecturerOptions ---')
+        console.log(rows)
+        return rows.map((r: any) => ({
+            value: r.Id,
+            label: `${r.FullName} (${r.Email})`
+        }))
     }
 
     async getAssignmentOptions() {
-        return this.settingsRepo.getAssignmentOptions()
+        const rows = await this.settingsRepo.getAssignmentOptions()
+        return rows.map((r: any) => ({
+            value: r.Id,
+            label: r.Title
+        }))
     }
 }

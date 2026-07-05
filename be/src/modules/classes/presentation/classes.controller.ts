@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express'
-import { CreateClassRequestDto, EnrollStudentRequestDto, UpdateClassNoteDto } from '../application/dtos/class.dto.js'
+import { CreateClassRequestDto, EnrollStudentRequestDto, UpdateClassNoteDto, UpdateClassRequestDto } from '../application/dtos/class.dto.js'
 import { ListClassesUseCase } from '../application/use-cases/list-classes.use-case.js'
 import { CreateClassUseCase } from '../application/use-cases/create-class.use-case.js'
 import { GetClassStudentsUseCase } from '../application/use-cases/get-class-students.use-case.js'
 import { EnrollStudentUseCase } from '../application/use-cases/enroll-student.use-case.js'
 import { UpdateClassNoteUseCase } from '../application/use-cases/update-class-note.use-case.js'
+import { UpdateClassUseCase } from '../application/use-cases/update-class.use-case.js'
+import { DeleteClassUseCase } from '../application/use-cases/delete-class.use-case.js'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
@@ -16,6 +18,8 @@ export class ClassesController extends BaseController {
     private readonly getClassStudentsUseCase: GetClassStudentsUseCase,
     private readonly enrollStudentUseCase: EnrollStudentUseCase,
     private readonly updateClassNoteUseCase: UpdateClassNoteUseCase,
+    private readonly updateClassUseCase: UpdateClassUseCase,
+    private readonly deleteClassUseCase: DeleteClassUseCase,
     private readonly logger: ILogger
   ) {
     super()
@@ -60,5 +64,20 @@ export class ClassesController extends BaseController {
     const dto = UpdateClassNoteDto.from(req.body)
     const result = await this.updateClassNoteUseCase.execute({ classId, dto, user: req.user! })
     this.ok(res, result, MESSAGES.CLASS_NOTE_UPDATED)
+  }
+
+  async update(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Updating class ${classId}`)
+    const dto = UpdateClassRequestDto.from(req.body)
+    const result = await this.updateClassUseCase.execute({ classId, dto })
+    this.ok(res, result, MESSAGES.SUCCESS)
+  }
+
+  async delete(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Deleting class ${classId}`)
+    await this.deleteClassUseCase.execute(classId)
+    this.ok(res, null, MESSAGES.SUCCESS)
   }
 }

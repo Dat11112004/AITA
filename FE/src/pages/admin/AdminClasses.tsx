@@ -242,7 +242,7 @@ export function AdminClasses() {
       subjectId: typeof cls.subject === 'object' && cls.subject ? cls.subject.id : '',
       semesterId: typeof cls.semester === 'object' && cls.semester ? cls.semester.id : '',
       campus: cls.campus || '',
-      lecturerId: cls.lecturer?.id || '',
+      lecturerId: cls.lecturer?.id || cls.lecturers?.[0]?.id || '',
     })
     setShowClassForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })

@@ -20,5 +20,7 @@ export class ClassesRouter {
     this.router.get('/:id/students', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.getStudents(req, res)))
     this.router.post('/:id/enroll', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.enroll(req, res)))
     this.router.patch('/:id/note', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.updateNote(req, res)))
+    this.router.patch('/:id', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.update(req, res)))
+    this.router.delete('/:id', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => controller.delete(req, res)))
   }
 }

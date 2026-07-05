@@ -15,6 +15,7 @@ export interface IClassRepository {
   update(classEntity: Class): Promise<void>
   delete(id: string): Promise<void>
   assignInstructor(classId: string, instructorId: string): Promise<void>
+  clearInstructors(classId: string): Promise<void>
   save(classEntity: Class): Promise<void>
   updateNote(classId: string, note: string): Promise<void>
   isInstructor(classId: string, userId: string): Promise<boolean>

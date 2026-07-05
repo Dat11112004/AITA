@@ -12,6 +12,7 @@ export const MESSAGES = {
   INVALID_DATA: 'Dữ liệu không hợp lệ',
   SEMESTER_NOT_FOUND: 'Không tìm thấy kỳ học',
 
+
   // Subjects
   SUBJECT_CREATE_SUCCESS: 'Tạo môn học thành công',
   SUBJECT_UPDATE_SUCCESS: 'Cập nhật môn học thành công',

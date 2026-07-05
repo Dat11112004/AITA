@@ -18,5 +18,8 @@ export class SettingsRouter {
 
         this.router.get('/', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.getSystemConfig(req, res)))
         this.router.put('/', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.updateSystemConfig(req, res)))
+        this.router.get('/options/classes', authenticate, asyncHandler((req, res) => ctrl.classOptions(req, res)))
+        this.router.get('/options/lecturers', authenticate, asyncHandler((req, res) => ctrl.lecturerOptions(req, res)))
+        this.router.get('/options/exams', authenticate, asyncHandler((req, res) => ctrl.assignmentOptions(req, res)))
     }
 }

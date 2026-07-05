@@ -26,6 +26,26 @@ export class CreateClassRequestDto {
   }
 }
 
+export const UpdateClassRequestSchema = CreateClassRequestSchema.partial().extend({
+  code: z.string().min(2, 'Mã lớp phải có ít nhất 2 ký tự').optional(),
+  name: z.string().min(2, 'Tên lớp phải có ít nhất 2 ký tự').optional(),
+})
+
+export type UpdateClassRequestDtoType = z.infer<typeof UpdateClassRequestSchema>
+
+export class UpdateClassRequestDto {
+  constructor(public readonly data: UpdateClassRequestDtoType) {}
+
+  static from(body: unknown): UpdateClassRequestDto {
+    try {
+      const data = UpdateClassRequestSchema.parse(body)
+      return new UpdateClassRequestDto(data)
+    } catch (error) {
+      throw error
+    }
+  }
+}
+
 export const UpdateClassNoteSchema = z.object({
   note: z.string().max(2000, 'Ghi chú tối đa 2000 ký tự'),
 })

@@ -77,6 +77,12 @@ export class PrismaClassRepository implements IClassRepository {
     })
   }
 
+  async clearInstructors(classId: string): Promise<void> {
+    await this.client.instructorClass.deleteMany({
+      where: { ClassId: classId },
+    })
+  }
+
   async save(classEntity: Class): Promise<void> {
     const existing = await this.client.class.findUnique({ where: { Id: classEntity.id } })
     if (existing) {

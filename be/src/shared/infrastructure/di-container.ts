@@ -29,6 +29,8 @@ import { CreateClassUseCase } from '../../modules/classes/application/use-cases/
 import { GetClassStudentsUseCase } from '../../modules/classes/application/use-cases/get-class-students.use-case.js'
 import { EnrollStudentUseCase } from '../../modules/classes/application/use-cases/enroll-student.use-case.js'
 import { UpdateClassNoteUseCase } from '../../modules/classes/application/use-cases/update-class-note.use-case.js'
+import { UpdateClassUseCase } from '../../modules/classes/application/use-cases/update-class.use-case.js'
+import { DeleteClassUseCase } from '../../modules/classes/application/use-cases/delete-class.use-case.js'
 import { PrismaClassRepository } from '../../modules/classes/infrastructure/repositories/prisma-class-repository.js'
 import { PrismaEnrollmentRepository } from '../../modules/classes/infrastructure/repositories/prisma-enrollment-repository.js'
 import { ClassesController } from '../../modules/classes/presentation/classes.controller.js'
@@ -199,6 +201,8 @@ export class DIContainer {
       const getClassStudentsUseCase = new GetClassStudentsUseCase(classRepo, uow)
       const enrollStudentUseCase = new EnrollStudentUseCase(classRepo, uow)
       const updateClassNoteUseCase = new UpdateClassNoteUseCase(classRepo)
+      const updateClassUseCase = new UpdateClassUseCase(uow)
+      const deleteClassUseCase = new DeleteClassUseCase(uow)
 
       const classController = new ClassesController(
         listClassesUseCase,
@@ -206,6 +210,8 @@ export class DIContainer {
         getClassStudentsUseCase,
         enrollStudentUseCase,
         updateClassNoteUseCase,
+        updateClassUseCase,
+        deleteClassUseCase,
         logger
       )
       this.services.set('ClassController', classController)
