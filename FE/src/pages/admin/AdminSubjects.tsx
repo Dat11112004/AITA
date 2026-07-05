@@ -16,6 +16,10 @@ export function AdminSubjects() {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
 
+  // Selection Mode
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError('')
@@ -76,9 +80,30 @@ export function AdminSubjects() {
     if (!confirm('Bạn có chắc chắn muốn xoá môn học này?')) return
     try {
       await api.deleteSubject(id)
+      setSubjects(prev => prev.filter(s => s.id !== id))
       load()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá thất bại')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Bạn có chắc chắn muốn xoá ${selectedIds.size} môn học đã chọn?`)) return
+    setIsDeleting(true)
+    try {
+      const results = await Promise.allSettled(Array.from(selectedIds).map(id => api.deleteSubject(id)))
+      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+      if (failed.length > 0) {
+        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
+      }
+      setSubjects(prev => prev.filter(s => !selectedIds.has(s.id)))
+      setSelectedIds(new Set())
+      load()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Xóa hàng loạt thất bại')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -173,14 +198,80 @@ export function AdminSubjects() {
       {/* Subjects List */}
       {!loading && !loadError && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-          <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-            <TableProperties className="text-slate-500 w-5 h-5 ml-2" />
-            <CardHeader title="Danh sách môn học" />
+          <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TableProperties className="text-slate-500 w-5 h-5 ml-2" />
+              <CardHeader title="Danh sách môn học" />
+            </div>
+            <div className="flex items-center gap-3">
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200">
+                  <span className="text-sm font-medium text-brand-700 bg-brand-50 px-3 py-1.5 rounded-full">
+                    Đã chọn: {selectedIds.size}
+                  </span>
+                  {selectedIds.size === 1 && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => {
+                        const id = Array.from(selectedIds)[0]
+                        const subj = subjects.find(s => s.id === id)
+                        if (subj) handleEdit(subj)
+                      }}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      Sửa
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={handleBulkDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white border-none shadow-sm">
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                    Xóa đã chọn
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="p-2 overflow-x-auto custom-scrollbar">
             <DataTable
               columns={[
+                {
+                  key: 'select',
+                  header: (
+                    <input
+                      type="checkbox"
+                      checked={subjects.length > 0 && selectedIds.size === subjects.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(subjects.map(s => s.id)))
+                        } else {
+                          setSelectedIds(new Set())
+                        }
+                      }}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                  ),
+                  render: (r) => {
+                    const subj = r as SubjectRow;
+                    return (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(subj.id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedIds(prev => {
+                            const next = new Set(prev)
+                            if (checked) next.add(subj.id)
+                            else next.delete(subj.id)
+                            return next
+                          })
+                        }}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                    )
+                  },
+                  className: 'w-10 text-center'
+                },
                 {
                   key: 'code',
                   header: 'Mã môn',
@@ -206,10 +297,24 @@ export function AdminSubjects() {
                   header: '',
                   render: (r) => (
                     <div className="flex items-center gap-1 justify-end">
-                      <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => handleEdit(r as SubjectRow)}>
+                      <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => {
+                        if (selectedIds.size === 1) {
+                          const id = Array.from(selectedIds)[0]
+                          const subj = subjects.find(s => s.id === id)
+                          if (subj) handleEdit(subj)
+                        } else {
+                          handleEdit(r as SubjectRow)
+                        }
+                      }}>
                         Chỉnh sửa
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete((r as SubjectRow).id)}>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => {
+                        if (selectedIds.size > 0) {
+                          handleBulkDelete()
+                        } else {
+                          handleDelete((r as SubjectRow).id)
+                        }
+                      }}>
                         Xoá
                       </Button>
                     </div>

@@ -639,15 +639,10 @@ export function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (isSelectionMode && selectedIds.size > 0) {
-                              if (selectedIds.size === 1) {
-                                const id = Array.from(selectedIds)[0]
-                                const targetU = users.find(x => x.id === id) || u
-                                handleOpenEdit(targetU)
-                                toggleSelectionMode()
-                              } else {
-                                setShowBulkEditForm(true)
-                              }
+                            if (selectedIds.size === 1) {
+                              const id = Array.from(selectedIds)[0]
+                              const su = filteredUsers.find(u => u.id === id)
+                              if (su) handleOpenEdit(su)
                             } else {
                               handleOpenEdit(u)
                             }
@@ -661,8 +656,8 @@ export function AdminUsers() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (isSelectionMode && selectedIds.size > 0) {
-                              setConfirmBulkDelete(true)
+                            if (selectedIds.size > 0) {
+                              handleBulkDelete()
                             } else {
                               setConfirmDelete(u.id)
                             }

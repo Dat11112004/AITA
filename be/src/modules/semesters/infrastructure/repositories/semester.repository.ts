@@ -49,8 +49,36 @@ export class SemesterRepository implements ISemesterRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.semester.delete({
-      where: { Id: id }
+    await this.prisma.$transaction(async (tx: any) => {
+      // Find all classes in this semester
+      const classes = await tx.class.findMany({ where: { SemesterId: id }, select: { Id: true } })
+      const classIds = classes.map((c: any) => c.Id)
+      
+      if (classIds.length > 0) {
+        // Manually cascade delete relations for each class (due to potential DB-level missing cascade)
+        await tx.studentClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        await tx.instructorClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        await tx.examClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        
+        // Delete submissions and their related records
+        const submissions = await tx.submission.findMany({ where: { ClassId: { in: classIds } }, select: { Id: true } })
+        const submissionIds = submissions.map((s: any) => s.Id)
+        if (submissionIds.length > 0) {
+          await tx.submissionArtifact.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+          await tx.executionResult.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+          await tx.aiUsageLog.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+          await tx.gradingSession.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+          await tx.submission.deleteMany({ where: { Id: { in: submissionIds } } })
+        }
+
+        // Delete the classes
+        await tx.class.deleteMany({ where: { SemesterId: id } })
+      }
+      
+      // Delete the semester itself
+      await tx.semester.delete({
+        where: { Id: id }
+      })
     })
   }
 }

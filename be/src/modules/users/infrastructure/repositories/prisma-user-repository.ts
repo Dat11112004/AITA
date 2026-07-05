@@ -15,10 +15,18 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const raw = await this.client.user.findUnique({
+    let raw = await this.client.user.findFirst({
       where: { Email: email },
       include: this.include,
     })
+    
+    if (!raw) {
+      raw = await this.client.user.findFirst({
+        where: { StudentCode: email },
+        include: this.include,
+      })
+    }
+    
     return raw ? UserMapper.toDomain(raw) : null
   }
 

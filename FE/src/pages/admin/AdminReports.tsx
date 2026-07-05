@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { api } from '@/lib/api'
-import { BarChart3, Users, BookOpen, Activity, Server, Database, CheckCircle2 } from 'lucide-react'
+import { BarChart3, Users, BookOpen, Activity, Server, Database, CheckCircle2, Library } from 'lucide-react'
 
 export function AdminReports() {
   const [stats, setStats] = useState<any>(null)
@@ -49,12 +49,12 @@ export function AdminReports() {
         }
       />
 
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <Card className="p-6 border border-brand-100 dark:border-brand-900/30 bg-gradient-to-br from-brand-50 to-white dark:from-brand-950/20 dark:to-slate-900">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Sinh viên</p>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.totalStudents || 0}</h3>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Người dùng</p>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.summary?.users || 0}</h3>
             </div>
             <div className="p-3 bg-brand-100 text-brand-600 rounded-xl dark:bg-brand-900/40 dark:text-brand-400">
               <Users size={24} />
@@ -62,11 +62,23 @@ export function AdminReports() {
           </div>
         </Card>
         
+        <Card className="p-6 border border-pink-100 dark:border-pink-900/30 bg-gradient-to-br from-pink-50 to-white dark:from-pink-950/20 dark:to-slate-900">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Môn học</p>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.summary?.subjects || 0}</h3>
+            </div>
+            <div className="p-3 bg-pink-100 text-pink-600 rounded-xl dark:bg-pink-900/40 dark:text-pink-400">
+              <Library size={24} />
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6 border border-indigo-100 dark:border-indigo-900/30 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-slate-900">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Lớp học</p>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.totalClasses || 0}</h3>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.summary?.classes || 0}</h3>
             </div>
             <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl dark:bg-indigo-900/40 dark:text-indigo-400">
               <BookOpen size={24} />
@@ -78,7 +90,7 @@ export function AdminReports() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Lượt nộp bài (Tháng)</p>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.monthlySubmissions || 0}</h3>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.summary?.submissions || 0}</h3>
             </div>
             <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl dark:bg-emerald-900/40 dark:text-emerald-400">
               <BarChart3 size={24} />
@@ -89,8 +101,8 @@ export function AdminReports() {
         <Card className="p-6 border border-amber-100 dark:border-amber-900/30 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Uptime</p>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{health?.uptime || '99.9%'}</h3>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Kỳ thi</p>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats?.summary?.exams || 0}</h3>
             </div>
             <div className="p-3 bg-amber-100 text-amber-600 rounded-xl dark:bg-amber-900/40 dark:text-amber-400">
               <Activity size={24} />

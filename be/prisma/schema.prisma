@@ -44,7 +44,7 @@ model Class {
   SemesterId      String?           @db.UniqueIdentifier
   Status          String?
   Note            String?
-  Semester        Semester?         @relation(fields: [SemesterId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Semester        Semester?         @relation(fields: [SemesterId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   Subject         Subject?          @relation(fields: [SubjectId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   InstructorClass InstructorClass[]
   StudentClass    StudentClass[]
@@ -74,7 +74,7 @@ model Submission {
   ExecutionResult                  ExecutionResult[]
   GradingSession                   GradingSession[]
   Appeal                           Appeal[]
-  Class                            Class?               @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Class                            Class?               @relation(fields: [ClassId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   Exam                             Exam?                @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   User_Submission_ReviewedByToUser User?                @relation("Submission_ReviewedByToUser", fields: [ReviewedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   User_Submission_StudentIdToUser  User?                @relation("Submission_StudentIdToUser", fields: [StudentId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
@@ -384,7 +384,7 @@ model InstructorClass {
   UserId     String    @db.UniqueIdentifier
   ClassId    String    @db.UniqueIdentifier
   EnrolledAt DateTime? @db.DateTime2
-  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   User       User      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([UserId, ClassId])
@@ -598,7 +598,7 @@ model StudentClass {
   UserId     String    @db.UniqueIdentifier
   ClassId    String    @db.UniqueIdentifier
   EnrolledAt DateTime? @db.DateTime2
-  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Class      Class     @relation(fields: [ClassId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   User       User      @relation(fields: [UserId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([UserId, ClassId])
@@ -667,7 +667,7 @@ model ExamClass {
   ClassId     String    @db.UniqueIdentifier
   AssignedAt  DateTime? @db.DateTime2
   DueDate     DateTime? @db.DateTime2
-  Class       Class     @relation(fields: [ClassId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Class       Class     @relation(fields: [ClassId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
   Exam        Exam      @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([ExamId, ClassId])

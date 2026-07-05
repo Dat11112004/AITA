@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type SemesterRow, type SubjectRow, type Option, type StudentRow } from '@/lib/api'
-import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, Folder, ArrowLeft, Edit3, Trash2 } from 'lucide-react'
+import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, Folder, ArrowLeft, Edit3, Trash2, ShieldAlert } from 'lucide-react'
 
 type Level = 'semester' | 'subject' | 'class' | 'students'
 
@@ -39,6 +40,11 @@ export function AdminClasses() {
   const [selectedClass, setSelectedClass] = useState<ClassRow | null>(null)
   const [classStudents, setClassStudents] = useState<StudentRow[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
+
+  // Modal confirm delete
+  const [confirmDeleteSemester, setConfirmDeleteSemester] = useState<string | null>(null)
+  const [confirmBulkDeleteSemesters, setConfirmBulkDeleteSemesters] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Internal class note editor (admin only)
   const [noteClassId, setNoteClassId] = useState<string | null>(null)
@@ -146,28 +152,42 @@ export function AdminClasses() {
     }
   }
 
-  const handleDeleteSemester = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!confirm('Bạn có chắc chắn muốn xoá kỳ học này?')) return
+  const handleDeleteSemester = async (id: string) => {
+    setIsDeleting(true)
     try {
       await api.deleteSemester(id)
       setSelectedSemesterIds(prev => { const n = new Set(prev); n.delete(id); return n; })
+      setSemesters(prev => prev.filter(s => s.id !== id))
+      setConfirmDeleteSemester(null)
+      // We don't necessarily need to load() here because optimistic update already removed it,
+      // but keeping it ensures state consistency with the backend
       load()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá thất bại')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
   const handleBulkDeleteSemesters = async () => {
     if (selectedSemesterIds.size === 0) return
-    if (!confirm(`Bạn có chắc chắn muốn xoá ${selectedSemesterIds.size} kỳ học đã chọn?`)) return
+    setIsDeleting(true)
     
     try {
-      await Promise.all(Array.from(selectedSemesterIds).map(id => api.deleteSemester(id)))
+      const results = await Promise.allSettled(Array.from(selectedSemesterIds).map(id => api.deleteSemester(id)))
+      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+      
+      if (failed.length > 0) {
+        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
+      }
+      setSemesters(prev => prev.filter(s => !selectedSemesterIds.has(s.id)))
       setSelectedSemesterIds(new Set())
+      setConfirmBulkDeleteSemesters(false)
       load()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá hàng loạt thất bại')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -185,6 +205,7 @@ export function AdminClasses() {
     try {
       await api.deleteClass(id)
       setSelectedClassIds(prev => { const n = new Set(prev); n.delete(id); return n; })
+      setClasses(prev => prev.filter(c => c.id !== id))
       load()
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá thất bại')
@@ -196,7 +217,15 @@ export function AdminClasses() {
     if (!confirm(`Bạn có chắc chắn muốn xoá ${selectedClassIds.size} lớp học đã chọn?`)) return
     
     try {
-      await Promise.all(Array.from(selectedClassIds).map(id => api.deleteClass(id)))
+      const results = await Promise.allSettled(Array.from(selectedClassIds).map(id => api.deleteClass(id)))
+      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+      
+      if (failed.length > 0) {
+        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
+      } else {
+        alert('Xoá thành công')
+      }
+      setClasses(prev => prev.filter(c => !selectedClassIds.has(c.id)))
       setSelectedClassIds(new Set())
       load()
     } catch (error) {
@@ -473,8 +502,25 @@ export function AdminClasses() {
               {selectedSemesterIds.size > 0 && (
                 <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in">
                   <span className="text-sm font-medium text-red-800">Đã chọn {selectedSemesterIds.size} kỳ học</span>
-                  <Button size="sm" onClick={handleBulkDeleteSemesters} className="bg-red-600 hover:bg-red-700 text-white">
-                    Xoá đã chọn
+                  {selectedSemesterIds.size === 1 && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={(e) => {
+                        const semId = Array.from(selectedSemesterIds)[0];
+                        const sem = semesters.find(s => s.id === semId);
+                        if (sem) {
+                          handleEditSemester(sem, e);
+                          setSelectedSemesterIds(new Set());
+                        }
+                      }}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      <Edit3 size={16} className="mr-1" /> Chỉnh sửa
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => setConfirmBulkDeleteSemesters(true)} className="bg-red-600 hover:bg-red-700 text-white">
+                    <Trash2 size={16} className="mr-1" /> Xoá đã chọn
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setSelectedSemesterIds(new Set())}>
                     Huỷ chọn
@@ -523,7 +569,7 @@ export function AdminClasses() {
                           </button>
                           <button
                             className="p-1.5 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                            onClick={(e) => handleDeleteSemester(sem.id, e)}
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteSemester(sem.id); }}
                             title="Xoá"
                           >
                             <Trash2 size={16} />
@@ -581,8 +627,25 @@ export function AdminClasses() {
               {selectedClassIds.size > 0 && (
                 <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in">
                   <span className="text-sm font-medium text-red-800">Đã chọn {selectedClassIds.size} lớp học</span>
+                  {selectedClassIds.size === 1 && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={(e) => {
+                        const clsId = Array.from(selectedClassIds)[0];
+                        const cls = classes.find(c => c.id === clsId);
+                        if (cls) {
+                          handleEditClass(cls, e);
+                          setSelectedClassIds(new Set());
+                        }
+                      }}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      <Edit3 size={16} className="mr-1" /> Chỉnh sửa
+                    </Button>
+                  )}
                   <Button size="sm" onClick={handleBulkDeleteClasses} className="bg-red-600 hover:bg-red-700 text-white">
-                    Xoá đã chọn
+                    <Trash2 size={16} className="mr-1" /> Xoá đã chọn
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setSelectedClassIds(new Set())}>
                     Huỷ chọn
@@ -653,11 +716,11 @@ export function AdminClasses() {
                             </button>
                             {openMenuId === cls.id && (
                               <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-50 animate-in fade-in zoom-in-95 duration-100">
-                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center text-slate-700 dark:text-slate-300 rounded-t-lg transition-colors" onClick={(e) => { setOpenMenuId(null); handleEditClass(cls, e); }}>
+                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center text-slate-700 dark:text-slate-300 rounded-t-lg transition-colors" onClick={(e) => { setOpenMenuId(null); if (selectedClassIds.size === 1) { const id = Array.from(selectedClassIds)[0]; const scls = classes.find(c => c.id === id); if (scls) handleEditClass(scls, e); } else { handleEditClass(cls, e); } }}>
                                   Chỉnh sửa
                                 </button>
                                 <div className="h-px bg-slate-100 dark:bg-slate-700 mx-2"></div>
-                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center text-red-600 dark:text-red-400 rounded-b-lg transition-colors" onClick={(e) => { setOpenMenuId(null); handleDeleteClass(cls.id, e); }}>
+                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center text-red-600 dark:text-red-400 rounded-b-lg transition-colors" onClick={(e) => { setOpenMenuId(null); if (selectedClassIds.size > 0) handleBulkDeleteClasses(); else handleDeleteClass(cls.id, e); }}>
                                   Xoá Lớp học
                                 </button>
                               </div>
@@ -706,6 +769,64 @@ export function AdminClasses() {
 
         </div>
       )}
+      {/* Single Delete Confirmation Modal */}
+      {confirmDeleteSemester && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2 mb-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bạn có chắc chắn muốn xóa kỳ học này?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Hành động này sẽ xóa toàn bộ các lớp học, bài nộp, và thông tin liên quan trong kỳ học này khỏi cơ sở dữ liệu. Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmDeleteSemester(null)}>
+                  Hủy bỏ
+                </Button>
+                <Button onClick={() => handleDeleteSemester(confirmDeleteSemester!)} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
+                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> : null}
+                  Xóa vĩnh viễn
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>,
+        document.body
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {confirmBulkDeleteSemesters && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2 mb-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Xác nhận xóa hàng loạt?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Bạn đang chuẩn bị xóa vĩnh viễn <span className="font-bold text-red-600">{selectedSemesterIds.size}</span> kỳ học cùng toàn bộ dữ liệu lớp học bên trong. Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" className="flex-1" onClick={() => setConfirmBulkDeleteSemesters(false)}>
+                  Hủy bỏ
+                </Button>
+                <Button onClick={handleBulkDeleteSemesters} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
+                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> : null}
+                  Xóa vĩnh viễn
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>,
+        document.body
+      )}
+
     </div>
   )
 }

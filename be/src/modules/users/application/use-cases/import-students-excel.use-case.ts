@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import * as xlsx from 'xlsx'
 import crypto from 'crypto'
+
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
 

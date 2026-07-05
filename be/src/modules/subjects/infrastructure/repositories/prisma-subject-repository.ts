@@ -49,7 +49,142 @@ export class PrismaSubjectRepository implements ISubjectRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.client.subject.delete({ where: { Id: id } })
+    await this.client.$transaction(async (tx: any) => {
+      // 1. Collect all dependent IDs
+      const classes = await tx.class.findMany({ where: { SubjectId: id }, select: { Id: true } })
+      const classIds = classes.map((c: any) => c.Id)
+      
+      const exams = await tx.exam.findMany({ where: { SubjectId: id }, select: { Id: true } })
+      const examIds = exams.map((e: any) => e.Id)
+      
+      let subIds: string[] = []
+      if (classIds.length || examIds.length) {
+        const submissions = await tx.submission.findMany({
+          where: { OR: [ 
+            ...(classIds.length ? [{ ClassId: { in: classIds } }] : []),
+            ...(examIds.length ? [{ ExamId: { in: examIds } }] : [])
+          ]},
+          select: { Id: true }
+        })
+        subIds = submissions.map((s: any) => s.Id)
+      }
+
+      let sessionIds: string[] = []
+      if (subIds.length) {
+        const sessions = await tx.gradingSession.findMany({ where: { SubmissionId: { in: subIds } }, select: { Id: true } })
+        sessionIds = sessions.map((s: any) => s.Id)
+      }
+
+      let jobIds: string[] = []
+      if (sessionIds.length) {
+        const jobs = await tx.gradingJob.findMany({ where: { GradingSessionId: { in: sessionIds } }, select: { Id: true } })
+        jobIds = jobs.map((j: any) => j.Id)
+      }
+
+      let execResultIds: string[] = []
+      if (subIds.length || jobIds.length) {
+        const execResults = await tx.executionResult.findMany({ 
+          where: { OR: [
+            ...(subIds.length ? [{ SubmissionId: { in: subIds } }] : []),
+            ...(jobIds.length ? [{ GradingJobId: { in: jobIds } }] : [])
+          ]}, 
+          select: { Id: true } 
+        })
+        execResultIds = execResults.map((e: any) => e.Id)
+      }
+
+      let ruleScoreIds: string[] = []
+      if (execResultIds.length) {
+        const ruleScores = await tx.ruleScore.findMany({ where: { ExecutionResultId: { in: execResultIds } }, select: { Id: true } })
+        ruleScoreIds = ruleScores.map((r: any) => r.Id)
+      }
+      
+      let sectionIds: string[] = []
+      if (examIds.length) {
+        const sections = await tx.examSection.findMany({ where: { ExamId: { in: examIds } }, select: { Id: true } })
+        sectionIds = sections.map((s: any) => s.Id)
+      }
+      
+      let ruleIds: string[] = []
+      if (sectionIds.length) {
+        const rules = await tx.rubricRule.findMany({ where: { SectionId: { in: sectionIds } }, select: { Id: true } })
+        ruleIds = rules.map((r: any) => r.Id)
+      }
+      
+      let criteriaIds: string[] = []
+      if (ruleIds.length) {
+        const criteria = await tx.rubricCriterion.findMany({ where: { RubricRuleId: { in: ruleIds } }, select: { Id: true } })
+        criteriaIds = criteria.map((c: any) => c.Id)
+      }
+
+      // 2. Delete bottom-up
+      if (ruleScoreIds.length) {
+        await tx.criterionScore.deleteMany({ where: { RuleScoreId: { in: ruleScoreIds } } })
+        await tx.evidence.deleteMany({ where: { RuleScoreId: { in: ruleScoreIds } } })
+      }
+      
+      if (criteriaIds.length) {
+        await tx.criterionScore.deleteMany({ where: { RubricCriterionId: { in: criteriaIds } } })
+        await tx.rubricCriterion.deleteMany({ where: { Id: { in: criteriaIds } } })
+      }
+      
+      if (ruleIds.length) {
+        await tx.ruleScore.deleteMany({ where: { RubricRuleId: { in: ruleIds } } })
+        await tx.rubricRule.deleteMany({ where: { Id: { in: ruleIds } } })
+      }
+      
+      if (sectionIds.length) {
+        await tx.examSection.deleteMany({ where: { Id: { in: sectionIds } } })
+      }
+      
+      if (execResultIds.length) {
+        await tx.ruleScore.deleteMany({ where: { ExecutionResultId: { in: execResultIds } } })
+        await tx.executionResult.deleteMany({ where: { Id: { in: execResultIds } } })
+      }
+      
+      if (jobIds.length) {
+        await tx.jobDependency.deleteMany({ where: { OR: [{ JobId: { in: jobIds } }, { DependsOnJobId: { in: jobIds } }] } })
+        await tx.gradingJob.deleteMany({ where: { Id: { in: jobIds } } })
+      }
+      
+      if (sessionIds.length) {
+        await tx.buildArtifact.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
+        await tx.sandboxExecution.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
+        await tx.gradingSession.deleteMany({ where: { Id: { in: sessionIds } } })
+      }
+      
+      if (subIds.length) {
+        await tx.submissionArtifact.deleteMany({ where: { SubmissionId: { in: subIds } } })
+        await tx.appeal.deleteMany({ where: { SubmissionId: { in: subIds } } })
+        await tx.aiUsageLog.deleteMany({ where: { SubmissionId: { in: subIds } } })
+        await tx.submission.deleteMany({ where: { Id: { in: subIds } } })
+      }
+      
+      if (classIds.length) {
+        await tx.studentClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        await tx.instructorClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        await tx.examClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        await tx.class.deleteMany({ where: { SubjectId: id } })
+      }
+      
+      if (examIds.length) {
+        await tx.examAttachment.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.examGenerationHistory.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.referenceArtifact.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.sampleCode.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.testCase.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.aiUsageLog.deleteMany({ where: { ExamId: { in: examIds } } })
+        await tx.exam.deleteMany({ where: { SubjectId: id } })
+      }
+      
+      // Delete top-level Subject dependents
+      await tx.subjectProjectType.deleteMany({ where: { SubjectId: id } })
+      await tx.assignmentTemplate.deleteMany({ where: { SubjectId: id } })
+      await tx.promptTemplate.deleteMany({ where: { SubjectId: id } })
+      
+      // Finally delete Subject
+      await tx.subject.delete({ where: { Id: id } })
+    })
   }
 
   async save(subject: Subject): Promise<void> {

@@ -155,7 +155,7 @@ export class User extends AggregateRoot {
   // ── Business Logic ──
 
   isActive(): boolean {
-    return this.status === 'Active'
+    return this.status?.toLowerCase() === 'active'
   }
 
   isAdmin(): boolean {
