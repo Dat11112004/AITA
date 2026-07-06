@@ -4,7 +4,7 @@ import { z } from 'zod'
 export const CreateClassRequestSchema = z.object({
   code: z.string().min(2, 'Mã lớp phải có ít nhất 2 ký tự'),
   name: z.string().min(2, 'Tên lớp phải có ít nhất 2 ký tự'),
-  subjectId: z.string().optional(),
+  subjectId: z.string().min(1, 'subjectId là bắt buộc'),
   semesterId: z.string().optional(),
   campus: z.string().optional(),
   schedule: z.string().optional(),

@@ -269,7 +269,7 @@ export interface ClassRow {
 export interface CreateClassBody {
   code: string
   name: string
-  subjectId?: string
+  subjectId: string
   semesterId?: string
   campus?: string
   schedule?: string
