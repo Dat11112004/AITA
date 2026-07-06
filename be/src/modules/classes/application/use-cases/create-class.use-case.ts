@@ -49,7 +49,7 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
       const cls = Class.create(
         randomUUID(),
         data.code,
-        data.subjectId as string,
+        data.subjectId,
         data.semesterId as string
       )
 
