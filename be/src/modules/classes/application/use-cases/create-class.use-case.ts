@@ -42,7 +42,7 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
       }
     }
 
-    return this.uow.runInTransaction(async (txn) => {
+    const result = await this.uow.runInTransaction(async (txn) => {
       // Resolve transaction-bound repository
       const txClassRepo = txn.resolve<IClassRepository>(TOKENS.ClassRepository)
 
@@ -60,7 +60,49 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
       }
 
       const finalClass = await txClassRepo.findById(cls.id)
-      return ClassResponseDto.from(finalClass as any)
+      return finalClass
     })
+
+    // Auto-enrollment logic
+    try {
+      const { prisma } = await import('../../../../database/prisma.js')
+      
+      const pendingEnrollments = await (prisma as any).pendingEnrollment.findMany({
+        where: {
+          ClassCode: data.code,
+          Status: 'Pending',
+          OR: [
+             { SemesterCode: semester.code },
+             { SubjectCode: subject.subjectCode }
+          ]
+        }
+      })
+
+      if (pendingEnrollments.length > 0) {
+        // Enroll students
+        for (const pe of pendingEnrollments) {
+          const existingEnrollment = await prisma.studentClass.findUnique({
+            where: { UserId_ClassId: { UserId: pe.UserId, ClassId: result!.id } }
+          })
+          if (!existingEnrollment) {
+            await prisma.studentClass.create({
+              data: { UserId: pe.UserId, ClassId: result!.id, EnrolledAt: new Date() }
+            })
+          }
+        }
+        
+        // Mark as enrolled
+        await (prisma as any).pendingEnrollment.updateMany({
+          where: {
+            Id: { in: pendingEnrollments.map((pe: any) => pe.Id) }
+          },
+          data: { Status: 'Enrolled' }
+        })
+      }
+    } catch (err) {
+      console.error('Failed to auto-enroll students:', err)
+    }
+
+    return ClassResponseDto.from(result as any)
   }
 }

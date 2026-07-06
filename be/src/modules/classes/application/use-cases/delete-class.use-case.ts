@@ -16,9 +16,23 @@ export class DeleteClassUseCase implements IUseCase<string, void> {
       throw new NotFoundError(MESSAGES.CLASS_NOT_FOUND || 'Không tìm thấy lớp học')
     }
 
-    return this.uow.runInTransaction(async (txn) => {
+    const result = await this.uow.runInTransaction(async (txn) => {
       const txClassRepo = txn.resolve<IClassRepository>(TOKENS.ClassRepository)
       await txClassRepo.delete(classId)
     })
+
+    try {
+      if (existingClass.classCode) {
+        const { prisma } = await import('../../../../database/prisma.js')
+        await (prisma as any).pendingEnrollment.updateMany({
+          where: { ClassCode: existingClass.classCode },
+          data: { Status: 'Pending' }
+        })
+      }
+    } catch (err) {
+      console.error('Failed to revert pending enrollments:', err)
+    }
+
+    return result
   }
 }

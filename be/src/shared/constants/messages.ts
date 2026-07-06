@@ -116,4 +116,12 @@ export const MESSAGES = {
   AUTH_PASSWORD_CHANGED_SUCCESS: 'Đổi mật khẩu thành công',
   AUTH_INVALID_REFRESH_TOKEN: 'Refresh token không hợp lệ hoặc đã hết hạn',
   AUTH_WRONG_OLD_PASSWORD: 'Mật khẩu cũ không chính xác',
+  SEMESTER_CREATE_SUCCESS: 'Tạo kỳ học thành công',
+  SEMESTER_ALREADY_EXISTS: 'Kỳ học đã tồn tại',
+  SEMESTER_UPDATE_SUCCESS: 'Cập nhật kỳ học thành công',
+  SEMESTER_DELETE_SUCCESS: 'Xóa kỳ học thành công',
+  SEMESTER_LIST_SUCCESS: 'Lấy danh sách kỳ học thành công',
+  SEMESTER_GET_SUCCESS: 'Lấy thông tin kỳ học thành công',
+  SEMESTER_INACTIVE_SUCCESS: 'Vô hiệu hóa kỳ học thành công',
+
 } as const

@@ -75,7 +75,7 @@ export function StudentClasses() {
           code: typeof cls.subject === 'object' ? (cls.subject as any).code : (cls.subject || 'N/A'),
           name: typeof cls.subject === 'object' ? (cls.subject as any).name : 'Môn học',
           classCode: cls.code,
-          teacher: cls.lecturer?.fullName || cls.lecturer?.name || 'Chưa phân công',
+          teacher: cls.lecturers?.[0]?.fullName || cls.lecturers?.[0]?.name || 'Chưa phân công',
           grades
         }
       })

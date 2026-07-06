@@ -35,6 +35,7 @@ model User {
   Submission_Submission_StudentIdToUser  Submission[]            @relation("Submission_StudentIdToUser")
   UserRole                               UserRole[]
   Appeal                                 Appeal[]
+  PendingEnrollment                      PendingEnrollment[]
 }
 
 model Class {
@@ -687,6 +688,15 @@ model Appeal {
   User         User?       @relation(fields: [StudentId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-
-
-
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model PendingEnrollment {
+  Id           String    @id @default(uuid()) @db.UniqueIdentifier
+  UserId       String    @db.UniqueIdentifier
+  SemesterCode String?
+  ClassCode    String?
+  SubjectCode  String?
+  Status       String?   @default("Pending")
+  CreatedAt    DateTime? @default(now()) @db.DateTime2
+  UpdatedAt    DateTime? @updatedAt @db.DateTime2
+  User         User      @relation(fields: [UserId], references: [Id], onDelete: Cascade)
+}

@@ -47,7 +47,7 @@ export function StudentOverview() {
     id: c.id,
     code: typeof c.subject === 'object' ? c.subject.code : c.subject || 'N/A',
     name: typeof c.subject === 'object' ? c.subject.name : 'Môn học',
-    teacher: c.lecturer?.fullName || c.lecturer?.name || 'Chưa phân công',
+    teacher: c.lecturers?.[0]?.name || c.lecturers?.[0]?.fullName || 'Chưa phân công',
   }))
 
   return (
