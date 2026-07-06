@@ -8,7 +8,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Plus, Pencil, Trash2, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare } from 'lucide-react'
 
 const ROLE_TABS = [
   { id: 'all', label: 'Tất cả' },
@@ -128,12 +128,15 @@ export function AdminUsers() {
   }
 
   const handleDelete = async (id: string) => {
+    setConfirmDelete(null)
+    setUsers(prev => prev.filter(u => u.id !== id))
     try {
       await api.deleteUser(id)
-      setConfirmDelete(null)
-      load()
+      // Chạy ngầm load để đảm bảo đồng bộ hoàn toàn, nhưng không await để UI mượt
+      api.getUsers(activeTab, 1, 100, search).then(data => setUsers(data || []))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Xóa tài khoản thất bại')
+      load() // Phục hồi dữ liệu nếu lỗi
     }
   }
 
@@ -164,13 +167,16 @@ export function AdminUsers() {
     setBulkDeleting(true)
     setError('')
     try {
+      // Cập nhật giao diện realtime
+      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)))
       await Promise.all(Array.from(selectedIds).map(id => api.deleteUser(id)))
       setConfirmBulkDelete(false)
       setSelectedIds(new Set())
       setIsSelectionMode(false)
-      load()
+      api.getUsers(activeTab, 1, 100, search).then(data => setUsers(data || []))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Xóa hàng loạt thất bại')
+      load()
     } finally {
       setBulkDeleting(false)
     }
@@ -228,60 +234,63 @@ export function AdminUsers() {
         breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Người dùng' }]}
         actions={
           <div className="flex gap-2 items-center flex-wrap">
-            {isSelectionMode ? (
+            <Button
+              size="sm"
+              variant={isSelectionMode ? 'primary' : 'outline'}
+              className={isSelectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
+              onClick={toggleSelectionMode}
+            >
+              <CheckSquare size={16} className="mr-2" /> {isSelectionMode ? 'Hủy chọn' : 'Chọn'}
+            </Button>
+            {isSelectionMode && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-brand-700 border-brand-200 hover:bg-brand-50"
+                onClick={toggleSelectAll}
+              >
+                {selectedIds.size === filteredUsers.length && filteredUsers.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </Button>
+            )}
+            {isSelectionMode && selectedIds.size > 0 && (
               <>
-                <Button variant="ghost" size="sm" onClick={toggleSelectionMode} className="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-                  Hủy chọn
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:text-blue-700 transition"
+                  onClick={() => {
+                    if (selectedIds.size === 1) {
+                      const id = Array.from(selectedIds)[0]
+                      const u = users.find(u => u.id === id)
+                      if (u) {
+                        handleOpenEdit(u)
+                        toggleSelectionMode()
+                      }
+                    } else {
+                      setShowBulkEditForm(true)
+                    }
+                  }}
+                >
+                  <Pencil size={16} />
+                  Sửa {selectedIds.size} đã chọn
                 </Button>
-                {selectedIds.size > 0 && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex items-center gap-2 bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:text-blue-700 transition"
-                      onClick={() => {
-                        if (selectedIds.size === 1) {
-                          const id = Array.from(selectedIds)[0]
-                          const u = users.find(u => u.id === id)
-                          if (u) {
-                            handleOpenEdit(u)
-                            toggleSelectionMode()
-                          }
-                        } else {
-                          setShowBulkEditForm(true)
-                        }
-                      }}
-                    >
-                      <Pencil size={16} />
-                      Sửa {selectedIds.size} đã chọn
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex items-center gap-2 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 transition"
-                      onClick={() => setConfirmBulkDelete(true)}
-                    >
-                      <Trash2 size={16} />
-                      Xóa {selectedIds.size} đã chọn
-                    </Button>
-                  </>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 transition"
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  <Trash2 size={16} />
+                  Xóa {selectedIds.size} đã chọn
+                </Button>
               </>
-            ) : (
+            )}
+            {!isSelectionMode && (
               <>
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={toggleSelectionMode}
-                >
-                  <div className="w-3.5 h-3.5 border-2 border-slate-400 rounded-sm"></div>
-                  Chọn
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white"
                   onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
                 >
                   <Upload size={16} />
@@ -423,8 +432,10 @@ export function AdminUsers() {
           <div className="space-y-4">
             <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
               <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
-              MSSV | Họ và tên | Email | Số điện thoại | Kỳ học | Lớp học | Môn khác kỳ hiện tại (nợ/học vượt) | Môn đã học vượt thành công<br/>
-              QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | SWE201-SE1701
+              <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
+                MSSV | Họ và tên | Email | môn đã học vượt thành công | Số điện thoại | Kỳ học | Lớp học | Môn khác kì hiện tại (nợ/học vượt) | Hình ảnh{'\n'}
+                QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
+              </pre>
             </div>
             
             <div>
@@ -583,14 +594,7 @@ export function AdminUsers() {
               columns={[
                 ...(isSelectionMode ? [{
                   key: 'select',
-                  header: (
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                      checked={filteredUsers.length > 0 && selectedIds.size === filteredUsers.length}
-                      onChange={toggleSelectAll}
-                    />
-                  ),
+                  header: '',
                   render: (r: any) => (
                     <input 
                       type="checkbox" 
@@ -606,6 +610,21 @@ export function AdminUsers() {
                   header: 'Mã số hệ thống',
                   render: (r) => <span className="font-mono text-[11px] text-slate-400 block max-w-[80px] truncate" title={(r as UserRow).id}>{(r as UserRow).id}</span>,
                   className: 'w-24 pl-4'
+                },
+                {
+                  key: 'avatar',
+                  header: 'Hình ảnh',
+                  render: (r) => {
+                    const u = r as UserRow
+                    return u.avatar ? (
+                      <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-medium text-xs border border-slate-200">
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                    )
+                  },
+                  className: 'w-16'
                 },
                 {
                   key: 'name',
@@ -674,7 +693,8 @@ export function AdminUsers() {
                 },
               ]}
               data={filteredUsers}
-              keyExtractor={(r) => r.id}
+              keyExtractor={(r) => (r as UserRow).id}
+              onRowClick={isSelectionMode ? (row) => toggleSelect((row as UserRow).id) : undefined}
             />
           </div>
         </Card>

@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   keyExtractor: (row: T) => string
   emptyTitle?: string
   emptyDescription?: string
+  onRowClick?: (row: T) => void
 }
 
 export function DataTable<T>({
@@ -22,6 +23,7 @@ export function DataTable<T>({
   keyExtractor,
   emptyTitle = 'Chưa có dữ liệu',
   emptyDescription = 'Dữ liệu sẽ hiển thị tại đây sau khi bạn kết nối nguồn dữ liệu.',
+  onRowClick
 }: DataTableProps<T>) {
   if (data.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />
@@ -44,7 +46,11 @@ export function DataTable<T>({
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-700/50 dark:bg-slate-800">
           {data.map((row) => (
-            <tr key={keyExtractor(row)} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors">
+            <tr 
+              key={keyExtractor(row)} 
+              className={`hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+              onClick={() => onRowClick && onRowClick(row)}
+            >
               {columns.map((col) => (
                 <td key={col.key} className={`px-4 py-3 text-slate-700 dark:text-slate-300 ${col.className ?? ''}`}>
                   {col.render

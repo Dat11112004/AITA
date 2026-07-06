@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type SemesterRow, type SubjectRow, type Option, type StudentRow } from '@/lib/api'
-import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, Folder, ArrowLeft, Edit3, Trash2, ShieldAlert } from 'lucide-react'
+import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, Folder, ArrowLeft, Edit3, Trash2, ShieldAlert, CheckSquare } from 'lucide-react'
 
 type Level = 'semester' | 'subject' | 'class' | 'students'
 
@@ -19,7 +19,8 @@ export function AdminClasses() {
   const [showClassForm, setShowClassForm] = useState(false)
   const [showSemesterForm, setShowSemesterForm] = useState(false)
   
-  const [classForm, setClassForm] = useState({ code: '', name: '', subjectId: '', semesterId: '', campus: '', lecturerId: '' })
+  const [classForm, setClassForm] = useState({ code: '', name: '', subjectId: '', subjectIds: [] as string[], semesterId: '', campus: '', lecturerId: '' })
+  const [multiClassForm, setMultiClassForm] = useState([{ code: '', lecturerId: '' }])
   const [semesterForm, setSemesterForm] = useState({ code: '', startDate: '', endDate: '' })
   
   const [editingSemester, setEditingSemester] = useState<SemesterRow | null>(null)
@@ -30,6 +31,7 @@ export function AdminClasses() {
   const [loadError, setLoadError] = useState('')
 
   // Bulk selection state
+  const [selectionMode, setSelectionMode] = useState(false)
   const [selectedSemesterIds, setSelectedSemesterIds] = useState<Set<string>>(new Set())
   const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set())
 
@@ -132,16 +134,51 @@ export function AdminClasses() {
           lecturerId: classForm.lecturerId,
         })
       } else {
-        await api.createClass({
-          code: classForm.code,
-          name: classForm.name,
-          subjectId: classForm.subjectId || selectedSubject?.id,
-          semesterId: classForm.semesterId || selectedSemester?.id,
-          campus: classForm.campus,
-          lecturerId: classForm.lecturerId,
-        })
+        if (level === 'class') {
+          // Create multiple classes for the selected subject
+          const validClasses = multiClassForm.filter(c => c.code.trim() !== '')
+          if (validClasses.length === 0) {
+            throw new Error('Vui lòng nhập ít nhất một mã lớp')
+          }
+          if (!selectedSubject?.id) {
+            throw new Error('Vui lòng chọn môn học')
+          }
+          if (!selectedSemester?.id) {
+            throw new Error('Vui lòng chọn học kỳ')
+          }
+          
+          await Promise.all(validClasses.map(c => 
+            api.createClass({
+              code: c.code,
+              name: '',
+              subjectId: selectedSubject.id,
+              semesterId: selectedSemester.id,
+              campus: '',
+              lecturerId: c.lecturerId,
+            })
+          ))
+        } else {
+          // Create classes for multiple subjects
+          const targetSubjectIds = classForm.subjectIds?.length > 0 ? classForm.subjectIds : (classForm.subjectId ? [classForm.subjectId] : (selectedSubject?.id ? [selectedSubject.id] : []))
+          
+          if (targetSubjectIds.length === 0) {
+            throw new Error('Vui lòng chọn ít nhất một môn học')
+          }
+
+          await Promise.all(targetSubjectIds.map(subId => 
+            api.createClass({
+              code: classForm.code,
+              name: classForm.name,
+              subjectId: subId,
+              semesterId: classForm.semesterId || selectedSemester?.id,
+              campus: classForm.campus,
+              lecturerId: classForm.lecturerId,
+            })
+          ))
+        }
       }
-      setClassForm({ code: '', name: '', subjectId: '', semesterId: '', campus: '', lecturerId: '' })
+      setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
+      setMultiClassForm([{ code: '', lecturerId: '' }])
       setEditingClass(null)
       setShowClassForm(false)
       load()
@@ -240,6 +277,7 @@ export function AdminClasses() {
       code: cls.code,
       name: cls.name || '',
       subjectId: typeof cls.subject === 'object' && cls.subject ? cls.subject.id : '',
+      subjectIds: [],
       semesterId: typeof cls.semester === 'object' && cls.semester ? cls.semester.id : '',
       campus: cls.campus || '',
       lecturerId: cls.lecturer?.id || cls.lecturers?.[0]?.id || '',
@@ -283,9 +321,9 @@ export function AdminClasses() {
   // Derived Data for UI
   const filteredClassesBySemester = selectedSemester ? classes.filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === selectedSemester.id : false) : []
   
-  // Subjects that have classes in the selected semester
-  const subjectIdsInSemester = Array.from(new Set(filteredClassesBySemester.map(c => typeof c.subject === 'object' && c.subject ? c.subject.id : null).filter(Boolean))) as string[]
-  const subjectsInSemester = subjects.filter(s => subjectIdsInSemester.includes(s.id))
+  const subjectsInSemester = subjects.filter(s => 
+    filteredClassesBySemester.some(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id)
+  )
 
   const finalFilteredClasses = selectedSubject 
     ? filteredClassesBySemester.filter(c => typeof c.subject === 'object' && c.subject ? c.subject.id === selectedSubject.id : false) 
@@ -335,8 +373,8 @@ export function AdminClasses() {
     return crumbs
   }
 
-  const semesterOptions = semesters.map(s => ({ value: s.id, label: s.code }))
-  const subjectOptions = subjects.map(s => ({ value: s.id, label: `${s.code} - ${s.name}` }))
+  const semesterOptions = [...semesters].sort((a, b) => a.code.localeCompare(b.code)).map(s => ({ value: s.id, label: s.code }))
+  const subjectOptions = [...subjects].sort((a, b) => a.code.localeCompare(b.code)).map(s => ({ value: s.id, label: `${s.code} - ${s.name}` }))
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -345,6 +383,54 @@ export function AdminClasses() {
         breadcrumbs={getBreadcrumbs()}
         actions={
           <div className="flex gap-2">
+            {/* Nút Chọn / Huỷ chọn */}
+            <Button
+              size="sm"
+              variant={selectionMode ? 'primary' : 'outline'}
+              className={selectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
+              onClick={() => {
+                setSelectionMode(!selectionMode)
+                if (selectionMode) {
+                  setSelectedSemesterIds(new Set())
+                  setSelectedClassIds(new Set())
+                }
+              }}
+            >
+              <CheckSquare size={16} className="mr-2" /> {selectionMode ? 'Hủy chọn' : 'Chọn'}
+            </Button>
+            {selectionMode && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-brand-700 border-brand-200 hover:bg-brand-50"
+                onClick={() => {
+                  if (level === 'semester') {
+                    if (selectedSemesterIds.size === semesters.length && semesters.length > 0) {
+                      setSelectedSemesterIds(new Set())
+                    } else {
+                      setSelectedSemesterIds(new Set(semesters.map(s => s.id)))
+                    }
+                  } else if (level === 'class') {
+                    // Because finalFilteredClasses is defined lower down, we re-evaluate or use a fallback. 
+                    // Let's filter here directly since we have the same conditions.
+                    const classesToSelect = classes.filter(c => {
+                      if (level !== 'class') return false
+                      const semMatch = typeof c.semester === 'object' && c.semester ? c.semester.id === selectedSemester?.id : false
+                      const subMatch = typeof c.subject === 'object' && c.subject ? c.subject.id === selectedSubject?.id : false
+                      return semMatch && subMatch
+                    })
+                    if (selectedClassIds.size === classesToSelect.length && classesToSelect.length > 0) {
+                      setSelectedClassIds(new Set())
+                    } else {
+                      setSelectedClassIds(new Set(classesToSelect.map(c => c.id)))
+                    }
+                  }
+                }}
+              >
+                Chọn tất cả
+              </Button>
+            )}
+
             {level === 'semester' && (
               <Button
                 size="sm"
@@ -358,7 +444,7 @@ export function AdminClasses() {
                   }
                   setShowClassForm(false)
                 }}
-                className="shadow-sm transition-all duration-200 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showSemesterForm ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
               >
                 {showSemesterForm ? <X size={16} /> : <Plus size={16} />}
                 {showSemesterForm ? 'Đóng' : 'Tạo kỳ học mới'}
@@ -370,9 +456,13 @@ export function AdminClasses() {
                 if (showClassForm) {
                   setShowClassForm(false)
                   setEditingClass(null)
-                  setClassForm({ code: '', name: '', subjectId: '', semesterId: '', campus: '', lecturerId: '' })
+                  setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
+                  setMultiClassForm([{ code: '', lecturerId: '' }])
                 } else {
                   setShowClassForm(true)
+                  if (level === 'class' && !editingClass) {
+                    setMultiClassForm([{ code: '', lecturerId: '' }])
+                  }
                 }
                 setShowSemesterForm(false)
               }}
@@ -433,34 +523,132 @@ export function AdminClasses() {
             <CardHeader title={editingClass ? `Chỉnh sửa Lớp: ${editingClass.code}` : 'Tạo lớp mới'} />
           </div>
           <div className="p-6">
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              <Input label="Mã lớp" placeholder="Ví dụ: SE1702" value={classForm.code} onChange={(e) => setClassForm({ ...classForm, code: e.target.value })} />
-              <Input label="Tên lớp (Tuỳ chọn)" placeholder="Ví dụ: Lớp SE nâng cao" value={classForm.name} onChange={(e) => setClassForm({ ...classForm, name: e.target.value })} />
-              <Select 
-                label="Kỳ học" 
-                options={[{value:'', label: 'Chọn kỳ học...'}, ...semesterOptions]} 
-                value={classForm.semesterId || (selectedSemester?.id ?? '')} 
-                onChange={(e) => setClassForm({ ...classForm, semesterId: e.target.value })} 
-              />
-              <Select 
-                label="Môn học" 
-                options={[{value:'', label: 'Chọn môn học...'}, ...subjectOptions]} 
-                value={classForm.subjectId || (selectedSubject?.id ?? '')} 
-                onChange={(e) => setClassForm({ ...classForm, subjectId: e.target.value })} 
-              />
-              <Select 
-                label="Giảng viên (Tuỳ chọn)" 
-                options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
-                value={classForm.lecturerId} 
-                onChange={(e) => setClassForm({ ...classForm, lecturerId: e.target.value })} 
-              />
-              <Input label="Campus (Tuỳ chọn)" placeholder="Ví dụ: Quy Nhơn" value={classForm.campus} onChange={(e) => setClassForm({ ...classForm, campus: e.target.value })} />
-            </div>
+            {level === 'class' && !editingClass ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Danh sách lớp cần tạo</h4>
+                  <Button size="sm" variant="outline" className="text-brand-600 border-brand-200 hover:bg-brand-50" onClick={() => setMultiClassForm([...multiClassForm, { code: '', lecturerId: '' }])}>
+                    <Plus size={16} className="mr-1" /> Thêm lớp
+                  </Button>
+                </div>
+                {multiClassForm.map((item, index) => (
+                  <div key={index} className="flex items-start gap-4 p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/50 relative">
+                    <div className="flex-1 grid gap-4 sm:grid-cols-2">
+                      <Input 
+                        label="Mã lớp" 
+                        placeholder="Ví dụ: SE1702" 
+                        value={item.code} 
+                        onChange={(e) => {
+                          const newForm = [...multiClassForm]
+                          newForm[index].code = e.target.value
+                          setMultiClassForm(newForm)
+                        }} 
+                      />
+                      <Select 
+                        label="Giảng viên (Tuỳ chọn)" 
+                        options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
+                        value={item.lecturerId} 
+                        onChange={(e) => {
+                          const newForm = [...multiClassForm]
+                          newForm[index].lecturerId = e.target.value
+                          setMultiClassForm(newForm)
+                        }} 
+                      />
+                    </div>
+                    {multiClassForm.length > 1 && (
+                      <button 
+                        type="button"
+                        className="mt-8 text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                        onClick={() => {
+                          const newForm = multiClassForm.filter((_, i) => i !== index)
+                          setMultiClassForm(newForm)
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <Input label="Mã lớp" placeholder="Ví dụ: SE1702" value={classForm.code} onChange={(e) => setClassForm({ ...classForm, code: e.target.value })} />
+                <Input label="Tên lớp (Tuỳ chọn)" placeholder="Ví dụ: Lớp SE nâng cao" value={classForm.name} onChange={(e) => setClassForm({ ...classForm, name: e.target.value })} />
+                <Select 
+                  label="Kỳ học" 
+                  options={[{value:'', label: 'Chọn kỳ học...'}, ...semesterOptions]} 
+                  value={classForm.semesterId || (selectedSemester?.id ?? '')} 
+                  onChange={(e) => setClassForm({ ...classForm, semesterId: e.target.value })} 
+                  disabled={level === 'class' && !editingClass}
+                />
+                {!editingClass ? (
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Môn học (Có thể chọn nhiều)</label>
+                    <div className="flex flex-wrap gap-2 p-2 border border-slate-300 dark:border-slate-700 rounded-xl max-h-40 overflow-y-auto bg-white dark:bg-slate-900 custom-scrollbar">
+                      {subjects.filter(s => {
+                        const currentSemId = classForm.semesterId || selectedSemester?.id;
+                        if (!currentSemId) return true;
+                        
+                        // Không hiện những môn đã có lớp ở học kỳ khác
+                        const hasClassInOtherSem = classes.some(c => 
+                          typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id && 
+                          typeof c.semester === 'object' && c.semester && (c.semester as any).id !== currentSemId
+                        )
+                        return !hasClassInOtherSem
+                      }).map(s => {
+                        const isSelected = classForm.subjectIds?.includes(s.id) || (!classForm.subjectIds?.length && classForm.subjectId === s.id) || (!classForm.subjectIds?.length && !classForm.subjectId && selectedSubject?.id === s.id)
+                        return (
+                          <label 
+                            key={s.id} 
+                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors ${isSelected ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                let newIds = classForm.subjectIds || []
+                                if (newIds.length === 0) {
+                                  const currentId = classForm.subjectId || selectedSubject?.id
+                                  if (currentId && currentId !== s.id) {
+                                    newIds = [currentId]
+                                  }
+                                }
+                                if (e.target.checked) {
+                                  setClassForm(prev => ({ ...prev, subjectIds: [...newIds, s.id], subjectId: '' }))
+                                } else {
+                                  setClassForm(prev => ({ ...prev, subjectIds: newIds.filter(id => id !== s.id), subjectId: '' }))
+                                }
+                              }}
+                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            {s.code}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <Select 
+                    label="Môn học" 
+                    options={[{value:'', label: 'Chọn môn học...'}, ...subjectOptions]} 
+                    value={classForm.subjectId || (selectedSubject?.id ?? '')} 
+                    onChange={(e) => setClassForm({ ...classForm, subjectId: e.target.value })} 
+                  />
+                )}
+                <Select 
+                  label="Giảng viên (Tuỳ chọn)" 
+                  options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
+                  value={classForm.lecturerId} 
+                  onChange={(e) => setClassForm({ ...classForm, lecturerId: e.target.value })} 
+                />
+                <Input label="Campus (Tuỳ chọn)" placeholder="Ví dụ: Quy Nhơn" value={classForm.campus} onChange={(e) => setClassForm({ ...classForm, campus: e.target.value })} />
+              </div>
+            )}
             <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 className="px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium flex items-center gap-2"
                 onClick={handleCreateClass}
-                disabled={isSubmitting || !classForm.code || (!classForm.semesterId && !selectedSemester) || (!classForm.subjectId && !selectedSubject)}
+                disabled={isSubmitting || (level === 'class' && !editingClass ? multiClassForm.every(c => c.code.trim() === '') : (!classForm.code || (!classForm.semesterId && !selectedSemester) || (editingClass ? (!classForm.subjectId && !selectedSubject) : (!classForm.subjectIds?.length && !classForm.subjectId && !selectedSubject))))}
               >
                 {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</> : 'Lưu thông tin lớp'}
               </Button>
@@ -533,32 +721,45 @@ export function AdminClasses() {
                   Chưa có Học kỳ nào. Nhấn "Tạo kỳ học mới" để bắt đầu.
                 </div>
               ) : (
-                semesters.map(sem => {
+                [...semesters].sort((a, b) => a.code.localeCompare(b.code)).map(sem => {
                   const classCount = classes.filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === sem.id : false).length
                   return (
                     <Card 
                       key={sem.id} 
                       className={`group cursor-pointer hover:border-brand-300 hover:shadow-md transition-all relative ${selectedSemesterIds.has(sem.id) ? 'border-brand-500 bg-brand-50/10' : 'bg-white'}`}
-                      onClick={() => { setSelectedSemester(sem); setLevel('subject') }}
+                      onClick={() => {
+                        if (selectionMode) {
+                          setSelectedSemesterIds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(sem.id)) next.delete(sem.id)
+                            else next.add(sem.id)
+                            return next
+                          })
+                        } else {
+                          setSelectedSemester(sem); setLevel('subject') 
+                        }
+                      }}
                     >
                       <div className="p-5 flex flex-col items-center justify-center text-center gap-3">
-                        <div className="absolute top-3 left-3">
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
-                            checked={selectedSemesterIds.has(sem.id)}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              setSelectedSemesterIds(prev => {
-                                const next = new Set(prev)
-                                if (checked) next.add(sem.id)
-                                else next.delete(sem.id)
-                                return next
-                              })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
+                        {selectionMode && (
+                          <div className="absolute top-3 left-3">
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
+                              checked={selectedSemesterIds.has(sem.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                setSelectedSemesterIds(prev => {
+                                  const next = new Set(prev)
+                                  if (checked) next.add(sem.id)
+                                  else next.delete(sem.id)
+                                  return next
+                                })
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
                         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             className="p-1.5 rounded-md hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
@@ -598,7 +799,7 @@ export function AdminClasses() {
                   Chưa có lớp học nào thuộc các môn trong Học kỳ này. Nhấn "Tạo lớp học mới" để thêm lớp.
                 </div>
               ) : (
-                subjectsInSemester.map(sub => {
+                [...subjectsInSemester].sort((a, b) => a.code.localeCompare(b.code)).map(sub => {
                   const classCount = filteredClassesBySemester.filter(c => typeof c.subject === 'object' && c.subject ? c.subject.id === sub.id : false).length
                   return (
                     <Card 
@@ -656,9 +857,9 @@ export function AdminClasses() {
                 <div className="p-2 overflow-visible">
                   <DataTable<ClassRow>
                     columns={[
-                      {
+                      ...(selectionMode ? [{
                         key: 'select', header: '',
-                        render: (r) => (
+                        render: (r: ClassRow) => (
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
@@ -675,7 +876,7 @@ export function AdminClasses() {
                             onClick={(e) => e.stopPropagation()}
                           />
                         )
-                      },
+                      }] : []),
                       {
                         key: 'code', header: 'Mã lớp',
                       render: (r) => (
@@ -732,6 +933,14 @@ export function AdminClasses() {
                   ]}
                   data={finalFilteredClasses}
                   keyExtractor={(r) => r.id}
+                  onRowClick={selectionMode ? (row) => {
+                    setSelectedClassIds(prev => {
+                      const next = new Set(prev)
+                      if (next.has(row.id)) next.delete(row.id)
+                      else next.add(row.id)
+                      return next
+                    })
+                  } : undefined}
                 />
               </div>
             </Card>

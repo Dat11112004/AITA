@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import * as xlsx from 'xlsx'
 import crypto from 'crypto'
+import { CloudinaryService } from '../../../../shared/infrastructure/services/cloudinary.service.js'
 
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
@@ -17,10 +18,11 @@ const HEADER_ALIASES: Record<string, string[]> = {
     fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname'],
     email: ['email'],
     phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone'],
-    semester: ['kỳ học', 'ky hoc', 'semester'],
+    semester: ['kỳ học', 'kì học', 'ky hoc', 'ki hoc', 'semester'],
     classCode: ['lớp học', 'lop hoc', 'class'],
-    outOfSemesterSubjects: ['môn khác kỳ hiện tại (nợ/học vượt)', 'mon khac ky hien tai', 'out of semester subjects', 'nợ/học vượt', 'khác kỳ'],
+    outOfSemesterSubjects: ['môn khác kỳ hiện tại (nợ/học vượt)', 'môn khác kì hiện tại (nợ/học vượt)', 'mon khac ky hien tai', 'out of semester subjects', 'nợ/học vượt', 'khác kỳ', 'khác kì'],
     passedSubjects: ['môn đã học vượt thành công', 'mon da hoc vuot thanh cong', 'passed subjects', 'học vượt thành công', 'đã học'],
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh'],
 }
 
 function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
@@ -95,6 +97,7 @@ export class ImportStudentsExcelUseCase {
                     const classCode = getField(row, 'classCode')
                     const outOfSemesterStr = getField(row, 'outOfSemesterSubjects') || ''
                     const passedStr = getField(row, 'passedSubjects') || ''
+                    const avatarUrlRaw = getField(row, 'avatar') || ''
 
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
                         throw new Error('Thiếu thông tin bắt buộc (MSSV, Họ và tên, Email, Kỳ học, Lớp học)')
@@ -113,6 +116,16 @@ export class ImportStudentsExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
+                    // Xử lý upload avatar (nếu có URL hợp lệ)
+                    let secureAvatarUrl: string | null = null;
+                    if (avatarUrlRaw && avatarUrlRaw.startsWith('http')) {
+                        try {
+                            secureAvatarUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw);
+                        } catch (err) {
+                            console.warn(`Lỗi upload avatar cho ${email}:`, err);
+                        }
+                    }
+
                     if (!user) {
                         rawPassword = crypto.randomBytes(4).toString('hex')
                         passwordHash = await bcrypt.hash(rawPassword, 10)
@@ -122,6 +135,7 @@ export class ImportStudentsExcelUseCase {
                                 FullName: fullName,
                                 Email: email,
                                 Phone: phone,
+                                Avatar: secureAvatarUrl,
                                 PasswordHash: passwordHash,
                                 Status: 'Active',
                                 RequirePasswordChange: true,
@@ -133,6 +147,12 @@ export class ImportStudentsExcelUseCase {
                                 }
                             }
                         })
+                    } else if (secureAvatarUrl) {
+                        // Nếu user đã tồn tại nhưng trong Excel có truyền avatar URL mới, ta update avatar cho họ
+                        user = await prisma.user.update({
+                            where: { Id: user.Id },
+                            data: { Avatar: secureAvatarUrl }
+                        });
                     }
 
                     // Store pending enrollments

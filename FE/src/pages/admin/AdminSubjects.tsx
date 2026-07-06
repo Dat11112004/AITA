@@ -5,18 +5,19 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type SubjectRow } from '@/lib/api'
-import { Plus, Library, TableProperties, Loader2, X, AlertTriangle } from 'lucide-react'
+import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, CheckSquare } from 'lucide-react'
 
 export function AdminSubjects() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null)
-  const [form, setForm] = useState({ code: '', name: '', description: '' })
+  const [form, setForm] = useState<{ code: string; name: string; description: string }>({ code: '', name: '', description: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
 
   // Selection Mode
+  const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -71,7 +72,11 @@ export function AdminSubjects() {
 
   const handleEdit = (subject: SubjectRow) => {
     setEditingSubject(subject)
-    setForm({ code: subject.code, name: subject.name || '', description: subject.description || '' })
+    setForm({ 
+      code: subject.code, 
+      name: subject.name || '', 
+      description: subject.description || '',
+    })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -113,25 +118,56 @@ export function AdminSubjects() {
         title="Quản lý Môn học"
         breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Môn học' }]}
         actions={
-          <Button
-            size="sm"
-            onClick={() => {
-              if (showForm) {
-                setShowForm(false)
-                setEditingSubject(null)
-                setForm({ code: '', name: '', description: '' })
-              } else {
-                setShowForm(true)
-              }
-            }}
-            className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showForm
-              ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-              : 'bg-brand-600 hover:bg-brand-700 text-white'
-              }`}
-          >
-            {showForm ? <X size={16} /> : <Plus size={16} />}
-            {showForm ? 'Đóng form' : 'Tạo môn học mới'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={selectionMode ? 'primary' : 'outline'}
+              className={selectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
+              onClick={() => {
+                setSelectionMode(!selectionMode)
+                if (selectionMode) {
+                  setSelectedIds(new Set())
+                }
+              }}
+            >
+              <CheckSquare size={16} className="mr-2" /> {selectionMode ? 'Hủy chọn' : 'Chọn'}
+            </Button>
+            {selectionMode && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-brand-700 border-brand-200 hover:bg-brand-50"
+                onClick={() => {
+                  if (selectedIds.size === subjects.length && subjects.length > 0) {
+                    setSelectedIds(new Set())
+                  } else {
+                    setSelectedIds(new Set(subjects.map(s => s.id)))
+                  }
+                }}
+              >
+                {selectedIds.size === subjects.length && subjects.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => {
+                if (showForm) {
+                  setShowForm(false)
+                  setEditingSubject(null)
+                  setForm({ code: '', name: '', description: '' })
+                } else {
+                  setShowForm(true)
+                }
+              }}
+              className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showForm
+                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                : 'bg-brand-600 hover:bg-brand-700 text-white'
+                }`}
+            >
+              {showForm ? <X size={16} /> : <Plus size={16} />}
+              {showForm ? 'Đóng form' : 'Tạo môn học mới'}
+            </Button>
+          </div>
         }
       />
 
@@ -147,6 +183,7 @@ export function AdminSubjects() {
               <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               <Input label="Tên môn" placeholder="Ví dụ: Java Web Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <Input label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              
             </div>
 
             <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
@@ -235,24 +272,11 @@ export function AdminSubjects() {
           <div className="p-2 overflow-x-auto custom-scrollbar">
             <DataTable
               columns={[
-                {
+                ...(selectionMode ? [{
                   key: 'select',
-                  header: (
-                    <input
-                      type="checkbox"
-                      checked={subjects.length > 0 && selectedIds.size === subjects.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(new Set(subjects.map(s => s.id)))
-                        } else {
-                          setSelectedIds(new Set())
-                        }
-                      }}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                    />
-                  ),
-                  render: (r) => {
-                    const subj = r as SubjectRow;
+                  header: '',
+                  render: (r: SubjectRow) => {
+                    const subj = r;
                     return (
                       <input
                         type="checkbox"
@@ -271,19 +295,19 @@ export function AdminSubjects() {
                     )
                   },
                   className: 'w-10 text-center'
-                },
+                }] : []),
                 {
                   key: 'code',
                   header: 'Mã môn',
-                  render: (r) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{(r as SubjectRow).code}</span>
+                  render: (r: SubjectRow) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{r.code}</span>
                 },
                 { key: 'name', header: 'Tên môn học' },
 
                 {
                   key: 'status',
                   header: 'Trạng thái',
-                  render: (r) => {
-                    const status = (r as SubjectRow).status
+                  render: (r: SubjectRow) => {
+                    const status = r.status
                     const isActive = status === 'active' || status === '1' || status === 'true' || !status
                     return (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'}`}>
@@ -295,7 +319,7 @@ export function AdminSubjects() {
                 {
                   key: 'actions',
                   header: '',
-                  render: (r) => (
+                  render: (r: SubjectRow) => (
                     <div className="flex items-center gap-1 justify-end">
                       <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => {
                         if (selectedIds.size === 1) {
@@ -303,7 +327,7 @@ export function AdminSubjects() {
                           const subj = subjects.find(s => s.id === id)
                           if (subj) handleEdit(subj)
                         } else {
-                          handleEdit(r as SubjectRow)
+                          handleEdit(r)
                         }
                       }}>
                         Chỉnh sửa
@@ -312,7 +336,7 @@ export function AdminSubjects() {
                         if (selectedIds.size > 0) {
                           handleBulkDelete()
                         } else {
-                          handleDelete((r as SubjectRow).id)
+                          handleDelete(r.id)
                         }
                       }}>
                         Xoá
@@ -320,9 +344,17 @@ export function AdminSubjects() {
                     </div>
                   )
                 }
-              ]}
+              ] as any}
               data={subjects}
               keyExtractor={(r) => r.id}
+              onRowClick={selectionMode ? (row) => {
+                setSelectedIds(prev => {
+                  const next = new Set(prev)
+                  if (next.has(row.id)) next.delete(row.id)
+                  else next.add(row.id)
+                  return next
+                })
+              } : undefined}
             />
           </div>
         </Card>

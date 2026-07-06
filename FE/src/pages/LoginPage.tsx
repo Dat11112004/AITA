@@ -20,7 +20,7 @@ const roleRedirect: Record<string, string> = {
 export function LoginPage() {
   const { t, language, setLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
-  const { login, register } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
 
@@ -28,10 +28,8 @@ export function LoginPage() {
     window.scrollTo(0, 0)
   }, [])
 
-  const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPw, setShowPw] = useState(false)
@@ -53,14 +51,9 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(''); setLoading(true)
     try {
-      if (isRegistering) {
-        if (!fullName.trim()) throw new Error('Họ tên không được để trống')
-        go(await register(email, password, fullName))
-      } else {
-        go(await login(email, password))
-      }
+      go(await login(email, password))
     }
-    catch (e) { setErr(e instanceof ApiError ? e.message : (isRegistering ? 'Đăng ký thất bại. Email có thể đã tồn tại.' : t('auth.failed.login'))) }
+    catch (e) { setErr(e instanceof ApiError ? e.message : t('auth.failed.login')) }
     finally { setLoading(false) }
   }
 
@@ -174,10 +167,10 @@ export function LoginPage() {
           {/* Title */}
           <div className="mb-7">
             <h1 className="text-2xl font-black text-white drop-shadow">
-              {isRegistering ? 'Đăng ký tài khoản mới' : t('auth.welcome_back')}
+              {t('auth.welcome_back')}
             </h1>
             <p className="mt-1.5 text-sm text-white/80 drop-shadow">
-              {isRegistering ? 'Nhập thông tin bên dưới để tạo tài khoản sinh viên' : t('auth.login_desc')}
+              {t('auth.login_desc')}
             </p>
           </div>
 
@@ -194,33 +187,14 @@ export function LoginPage() {
                 </div>
               )}
 
-              {/* Tabs */}
-              <div className="flex gap-2 mb-6 p-1 rounded-xl bg-slate-100/50 dark:bg-slate-800/50">
-                <button
-                  type="button"
-                  onClick={() => { setIsRegistering(false); setErr('') }}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isRegistering ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                  Đăng nhập
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setIsRegistering(true); setErr('') }}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isRegistering ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                  Đăng ký
-                </button>
-              </div>
+              {/* Removed Tabs */}
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {isRegistering && (
-                  <AuthField id="l-name" icon={<Users size={16} />} label="Họ và Tên" type="text" value={fullName} onChange={setFullName} placeholder="Nguyễn Văn A" required />
-                )}
                 <AuthField id="l-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
                 <AuthField id="l-pw" icon={<Lock size={16} />} label={t('auth.password')} type={showPw ? 'text' : 'password'} value={password} onChange={setPassword} placeholder={t('auth.password_placeholder')} required
                   suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
                 />
-                <SubmitButton loading={loading} text={isRegistering ? 'Đăng ký ngay' : t('auth.tab.login')} />
+                <SubmitButton loading={loading} text={t('auth.tab.login')} />
               </form>
             </div>
           </div>

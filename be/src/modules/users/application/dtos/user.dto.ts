@@ -50,7 +50,7 @@ export class UserResponseDto {
             status: (user.status || user.Status || 'active').toLowerCase(),
             studentCode: user.studentCode || user.StudentCode,
             phone: user.phone || user.Phone,
-            avatar: user.avatar || user.Avatar,
+            avatar: user.avatarUrl || user.AvatarUrl || user.avatar || user.Avatar,
             lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : (user.LastLoginAt ? user.LastLoginAt.toISOString() : null),
             requirePasswordChange: user.requirePasswordChange ?? user.RequirePasswordChange ?? false,
             roles: roles

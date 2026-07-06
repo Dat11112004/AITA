@@ -52,7 +52,7 @@ export class Subject extends AggregateRoot {
     subjectCode: string | null,
     subjectName: string | null,
     description: string | null,
-    isActive: boolean | null
+    isActive: boolean | null = true
   ) {
     super()
     this.id = id

@@ -52,8 +52,8 @@ export function Profile() {
         fullName: user.fullName || user.name || '',
         phone: (user as any).phone || '', // Assuming phone might be in AuthUser or we just leave empty
       })
-      if ((user as any).avatar) {
-        setAvatarPreview(`${import.meta.env.VITE_API_URL || '/api'}`.replace('/api', '') + (user as any).avatar)
+      if (user.avatar) {
+        setAvatarPreview(user.avatar) // The avatar URL is already absolute from Cloudinary or backend
       }
     }
   }, [user])
@@ -163,8 +163,8 @@ export function Profile() {
         <div className="md:col-span-1 space-y-6">
           <Card className="p-6 flex flex-col items-center text-center bg-gradient-to-b from-brand-50 to-white dark:from-slate-800 dark:to-slate-900 border-brand-100 dark:border-slate-800">
             <div
-              className="relative mb-4 group cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
+              className={`relative mb-4 ${user?.role === 'student' ? '' : 'group cursor-pointer'}`}
+              onClick={() => user?.role !== 'student' && fileInputRef.current?.click()}
             >
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
                 {avatarPreview ? (
@@ -173,17 +173,21 @@ export function Profile() {
                   <span className="text-4xl font-black">{user.fullName?.charAt(0) || user.name?.charAt(0) || user.email?.charAt(0)}</span>
                 )}
               </div>
-              <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="text-white mb-1" size={24} />
-                <span className="text-xs text-white font-medium">Đổi ảnh</span>
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/jpeg, image/png, image/webp, image/gif"
-                onChange={handleAvatarChange}
-              />
+              {user?.role !== 'student' && (
+                <>
+                  <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="text-white mb-1" size={24} />
+                    <span className="text-xs text-white font-medium">Đổi ảnh</span>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/webp, image/gif"
+                    onChange={handleAvatarChange}
+                  />
+                </>
+              )}
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">{user.fullName || user.name}</h3>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-center gap-1">

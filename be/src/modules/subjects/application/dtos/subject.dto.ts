@@ -16,11 +16,12 @@ export class SubjectRequestDto {
   }
 }
 
+
 export class SubjectResponseDto {
   constructor(
     public readonly id: string,
-    public readonly code: string,
-    public readonly name: string,
+    public readonly code: string | null,
+    public readonly name: string | null,
     public readonly description: string | null,
     public readonly status: string
   ) {}
