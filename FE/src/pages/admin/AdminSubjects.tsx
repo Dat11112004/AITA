@@ -72,9 +72,9 @@ export function AdminSubjects() {
 
   const handleEdit = (subject: SubjectRow) => {
     setEditingSubject(subject)
-    setForm({ 
-      code: subject.code, 
-      name: subject.name || '', 
+    setForm({
+      code: subject.code,
+      name: subject.name || '',
       description: subject.description || '',
     })
     setShowForm(true)
@@ -159,10 +159,8 @@ export function AdminSubjects() {
                   setShowForm(true)
                 }
               }}
-              className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showForm
-                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-                : 'bg-brand-600 hover:bg-brand-700 text-white'
-                }`}
+              variant={showForm ? 'secondary' : 'primary'}
+              className="shadow-sm transition-all duration-200 flex items-center gap-2"
             >
               {showForm ? <X size={16} /> : <Plus size={16} />}
               {showForm ? 'Đóng form' : 'Tạo môn học mới'}
@@ -183,7 +181,7 @@ export function AdminSubjects() {
               <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               <Input label="Tên môn" placeholder="Ví dụ: Java Web Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <Input label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              
+
             </div>
 
             <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
@@ -247,9 +245,9 @@ export function AdminSubjects() {
                     Đã chọn: {selectedIds.size}
                   </span>
                   {selectedIds.size === 1 && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => {
                         const id = Array.from(selectedIds)[0]
                         const subj = subjects.find(s => s.id === id)

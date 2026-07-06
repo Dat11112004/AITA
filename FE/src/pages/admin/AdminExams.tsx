@@ -72,10 +72,8 @@ export function AdminExams() {
           <Button
             size="sm"
             onClick={() => setShowForm(!showForm)}
-            className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showForm
-              ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-              : 'bg-brand-600 hover:bg-brand-700 text-white'
-              }`}
+            variant={showForm ? 'secondary' : 'primary'}
+            className="shadow-sm transition-all duration-200 flex items-center gap-2"
           >
             {showForm ? <X size={16} /> : <Plus size={16} />}
             {showForm ? 'Đóng form' : 'Tạo kỳ thi mới'}

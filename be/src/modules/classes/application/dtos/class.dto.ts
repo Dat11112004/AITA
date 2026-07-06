@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 export const CreateClassRequestSchema = z.object({
   code: z.string().min(2, 'Mã lớp phải có ít nhất 2 ký tự'),
-  name: z.string().min(2, 'Tên lớp phải có ít nhất 2 ký tự'),
+  name: z.string().optional(),
   subjectId: z.string().min(1, 'subjectId là bắt buộc'),
   semesterId: z.string().optional(),
   campus: z.string().optional(),
@@ -28,7 +28,7 @@ export class CreateClassRequestDto {
 
 export const UpdateClassRequestSchema = CreateClassRequestSchema.partial().extend({
   code: z.string().min(2, 'Mã lớp phải có ít nhất 2 ký tự').optional(),
-  name: z.string().min(2, 'Tên lớp phải có ít nhất 2 ký tự').optional(),
+  name: z.string().optional(),
 })
 
 export type UpdateClassRequestDtoType = z.infer<typeof UpdateClassRequestSchema>

@@ -22,10 +22,14 @@ export class UpdateClassUseCase implements IUseCase<{ classId: string; dto: Upda
       throw new NotFoundError(MESSAGES.CLASS_NOT_FOUND || 'Không tìm thấy lớp học')
     }
 
-    if (data.code && data.code !== existingClass.classCode) {
-      const duplicateClass = await classRepo.findByCode(data.code)
-      if (duplicateClass) {
-        throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS || 'Mã lớp đã tồn tại')
+    const newCode = data.code ?? existingClass.classCode
+    const newSemesterId = data.semesterId ?? existingClass.semesterId
+    const newSubjectId = data.subjectId ?? existingClass.subjectId
+    
+    if (newCode !== existingClass.classCode || newSemesterId !== existingClass.semesterId || newSubjectId !== existingClass.subjectId) {
+      const duplicateClass = await classRepo.findByCodeAndSubject(newCode as string, newSubjectId as string)
+      if (duplicateClass && duplicateClass.id !== classId) {
+        throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS || 'Mã lớp đã tồn tại cho môn học này trong kỳ học này')
       }
     }
 

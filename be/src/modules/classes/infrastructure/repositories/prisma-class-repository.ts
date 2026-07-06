@@ -54,6 +54,22 @@ export class PrismaClassRepository implements IClassRepository {
     return raw ? ClassMapper.toDomain(raw) : null
   }
 
+  async findByCodeSemesterAndSubject(code: string, semesterId: string, subjectId: string): Promise<Class | null> {
+    const raw = await this.client.class.findFirst({
+      where: { ClassCode: code, SemesterId: semesterId, SubjectId: subjectId },
+      include: this.include
+    })
+    return raw ? ClassMapper.toDomain(raw) : null
+  }
+
+  async findByCodeAndSubject(code: string, subjectId: string): Promise<Class | null> {
+    const raw = await this.client.class.findFirst({
+      where: { ClassCode: code, SubjectId: subjectId },
+      include: this.include
+    })
+    return raw ? ClassMapper.toDomain(raw) : null
+  }
+
   async create(classEntity: Class): Promise<void> {
     const data = ClassMapper.toPersistence(classEntity)
     await this.client.class.create({ data })

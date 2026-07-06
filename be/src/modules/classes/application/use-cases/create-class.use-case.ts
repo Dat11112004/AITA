@@ -20,7 +20,7 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
     const semesterRepo = this.uow.resolve<any>(TOKENS.SemesterRepository)
     const userRepo = this.uow.resolve<any>(TOKENS.UserRepository)
     
-    const existingClass = await classRepo.findByCode(data.code)
+    const existingClass = await classRepo.findByCodeAndSubject(data.code, data.subjectId as string)
     if (existingClass) {
       throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS)
     }

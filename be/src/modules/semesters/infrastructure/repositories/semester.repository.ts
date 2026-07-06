@@ -56,9 +56,7 @@ export class SemesterRepository implements ISemesterRepository {
       
       if (classIds.length > 0) {
         // Manually cascade delete relations for each class (due to potential DB-level missing cascade)
-        await tx.studentClass.deleteMany({ where: { ClassId: { in: classIds } } })
-        await tx.instructorClass.deleteMany({ where: { ClassId: { in: classIds } } })
-        await tx.examClass.deleteMany({ where: { ClassId: { in: classIds } } })
+        // Note: studentClass, instructorClass, and examClass are handled by DB-level cascade.
         
         // Delete submissions and their related records
         const submissions = await tx.submission.findMany({ where: { ClassId: { in: classIds } }, select: { Id: true } })

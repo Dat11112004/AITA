@@ -159,10 +159,18 @@ export function AdminClasses() {
           ))
         } else {
           // Create classes for multiple subjects
-          const targetSubjectIds = classForm.subjectIds?.length > 0 ? classForm.subjectIds : (classForm.subjectId ? [classForm.subjectId] : (selectedSubject?.id ? [selectedSubject.id] : []))
+          let targetSubjectIds = classForm.subjectIds?.length > 0 ? classForm.subjectIds : (classForm.subjectId ? [classForm.subjectId] : (selectedSubject?.id ? [selectedSubject.id] : []))
+          
+          targetSubjectIds = targetSubjectIds.filter(subId => {
+             const isDuplicate = classes.some(c => 
+                c.code.toLowerCase() === classForm.code.toLowerCase() &&
+                typeof c.subject === 'object' && c.subject && (c.subject as any).id === subId
+             )
+             return !isDuplicate
+          })
           
           if (targetSubjectIds.length === 0) {
-            throw new Error('Vui lòng chọn ít nhất một môn học')
+            throw new Error('Vui lòng chọn ít nhất một môn học hợp lệ (chưa được đăng ký)')
           }
 
           await Promise.all(targetSubjectIds.map(subId => 
@@ -444,7 +452,8 @@ export function AdminClasses() {
                   }
                   setShowClassForm(false)
                 }}
-                className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showSemesterForm ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                variant={showSemesterForm ? 'secondary' : 'primary'}
+                className="shadow-sm transition-all duration-200 flex items-center gap-2"
               >
                 {showSemesterForm ? <X size={16} /> : <Plus size={16} />}
                 {showSemesterForm ? 'Đóng' : 'Tạo kỳ học mới'}
@@ -460,16 +469,25 @@ export function AdminClasses() {
                   setMultiClassForm([{ code: '', lecturerId: '' }])
                 } else {
                   setShowClassForm(true)
+                  const targetSemId = level === 'subject' || level === 'class' ? selectedSemester?.id : '';
+                  if (targetSemId) {
+                     const subjectsInTargetSemester = [...new Set(classes
+                         .filter(c => typeof c.semester === 'object' && c.semester && (c.semester as any).id === targetSemId)
+                         .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
+                         .filter(Boolean))];
+                     setClassForm({ code: '', name: '', subjectId: '', subjectIds: subjectsInTargetSemester as string[], semesterId: targetSemId, campus: '', lecturerId: '' })
+                  } else {
+                     setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
+                  }
+                  
                   if (level === 'class' && !editingClass) {
                     setMultiClassForm([{ code: '', lecturerId: '' }])
                   }
                 }
                 setShowSemesterForm(false)
               }}
-              className={`shadow-sm transition-all duration-200 flex items-center gap-2 ${showClassForm
-                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
-                : 'bg-brand-600 hover:bg-brand-700 text-white'
-                }`}
+              variant={showClassForm ? 'secondary' : 'primary'}
+              className="shadow-sm transition-all duration-200 flex items-center gap-2"
             >
               {showClassForm ? <X size={16} /> : <Plus size={16} />}
               {showClassForm ? 'Đóng form' : 'Tạo lớp học mới'}
@@ -578,50 +596,60 @@ export function AdminClasses() {
                   label="Kỳ học" 
                   options={[{value:'', label: 'Chọn kỳ học...'}, ...semesterOptions]} 
                   value={classForm.semesterId || (selectedSemester?.id ?? '')} 
-                  onChange={(e) => setClassForm({ ...classForm, semesterId: e.target.value })} 
-                  disabled={level === 'class' && !editingClass}
+                  onChange={(e) => {
+                    const newSemesterId = e.target.value;
+                    const subjectsInNewSemester = [...new Set(classes
+                       .filter(c => typeof c.semester === 'object' && c.semester && (c.semester as any).id === newSemesterId)
+                       .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
+                       .filter(Boolean))];
+                    setClassForm({ ...classForm, semesterId: newSemesterId, subjectIds: subjectsInNewSemester as string[] });
+                  }} 
+                  disabled={(level === 'class' || level === 'subject') && !editingClass}
                 />
                 {!editingClass ? (
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Môn học (Có thể chọn nhiều)</label>
                     <div className="flex flex-wrap gap-2 p-2 border border-slate-300 dark:border-slate-700 rounded-xl max-h-40 overflow-y-auto bg-white dark:bg-slate-900 custom-scrollbar">
                       {subjects.map(s => {
-                        // Tìm xem môn này đã có lớp ở BẤT KỲ học kỳ nào chưa
-                        const existingClass = classes.find(c => 
-                          typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id
-                        );
-                        return { subject: s, existingClass };
-                      })
-                      .sort((a, b) => {
-                        // Đẩy các môn đã đăng ký xuống cuối danh sách
-                        if (a.existingClass && !b.existingClass) return 1;
-                        if (!a.existingClass && b.existingClass) return -1;
-                        return 0;
-                      })
-                      .map(({ subject: s, existingClass }) => {
-                        const isSelected = classForm.subjectIds?.includes(s.id) || (!classForm.subjectIds?.length && classForm.subjectId === s.id) || (!classForm.subjectIds?.length && !classForm.subjectId && selectedSubject?.id === s.id)
+                        // 1. Tìm xem môn này đã thuộc về kỳ học nào chưa (dựa vào các lớp đã tạo)
+                        const classesOfSubject = classes.filter(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id);
                         
-                        const isDisabled = !!existingClass;
-                        const semName = existingClass && typeof existingClass.semester === 'object' && existingClass.semester ? (existingClass.semester as any).code : 'Kỳ khác';
+                        const boundSemesterId = classesOfSubject.length > 0 && typeof classesOfSubject[0].semester === 'object' && classesOfSubject[0].semester
+                          ? (classesOfSubject[0].semester as any).id
+                          : null;
+                          
+                        const currentSemesterId = classForm.semesterId || selectedSemester?.id;
+                        
+                        // Môn này sẽ bị ẩn nếu nó ĐÃ được dùng ở một kỳ KHÁC với kỳ đang chọn
+                        const isBoundToOtherSemester = boundSemesterId && currentSemesterId && boundSemesterId !== currentSemesterId;
+
+                        // 2. Vô hiệu hoá môn học nếu mã lớp đang nhập ĐÃ ĐĂNG KÝ môn học này
+                        const existingClass = classForm.code 
+                          ? classes.find(c => 
+                              c.code.toLowerCase() === classForm.code.toLowerCase() &&
+                              typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id
+                            )
+                          : undefined;
+                        return { subject: s, existingClass, isBoundToOtherSemester };
+                      })
+                      .filter(item => !item.isBoundToOtherSemester) // Không hiện môn của kỳ khác
+                      .filter(item => !item.existingClass) // Không hiện môn mà mã lớp này đã có
+                      .map(({ subject: s }) => {
+                        const isSelected = classForm.subjectIds?.includes(s.id) || (!classForm.subjectIds?.length && classForm.subjectId === s.id) || (!classForm.subjectIds?.length && !classForm.subjectId && selectedSubject?.id === s.id)
                         
                         return (
                           <label 
                             key={s.id} 
-                            title={isDisabled ? `Đã đăng ký trong ${semName}` : ''}
                             className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
-                              isDisabled 
-                                ? 'bg-slate-100/50 border-slate-200 text-slate-400 dark:bg-slate-800/30 dark:border-slate-800 dark:text-slate-500 cursor-not-allowed opacity-60 select-none' 
-                                : isSelected 
-                                  ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer shadow-sm' 
-                                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer hover:shadow-sm'
+                               isSelected 
+                                ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer shadow-sm' 
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer hover:shadow-sm'
                             }`}
                           >
                             <input
                               type="checkbox"
-                              checked={isSelected && !isDisabled}
-                              disabled={isDisabled}
+                              checked={isSelected}
                               onChange={(e) => {
-                                if (isDisabled) return;
                                 let newIds = classForm.subjectIds || []
                                 if (newIds.length === 0) {
                                   const currentId = classForm.subjectId || selectedSubject?.id
@@ -635,11 +663,9 @@ export function AdminClasses() {
                                   setClassForm(prev => ({ ...prev, subjectIds: newIds.filter(id => id !== s.id), subjectId: '' }))
                                 }
                               }}
-                              className={`rounded border-slate-300 focus:ring-brand-500 transition-colors ${
-                                isDisabled ? 'text-slate-300 cursor-not-allowed bg-slate-100' : 'text-brand-600'
-                              }`}
+                              className="rounded border-slate-300 focus:ring-brand-500 transition-colors text-brand-600"
                             />
-                            <span className={isDisabled ? 'line-through decoration-slate-300/50' : ''}>{s.code}</span>
+                            <span>{s.code}</span>
                           </label>
                         )
                       })}
