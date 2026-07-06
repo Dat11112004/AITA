@@ -585,27 +585,43 @@ export function AdminClasses() {
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Môn học (Có thể chọn nhiều)</label>
                     <div className="flex flex-wrap gap-2 p-2 border border-slate-300 dark:border-slate-700 rounded-xl max-h-40 overflow-y-auto bg-white dark:bg-slate-900 custom-scrollbar">
-                      {subjects.filter(s => {
-                        const currentSemId = classForm.semesterId || selectedSemester?.id;
-                        if (!currentSemId) return true;
-                        
-                        // Không hiện những môn đã có lớp ở học kỳ khác
-                        const hasClassInOtherSem = classes.some(c => 
-                          typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id && 
-                          typeof c.semester === 'object' && c.semester && (c.semester as any).id !== currentSemId
-                        )
-                        return !hasClassInOtherSem
-                      }).map(s => {
+                      {subjects.map(s => {
+                        // Tìm xem môn này đã có lớp ở BẤT KỲ học kỳ nào chưa
+                        const existingClass = classes.find(c => 
+                          typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id
+                        );
+                        return { subject: s, existingClass };
+                      })
+                      .sort((a, b) => {
+                        // Đẩy các môn đã đăng ký xuống cuối danh sách
+                        if (a.existingClass && !b.existingClass) return 1;
+                        if (!a.existingClass && b.existingClass) return -1;
+                        return 0;
+                      })
+                      .map(({ subject: s, existingClass }) => {
                         const isSelected = classForm.subjectIds?.includes(s.id) || (!classForm.subjectIds?.length && classForm.subjectId === s.id) || (!classForm.subjectIds?.length && !classForm.subjectId && selectedSubject?.id === s.id)
+                        
+                        const isDisabled = !!existingClass;
+                        const semName = existingClass && typeof existingClass.semester === 'object' && existingClass.semester ? (existingClass.semester as any).code : 'Kỳ khác';
+                        
                         return (
                           <label 
                             key={s.id} 
-                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors ${isSelected ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer'}`}
+                            title={isDisabled ? `Đã đăng ký trong ${semName}` : ''}
+                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
+                              isDisabled 
+                                ? 'bg-slate-100/50 border-slate-200 text-slate-400 dark:bg-slate-800/30 dark:border-slate-800 dark:text-slate-500 cursor-not-allowed opacity-60 select-none' 
+                                : isSelected 
+                                  ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer shadow-sm' 
+                                  : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer hover:shadow-sm'
+                            }`}
                           >
                             <input
                               type="checkbox"
-                              checked={isSelected}
+                              checked={isSelected && !isDisabled}
+                              disabled={isDisabled}
                               onChange={(e) => {
+                                if (isDisabled) return;
                                 let newIds = classForm.subjectIds || []
                                 if (newIds.length === 0) {
                                   const currentId = classForm.subjectId || selectedSubject?.id
@@ -619,9 +635,11 @@ export function AdminClasses() {
                                   setClassForm(prev => ({ ...prev, subjectIds: newIds.filter(id => id !== s.id), subjectId: '' }))
                                 }
                               }}
-                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                              className={`rounded border-slate-300 focus:ring-brand-500 transition-colors ${
+                                isDisabled ? 'text-slate-300 cursor-not-allowed bg-slate-100' : 'text-brand-600'
+                              }`}
                             />
-                            {s.code}
+                            <span className={isDisabled ? 'line-through decoration-slate-300/50' : ''}>{s.code}</span>
                           </label>
                         )
                       })}
