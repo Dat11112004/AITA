@@ -852,7 +852,14 @@ export function AdminUsers() {
                           const originalIndex = editingUserClasses.indexOf(c);
                           const activeSubjectCode = c.newSubjectCode || c.subjectCode;
                           const codeKey = `${c.semesterCode}_${activeSubjectCode}`;
-                          const codes = availableClassCodes[codeKey] || [];
+                          const rawCodes = availableClassCodes[codeKey] || [];
+                          // Deduplicate by classCode to prevent duplicate options in dropdown
+                          const seenCodes = new Set<string>();
+                          const codes = rawCodes.filter(cd => {
+                            if (seenCodes.has(cd.classCode)) return false;
+                            seenCodes.add(cd.classCode);
+                            return true;
+                          });
                           const subjectsInSem = subjectsBySemester[c.semesterCode] || [];
 
                           return (
@@ -878,9 +885,15 @@ export function AdminUsers() {
                                   }}
                                 >
                                   {subjectsInSem.length > 0
-                                    ? subjectsInSem.map((sub: any) => (
-                                        <option key={sub.SubjectCode} value={sub.SubjectCode}>{sub.SubjectCode}</option>
-                                      ))
+                                    ? [
+                                        // Ensure current subject code is always selectable even if not in list
+                                        ...(!subjectsInSem.some((s: any) => s.SubjectCode === (c.newSubjectCode || c.subjectCode))
+                                          ? [<option key="__current__" value={c.newSubjectCode || c.subjectCode || ''}>{c.newSubjectCode || c.subjectCode || '-'}</option>]
+                                          : []),
+                                        ...subjectsInSem.map((sub: any) => (
+                                          <option key={sub.SubjectCode} value={sub.SubjectCode}>{sub.SubjectCode}</option>
+                                        ))
+                                      ]
                                     : <option value={c.subjectCode || ''}>{c.subjectCode || '-'}</option>
                                   }
                                 </select>
@@ -896,6 +909,9 @@ export function AdminUsers() {
                                       setEditingUserClasses(newList);
                                     }}
                                   >
+                                    {!codes.some(cd => cd.classCode === (c.newClassCode || c.classCode)) && (c.newClassCode || c.classCode) && (
+                                      <option key="__current_class__" value={c.newClassCode || c.classCode}>{c.newClassCode || c.classCode}</option>
+                                    )}
                                     {codes.map(cd => (
                                       <option key={cd.classCode} value={cd.classCode}>{cd.classCode}</option>
                                     ))}

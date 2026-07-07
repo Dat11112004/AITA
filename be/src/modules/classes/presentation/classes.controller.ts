@@ -110,11 +110,19 @@ export class ClassesController extends BaseController {
       orderBy: { ClassCode: 'asc' }
     })
 
-    const result = classes.map((c: any) => ({
-      classId: c.Id,
-      classCode: c.ClassCode,
-      studentCount: c._count?.StudentClass || 0
-    }))
+    // Deduplicate by ClassCode — keep first occurrence (DB may have multiple records with same code)
+    const seenCodes = new Set<string>()
+    const result = classes
+      .filter((c: any) => {
+        if (!c.ClassCode || seenCodes.has(c.ClassCode)) return false
+        seenCodes.add(c.ClassCode)
+        return true
+      })
+      .map((c: any) => ({
+        classId: c.Id,
+        classCode: c.ClassCode,
+        studentCount: c._count?.StudentClass || 0
+      }))
 
     this.ok(res, result, MESSAGES.SUCCESS)
   }

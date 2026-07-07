@@ -65,7 +65,7 @@ export const api = {
   getActivity: () => request<ActivityLog[]>('/stats/activity'),
   getSystemHealth: () => request<Record<string, { status: string }>>('/reports/health'),
 
-  getUsers: (role = 'all', page = 1, limit = 10, search?: string) => 
+  getUsers: (role = 'all', page = 1, limit = 10, search?: string) =>
     request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getUser: (id: string) => request<any>(`/users/${id}`),
   createUser: (body: CreateUserBody) =>
@@ -83,11 +83,11 @@ export const api = {
     const params = new URLSearchParams();
     if (semesterCode) params.append('semesterCode', semesterCode);
     if (subjectCode) params.append('subjectCode', subjectCode);
-    return request<{classId: string, classCode: string, studentCount: number}[]>(`/classes/codes?${params.toString()}`);
+    return request<{ classId: string, classCode: string, studentCount: number }[]>(`/classes/codes?${params.toString()}`);
   },
   getSubjectsBySemester: (semesterCode: string) => {
     const params = new URLSearchParams({ semesterCode });
-    return request<{Id: string, SubjectCode: string, SubjectName: string}[]>(`/classes/subjects?${params.toString()}`);
+    return request<{ Id: string, SubjectCode: string, SubjectName: string }[]>(`/classes/subjects?${params.toString()}`);
   },
   updateClassNote: (classId: string, note: string) =>
     request<ClassRow>(`/classes/${classId}/note`, { method: 'PATCH', body: JSON.stringify({ note }) }),
