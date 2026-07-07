@@ -46,13 +46,15 @@ export class Subject extends AggregateRoot {
   subjectName: string | null
   description: string | null
   isActive: boolean | null
+  semester: number | null
 
   private constructor(
     id: string,
     subjectCode: string | null,
     subjectName: string | null,
     description: string | null,
-    isActive: boolean | null = true
+    isActive: boolean | null = true,
+    semester: number | null = null
   ) {
     super()
     this.id = id
@@ -60,6 +62,7 @@ export class Subject extends AggregateRoot {
     this.subjectName = subjectName
     this.description = description
     this.isActive = isActive
+    this.semester = semester
   }
 
   // ── Factory Methods ──
@@ -68,9 +71,10 @@ export class Subject extends AggregateRoot {
     id: string,
     subjectCode: string,
     subjectName: string,
-    description?: string
+    description?: string,
+    semester?: number
   ): Subject {
-    const subject = new Subject(id, subjectCode, subjectName, description ?? null, true)
+    const subject = new Subject(id, subjectCode, subjectName, description ?? null, true, semester ?? null)
     subject.addDomainEvent(new SubjectCreatedEvent(subject.id, subject.subjectCode))
     return subject
   }
@@ -80,9 +84,10 @@ export class Subject extends AggregateRoot {
     subjectCode: string | null,
     subjectName: string | null,
     description: string | null,
-    isActive: boolean | null
+    isActive: boolean | null,
+    semester: number | null
   ): Subject {
-    return new Subject(id, subjectCode, subjectName, description, isActive)
+    return new Subject(id, subjectCode, subjectName, description, isActive, semester)
   }
 
   // ── Business Logic ──
@@ -104,9 +109,11 @@ export class Subject extends AggregateRoot {
     subjectCode?: string
     subjectName?: string
     description?: string
+    semester?: number
   }): void {
     if (params.subjectCode !== undefined) this.subjectCode = params.subjectCode
     if (params.subjectName !== undefined) this.subjectName = params.subjectName
     if (params.description !== undefined) this.description = params.description
+    if (params.semester !== undefined) this.semester = params.semester
   }
 }

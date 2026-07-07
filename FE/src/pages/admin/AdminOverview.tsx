@@ -3,16 +3,13 @@ import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatCard } from '@/components/ui/StatCard'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { api, type ActivityLog } from '@/lib/api'
+import { api } from '@/lib/api'
 import { type StatMetric } from '@/types'
-import { Server, Users, BookOpen, Brain, Activity, CheckCircle, AlertCircle, ArrowRight, Loader2 } from 'lucide-react'
+import { Server, Users, BookOpen, Library, GraduationCap, Loader2, Activity, ArrowRight } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 
 export function AdminOverview() {
   const [stats, setStats] = useState<Record<string, string | number>>({})
-  const [logs, setLogs] = useState<ActivityLog[]>([])
-  const [health, setHealth] = useState<Record<string, { status: string }>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -20,9 +17,7 @@ export function AdminOverview() {
     setLoading(true)
     setError(null)
     Promise.all([
-      api.getStatsOverview().then(setStats),
-      api.getActivity().then(setLogs),
-      api.getSystemHealth().then(setHealth)
+      api.getStatsOverview().then(setStats)
     ])
       .catch(setError)
       .finally(() => setLoading(false))
@@ -36,15 +31,18 @@ export function AdminOverview() {
   if (error) return <APIError error={error} onRetry={loadData} />
 
   const statCards: StatMetric[] = [
-    { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—', icon: Users },
-    { id: 'classes', label: 'Lớp hoạt động', value: stats.classes ?? '—', icon: BookOpen },
-    { id: 'ai-jobs', label: 'Yêu cầu AI (24h)', value: stats['ai-jobs'] ?? '—', icon: Brain },
-    { id: 'uptime', label: 'Uptime hệ thống', value: stats.uptime ?? '—', icon: Server },
+    { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—', icon: Users, trend: 'up', trendLabel: 'Đang hoạt động' },
+    { id: 'classes', label: 'Lớp học', value: stats.classes ?? '—', icon: BookOpen, trend: 'up', trendLabel: 'Kỳ hiện tại' },
+    { id: 'subjects', label: 'Môn học', value: stats.subjects ?? '—', icon: Library, trend: 'up', trendLabel: 'Chương trình chuẩn' },
+    { id: 'exams', label: 'Kỳ thi', value: stats.exams ?? '—', icon: GraduationCap, trend: 'up', trendLabel: 'Hệ thống ổn định' },
   ]
 
   const quickActions = [
-    { label: 'Người dùng', path: '/admin/users', icon: Users, cls: 'text-brand-700 bg-brand-50 border-brand-100 dark:text-brand-400 dark:bg-brand-500/10 dark:border-brand-500/20' },
+    { label: 'Người dùng', path: '/admin/users', icon: Users, cls: 'text-blue-700 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/20' },
     { label: 'Lớp học', path: '/admin/classes', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
+    { label: 'Môn học', path: '/admin/subjects', icon: Library, cls: 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
+    { label: 'Kỳ thi', path: '/admin/exams', icon: GraduationCap, cls: 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20' },
+    { label: 'Cấu hình', path: '/admin/settings', icon: Server, cls: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-400 dark:bg-slate-500/10 dark:border-slate-500/20' },
   ]
 
   return (
@@ -88,69 +86,188 @@ export function AdminOverview() {
         </div>
       </div>
 
-      {/* Activity + Health */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Activity */}
-        <Card padding="none" className="overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
-            <Activity size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Hoạt động gần đây</span>
+      {/* Charts & Graphs */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Biểu đồ hoạt động */}
+        <Card className="col-span-full lg:col-span-2 p-5" padding="none">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="bg-brand-50 dark:bg-brand-500/10 p-1.5 rounded-lg text-brand-600 dark:text-brand-400">
+                <Activity size={16} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Lưu lượng hệ thống (7 ngày)</h3>
+            </div>
           </div>
-          <div className="p-4">
-            {logs.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-600">Chưa có nhật ký hoạt động.</p>
-            ) : logs.slice(0, 6).map((log) => (
-              <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{log.user}</span>
-                    <span className="mx-1 text-slate-300 dark:text-slate-700">·</span>
-                    {log.action}
-                  </p>
+          <div className="h-56 flex items-end justify-between gap-2 px-2 pb-2">
+            {[
+              { day: 'T2', value: 45 },
+              { day: 'T3', value: 52 },
+              { day: 'T4', value: 38 },
+              { day: 'T5', value: 65 },
+              { day: 'T6', value: 48 },
+              { day: 'T7', value: 25 },
+              { day: 'CN', value: 12 },
+            ].map((d, i, arr) => {
+              const maxVal = Math.max(...arr.map(x => x.value));
+              return (
+                <div key={i} className="flex flex-col items-center gap-3 flex-1 group cursor-pointer">
+                  <div className="relative w-full flex justify-center h-44 items-end">
+                    <div 
+                      className="relative w-full max-w-[48px] bg-slate-100 dark:bg-slate-800/60 rounded-t-xl transition-all duration-500 group-hover:bg-slate-200 dark:group-hover:bg-slate-700/60"
+                      style={{ height: `${(d.value / maxVal) * 100}%` }}
+                    >
+                      <div 
+                        className="absolute bottom-0 w-full bg-gradient-to-t from-brand-600 to-brand-400 rounded-t-xl opacity-90 group-hover:opacity-100 transition-opacity"
+                        style={{ height: '100%' }}
+                      />
+                      {/* Tooltip */}
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs font-semibold py-1 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all pointer-events-none z-10 dark:bg-white dark:text-slate-900 shadow-xl whitespace-nowrap">
+                        {d.value}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">{d.day}</span>
                 </div>
-                <p className="shrink-0 text-xs font-mono text-slate-400 dark:text-slate-600">
-                  {new Date(log.createdAt).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
-                </p>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Biểu đồ phân bổ */}
+        <Card className="p-5" padding="none">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="bg-purple-50 dark:bg-purple-500/10 p-1.5 rounded-lg text-purple-600 dark:text-purple-400">
+                <Users size={16} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Phân bổ người dùng</h3>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center gap-6 h-56">
+            {[
+              { label: 'Sinh viên', val: 78, color: 'bg-emerald-500' },
+              { label: 'Giảng viên', val: 18, color: 'bg-brand-500' },
+              { label: 'Quản trị viên', val: 4, color: 'bg-rose-500' },
+            ].map((d, i) => (
+              <div key={i} className="space-y-2 group cursor-pointer">
+                <div className="flex justify-between text-sm transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-400">
+                  <span className="font-medium text-slate-600 dark:text-slate-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">{d.label}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">{d.val}%</span>
+                </div>
+                <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className={`h-full ${d.color} rounded-full transition-all duration-500 group-hover:brightness-110`} style={{ width: `${d.val}%` }} />
+                </div>
               </div>
             ))}
           </div>
         </Card>
+      </div>
 
-        {/* Health */}
+      {/* Education Analytics */}
+      <div className="grid gap-5 lg:grid-cols-2 mt-6">
+        {/* Class & Enrollment Stats */}
         <Card padding="none" className="overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5">
-            <Server size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Trạng thái dịch vụ</span>
-            <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
-            </span>
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-brand-50 dark:bg-brand-500/10 p-1.5 rounded-lg text-brand-600 dark:text-brand-400">
+                <BookOpen size={16} />
+              </div>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Tuyển sinh & Mở lớp</span>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-brand-500 shadow-sm" /> Học viên (x100)</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400 shadow-sm" /> Lớp mở</div>
+            </div>
           </div>
-          <div className="p-4">
-            {Object.keys(health).length === 0 ? (
-              <div className="space-y-3 py-2">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="h-4 w-28 skeleton" /><div className="h-5 w-16 skeleton rounded-full" />
+          <div className="p-6 space-y-8">
+            <div className="h-56 flex items-end justify-between gap-2 px-2 border-b border-slate-100 dark:border-slate-800/60 pb-4">
+              {[
+                { term: 'FA23', students: 85, classes: 42 },
+                { term: 'SP24', students: 92, classes: 48 },
+                { term: 'SU24', students: 65, classes: 30 },
+                { term: 'FA24', students: 110, classes: 55 },
+                { term: 'SP25', students: 125, classes: 62 },
+              ].map((d, i) => (
+                <div key={i} className="flex flex-col items-center gap-4 flex-1 group">
+                  <div className="flex items-end justify-center gap-1.5 w-full h-44 relative">
+                    {/* Tooltip */}
+                    <div className="absolute -top-10 bg-slate-800 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all pointer-events-none z-10 dark:bg-white dark:text-slate-900 shadow-xl whitespace-nowrap">
+                      {d.students}00 HV / {d.classes} Lớp
+                    </div>
+                    {/* Students Bar */}
+                    <div className="w-1/3 max-w-[20px] bg-brand-500 rounded-t shadow-[0_0_8px_rgba(var(--color-brand-500),0.3)] transition-all duration-300 group-hover:bg-brand-400" style={{ height: `${(d.students / 125) * 100}%` }} />
+                    {/* Classes Bar */}
+                    <div className="w-1/3 max-w-[20px] bg-emerald-400 rounded-t shadow-[0_0_8px_rgba(52,211,153,0.3)] transition-all duration-300 group-hover:bg-emerald-300" style={{ height: `${(d.classes / 70) * 100}%` }} />
                   </div>
-                ))}
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors uppercase tracking-widest">{d.term}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng Lớp (SP25)</p>
+                <div className="flex items-end gap-2 mt-2">
+                  <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">62</span>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md mb-0.5 shadow-sm border border-emerald-100 dark:border-emerald-500/20">+12%</span>
+                </div>
               </div>
-            ) : Object.entries(health).map(([key, val]) => (
-              <div key={key} className="flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${val.status === 'up' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>
-                    <Server size={14} />
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tỷ lệ Lấp đầy</p>
+                <div className="flex items-end gap-2 mt-2">
+                  <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">94<span className="text-xl">%</span></span>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md mb-0.5 shadow-sm border border-emerald-100 dark:border-emerald-500/20">+2%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Subject Distribution (Donut Chart) */}
+        <Card padding="none" className="overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <div className="bg-amber-50 dark:bg-amber-500/10 p-1.5 rounded-lg text-amber-600 dark:text-amber-400">
+                <Library size={16} />
+              </div>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Cơ cấu Ngành học</span>
+            </div>
+          </div>
+          
+          <div className="p-6 flex-1 flex flex-col justify-center items-center gap-8">
+            <div className="relative w-56 h-56 shrink-0">
+              <svg className="w-full h-full transform -rotate-90 filter drop-shadow-lg" viewBox="0 0 100 100">
+                {/* 45% Kỹ thuật Phần mềm (SE) - Green */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="16" strokeDasharray="113 251.2" strokeDashoffset="0" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
+                {/* 25% Trí tuệ Nhân tạo (AI) - Orange */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f59e0b" strokeWidth="16" strokeDasharray="63 251.2" strokeDashoffset="-113" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
+                {/* 20% Đồ họa (GD) - Blue */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#3b82f6" strokeWidth="16" strokeDasharray="50 251.2" strokeDashoffset="-176" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
+                {/* 10% An toàn TT (IA) - Rose */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f43f5e" strokeWidth="16" strokeDasharray="25 251.2" strokeDashoffset="-226" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-4xl font-black text-slate-900 dark:text-white">4</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Chuyên ngành</span>
+              </div>
+            </div>
+
+            <div className="w-full grid grid-cols-2 gap-x-4 gap-y-3">
+              {[
+                { label: 'Kỹ thuật Phần mềm', percent: 45, color: 'bg-emerald-500' },
+                { label: 'Trí tuệ Nhân tạo', percent: 25, color: 'bg-amber-500' },
+                { label: 'Thiết kế Đồ họa', percent: 20, color: 'bg-blue-500' },
+                { label: 'An toàn Thông tin', percent: 10, color: 'bg-rose-500' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-3.5 h-3.5 rounded-full ${item.color} shadow-sm group-hover:scale-125 transition-transform`} />
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">{item.label}</span>
                   </div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 capitalize">{key}</span>
+                  <span className="text-sm font-black text-slate-900 dark:text-white">{item.percent}%</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {val.status === 'up' ? <CheckCircle size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-red-500" />}
-                  <Badge variant={val.status === 'up' ? 'success' : 'danger'} dot size="sm">
-                    {val.status === 'up' ? 'Online' : 'Lỗi'}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </Card>
       </div>

@@ -92,6 +92,7 @@ model Subject {
   SubjectName        String?
   Description        String?
   IsActive           Boolean?
+  Semester           Int?
   AssignmentTemplate AssignmentTemplate[]
   Class              Class[]
   Exam               Exam[]

@@ -91,6 +91,14 @@ export function Profile() {
   }
 
   const handleChangePassword = async () => {
+    if (!passwordForm.oldPassword) {
+      alert('Vui lòng nhập mật khẩu hiện tại')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      alert('Mật khẩu mới phải có ít nhất 6 ký tự')
+      return
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('Mật khẩu mới không khớp!')
       return

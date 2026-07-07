@@ -16,6 +16,8 @@ export class ClassesRouter {
     const controller = container.get<ClassesController>('ClassController')
 
     this.router.get('/', authenticate, asyncHandler((req, res) => controller.list(req, res)))
+    this.router.get('/codes', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.listClassCodes(req, res)))
+    this.router.get('/subjects', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.listSubjectsBySemester(req, res)))
     this.router.post('/', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.create(req, res)))
     this.router.get('/:id/students', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.getStudents(req, res)))
     this.router.post('/:id/enroll', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.enroll(req, res)))

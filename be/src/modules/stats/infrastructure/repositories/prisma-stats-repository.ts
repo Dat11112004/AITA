@@ -4,12 +4,13 @@ export class PrismaStatsRepository implements IStatsRepository {
     constructor(private readonly prisma: any) { }
 
     async getAdminSummary() {
-        const [users, classes, exams] = await Promise.all([
+        const [users, classes, exams, subjects] = await Promise.all([
             this.prisma.user.count(),
             this.prisma.class.count(),
             this.prisma.exam.count(),
+            this.prisma.subject.count(),
         ])
-        return { users, classes, exams, uptime: '99.9%' }
+        return { users, classes, exams, subjects, uptime: '99.9%' }
     }
 
     async getLecturerSummary(lecturerId: string) {

@@ -1,6 +1,6 @@
 import React from 'react'
 
-type Variant = 'success' | 'danger' | 'warning' | 'info' | 'neutral' | 'default'
+type Variant = 'success' | 'danger' | 'warning' | 'info' | 'neutral' | 'default' | 'outline'
 type Size = 'sm' | 'md'
 
 interface Props {
@@ -18,6 +18,7 @@ const styles: Record<Variant, string> = {
   danger:   'bg-red-50    text-red-700    ring-red-200    dark:bg-red-500/15    dark:text-red-300    dark:ring-red-500/20',
   info:     'bg-sky-50    text-sky-700    ring-sky-200    dark:bg-sky-500/15    dark:text-sky-300    dark:ring-sky-500/20',
   neutral:  'bg-slate-100 text-slate-600  ring-slate-200  dark:bg-slate-800     dark:text-slate-400  dark:ring-slate-700',
+  outline:  'bg-white text-slate-700 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700',
 }
 
 const dots: Record<Variant, string> = {
@@ -27,6 +28,7 @@ const dots: Record<Variant, string> = {
   danger:   'bg-red-500',
   info:     'bg-sky-500',
   neutral:  'bg-slate-400',
+  outline:  'bg-slate-400',
 }
 
 const sizes: Record<Size, string> = {

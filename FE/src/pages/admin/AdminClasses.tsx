@@ -158,28 +158,52 @@ export function AdminClasses() {
             })
           ))
         } else {
-          // Create classes for multiple subjects
-          let targetSubjectIds = classForm.subjectIds?.length > 0 ? classForm.subjectIds : (classForm.subjectId ? [classForm.subjectId] : (selectedSubject?.id ? [selectedSubject.id] : []))
-          
-          targetSubjectIds = targetSubjectIds.filter(subId => {
-             const isDuplicate = classes.some(c => 
-                c.code.toLowerCase() === classForm.code.toLowerCase() &&
-                typeof c.subject === 'object' && c.subject && (c.subject as any).id === subId
-             )
-             return !isDuplicate
-          })
-          
-          if (targetSubjectIds.length === 0) {
-            throw new Error('Vui lòng chọn ít nhất một môn học hợp lệ (chưa được đăng ký)')
+          // Simplified Create Class: Mã lớp, Kỳ học, Giảng viên, Môn học
+          const targetSemester = semesters.find(s => s.id === (classForm.semesterId || selectedSemester?.id))
+          if (!targetSemester) throw new Error('Vui lòng chọn học kỳ')
+
+          let subjectsToProcess: SubjectRow[] = []
+
+          if (classForm.subjectId && classForm.subjectId !== 'ALL') {
+            const sub = subjects.find(s => s.id === classForm.subjectId)
+            if (!sub) throw new Error('Không tìm thấy môn học')
+            subjectsToProcess = [sub]
+          } else {
+            const match = targetSemester.code.match(/\d+/)
+            const curriculumSemester = match ? parseInt(match[0], 10) : null
+
+            if (!curriculumSemester) {
+              throw new Error(`Không thể xác định kỳ học (1-9) từ tên học kỳ "${targetSemester.code}". Vui lòng đặt tên học kỳ có chứa số (VD: Kỳ 1).`)
+            }
+
+            subjectsToProcess = subjects.filter(s => s.semester === curriculumSemester)
+            if (subjectsToProcess.length === 0) {
+              throw new Error(`Không có môn học nào được cấu hình cho Kỳ ${curriculumSemester}. Vui lòng cập nhật môn học trước.`)
+            }
           }
 
-          await Promise.all(targetSubjectIds.map(subId => 
+          // Check if class already exists for any of these subjects
+          const duplicates = subjectsToProcess.filter(sub => 
+            classes.some(c => 
+              c.code.toLowerCase() === classForm.code.toLowerCase() &&
+              typeof c.subject === 'object' && c.subject && (c.subject as any).id === sub.id &&
+              typeof c.semester === 'object' && c.semester && (c.semester as any).id === targetSemester.id
+            )
+          )
+
+          if (duplicates.length === subjectsToProcess.length) {
+             throw new Error('Lớp này đã được tạo cho (các) môn đã chọn trong học kỳ này.')
+          }
+
+          const subjectsToCreate = subjectsToProcess.filter(sub => !duplicates.find(d => d.id === sub.id))
+
+          await Promise.all(subjectsToCreate.map(sub => 
             api.createClass({
               code: classForm.code,
-              name: classForm.name,
-              subjectId: subId,
-              semesterId: classForm.semesterId || selectedSemester?.id,
-              campus: classForm.campus,
+              name: '',
+              subjectId: sub.id,
+              semesterId: targetSemester.id,
+              campus: '',
               lecturerId: classForm.lecturerId,
             })
           ))
@@ -219,11 +243,17 @@ export function AdminClasses() {
     setIsDeleting(true)
     
     try {
-      const results = await Promise.allSettled(Array.from(selectedSemesterIds).map(id => api.deleteSemester(id)))
-      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+      const failed: string[] = []
+      for (const id of Array.from(selectedSemesterIds)) {
+        try {
+          await api.deleteSemester(id)
+        } catch (e: any) {
+          failed.push(e.message || 'Lỗi')
+        }
+      }
       
       if (failed.length > 0) {
-        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
+        alert(failed.join('\n'))
       }
       setSemesters(prev => prev.filter(s => !selectedSemesterIds.has(s.id)))
       setSelectedSemesterIds(new Set())
@@ -329,9 +359,13 @@ export function AdminClasses() {
   // Derived Data for UI
   const filteredClassesBySemester = selectedSemester ? classes.filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === selectedSemester.id : false) : []
   
-  const subjectsInSemester = subjects.filter(s => 
-    filteredClassesBySemester.some(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id)
-  )
+  const subjectsInSemester = subjects.filter(s => {
+    const match = selectedSemester?.code.match(/\d+/);
+    const curriculumSemester = match ? parseInt(match[0], 10) : null;
+    const matchesCurriculum = curriculumSemester && s.semester === curriculumSemester;
+    const hasClass = filteredClassesBySemester.some(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id);
+    return matchesCurriculum || hasClass;
+  })
 
   const finalFilteredClasses = selectedSubject 
     ? filteredClassesBySemester.filter(c => typeof c.subject === 'object' && c.subject ? c.subject.id === selectedSubject.id : false) 
@@ -591,108 +625,37 @@ export function AdminClasses() {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <Input label="Mã lớp" placeholder="Ví dụ: SE1702" value={classForm.code} onChange={(e) => setClassForm({ ...classForm, code: e.target.value })} />
-                <Input label="Tên lớp (Tuỳ chọn)" placeholder="Ví dụ: Lớp SE nâng cao" value={classForm.name} onChange={(e) => setClassForm({ ...classForm, name: e.target.value })} />
                 <Select 
                   label="Kỳ học" 
                   options={[{value:'', label: 'Chọn kỳ học...'}, ...semesterOptions]} 
                   value={classForm.semesterId || (selectedSemester?.id ?? '')} 
-                  onChange={(e) => {
-                    const newSemesterId = e.target.value;
-                    const subjectsInNewSemester = [...new Set(classes
-                       .filter(c => typeof c.semester === 'object' && c.semester && (c.semester as any).id === newSemesterId)
-                       .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
-                       .filter(Boolean))];
-                    setClassForm({ ...classForm, semesterId: newSemesterId, subjectIds: subjectsInNewSemester as string[] });
-                  }} 
+                  onChange={(e) => setClassForm({ ...classForm, semesterId: e.target.value })} 
                   disabled={(level === 'class' || level === 'subject') && !editingClass}
                 />
-                {!editingClass ? (
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Môn học (Có thể chọn nhiều)</label>
-                    <div className="flex flex-wrap gap-2 p-2 border border-slate-300 dark:border-slate-700 rounded-xl max-h-40 overflow-y-auto bg-white dark:bg-slate-900 custom-scrollbar">
-                      {subjects.map(s => {
-                        // 1. Tìm xem môn này đã thuộc về kỳ học nào chưa (dựa vào các lớp đã tạo)
-                        const classesOfSubject = classes.filter(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id);
-                        
-                        const boundSemesterId = classesOfSubject.length > 0 && typeof classesOfSubject[0].semester === 'object' && classesOfSubject[0].semester
-                          ? (classesOfSubject[0].semester as any).id
-                          : null;
-                          
-                        const currentSemesterId = classForm.semesterId || selectedSemester?.id;
-                        
-                        // Môn này sẽ bị ẩn nếu nó ĐÃ được dùng ở một kỳ KHÁC với kỳ đang chọn
-                        const isBoundToOtherSemester = boundSemesterId && currentSemesterId && boundSemesterId !== currentSemesterId;
-
-                        // 2. Vô hiệu hoá môn học nếu mã lớp đang nhập ĐÃ ĐĂNG KÝ môn học này
-                        const existingClass = classForm.code 
-                          ? classes.find(c => 
-                              c.code.toLowerCase() === classForm.code.toLowerCase() &&
-                              typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id
-                            )
-                          : undefined;
-                        return { subject: s, existingClass, isBoundToOtherSemester };
-                      })
-                      .filter(item => !item.isBoundToOtherSemester) // Không hiện môn của kỳ khác
-                      .filter(item => !item.existingClass) // Không hiện môn mà mã lớp này đã có
-                      .map(({ subject: s }) => {
-                        const isSelected = classForm.subjectIds?.includes(s.id) || (!classForm.subjectIds?.length && classForm.subjectId === s.id) || (!classForm.subjectIds?.length && !classForm.subjectId && selectedSubject?.id === s.id)
-                        
-                        return (
-                          <label 
-                            key={s.id} 
-                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
-                               isSelected 
-                                ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-300 cursor-pointer shadow-sm' 
-                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-300 cursor-pointer hover:shadow-sm'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                let newIds = classForm.subjectIds || []
-                                if (newIds.length === 0) {
-                                  const currentId = classForm.subjectId || selectedSubject?.id
-                                  if (currentId && currentId !== s.id) {
-                                    newIds = [currentId]
-                                  }
-                                }
-                                if (e.target.checked) {
-                                  setClassForm(prev => ({ ...prev, subjectIds: [...newIds, s.id], subjectId: '' }))
-                                } else {
-                                  setClassForm(prev => ({ ...prev, subjectIds: newIds.filter(id => id !== s.id), subjectId: '' }))
-                                }
-                              }}
-                              className="rounded border-slate-300 focus:ring-brand-500 transition-colors text-brand-600"
-                            />
-                            <span>{s.code}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <Select 
-                    label="Môn học" 
-                    options={[{value:'', label: 'Chọn môn học...'}, ...subjectOptions]} 
-                    value={classForm.subjectId || (selectedSubject?.id ?? '')} 
-                    onChange={(e) => setClassForm({ ...classForm, subjectId: e.target.value })} 
-                  />
-                )}
+                <Select 
+                  label="Môn học" 
+                  options={
+                    editingClass 
+                      ? [{value:'', label: 'Chọn môn học...'}, ...subjectOptions]
+                      : [{value:'', label: 'Tất cả các môn trong kỳ'}, ...subjectsInSemester.map(s => ({ value: s.id, label: `${s.code} - ${s.name}` }))]
+                  } 
+                  value={classForm.subjectId || (selectedSubject?.id ?? '')} 
+                  onChange={(e) => setClassForm({ ...classForm, subjectId: e.target.value })} 
+                  disabled={level === 'class' && !editingClass}
+                />
                 <Select 
                   label="Giảng viên (Tuỳ chọn)" 
                   options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
                   value={classForm.lecturerId} 
                   onChange={(e) => setClassForm({ ...classForm, lecturerId: e.target.value })} 
                 />
-                <Input label="Campus (Tuỳ chọn)" placeholder="Ví dụ: Quy Nhơn" value={classForm.campus} onChange={(e) => setClassForm({ ...classForm, campus: e.target.value })} />
               </div>
             )}
             <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
               <Button
                 className="px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium flex items-center gap-2"
                 onClick={handleCreateClass}
-                disabled={isSubmitting || (level === 'class' && !editingClass ? multiClassForm.every(c => c.code.trim() === '') : (!classForm.code || (!classForm.semesterId && !selectedSemester) || (editingClass ? (!classForm.subjectId && !selectedSubject) : (!classForm.subjectIds?.length && !classForm.subjectId && !selectedSubject))))}
+                disabled={isSubmitting || (level === 'class' && !editingClass ? multiClassForm.every(c => c.code.trim() === '') : (!classForm.code || (!classForm.semesterId && !selectedSemester)))}
               >
                 {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</> : 'Lưu thông tin lớp'}
               </Button>
@@ -766,7 +729,17 @@ export function AdminClasses() {
                 </div>
               ) : (
                 [...semesters].sort((a, b) => a.code.localeCompare(b.code)).map(sem => {
-                  const classCount = classes.filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === sem.id : false).length
+                  const match = sem.code.match(/\d+/);
+                  const curriculumSemester = match ? parseInt(match[0], 10) : null;
+                  const subjectCount = new Set([
+                    ...classes
+                      .filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === sem.id : false)
+                      .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
+                      .filter(Boolean),
+                    ...subjects
+                      .filter(s => curriculumSemester && s.semester === curriculumSemester)
+                      .map(s => s.id)
+                  ]).size
                   return (
                     <Card 
                       key={sem.id} 
@@ -825,7 +798,7 @@ export function AdminClasses() {
                         </div>
                         <div>
                           <h3 className="font-bold text-lg text-slate-800">{sem.code}</h3>
-                          <p className="text-sm text-slate-500">{classCount} Lớp học</p>
+                          <p className="text-sm text-slate-500">{subjectCount} Môn học</p>
                         </div>
                       </div>
                     </Card>

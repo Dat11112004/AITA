@@ -13,6 +13,13 @@ export const UpdateUserDto = z.object({
     status: z.enum(['Active', 'Inactive', 'Locked']).optional(),
     password: z.string().min(6).optional(),
     role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])).optional(),
+    updatedClasses: z.array(z.object({
+        classId: z.string(),
+        newClassCode: z.string(),
+        newSubjectCode: z.string().optional()
+    })).optional(),
+    addedClasses: z.array(z.string()).optional(),
+    deletedClasses: z.array(z.string()).optional()
 })
 
 export type CreateUserDto = z.infer<typeof CreateUserDto>

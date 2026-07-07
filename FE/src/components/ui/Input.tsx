@@ -1,4 +1,5 @@
-import React, { type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import React, { useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 const baseInput = `
   w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm
@@ -16,8 +17,12 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string; hint?: string; error?: string; leftIcon?: React.ReactNode
 }
 
-export function Input({ label, hint, error, leftIcon, className = '', id, ...props }: InputProps) {
+export function Input({ label, hint, error, leftIcon, className = '', id, type, ...props }: InputProps) {
+  const [showPassword, setShowPassword] = useState(false)
   const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+  const isPassword = type === 'password'
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+
   return (
     <div className="space-y-1.5">
       {label && <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>}
@@ -25,9 +30,19 @@ export function Input({ label, hint, error, leftIcon, className = '', id, ...pro
         {leftIcon && <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 dark:text-slate-500">{leftIcon}</div>}
         <input
           id={inputId}
-          className={`${baseInput} ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-400/20' : 'border-slate-300'} ${leftIcon ? 'pl-10' : ''} ${className}`}
+          type={inputType}
+          className={`${baseInput} ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-400/20' : 'border-slate-300'} ${leftIcon ? 'pl-10' : ''} ${isPassword ? 'pr-10' : ''} ${className}`}
           {...props}
         />
+        {isPassword && (
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
       </div>
       {hint && !error && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}

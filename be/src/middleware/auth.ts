@@ -43,7 +43,7 @@ export function requireRoles(...roles: string[]) {
       logger.warn('Role authorization failed: User not authenticated')
       return next(new UnauthorizedError())
     }
-    if (!roles.includes(req.user.role)) {
+    if (!roles.map(r => r.toLowerCase()).includes(req.user.role.toLowerCase())) {
       logger.warn('Role authorization failed: Insufficient permissions', {
         userId: req.user.id,
         userRole: req.user.role,

@@ -4,6 +4,7 @@ export const SubjectSchema = z.object({
   code: z.string().min(2, 'Mã môn học phải có ít nhất 2 ký tự'),
   name: z.string().min(2, 'Tên môn học phải có ít nhất 2 ký tự'),
   description: z.string().optional(),
+  semester: z.number().int().min(1).max(9).optional(),
 })
 
 export type SubjectRequestDtoType = z.infer<typeof SubjectSchema>
@@ -23,7 +24,8 @@ export class SubjectResponseDto {
     public readonly code: string | null,
     public readonly name: string | null,
     public readonly description: string | null,
-    public readonly status: string
+    public readonly status: string,
+    public readonly semester: number | null
   ) {}
 
   static from(subject: any): SubjectResponseDto {
@@ -35,7 +37,8 @@ export class SubjectResponseDto {
       subject.SubjectCode || subject.subjectCode,
       subject.SubjectName || subject.subjectName,
       subject.Description || subject.description,
-      status
+      status,
+      subject.Semester !== undefined ? subject.Semester : (subject.semester ?? null)
     )
   }
 }

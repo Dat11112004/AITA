@@ -10,6 +10,7 @@ import { DeleteClassUseCase } from '../application/use-cases/delete-class.use-ca
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
+import { prisma } from '../../../database/prisma.js'
 
 export class ClassesController extends BaseController {
   constructor(
@@ -79,5 +80,66 @@ export class ClassesController extends BaseController {
     this.logger.info(`Deleting class ${classId}`)
     await this.deleteClassUseCase.execute(classId)
     this.ok(res, null, MESSAGES.SUCCESS)
+  }
+
+  async listClassCodes(req: Request, res: Response): Promise<void> {
+    const semesterCode = req.query.semesterCode as string | undefined
+    const subjectCode = req.query.subjectCode as string | undefined
+
+    this.logger.info(`Fetching class codes for semester=${semesterCode}, subject=${subjectCode}`)
+
+    const where: any = {}
+
+    if (semesterCode) {
+      const semester = await prisma.semester.findFirst({ where: { Code: semesterCode } })
+      if (semester) where.SemesterId = semester.Id
+    }
+
+    if (subjectCode) {
+      const subject = await prisma.subject.findFirst({ where: { SubjectCode: subjectCode } })
+      if (subject) where.SubjectId = subject.Id
+    }
+
+    const classes = await (prisma as any).class.findMany({
+      where,
+      select: {
+        Id: true,
+        ClassCode: true,
+        _count: { select: { StudentClass: true } }
+      },
+      orderBy: { ClassCode: 'asc' }
+    })
+
+    const result = classes.map((c: any) => ({
+      classId: c.Id,
+      classCode: c.ClassCode,
+      studentCount: c._count?.StudentClass || 0
+    }))
+
+    this.ok(res, result, MESSAGES.SUCCESS)
+  }
+
+  async listSubjectsBySemester(req: Request, res: Response): Promise<void> {
+    const semesterCode = req.query.semesterCode as string | undefined
+
+    this.logger.info(`Fetching subjects for semester=${semesterCode}`)
+
+    const where: any = {}
+    if (semesterCode) {
+      const semester = await prisma.semester.findFirst({ where: { Code: semesterCode } })
+      if (semester) where.SemesterId = semester.Id
+    }
+
+    const classes = await (prisma as any).class.findMany({
+      where,
+      select: { Subject: { select: { Id: true, SubjectCode: true, SubjectName: true } } },
+      distinct: ['SubjectId']
+    })
+
+    const subjects = classes
+      .map((c: any) => c.Subject)
+      .filter((s: any) => s !== null)
+
+    this.ok(res, subjects, MESSAGES.SUCCESS)
   }
 }

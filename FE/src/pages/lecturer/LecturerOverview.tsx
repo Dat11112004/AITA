@@ -39,8 +39,21 @@ export function LecturerOverview() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  // Top 3 classes for the quick view
-  const recentClasses = classes.slice(0, 3)
+  // Group all classes by semester
+  const groupedClasses: Record<string, { semesterName: string, classes: ClassRow[] }> = {}
+  classes.forEach(cls => {
+    const semId = (cls.semester as any)?.id || 'unknown'
+    const semCode = (cls.semester as any)?.code || 'Kỳ khác'
+    
+    if (!groupedClasses[semId]) {
+      groupedClasses[semId] = { semesterName: semCode, classes: [] }
+    }
+    groupedClasses[semId].classes.push(cls)
+  })
+
+  const groupedClassesArray = Object.values(groupedClasses).sort((a, b) => a.semesterName.localeCompare(b.semesterName))
+
+  // Top 3 classes for the quick view is no longer used, we show grouped list
   
   // Mock 'To-Do' list based on assignments (Needs grading)
   const todoItems = assignments.slice(0, 4).map(a => ({
@@ -79,54 +92,66 @@ export function LecturerOverview() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <BookOpen className="text-brand-600" /> Lớp học nổi bật
+              <BookOpen className="text-brand-600" /> Tổng quan Lớp học
             </h2>
             <Link to="/lecturer/classes" className="text-sm font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
-              Xem tất cả <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+              Quản lý chi tiết <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-5">
-            {recentClasses.length === 0 ? (
-              <div className="col-span-2 p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
+          <div className="space-y-8">
+            {groupedClassesArray.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
                 Chưa có lớp học nào được phân công.
               </div>
             ) : (
-              recentClasses.map((cls) => {
-                return (
-                  <div 
-                    key={cls.id}
-                    onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
-                    className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
-                          {(cls.subject as any)?.code || 'N/A'}
-                        </span>
-                        <MoreVertical size={16} className="text-slate-400" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                        Lớp {cls.code}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {(cls.semester as any)?.code || 'Học kỳ N/A'}
-                      </p>
-                    </div>
+              groupedClassesArray.map((group) => (
+                <div key={group.semesterName} className="space-y-4">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Học kỳ {group.semesterName}
+                    <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-2">
+                      {group.classes.length} lớp
+                    </span>
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    {group.classes.map((cls) => {
+                      return (
+                        <div 
+                          key={cls.id}
+                          onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                          className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
+                                {(cls.subject as any)?.code || 'N/A'}
+                              </span>
+                              <MoreVertical size={16} className="text-slate-400" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                              Lớp {cls.code}
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              Học kỳ: {(cls.semester as any)?.code || 'N/A'}
+                            </p>
+                          </div>
 
-                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
-                        <Users size={16} />
-                        {cls.studentCount ?? Math.floor(Math.random() * 20 + 20)} SV
-                      </div>
-                    </div>
+                          <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+                              <Users size={16} />
+                              {cls.studentCount ?? 0} Sinh viên
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })
+                </div>
+              ))
             )}
             
-            {/* "Add New" placeholder card */}
-            <div className="group rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex flex-col items-center justify-center p-6 text-slate-500 hover:border-brand-400 hover:text-brand-600 transition-all cursor-pointer min-h-[160px]">
+            {/* "Add New" placeholder card - optional on overview, but we can keep it at the very bottom */}
+            <div className="group rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex flex-col items-center justify-center p-6 text-slate-500 hover:border-brand-400 hover:text-brand-600 transition-all cursor-pointer min-h-[120px] max-w-sm mt-4">
               <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-all">
                 <Plus size={20} />
               </div>

@@ -67,6 +67,7 @@ export const api = {
 
   getUsers: (role = 'all', page = 1, limit = 10, search?: string) => 
     request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getUser: (id: string) => request<any>(`/users/${id}`),
   createUser: (body: CreateUserBody) =>
     request<UserRow>('/users', { method: 'POST', body: JSON.stringify(body) }),
 
@@ -78,6 +79,16 @@ export const api = {
   deleteClass: (id: string) =>
     request<void>(`/classes/${id}`, { method: 'DELETE' }),
   getClassStudents: (classId: string) => request<StudentRow[]>(`/classes/${classId}/students`),
+  getClassCodes: (semesterCode?: string, subjectCode?: string) => {
+    const params = new URLSearchParams();
+    if (semesterCode) params.append('semesterCode', semesterCode);
+    if (subjectCode) params.append('subjectCode', subjectCode);
+    return request<{classId: string, classCode: string, studentCount: number}[]>(`/classes/codes?${params.toString()}`);
+  },
+  getSubjectsBySemester: (semesterCode: string) => {
+    const params = new URLSearchParams({ semesterCode });
+    return request<{Id: string, SubjectCode: string, SubjectName: string}[]>(`/classes/subjects?${params.toString()}`);
+  },
   updateClassNote: (classId: string, note: string) =>
     request<ClassRow>(`/classes/${classId}/note`, { method: 'PATCH', body: JSON.stringify({ note }) }),
 
@@ -97,14 +108,14 @@ export const api = {
   getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
 
   // ─── Admin: User CRUD ───
-  updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string }) =>
+  updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string, updatedClasses?: { classId: string, newClassCode: string, newSubjectCode?: string }[] }) =>
     request<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (id: string) =>
     request<void>(`/users/${id}`, { method: 'DELETE' }),
   toggleUserLock: (id: string, locked: boolean) =>
     request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
-  importUsers: (body: { users: ImportUserRow[] }) =>
-    request<any>(`/users/import`, { method: 'POST', body: JSON.stringify(body) }),
+  importUsers: (body: { users: ImportUserRow[] } | FormData) =>
+    request<any>(`/users/import`, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
   importStudentsExcel: (body: FormData) =>
     request<any>(`/users/import-students-excel`, { method: 'POST', body }),
 
@@ -234,6 +245,7 @@ export interface UserRow {
   studentCode?: string
   phone?: string
   avatar?: string
+  lastLoginAt?: string
 }
 
 export interface ImportUserRow {
@@ -376,12 +388,14 @@ export interface SubjectRow {
   name: string
   description?: string
   status: string
+  semester?: number
 }
 
 export interface CreateSubjectBody {
   code: string
   name: string
   description?: string
+  semester?: number
 }
 
 export interface SemesterRow {

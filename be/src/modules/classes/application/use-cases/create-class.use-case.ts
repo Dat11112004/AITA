@@ -67,15 +67,25 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
     try {
       const { prisma } = await import('../../../../database/prisma.js')
       
-      const pendingEnrollments = await (prisma as any).pendingEnrollment.findMany({
+      const pendingEnrollmentsAll = await (prisma as any).pendingEnrollment.findMany({
         where: {
           ClassCode: data.code,
-          Status: 'Pending',
-          OR: [
-             { SemesterCode: semester.code },
-             { SubjectCode: subject.subjectCode }
-          ]
+          Status: 'Pending'
         }
+      })
+      
+      const targetSemNumMatch = semester.code?.match(/\d+/)
+      const targetSemNum = targetSemNumMatch ? parseInt(targetSemNumMatch[0], 10) : null
+      const targetSubjectCode = subject.subjectCode?.toLowerCase()
+
+      const pendingEnrollments = pendingEnrollmentsAll.filter((pe: any) => {
+        const peSemNumMatch = pe.SemesterCode?.match(/\d+/)
+        const peSemNum = peSemNumMatch ? parseInt(peSemNumMatch[0], 10) : null
+        
+        const isSemesterMatch = pe.SemesterCode === semester.code || (peSemNum !== null && peSemNum === targetSemNum)
+        const isSubjectMatch = pe.SubjectCode ? pe.SubjectCode.toLowerCase() === targetSubjectCode : true
+        
+        return isSemesterMatch && isSubjectMatch
       })
 
       if (pendingEnrollments.length > 0) {
@@ -91,13 +101,18 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
           }
         }
         
-        // Mark as enrolled
-        await (prisma as any).pendingEnrollment.updateMany({
-          where: {
-            Id: { in: pendingEnrollments.map((pe: any) => pe.Id) }
-          },
-          data: { Status: 'Enrolled' }
-        })
+        // Mark as enrolled ONLY if it is a subject-specific pending enrollment.
+        // If it's a semester-wide (SubjectCode is null), we keep it Pending
+        // so they get enrolled in all other subjects for this class/semester too!
+        const specificPes = pendingEnrollments.filter((pe: any) => pe.SubjectCode !== null)
+        if (specificPes.length > 0) {
+          await (prisma as any).pendingEnrollment.updateMany({
+            where: {
+              Id: { in: specificPes.map((pe: any) => pe.Id) }
+            },
+            data: { Status: 'Enrolled' }
+          })
+        }
       }
     } catch (err) {
       console.error('Failed to auto-enroll students:', err)

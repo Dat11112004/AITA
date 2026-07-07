@@ -18,6 +18,7 @@ export class UsersRouter {
         const ctrl = container.get<UsersController>(TOKENS.UsersController)
 
         this.router.get('/', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.list(req, res)))
+        this.router.get('/:id', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.getById(req, res)))
         this.router.post('/', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.create(req, res)))
         this.router.post('/import', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.import(req, res)))
         this.router.post('/import-students-excel', authenticate, requireRoles('ADMIN'), uploadExcelMiddleware.single('file'), asyncHandler((req, res) => ctrl.importStudentsExcel(req, res)))

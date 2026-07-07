@@ -229,7 +229,17 @@ export class ImportStudentsExcelUseCase {
                     const classesToEnroll: string[] = []
                     
                     // Main classes check
-                    const semester = await prisma.semester.findFirst({ where: { Code: semesterCode } })
+                    const allSemesters = await prisma.semester.findMany()
+                    const semesterNumberMatch = semesterCode?.match(/\d+/)
+                    const semesterNumber = semesterNumberMatch ? parseInt(semesterNumberMatch[0], 10) : null
+                    
+                    const semester = allSemesters.find(s => {
+                        if (s.Code === semesterCode) return true
+                        const sNumMatch = s.Code?.match(/\d+/)
+                        const sNum = sNumMatch ? parseInt(sNumMatch[0], 10) : null
+                        return sNum !== null && sNum === semesterNumber
+                    })
+
                     if (semester) {
                         const classes = await prisma.class.findMany({
                             where: { SemesterId: semester.Id, ClassCode: classCode },
@@ -265,6 +275,30 @@ export class ImportStudentsExcelUseCase {
                             }
                         })
                         if (cls) {
+                            if (cls.SubjectId && cls.SemesterId) {
+                                // Find and remove any existing class for this user in the same subject and semester
+                                const oldClasses = await prisma.studentClass.findMany({
+                                    where: {
+                                        UserId: user.Id,
+                                        Class: {
+                                            SubjectId: cls.SubjectId,
+                                            SemesterId: cls.SemesterId,
+                                            Id: { not: classId }
+                                        }
+                                    }
+                                });
+                                for (const old of oldClasses) {
+                                    await prisma.studentClass.delete({
+                                        where: { UserId_ClassId: { UserId: user.Id, ClassId: old.ClassId } }
+                                    });
+                                    // Also migrate submissions just like in update-user
+                                    await prisma.submission.updateMany({
+                                        where: { StudentId: user.Id, ClassId: old.ClassId },
+                                        data: { ClassId: classId }
+                                    });
+                                }
+                            }
+
                             const existingEnrollment = await prisma.studentClass.findUnique({
                                 where: { UserId_ClassId: { UserId: user.Id, ClassId: classId } }
                             })

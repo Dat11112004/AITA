@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type SubjectRow } from '@/lib/api'
 import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, CheckSquare } from 'lucide-react'
@@ -11,7 +11,7 @@ export function AdminSubjects() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null)
-  const [form, setForm] = useState<{ code: string; name: string; description: string }>({ code: '', name: '', description: '' })
+  const [form, setForm] = useState<{ code: string; name: string; description: string; semester: number | '' }>({ code: '', name: '', description: '', semester: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -50,15 +50,17 @@ export function AdminSubjects() {
           code: form.code,
           name: form.name,
           description: form.description,
+          semester: form.semester ? Number(form.semester) : undefined,
         })
       } else {
         await api.createSubject({
           code: form.code,
           name: form.name,
           description: form.description,
+          semester: form.semester ? Number(form.semester) : undefined,
         })
       }
-      setForm({ code: '', name: '', description: '' })
+      setForm({ code: '', name: '', description: '', semester: '' })
       setEditingSubject(null)
       setShowForm(false)
       load()
@@ -76,6 +78,7 @@ export function AdminSubjects() {
       code: subject.code,
       name: subject.name || '',
       description: subject.description || '',
+      semester: subject.semester || '',
     })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -154,7 +157,7 @@ export function AdminSubjects() {
                 if (showForm) {
                   setShowForm(false)
                   setEditingSubject(null)
-                  setForm({ code: '', name: '', description: '' })
+                  setForm({ code: '', name: '', description: '', semester: '' })
                 } else {
                   setShowForm(true)
                 }
@@ -180,6 +183,15 @@ export function AdminSubjects() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
               <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               <Input label="Tên môn" placeholder="Ví dụ: Java Web Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Select 
+                label="Kỳ học (1-9)"
+                value={form.semester.toString()}
+                onChange={(e) => setForm({ ...form, semester: e.target.value ? Number(e.target.value) : '' })}
+                options={[
+                  { label: 'Chọn kỳ', value: '' },
+                  ...Array.from({ length: 9 }, (_, i) => ({ label: `Kỳ ${i + 1}`, value: String(i + 1) }))
+                ]}
+              />
               <Input label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
 
             </div>
@@ -300,6 +312,17 @@ export function AdminSubjects() {
                   render: (r: SubjectRow) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{r.code}</span>
                 },
                 { key: 'name', header: 'Tên môn học' },
+                {
+                  key: 'semester',
+                  header: 'Kỳ học',
+                  render: (r: SubjectRow) => r.semester ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                      Kỳ {r.semester}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs italic">Chưa xếp</span>
+                  )
+                },
 
                 {
                   key: 'status',

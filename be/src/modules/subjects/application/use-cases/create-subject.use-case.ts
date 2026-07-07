@@ -19,7 +19,8 @@ export class CreateSubjectUseCase implements IUseCase<SubjectRequestDto, ReturnT
       randomUUID(),
       dto.data.code,
       dto.data.name,
-      dto.data.description
+      dto.data.description,
+      dto.data.semester
     )
 
     await this.subjectRepo.create(subject)

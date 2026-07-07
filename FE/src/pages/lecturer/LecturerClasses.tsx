@@ -58,6 +58,21 @@ export function LecturerClasses() {
     return true
   })
 
+  // Group filtered classes by semester
+  const groupedClasses: Record<string, { semesterName: string, classes: ClassRow[] }> = {}
+  filteredClasses.forEach(cls => {
+    const semId = (cls.semester as any)?.id || 'unknown'
+    const semCode = (cls.semester as any)?.code || 'Kỳ khác'
+    
+    if (!groupedClasses[semId]) {
+      groupedClasses[semId] = { semesterName: semCode, classes: [] }
+    }
+    groupedClasses[semId].classes.push(cls)
+  })
+
+  // Sort groups (you can customize sorting logic if semesters have a specific order)
+  const groupedClassesArray = Object.values(groupedClasses).sort((a, b) => a.semesterName.localeCompare(b.semesterName))
+
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
   if (loadError) return <ErrorState message={loadError} onRetry={load} />
 
@@ -99,38 +114,47 @@ export function LecturerClasses() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredClasses.map((cls) => {
-            return (
-              <div 
-                key={cls.id}
-                onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
-                className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all duration-200 cursor-pointer p-5"
-              >
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
-                      {(cls.subject as any)?.code || 'N/A'}
-                    </span>
-                    <MoreVertical size={16} className="text-slate-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                    Lớp {cls.code}
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                    Học kỳ: {(cls.semester as any)?.code || 'N/A'}
-                  </p>
-                </div>
+        <div className="space-y-10">
+          {groupedClassesArray.map((group) => (
+            <div key={group.semesterName} className="space-y-4">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                Học kỳ {group.semesterName}
+                <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full ml-2">
+                  {group.classes.length} lớp
+                </span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {group.classes.map((cls) => {
+                  return (
+                    <div 
+                      key={cls.id}
+                      onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                      className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all duration-200 cursor-pointer p-5"
+                    >
+                      <div>
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
+                            {(cls.subject as any)?.code || 'N/A'}
+                          </span>
+                          <MoreVertical size={16} className="text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                          Lớp {cls.code}
+                        </h3>
+                      </div>
 
-                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <Users size={16} className="text-slate-400"/>
-                    {cls.studentCount ?? Math.floor(Math.random() * 20 + 20)} Sinh viên
-                  </div>
-                </div>
+                      <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+                          <Users size={16} className="text-slate-400"/>
+                          {cls.studentCount ?? 0} Sinh viên
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>

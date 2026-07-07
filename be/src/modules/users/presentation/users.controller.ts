@@ -9,6 +9,7 @@ import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case
 import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../application/use-cases/import-students-excel.use-case.js'
 import { CreateUserDto, UpdateUserDto, ImportUsersBatchDto } from '../application/dtos/user.dto.js'
+import { GetUserDetailsUseCase } from '../application/use-cases/get-user-details.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import fs from 'fs'
 
@@ -21,6 +22,7 @@ export class UsersController extends BaseController {
         private readonly toggleLockUseCase: ToggleLockUseCase,
         private readonly importUseCase: ImportUsersUseCase,
         private readonly importStudentsExcelUseCase: ImportStudentsExcelUseCase,
+        private readonly getUserDetailsUseCase: GetUserDetailsUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -34,6 +36,12 @@ export class UsersController extends BaseController {
         const search = req.query.search ? String(req.query.search) : undefined
         const result = await this.listUseCase.execute({ role, page, limit, search })
         this.ok(res, result, MESSAGES.USER_LIST_SUCCESS)
+    }
+
+    async getById(req: Request, res: Response): Promise<void> {
+        this.logger.debug(`Received get user details request for ID: ${req.params.id}`)
+        const result = await this.getUserDetailsUseCase.execute(String(req.params.id))
+        this.ok(res, result, 'Lấy thông tin người dùng thành công')
     }
 
     async create(req: Request, res: Response): Promise<void> {
