@@ -29,8 +29,8 @@ export function createApp() {
   app.use(cors(corsOptions))
   app.use(requestLogger)
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
-  app.use(express.json({ limit: '2mb' }))
-  
+  app.use(express.json({ limit: '50mb' }))
+  app.use(express.urlencoded({ limit: '50mb', extended: true }))
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 
   app.use('/api', routeManager.getRouter())

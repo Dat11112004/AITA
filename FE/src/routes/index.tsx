@@ -7,6 +7,16 @@ import { HomePage } from '@/pages/home/HomePage'
 import { AboutPage } from '@/pages/home/AboutPage'
 import { FeaturesPage } from '@/pages/home/FeaturesPage'
 import { PillarsPage } from '@/pages/home/PillarsPage'
+import BatchDashboard from '@/pages/lecturer/grading/BatchDashboard'
+import LiveJobPage from '@/pages/lecturer/grading/LiveJobPage'
+import AssignmentsListPage from '@/pages/lecturer/grading/AssignmentsListPage'
+import AssignmentUploadPage from '@/pages/lecturer/grading/AssignmentUploadPage'
+import AssignmentPage from '@/pages/lecturer/grading/AssignmentPage'
+import ResultPage from '@/pages/shared/grading/ResultPage'
+import UploadPage from '@/pages/shared/grading/UploadPage'
+import HistoryPage from '@/pages/shared/grading/HistoryPage'
+import HubPage from '@/pages/shared/grading/HubPage'
+import AssignmentRubricPage from '@/pages/lecturer/grading/AssignmentRubricPage'
 import { LoginPage } from '@/pages/LoginPage'
 
 import { ADMIN_NAV, LECTURER_NAV, STUDENT_NAV } from '@/constants/navigation'
@@ -104,6 +114,16 @@ export function AppRoutes() {
         <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="grading/assignments/:id/submit" element={<BatchDashboard />} />
+        <Route path="grading/live/:id" element={<LiveJobPage />} />
+        <Route path="grading/assignments" element={<AssignmentsListPage />} />
+        <Route path="grading/assignments/upload" element={<AssignmentUploadPage />} />
+        <Route path="grading/assignments/:id" element={<AssignmentPage />} />
+        <Route path="grading/assignments/:id/rubric" element={<AssignmentRubricPage />} />
+        <Route path="grading/result/:id" element={<ResultPage />} />
+        <Route path="grading/upload" element={<UploadPage />} />
+        <Route path="grading/history" element={<HistoryPage />} />
+        <Route path="grading/hub" element={<HubPage />} />
       </Route>
 
       <Route
@@ -135,3 +155,5 @@ export function AppRoutes() {
     </Routes>
   )
 }
+
+

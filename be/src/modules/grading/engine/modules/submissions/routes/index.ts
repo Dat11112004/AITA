@@ -1,0 +1,34 @@
+import { Router } from 'express';
+import { SubmissionController } from '../controllers/SubmissionController.js';
+import { RubricEvaluator } from '../../../application/evaluator/RubricEvaluator.js';
+import { ExecutionSandboxService } from '../../../application/sandbox/ExecutionSandboxService.js';
+import { PlaywrightExecutor } from '../../../application/execution/PlaywrightExecutor.js';
+import { LocalArtifactStore } from '../../../infrastructure/file-system/LocalArtifactStore.js';
+import { GeminiAiProvider } from '../../../infrastructure/ai/GeminiAiProvider.js';
+import { uploadMiddleware } from '../../../shared/middleware/uploadMiddleware.js';
+
+export function createSubmissionRoutes(): Router {
+  const router = Router();
+  
+  const artifactStore = new LocalArtifactStore();
+  const aiProvider = new GeminiAiProvider();
+  const rubricEvaluator = new RubricEvaluator(aiProvider, artifactStore);
+  const sandboxService = new ExecutionSandboxService();
+  const playwrightExecutor = new PlaywrightExecutor(artifactStore);
+
+  const controller = new SubmissionController(sandboxService, playwrightExecutor, rubricEvaluator);
+
+  router.post('/', uploadMiddleware.single('file'), controller.submit);
+  router.post('/upload-batch', uploadMiddleware.array('files', 50), controller.submitBatch);
+  router.get('/batch-status', controller.getBatchStatus);
+  router.get('/history', controller.getHistory);
+  router.delete('/history/:id', controller.deleteHistory);
+  router.get('/:id/stream', controller.streamProgress);
+  router.post('/:id/cancel', controller.cancel);
+  router.get('/:id/result', controller.getResult);
+  router.get('/health', controller.healthCheck);
+
+  return router;
+}
+
+

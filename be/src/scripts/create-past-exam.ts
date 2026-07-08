@@ -19,7 +19,7 @@ async function main() {
       ExamType: 'Assignment',
       Status: 'Published',
       Duration: 60,
-      DueDate: new Date(Date.now() - 24 * 60 * 60 * 1000), 
+      // dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000), 
       TotalPoints: 10,
       CreatedBy: lecturer.Id,
     }
@@ -28,3 +28,5 @@ async function main() {
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
+
+

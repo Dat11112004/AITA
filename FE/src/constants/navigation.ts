@@ -19,6 +19,7 @@ export const LECTURER_NAV: NavItem[] = [
   { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen' },
   { id: 'assignments', label: 'Bài tập', path: '/lecturer/assignments', icon: 'FileText' },
   { id: 'exams', label: 'Kỳ thi', path: '/lecturer/exams', icon: 'FileSignature' },
+  { id: 'grading-assignments', label: 'Quản lý bài chấm', path: '/lecturer/grading/assignments', icon: 'FileCheck' },
   { id: 'profile', label: 'Hồ sơ', path: '/lecturer/profile', icon: 'UserCircle' },
 ]
 

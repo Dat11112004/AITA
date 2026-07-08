@@ -20,25 +20,25 @@ const sidebarTheme: Record<UserRole, {
   hoverBg: string
 }> = {
   admin: {
-    bg:        'bg-[#1a1f2e]',
+    bg:        'bg-[#0f172a]', // slate-900
     logoRing:  'bg-brand-600',
     activeBg:  'bg-white/10',
     activeBar: 'bg-brand-400',
-    hoverBg:   'hover:bg-white/8',
+    hoverBg:   'hover:bg-white/5',
   },
   lecturer: {
-    bg:        'bg-[#1e1a14]',
+    bg:        'bg-[#0f172a]',
     logoRing:  'bg-brand-600',
-    activeBg:  'bg-brand-400/20',
+    activeBg:  'bg-brand-500/15',
     activeBar: 'bg-brand-400',
-    hoverBg:   'hover:bg-white/8',
+    hoverBg:   'hover:bg-white/5',
   },
   student: {
-    bg:        'bg-[#052e16]',
-    logoRing:  'bg-emerald-600',
-    activeBg:  'bg-emerald-600/20',
-    activeBar: 'bg-emerald-400',
-    hoverBg:   'hover:bg-white/8',
+    bg:        'bg-[#0f172a]',
+    logoRing:  'bg-brand-600',
+    activeBg:  'bg-brand-500/15',
+    activeBar: 'bg-brand-400',
+    hoverBg:   'hover:bg-white/5',
   },
 }
 

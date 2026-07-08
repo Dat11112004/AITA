@@ -1,0 +1,251 @@
+{
+  "assign-1783258615457": {
+    "id": "assign-1783258615457",
+    "version": "1.0.0",
+    "metadata": {
+      "title": "FINAL PRACTICAL EXAM PRM393",
+      "description": "This exam evaluates software design, AI-assisted development, code review, and debugging skills in a Flutter context, requiring students to build features, adapt to changes, review code, and justify technical decisions for an online smartphone store application.",
+      "projectType": "mobile"
+    },
+    "blueprintId": "bp-1783258154615",
+    "rubric": {
+      "id": "rubric-1783258198458",
+      "assignmentId": "bp-1783258154615",
+      "version": "1.0.0",
+      "title": "FINAL PRACTICAL EXAM PRM393 Rubric",
+      "totalWeight": 10,
+      "passThreshold": 0.7,
+      "rules": [
+        {
+          "id": "req-1",
+          "title": "System Architecture Design (Code)",
+          "description": "Design the system architecture (e.g., MVVM, Clean Architecture, Repository Pattern, Provider/Riverpod/BLoC) and implement its structure in code.",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 0.5,
+          "scoringStrategy": "AICodeReview",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.code.reviewed",
+              "minimumConfidence": 0.85,
+              "semanticDescription": "Evaluate the project architecture. The student may use ANY architecture pattern (e.g., MVC, MVVM, Clean Architecture, Repository Pattern) or follow the requested design. Verify that there is a clear separation of concerns with distinct layers. Do NOT penalize for minor naming differences as long as the structural intent is correct."
+            }
+          ],
+          "contextHint": "PART A"
+        },
+        {
+          "id": "req-2",
+          "title": "System Design Justification (Written)",
+          "description": "Answer the following questions: Why should API calls not be made directly inside Widgets? If the API URL changes tomorrow, which layer should be affected? If offline caching is required, where would you add it? If the backend changes from REST to GraphQL, how would your design help?",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 1,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Answer the following questions: Why should API calls not be made directly inside Widgets? If the API URL changes tomorrow, which layer should be affected? If offline caching is required, where would you add it? If the backend changes from REST to GraphQL, how would your design help?"
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART A",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-3",
+          "title": "Product List Screen MVP",
+          "description": "Build a Product List screen displaying product image, name, price, and rating. Implement mandatory requirements: Skeleton Loading, Pull-to-Refresh, Error State, and Empty State. Do not use CircularProgressIndicator as the primary loading solution.",
+          "category": "UI/UX",
+          "tags": [
+            "ui"
+          ],
+          "weight": 2,
+          "scoringStrategy": "AIVision",
+          "requiredEvidence": [
+            {
+              "evidenceType": "browser.screenshot.captured",
+              "minimumConfidence": 0.9
+            }
+          ],
+          "isHybrid": true,
+          "contextHint": "PART B"
+        },
+        {
+          "id": "req-4",
+          "title": "Product List Feature Enhancements",
+          "description": "Implement the following change requests: 1. Display only products that are in stock. 2. If stock < 10, display a red warning label. 3. Allow users to enable/disable stock warnings. 4. Add product search functionality. 5. Implement a 500ms debounce for search.",
+          "category": "UI/UX",
+          "tags": [
+            "ui"
+          ],
+          "weight": 1,
+          "scoringStrategy": "AIVision",
+          "requiredEvidence": [
+            {
+              "evidenceType": "browser.screenshot.captured",
+              "minimumConfidence": 0.9
+            }
+          ],
+          "isHybrid": true,
+          "contextHint": "PART C"
+        },
+        {
+          "id": "req-5",
+          "title": "Product Scalability Analysis (Written)",
+          "description": "Assume the application must handle 1,000,000 products. Answer: Is your current implementation still appropriate? Why or why not? Propose at least two alternative solutions.",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 0.5,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Assume the application must handle 1,000,000 products. Answer: Is your current implementation still appropriate? Why or why not? Propose at least two alternative solutions."
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART C",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-6",
+          "title": "Offline Favorite Products Feature",
+          "description": "Implement a Favorite Screen where users can add/remove favorite products. Favorites must be stored offline (e.g., Hive, SharedPreferences, SQLite) and persist after app restart, working without an internet connection. The UI must be visually similar to the provided design, including a list of favorite products (image, name, price), a remove action (heart icon/delete button), and an empty state.",
+          "category": "UI/UX",
+          "tags": [
+            "api",
+            "create",
+            "read",
+            "delete"
+          ],
+          "weight": 0.7,
+          "scoringStrategy": "AIVision",
+          "requiredEvidence": [
+            {
+              "evidenceType": "browser.screenshot.captured",
+              "minimumConfidence": 0.9
+            }
+          ],
+          "isHybrid": true,
+          "contextHint": "PART D"
+        },
+        {
+          "id": "req-7",
+          "title": "Offline Strategy and Data Flow Explanation (Written)",
+          "description": "Answer the following questions: Where is favorite data stored? Why did you choose that solution? How does your architecture support offline-first? Explain how data flows from UI → storage → UI and how state is updated.",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 0.3,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Answer the following questions: Where is favorite data stored? Why did you choose that solution? How does your architecture support offline-first? Explain how data flows from UI → storage → UI and how state is updated."
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART D",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-8",
+          "title": "Code Debugging and Analysis (Written)",
+          "description": "Analyze the provided code `setState(() {products.where((e) => e.stock > 0,);});`. Identify the bug, explain why it happens, provide a corrected version, describe how to detect this issue during code review, and describe a test case that would reveal this bug.",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 1,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Analyze the provided code `setState(() {products.where((e) => e.stock > 0,);});`. Identify the bug, explain why it happens, provide a corrected version, describe how to detect this issue during code review, and describe a test case that would reveal this bug."
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART E",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-9",
+          "title": "Open-Source Project Architecture and Technical Review (Written & Diagram)",
+          "description": "Clone and analyze the Flutter project from `https://github.com/shahzaneer/MVVM-Architecture-Provider-in-Flutter`. Draw the architecture of the selected application. Identify the state management approach, API communication strategy, data management strategy, and folder structure organization. List 3 strengths and 3 weaknesses. Propose at least 3 improvements. Evaluate scalability, maintainability, and testability.",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 2,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Clone and analyze the Flutter project from `https://github.com/shahzaneer/MVVM-Architecture-Provider-in-Flutter`. Draw the architecture of the selected application. Identify the state management approach, API communication strategy, data management strategy, and folder structure organization. List 3 strengths and 3 weaknesses. Propose at least 3 improvements. Evaluate scalability, maintainability, and testability."
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART F",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-10",
+          "title": "AI Usage Audit Report (Written)",
+          "description": "Document your AI usage, including AI tools used, most important prompts, correct code generated by AI, incorrect code generated by AI, how you corrected the AI output, and estimated percentage of AI-generated code vs. self-written code.",
+          "category": "Theory",
+          "tags": [],
+          "weight": 0.5,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Document your AI usage, including AI tools used, most important prompts, correct code generated by AI, incorrect code generated by AI, how you corrected the AI output, and estimated percentage of AI-generated code vs. self-written code."
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART G",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        },
+        {
+          "id": "req-11",
+          "title": "Oral Defense Preparation (Written)",
+          "description": "Prepare answers for potential oral defense questions: When does FutureBuilder rebuild? Why use a Repository Pattern? What problem does debounce solve? How should timeout errors be handled? How would you design an Offline-First application? Why choose ListView.builder over Column? What happens when the number of items grows significantly?",
+          "category": "Architecture",
+          "tags": [],
+          "weight": 0.5,
+          "scoringStrategy": "AiTextAnalysis",
+          "requiredEvidence": [
+            {
+              "evidenceType": "ai.text.analyzed",
+              "minimumConfidence": 0.7,
+              "semanticDescription": "Prepare answers for potential oral defense questions: When does FutureBuilder rebuild? Why use a Repository Pattern? What problem does debounce solve? How should timeout errors be handled? How would you design an Offline-First application? Why choose ListView.builder over Column? What happens when the number of items grows significantly?"
+            }
+          ],
+          "isHybrid": false,
+          "contextHint": "PART H",
+          "referenceAnswer": "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý."
+        }
+      ]
+    },
+    "testSuites": {
+      "browser": [
+        {
+          "id": "test-ui-default-1783258615457",
+          "name": "Default UI Capture",
+          "startUrl": "/",
+          "steps": [
+            {
+              "action": "navigate",
+              "target": "/"
+            },
+            {
+              "action": "screenshot",
+              "screenshotName": "home-page"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

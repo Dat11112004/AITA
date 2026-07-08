@@ -68,13 +68,14 @@ model Submission {
   ZipFileUrl                       String?
   GradingStatus                    String?
   ReviewStatus                     String?
-  TotalScore                       Decimal?             @db.Decimal
-  FinalScore                       Decimal?             @db.Decimal
+  TotalScore                       Decimal?             @db.Decimal(18, 2)
+  FinalScore                       Decimal?             @db.Decimal(18, 2)
   InstructorFeedback               String?
   StudentFeedback                  String?
   ReviewedBy                       String?              @db.UniqueIdentifier
   ReviewedAt                       DateTime?            @db.DateTime2
   GradedAt                         DateTime?            @db.DateTime2
+  ReportData                       String?              @db.NVarChar(Max)
   AiUsageLog                       AiUsageLog[]
   ExecutionResult                  ExecutionResult[]
   GradingSession                   GradingSession[]
@@ -139,7 +140,7 @@ model AiUsageLog {
   ModelUsed        String?
   PromptTokens     Int?
   CompletionTokens Int?
-  CostEstimate     Decimal?    @db.Decimal
+  CostEstimate     Decimal?    @db.Decimal(18, 2)
   DurationMs       Int?
   IsSuccess        Boolean?
   ErrorMessage     String?
@@ -198,12 +199,12 @@ model CriterionScore {
   Id                String           @id @default(uuid()) @db.UniqueIdentifier
   RuleScoreId       String?          @db.UniqueIdentifier
   RubricCriterionId String?          @db.UniqueIdentifier
-  AiScore           Decimal?         @db.Decimal
-  MaxScore          Decimal?         @db.Decimal
+  AiScore           Decimal?         @db.Decimal(18, 2)
+  MaxScore          Decimal?         @db.Decimal(18, 2)
   AiReasoning       String?
-  InstructorScore   Decimal?         @db.Decimal
+  InstructorScore   Decimal?         @db.Decimal(18, 2)
   IsOverridden      Boolean?
-  EffectiveScore    Decimal?         @db.Decimal
+  EffectiveScore    Decimal?         @db.Decimal(18, 2)
   RubricCriterion   RubricCriterion? @relation(fields: [RubricCriterionId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   RuleScore         RuleScore?       @relation(fields: [RuleScoreId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -232,7 +233,7 @@ model Exam {
   Duration              Int?
   StartDate             DateTime?               @db.DateTime2
   DueDate               DateTime?               @db.DateTime2
-  TotalPoints           Decimal?                @db.Decimal
+  TotalPoints           Decimal?                @db.Decimal(18, 2)
   Status                String?
   SubmissionFormat      String?
   AiGeneratedContent    String?
@@ -285,7 +286,7 @@ model ExamSection {
   SectionCode String?
   Title       String?
   Description String?
-  MaxPoints   Decimal?     @db.Decimal
+  MaxPoints   Decimal?     @db.Decimal(18, 2)
   SortOrder   Int?
   Exam        Exam?        @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   RubricRule  RubricRule[]
@@ -299,7 +300,7 @@ model ExecutionResult {
   EngineType     String?
   ExecutionLabel String?
   RawOutput      String?
-  Score          Decimal?         @db.Decimal
+  Score          Decimal?         @db.Decimal(18, 2)
   Status         String?
   StartedAt      DateTime?        @db.DateTime2
   CompletedAt    DateTime?        @db.DateTime2
@@ -361,7 +362,7 @@ model GradingSession {
   TriggeredBy      String?            @db.UniqueIdentifier
   TriggerReason    String?
   Status           String?
-  TotalScore       Decimal?           @db.Decimal
+  TotalScore       Decimal?           @db.Decimal(18, 2)
   StartedAt        DateTime?          @db.DateTime2
   CompletedAt      DateTime?          @db.DateTime2
   BuildArtifact    BuildArtifact[]
@@ -516,8 +517,8 @@ model RubricCriterion {
   Id               String           @id @default(uuid()) @db.UniqueIdentifier
   RubricRuleId     String?          @db.UniqueIdentifier
   Description      String?
-  MaxPoints        Decimal?         @db.Decimal
-  Weight           Decimal?         @db.Decimal
+  MaxPoints        Decimal?         @db.Decimal(18, 2)
+  Weight           Decimal?         @db.Decimal(18, 2)
   ValidationType   String?
   ValidationConfig String?
   IsCritical       Boolean?
@@ -532,7 +533,7 @@ model RubricRule {
   SectionId            String?           @db.UniqueIdentifier
   RuleCode             String?
   Description          String?
-  MaxPoints            Decimal?          @db.Decimal
+  MaxPoints            Decimal?          @db.Decimal(18, 2)
   EvaluationPrompt     String?
   ReferenceAnswer      String?
   RequireImageEvidence Boolean?
@@ -549,13 +550,13 @@ model RuleScore {
   Id                String           @id @default(uuid()) @db.UniqueIdentifier
   ExecutionResultId String?          @db.UniqueIdentifier
   RubricRuleId      String?          @db.UniqueIdentifier
-  AiScore           Decimal?         @db.Decimal
-  MaxScore          Decimal?         @db.Decimal
+  AiScore           Decimal?         @db.Decimal(18, 2)
+  MaxScore          Decimal?         @db.Decimal(18, 2)
   AiReasoning       String?
-  InstructorScore   Decimal?         @db.Decimal
+  InstructorScore   Decimal?         @db.Decimal(18, 2)
   InstructorComment String?
   IsOverridden      Boolean?
-  EffectiveScore    Decimal?         @db.Decimal
+  EffectiveScore    Decimal?         @db.Decimal(18, 2)
   CriterionScore    CriterionScore[]
   Evidence          Evidence[]
   ExecutionResult   ExecutionResult? @relation(fields: [ExecutionResultId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
@@ -651,7 +652,7 @@ model TestCase {
   IsHidden       Boolean?
   TimeoutMs      Int?
   MemoryLimitMb  Int?
-  Points         Decimal? @db.Decimal
+  Points         Decimal? @db.Decimal(18, 2)
   SortOrder      Int?
   Exam           Exam?    @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }

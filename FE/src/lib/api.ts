@@ -430,3 +430,136 @@ export interface CreateExamBody {
   duration?: number
   description?: string
 }
+
+export const gradingApi = {
+  getAssignments: () => request<PublishedAssignment[]>('/grading/assignments'),
+  clearCache: () => request<void>('/grading/cache/clear', { method: 'POST' }),
+  getAssignment: (id: string) => request<PublishedAssignment>('/grading/assignments/' + id),
+  deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
+  
+  uploadAssignment: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<PublishedAssignment>('/grading/assignments/upload', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+  
+  extractText: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<{ text: string }>('/grading/assignments/extract-text', {
+      method: 'POST',
+      body: formData,
+    }).then(res => res.text)
+  },
+  
+  generateContent: (prompt: string) => request<{ markdown: string }>('/grading/assignments/generate-content', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  }).then(res => res.markdown),
+  
+  parseRubric: (content: string) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  }),
+  
+  parseRequirements: (content: string) => request<any>('/grading/assignments/parse-requirements', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  }),
+  
+  generateRubric: (blueprint: any) => request<{ rubric: any }>('/grading/assignments/generate-rubric', {
+    method: 'POST',
+    body: JSON.stringify({ blueprint }),
+  }).then(res => res.rubric),
+  
+  publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<PublishedAssignment>('/grading/assignments/publish', {
+    method: 'POST',
+    body: JSON.stringify({ metadata, blueprint, rubric }),
+  }),
+  
+  submitProject: (file: File, assignmentId?: string) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (assignmentId) formData.append('assignmentId', assignmentId)
+    return request<{ submissionId: string }>('/grading/submissions', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+  
+  submitBatchProject: (files: File[], assignmentId?: string) => {
+    const formData = new FormData()
+    files.forEach(f => formData.append('files', f))
+    if (assignmentId) formData.append('assignmentId', assignmentId)
+    return request<{ jobs: any[] }>('/grading/submissions/upload-batch', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+  
+  getBatchStatus: (ids: string[]) => {
+    if (!ids || ids.length === 0) return Promise.resolve({ statuses: {} })
+    return request<{ statuses: Record<string, any> }>('/grading/submissions/batch-status?ids=' + ids.join(','))
+  },
+  
+  subscribeToProgress: (
+    submissionId: string, 
+    onProgress: (job: any) => void,
+    onComplete: () => void,
+    onError: (err: any) => void
+  ) => {
+    const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
+    // EventSource doesn't support headers directly in browser API. 
+    // Usually tokens for SSE are passed via query params.
+    const url = '/api/grading/submissions/' + submissionId + '/stream?token=' + token
+    const eventSource = new EventSource(url)
+
+    eventSource.onmessage = (event) => {
+      try {
+        const job = JSON.parse(event.data)
+        if (job.error) {
+          onError(new Error(job.error))
+          eventSource.close()
+          return
+        }
+
+        onProgress(job)
+
+        if (job.state === 'completed') {
+          eventSource.close()
+          onComplete()
+        } else if (job.state === 'failed') {
+          eventSource.close()
+          onError(new Error(job.error || 'Evaluation failed'))
+        }
+      } catch (err) {
+        console.error('Failed to parse SSE message', err)
+      }
+    }
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error', err)
+      eventSource.close()
+      onError(new Error('Connection to server lost.'))
+    }
+
+    return () => {
+      eventSource.close()
+    }
+  },
+  
+  getSubmissionResult: (submissionId: string) => request<SubmissionResponse>('/grading/submissions/' + submissionId + '/result'),
+  
+  cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
+
+  getHistory: (assignmentId?: string) => {
+    const url = assignmentId ? `/grading/submissions/history?assignmentId=${assignmentId}` : '/grading/submissions/history';
+    return request<{ history: any[] }>(url).then(res => res.history);
+  },
+  
+  deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
+}
+
