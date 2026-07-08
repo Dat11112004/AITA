@@ -98,10 +98,11 @@ async function main() {
 
   // Create semester
   const semester = await prisma.semester.upsert({
-    where: { Code: 'Spring 2026' },
+    where: { Season_Code: { Season: 'Spring', Code: '2026' } },
     update: {},
     create: {
-      Code: 'Spring 2026',
+      Season: 'Spring',
+      Code: '2026',
       StartDate: new Date('2026-01-15'),
       EndDate: new Date('2026-05-30'),
       IsActive: true,
@@ -110,7 +111,13 @@ async function main() {
 
   // Create class
   const cls = await prisma.class.upsert({
-    where: { ClassCode: 'PRJ301-SE1701' },
+    where: {
+      ClassCode_SubjectId_SemesterId: {
+        ClassCode: 'PRJ301-SE1701',
+        SubjectId: subject.Id,
+        SemesterId: semester.Id,
+      },
+    },
     update: {},
     create: {
       ClassCode: 'PRJ301-SE1701',

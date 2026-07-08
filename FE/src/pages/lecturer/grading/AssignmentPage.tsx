@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { gradingApi as api } from '@/lib/api';
-import type { PublishedAssignment, RubricRule } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, X } from 'lucide-react';
+import type { PublishedAssignment } from '@/types';
+import { BookOpen, ListChecks, Upload, Trash2, Clock, MoreVertical } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import classNames from 'classnames';
 
@@ -234,7 +234,6 @@ export default function AssignmentPage() {
                 else { colorClass = 'bg-red-500'; textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
 
                 const displayId = item.studentId || item.id.split('-')[0];
-                const initials = displayId.substring(0, 2).toUpperCase();
 
                 return (
                   <tr 
@@ -312,7 +311,6 @@ export default function AssignmentPage() {
             else if (percentage >= 50) scoreColor = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-900/50';
 
             const displayId = item.studentId || item.id.split('-')[0];
-            const initials = displayId.substring(0, 2).toUpperCase();
 
             return (
               <div 

@@ -17,6 +17,7 @@ export class UpdateSemesterUseCase implements IUseCase<any, any> {
     if (dto.data.startDate !== undefined) existing.startDate = dto.data.startDate
     if (dto.data.endDate !== undefined) existing.endDate = dto.data.endDate
     if (dto.data.isActive !== undefined) existing.isActive = dto.data.isActive
+    if (dto.data.season !== undefined) existing.season = dto.data.season
 
     await this.semesterRepo.update(existing)
 

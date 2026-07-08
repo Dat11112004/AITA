@@ -3,7 +3,7 @@ import { Subject } from '../../domain/entities/subject.entity.js'
 import { SubjectMapper } from '../mappers/subject.mapper.js'
 
 export class PrismaSubjectRepository implements ISubjectRepository {
-  constructor(private readonly client: any) {}
+  constructor(private readonly client: any) { }
 
   private mapFilterToWhere(filter?: SubjectFilter): any {
     const where: any = {}
@@ -53,17 +53,19 @@ export class PrismaSubjectRepository implements ISubjectRepository {
       // 1. Collect all dependent IDs
       const classes = await tx.class.findMany({ where: { SubjectId: id }, select: { Id: true } })
       const classIds = classes.map((c: any) => c.Id)
-      
+
       const exams = await tx.exam.findMany({ where: { SubjectId: id }, select: { Id: true } })
       const examIds = exams.map((e: any) => e.Id)
-      
+
       let subIds: string[] = []
       if (classIds.length || examIds.length) {
         const submissions = await tx.submission.findMany({
-          where: { OR: [ 
-            ...(classIds.length ? [{ ClassId: { in: classIds } }] : []),
-            ...(examIds.length ? [{ ExamId: { in: examIds } }] : [])
-          ]},
+          where: {
+            OR: [
+              ...(classIds.length ? [{ ClassId: { in: classIds } }] : []),
+              ...(examIds.length ? [{ ExamId: { in: examIds } }] : [])
+            ]
+          },
           select: { Id: true }
         })
         subIds = submissions.map((s: any) => s.Id)
@@ -83,12 +85,14 @@ export class PrismaSubjectRepository implements ISubjectRepository {
 
       let execResultIds: string[] = []
       if (subIds.length || jobIds.length) {
-        const execResults = await tx.executionResult.findMany({ 
-          where: { OR: [
-            ...(subIds.length ? [{ SubmissionId: { in: subIds } }] : []),
-            ...(jobIds.length ? [{ GradingJobId: { in: jobIds } }] : [])
-          ]}, 
-          select: { Id: true } 
+        const execResults = await tx.executionResult.findMany({
+          where: {
+            OR: [
+              ...(subIds.length ? [{ SubmissionId: { in: subIds } }] : []),
+              ...(jobIds.length ? [{ GradingJobId: { in: jobIds } }] : [])
+            ]
+          },
+          select: { Id: true }
         })
         execResultIds = execResults.map((e: any) => e.Id)
       }
@@ -98,19 +102,19 @@ export class PrismaSubjectRepository implements ISubjectRepository {
         const ruleScores = await tx.ruleScore.findMany({ where: { ExecutionResultId: { in: execResultIds } }, select: { Id: true } })
         ruleScoreIds = ruleScores.map((r: any) => r.Id)
       }
-      
+
       let sectionIds: string[] = []
       if (examIds.length) {
         const sections = await tx.examSection.findMany({ where: { ExamId: { in: examIds } }, select: { Id: true } })
         sectionIds = sections.map((s: any) => s.Id)
       }
-      
+
       let ruleIds: string[] = []
       if (sectionIds.length) {
         const rules = await tx.rubricRule.findMany({ where: { SectionId: { in: sectionIds } }, select: { Id: true } })
         ruleIds = rules.map((r: any) => r.Id)
       }
-      
+
       let criteriaIds: string[] = []
       if (ruleIds.length) {
         const criteria = await tx.rubricCriterion.findMany({ where: { RubricRuleId: { in: ruleIds } }, select: { Id: true } })
@@ -122,51 +126,51 @@ export class PrismaSubjectRepository implements ISubjectRepository {
         await tx.criterionScore.deleteMany({ where: { RuleScoreId: { in: ruleScoreIds } } })
         await tx.evidence.deleteMany({ where: { RuleScoreId: { in: ruleScoreIds } } })
       }
-      
+
       if (criteriaIds.length) {
         await tx.criterionScore.deleteMany({ where: { RubricCriterionId: { in: criteriaIds } } })
         await tx.rubricCriterion.deleteMany({ where: { Id: { in: criteriaIds } } })
       }
-      
+
       if (ruleIds.length) {
         await tx.ruleScore.deleteMany({ where: { RubricRuleId: { in: ruleIds } } })
         await tx.rubricRule.deleteMany({ where: { Id: { in: ruleIds } } })
       }
-      
+
       if (sectionIds.length) {
         await tx.examSection.deleteMany({ where: { Id: { in: sectionIds } } })
       }
-      
+
       if (execResultIds.length) {
         await tx.ruleScore.deleteMany({ where: { ExecutionResultId: { in: execResultIds } } })
         await tx.executionResult.deleteMany({ where: { Id: { in: execResultIds } } })
       }
-      
+
       if (jobIds.length) {
         await tx.jobDependency.deleteMany({ where: { OR: [{ JobId: { in: jobIds } }, { DependsOnJobId: { in: jobIds } }] } })
         await tx.gradingJob.deleteMany({ where: { Id: { in: jobIds } } })
       }
-      
+
       if (sessionIds.length) {
         await tx.buildArtifact.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
         await tx.sandboxExecution.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
         await tx.gradingSession.deleteMany({ where: { Id: { in: sessionIds } } })
       }
-      
+
       if (subIds.length) {
         await tx.submissionArtifact.deleteMany({ where: { SubmissionId: { in: subIds } } })
         await tx.appeal.deleteMany({ where: { SubmissionId: { in: subIds } } })
         await tx.aiUsageLog.deleteMany({ where: { SubmissionId: { in: subIds } } })
         await tx.submission.deleteMany({ where: { Id: { in: subIds } } })
       }
-      
+
       if (classIds.length) {
         await tx.studentClass.deleteMany({ where: { ClassId: { in: classIds } } })
         await tx.instructorClass.deleteMany({ where: { ClassId: { in: classIds } } })
         await tx.examClass.deleteMany({ where: { ClassId: { in: classIds } } })
         await tx.class.deleteMany({ where: { SubjectId: id } })
       }
-      
+
       if (examIds.length) {
         await tx.examAttachment.deleteMany({ where: { ExamId: { in: examIds } } })
         await tx.examGenerationHistory.deleteMany({ where: { ExamId: { in: examIds } } })
@@ -176,12 +180,12 @@ export class PrismaSubjectRepository implements ISubjectRepository {
         await tx.aiUsageLog.deleteMany({ where: { ExamId: { in: examIds } } })
         await tx.exam.deleteMany({ where: { SubjectId: id } })
       }
-      
+
       // Delete top-level Subject dependents
       await tx.subjectProjectType.deleteMany({ where: { SubjectId: id } })
       await tx.assignmentTemplate.deleteMany({ where: { SubjectId: id } })
       await tx.promptTemplate.deleteMany({ where: { SubjectId: id } })
-      
+
       // Finally delete Subject
       await tx.subject.delete({ where: { Id: id } })
     })
@@ -193,6 +197,43 @@ export class PrismaSubjectRepository implements ISubjectRepository {
       await this.update(subject)
     } else {
       await this.create(subject)
+    }
+  }
+
+  async autoLinkSemestersByNumber(subjectId: string, semesterNumber: number): Promise<void> {
+    // Find all semesters where the code contains the semester number (e.g., "Kỳ 3" for semester 3)
+    const semesters = await this.client.semester.findMany({
+      where: {
+        Code: {
+          contains: `${semesterNumber}`
+        }
+      },
+      select: { Id: true }
+    })
+
+    if (semesters.length === 0) {
+      return // No matching semesters found
+    }
+
+    const semesterIds = semesters.map((s: any) => s.Id)
+
+    // Check for existing links
+    const existingLinks = await this.client.semesterSubject.findMany({
+      where: {
+        SubjectId: subjectId,
+        SemesterId: { in: semesterIds }
+      },
+      select: { SemesterId: true }
+    })
+    const existingSemesterIds = new Set(existingLinks.map((l: any) => l.SemesterId))
+
+    // Only link to semesters that don't already have this subject
+    const newLinks = semesterIds
+      .filter((semId: string) => !existingSemesterIds.has(semId))
+      .map((semId: string) => ({ SemesterId: semId, SubjectId: subjectId }))
+
+    if (newLinks.length > 0) {
+      await this.client.semesterSubject.createMany({ data: newLinks })
     }
   }
 }

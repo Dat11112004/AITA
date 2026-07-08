@@ -1,66 +1,60 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
-import { DataTable } from '@/components/ui/DataTable'
 import { api, type ClassRow, type SemesterRow, type SubjectRow, type Option, type StudentRow } from '@/lib/api'
-import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, Folder, ArrowLeft, Edit3, Trash2, ShieldAlert, CheckSquare } from 'lucide-react'
+import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, ArrowLeft, Edit3, Trash2, ShieldAlert, BookOpen, Layers } from 'lucide-react'
 
-type Level = 'semester' | 'subject' | 'class' | 'students'
+type Level = 'season' | 'semester' | 'subject' | 'class' | 'students'
 
 export function AdminClasses() {
-  const [classes, setClasses] = useState<ClassRow[]>([])
+  const [, setClasses] = useState<ClassRow[]>([])
   const [semesters, setSemesters] = useState<SemesterRow[]>([])
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [lecturers, setLecturers] = useState<Option[]>([])
-  
+
   const [showClassForm, setShowClassForm] = useState(false)
   const [showSemesterForm, setShowSemesterForm] = useState(false)
-  
+
   const [classForm, setClassForm] = useState({ code: '', name: '', subjectId: '', subjectIds: [] as string[], semesterId: '', campus: '', lecturerId: '' })
   const [multiClassForm, setMultiClassForm] = useState([{ code: '', lecturerId: '' }])
-  const [semesterForm, setSemesterForm] = useState({ code: '', startDate: '', endDate: '' })
-  
+  const [semesterForm, setSemesterForm] = useState({ code: '', season: '', startDate: '', endDate: '' })
+
   const [editingSemester, setEditingSemester] = useState<SemesterRow | null>(null)
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null)
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
 
-  // Bulk selection state
-  const [selectionMode, setSelectionMode] = useState(false)
-  const [selectedSemesterIds, setSelectedSemesterIds] = useState<Set<string>>(new Set())
-  const [selectedClassIds, setSelectedClassIds] = useState<Set<string>>(new Set())
-
   // Drill-down state
-  const [level, setLevel] = useState<Level>('semester')
+  const [level, setLevel] = useState<Level>('season')
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null)
   const [selectedSemester, setSelectedSemester] = useState<SemesterRow | null>(null)
   const [selectedSubject, setSelectedSubject] = useState<SubjectRow | null>(null)
   const [selectedClass, setSelectedClass] = useState<ClassRow | null>(null)
   const [classStudents, setClassStudents] = useState<StudentRow[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
 
+  const [semesterSubjects, setSemesterSubjects] = useState<SubjectRow[]>([])
+  const [loadingSemesterSubjects, setLoadingSemesterSubjects] = useState(false)
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false)
+  const [selectedSubjectIdsToAdd, setSelectedSubjectIdsToAdd] = useState<Set<string>>(new Set())
+
+  // Classes for subject view
+  const [subjectClasses, setSubjectClasses] = useState<any[]>([])
+  const [loadingSubjectClasses, setLoadingSubjectClasses] = useState(false)
+
   // Modal confirm delete
-  const [confirmDeleteSemester, setConfirmDeleteSemester] = useState<string | null>(null)
-  const [confirmBulkDeleteSemesters, setConfirmBulkDeleteSemesters] = useState(false)
+  const [confirmDeleteSeason, setConfirmDeleteSeason] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   // Internal class note editor (admin only)
   const [noteClassId, setNoteClassId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-
-  const noteClass = classes.find((c) => c.id === noteClassId) ?? null
-
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null)
-    window.addEventListener('click', handleClickOutside)
-    return () => window.removeEventListener('click', handleClickOutside)
-  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -91,6 +85,7 @@ export function AdminClasses() {
       .catch(() => setLecturers([]))
   }, [load])
 
+  // ─── Season Creation ───
   const handleCreateSemester = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
@@ -98,28 +93,32 @@ export function AdminClasses() {
       if (editingSemester) {
         await api.updateSemester(editingSemester.id, {
           code: semesterForm.code,
+          season: semesterForm.season || undefined,
           startDate: semesterForm.startDate || undefined,
           endDate: semesterForm.endDate || undefined,
         })
       } else {
-        await api.createSemester({
-          code: semesterForm.code,
+        if (!semesterForm.season) {
+          throw new Error('Tên mùa học là bắt buộc')
+        }
+        await api.createSeason({
+          season: semesterForm.season.trim(),
           startDate: semesterForm.startDate || undefined,
           endDate: semesterForm.endDate || undefined,
-          isActive: true
         })
       }
-      setSemesterForm({ code: '', startDate: '', endDate: '' })
+      setSemesterForm({ code: '', season: '', startDate: '', endDate: '' })
       setEditingSemester(null)
       setShowSemesterForm(false)
-      load()
+      await load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Tạo kỳ học thất bại')
+      alert(error instanceof Error ? error.message : 'Tạo mùa/kỳ học thất bại')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // ─── Class Creation ───
   const handleCreateClass = async () => {
     if (isSubmitting) return
     setIsSubmitting(true)
@@ -134,20 +133,12 @@ export function AdminClasses() {
           lecturerId: classForm.lecturerId,
         })
       } else {
-        if (level === 'class') {
-          // Create multiple classes for the selected subject
+        // Create class(es) at the current level
+        if (level === 'class' && selectedSemester && selectedSubject) {
           const validClasses = multiClassForm.filter(c => c.code.trim() !== '')
-          if (validClasses.length === 0) {
-            throw new Error('Vui lòng nhập ít nhất một mã lớp')
-          }
-          if (!selectedSubject?.id) {
-            throw new Error('Vui lòng chọn môn học')
-          }
-          if (!selectedSemester?.id) {
-            throw new Error('Vui lòng chọn học kỳ')
-          }
-          
-          await Promise.all(validClasses.map(c => 
+          if (validClasses.length === 0) throw new Error('Vui lòng nhập ít nhất một mã lớp')
+
+          await Promise.all(validClasses.map(c =>
             api.createClass({
               code: c.code,
               name: '',
@@ -158,62 +149,18 @@ export function AdminClasses() {
             })
           ))
         } else {
-          // Simplified Create Class: Mã lớp, Kỳ học, Giảng viên, Môn học
-          const targetSemester = semesters.find(s => s.id === (classForm.semesterId || selectedSemester?.id))
-          if (!targetSemester) throw new Error('Vui lòng chọn học kỳ')
-
-          let subjectsToProcess: SubjectRow[] = []
-
-          if (classForm.subjectId && classForm.subjectId !== 'ALL') {
-            const sub = subjects.find(s => s.id === classForm.subjectId)
-            if (!sub) throw new Error('Không tìm thấy môn học')
-            subjectsToProcess = [sub]
-          } else {
-            const match = targetSemester.code.match(/\d+/)
-            const curriculumSemester = match ? parseInt(match[0], 10) : null
-
-            if (!curriculumSemester) {
-              throw new Error(`Không thể xác định kỳ học (1-9) từ tên học kỳ "${targetSemester.code}". Vui lòng đặt tên học kỳ có chứa số (VD: Kỳ 1).`)
-            }
-
-            subjectsToProcess = subjects.filter(s => s.semester === curriculumSemester)
-            if (subjectsToProcess.length === 0) {
-              throw new Error(`Không có môn học nào được cấu hình cho Kỳ ${curriculumSemester}. Vui lòng cập nhật môn học trước.`)
-            }
-          }
-
-          // Check if class already exists for any of these subjects
-          const duplicates = subjectsToProcess.filter(sub => 
-            classes.some(c => 
-              c.code.toLowerCase() === classForm.code.toLowerCase() &&
-              typeof c.subject === 'object' && c.subject && (c.subject as any).id === sub.id &&
-              typeof c.semester === 'object' && c.semester && (c.semester as any).id === targetSemester.id
-            )
-          )
-
-          if (duplicates.length === subjectsToProcess.length) {
-             throw new Error('Lớp này đã được tạo cho (các) môn đã chọn trong học kỳ này.')
-          }
-
-          const subjectsToCreate = subjectsToProcess.filter(sub => !duplicates.find(d => d.id === sub.id))
-
-          await Promise.all(subjectsToCreate.map(sub => 
-            api.createClass({
-              code: classForm.code,
-              name: '',
-              subjectId: sub.id,
-              semesterId: targetSemester.id,
-              campus: '',
-              lecturerId: classForm.lecturerId,
-            })
-          ))
+          throw new Error('Vui lòng chọn Kỳ + Môn trước khi tạo lớp')
         }
       }
       setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
       setMultiClassForm([{ code: '', lecturerId: '' }])
       setEditingClass(null)
       setShowClassForm(false)
-      load()
+      await load()
+      // Refresh subject classes
+      if (selectedSemester && selectedSubject) {
+        loadSubjectClasses(selectedSemester.id, selectedSubject.id)
+      }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Tạo lớp thất bại')
     } finally {
@@ -221,110 +168,58 @@ export function AdminClasses() {
     }
   }
 
-  const handleDeleteSemester = async (id: string) => {
+  // ─── Delete Season (entire season with all 9 semesters) ───
+  const handleDeleteSeason = async (season: string) => {
     setIsDeleting(true)
     try {
-      await api.deleteSemester(id)
-      setSelectedSemesterIds(prev => { const n = new Set(prev); n.delete(id); return n; })
-      setSemesters(prev => prev.filter(s => s.id !== id))
-      setConfirmDeleteSemester(null)
-      // We don't necessarily need to load() here because optimistic update already removed it,
-      // but keeping it ensures state consistency with the backend
-      load()
+      await api.deleteSeason(season)
+      setConfirmDeleteSeason(null)
+      if (selectedSeason === season) {
+        setLevel('season')
+        setSelectedSeason(null)
+        setSelectedSemester(null)
+        setSelectedSubject(null)
+      }
+      await load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá thất bại')
+      alert(error instanceof Error ? error.message : 'Xoá mùa học thất bại')
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const handleBulkDeleteSemesters = async () => {
-    if (selectedSemesterIds.size === 0) return
-    setIsDeleting(true)
-    
-    try {
-      const failed: string[] = []
-      for (const id of Array.from(selectedSemesterIds)) {
-        try {
-          await api.deleteSemester(id)
-        } catch (e: any) {
-          failed.push(e.message || 'Lỗi')
-        }
-      }
-      
-      if (failed.length > 0) {
-        alert(failed.join('\n'))
-      }
-      setSemesters(prev => prev.filter(s => !selectedSemesterIds.has(s.id)))
-      setSelectedSemesterIds(new Set())
-      setConfirmBulkDeleteSemesters(false)
-      load()
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá hàng loạt thất bại')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleEditSemester = (sem: SemesterRow, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingSemester(sem)
-    setSemesterForm({ code: sem.code, startDate: sem.startDate || '', endDate: sem.endDate || '' })
-    setShowSemesterForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
+  // ─── Delete Class ───
   const handleDeleteClass = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!confirm('Bạn có chắc chắn muốn xoá lớp học này?')) return
     try {
       await api.deleteClass(id)
-      setSelectedClassIds(prev => { const n = new Set(prev); n.delete(id); return n; })
-      setClasses(prev => prev.filter(c => c.id !== id))
-      load()
+      await load()
+      if (selectedSemester && selectedSubject) {
+        loadSubjectClasses(selectedSemester.id, selectedSubject.id)
+      }
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá thất bại')
     }
   }
 
-  const handleBulkDeleteClasses = async () => {
-    if (selectedClassIds.size === 0) return
-    if (!confirm(`Bạn có chắc chắn muốn xoá ${selectedClassIds.size} lớp học đã chọn?`)) return
-    
-    try {
-      const results = await Promise.allSettled(Array.from(selectedClassIds).map(id => api.deleteClass(id)))
-      const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
-      
-      if (failed.length > 0) {
-        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
-      } else {
-        alert('Xoá thành công')
-      }
-      setClasses(prev => prev.filter(c => !selectedClassIds.has(c.id)))
-      setSelectedClassIds(new Set())
-      load()
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá hàng loạt thất bại')
-    }
-  }
-
-  const handleEditClass = (cls: ClassRow, e: React.MouseEvent) => {
+  const handleEditClass = (cls: any, e: React.MouseEvent) => {
     e.stopPropagation()
     setEditingClass(cls)
     setClassForm({
       code: cls.code,
       name: cls.name || '',
-      subjectId: typeof cls.subject === 'object' && cls.subject ? cls.subject.id : '',
+      subjectId: cls.subject?.id || '',
       subjectIds: [],
-      semesterId: typeof cls.semester === 'object' && cls.semester ? cls.semester.id : '',
+      semesterId: cls.semester?.id || selectedSemester?.id || '',
       campus: cls.campus || '',
-      lecturerId: cls.lecturer?.id || cls.lecturers?.[0]?.id || '',
+      lecturerId: cls.lecturer?.id || '',
     })
     setShowClassForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const openNote = (c: ClassRow) => {
+  const openNote = (c: any) => {
     setNoteClassId(c.id)
     setNoteDraft(c.note ?? '')
   }
@@ -334,7 +229,10 @@ export function AdminClasses() {
     setSavingNote(true)
     try {
       await api.updateClassNote(noteClassId, noteDraft)
-      load()
+      await load()
+      if (selectedSemester && selectedSubject) {
+        loadSubjectClasses(selectedSemester.id, selectedSubject.id)
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -342,7 +240,7 @@ export function AdminClasses() {
     }
   }
 
-  const loadStudents = async (c: ClassRow) => {
+  const loadStudents = async (c: any) => {
     setSelectedClass(c)
     setLevel('students')
     setLoadingStudents(true)
@@ -356,23 +254,72 @@ export function AdminClasses() {
     }
   }
 
-  // Derived Data for UI
-  const filteredClassesBySemester = selectedSemester ? classes.filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === selectedSemester.id : false) : []
-  
-  const subjectsInSemester = subjects.filter(s => {
-    const match = selectedSemester?.code.match(/\d+/);
-    const curriculumSemester = match ? parseInt(match[0], 10) : null;
-    const matchesCurriculum = curriculumSemester && s.semester === curriculumSemester;
-    const hasClass = filteredClassesBySemester.some(c => typeof c.subject === 'object' && c.subject && (c.subject as any).id === s.id);
-    return matchesCurriculum || hasClass;
-  })
+  const loadSemesterSubjects = async (semesterId: string) => {
+    setLoadingSemesterSubjects(true)
+    try {
+      const data = await api.getSemesterSubjects(semesterId)
+      setSemesterSubjects(data || [])
+    } catch (err) {
+      setSemesterSubjects([])
+    } finally {
+      setLoadingSemesterSubjects(false)
+    }
+  }
 
-  const finalFilteredClasses = selectedSubject 
-    ? filteredClassesBySemester.filter(c => typeof c.subject === 'object' && c.subject ? c.subject.id === selectedSubject.id : false) 
-    : []
+  const loadSubjectClasses = async (semesterId: string, subjectId: string) => {
+    setLoadingSubjectClasses(true)
+    try {
+      const data = await api.getClassesBySubject(semesterId, subjectId)
+      setSubjectClasses(data || [])
+    } catch (err) {
+      setSubjectClasses([])
+    } finally {
+      setLoadingSubjectClasses(false)
+    }
+  }
 
+  const handleAddSemesterSubjects = async () => {
+    if (!selectedSemester || selectedSubjectIdsToAdd.size === 0) return
+    setIsSubmitting(true)
+    try {
+      await api.addSemesterSubjects(selectedSemester.id, Array.from(selectedSubjectIdsToAdd))
+      await loadSemesterSubjects(selectedSemester.id)
+      setShowAddSubjectModal(false)
+      setSelectedSubjectIdsToAdd(new Set())
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Thêm môn học thất bại')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleRemoveSemesterSubject = async (subjectId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!selectedSemester || !confirm('Bạn có chắc chắn muốn xoá môn học này khỏi kỳ?')) return
+    setIsSubmitting(true)
+    try {
+      await api.removeSemesterSubject(selectedSemester.id, subjectId)
+      setSemesterSubjects(prev => prev.filter(s => s.id !== subjectId))
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Xoá môn học thất bại')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // ─── Navigation ───
   const navigateToLevel = (targetLevel: Level) => {
-    if (targetLevel === 'semester') {
+    setShowClassForm(false)
+    setShowSemesterForm(false)
+    setEditingClass(null)
+    setEditingSemester(null)
+    if (targetLevel === 'season') {
+      setLevel('season')
+      setSelectedSeason(null)
+      setSelectedSemester(null)
+      setSelectedSubject(null)
+      setSelectedClass(null)
+    } else if (targetLevel === 'semester') {
       setLevel('semester')
       setSelectedSemester(null)
       setSelectedSubject(null)
@@ -381,32 +328,76 @@ export function AdminClasses() {
       setLevel('subject')
       setSelectedSubject(null)
       setSelectedClass(null)
+      if (selectedSemester) loadSemesterSubjects(selectedSemester.id)
     } else if (targetLevel === 'class') {
       setLevel('class')
       setSelectedClass(null)
     }
   }
 
+  const handleSeasonClick = (season: string) => {
+    setSelectedSeason(season)
+    setLevel('semester')
+  }
+
+  const handleSemesterClick = (sem: SemesterRow) => {
+    setSelectedSemester(sem)
+    setLevel('subject')
+    loadSemesterSubjects(sem.id)
+  }
+
+  const handleSubjectClick = (sub: SubjectRow) => {
+    setSelectedSubject(sub)
+    setLevel('class')
+    if (selectedSemester) {
+      loadSubjectClasses(selectedSemester.id, sub.id)
+    }
+  }
+
+  // ─── Derived Data ───
+  const groupedSeasons = semesters.reduce((acc, sem) => {
+    const s = sem.season || 'Chưa phân loại'
+    if (!acc[s]) acc[s] = []
+    acc[s].push(sem)
+    return acc
+  }, {} as Record<string, SemesterRow[]>)
+
+  const semestersInSeason = selectedSeason ? (groupedSeasons[selectedSeason] || []).sort((a, b) => {
+    const numA = parseInt(a.code.match(/\d+/)?.[0] || '99')
+    const numB = parseInt(b.code.match(/\d+/)?.[0] || '99')
+    return numA - numB
+  }) : []
+
+  const lecturerOptions = lecturers.map(l => ({ value: l.value, label: l.label }))
+
   const getBreadcrumbs = () => {
     const crumbs = [{ label: 'Admin', path: '/admin' }]
-    
-    if (level === 'semester') {
-      crumbs.push({ label: 'Phân cấp Lớp học', path: '' })
+
+    if (level === 'season') {
+      crumbs.push({ label: 'Quản lý Mùa học', path: '' })
     } else {
-      crumbs.push({ label: 'Phân cấp Lớp học', onClick: () => navigateToLevel('semester') } as never)
-      
-      if (selectedSemester) {
-        if (level === 'subject') {
-          crumbs.push({ label: selectedSemester.code, path: '' })
+      crumbs.push({ label: 'Quản lý Mùa học', onClick: () => navigateToLevel('season') } as never)
+
+      if (selectedSeason) {
+        if (level === 'semester') {
+          crumbs.push({ label: selectedSeason, path: '' })
         } else {
-          crumbs.push({ label: selectedSemester.code, onClick: () => navigateToLevel('subject') } as never)
-          
-          if (selectedSubject) {
-            if (level === 'class') {
-              crumbs.push({ label: selectedSubject.code, path: '' })
+          crumbs.push({ label: selectedSeason, onClick: () => navigateToLevel('semester') } as never)
+
+          if (selectedSemester) {
+            if (level === 'subject') {
+              crumbs.push({ label: selectedSemester.code, path: '' })
             } else {
-              crumbs.push({ label: selectedSubject.code, onClick: () => navigateToLevel('class') } as never)
-              if (selectedClass) crumbs.push({ label: selectedClass.code, path: '' })
+              crumbs.push({ label: selectedSemester.code, onClick: () => navigateToLevel('subject') } as never)
+
+              if (selectedSubject) {
+                if (level === 'class') {
+                  crumbs.push({ label: selectedSubject.code || selectedSubject.name, path: '' })
+                } else {
+                  crumbs.push({ label: selectedSubject.code || selectedSubject.name, onClick: () => navigateToLevel('class') } as never)
+                  if (selectedClass) crumbs.push({ label: selectedClass.code, path: '' })
+                }
+              }
             }
           }
         }
@@ -415,9 +406,7 @@ export function AdminClasses() {
     return crumbs
   }
 
-  const semesterOptions = [...semesters].sort((a, b) => a.code.localeCompare(b.code)).map(s => ({ value: s.id, label: s.code }))
-  const subjectOptions = [...subjects].sort((a, b) => a.code.localeCompare(b.code)).map(s => ({ value: s.id, label: `${s.code} - ${s.name}` }))
-
+  // ─── RENDER ───
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <PageHeader
@@ -425,634 +414,497 @@ export function AdminClasses() {
         breadcrumbs={getBreadcrumbs()}
         actions={
           <div className="flex gap-2">
-            {/* Nút Chọn / Huỷ chọn */}
-            <Button
-              size="sm"
-              variant={selectionMode ? 'primary' : 'outline'}
-              className={selectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
-              onClick={() => {
-                setSelectionMode(!selectionMode)
-                if (selectionMode) {
-                  setSelectedSemesterIds(new Set())
-                  setSelectedClassIds(new Set())
-                }
-              }}
-            >
-              <CheckSquare size={16} className="mr-2" /> {selectionMode ? 'Hủy chọn' : 'Chọn'}
-            </Button>
-            {selectionMode && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-brand-700 border-brand-200 hover:bg-brand-50"
-                onClick={() => {
-                  if (level === 'semester') {
-                    if (selectedSemesterIds.size === semesters.length && semesters.length > 0) {
-                      setSelectedSemesterIds(new Set())
-                    } else {
-                      setSelectedSemesterIds(new Set(semesters.map(s => s.id)))
-                    }
-                  } else if (level === 'class') {
-                    // Because finalFilteredClasses is defined lower down, we re-evaluate or use a fallback. 
-                    // Let's filter here directly since we have the same conditions.
-                    const classesToSelect = classes.filter(c => {
-                      if (level !== 'class') return false
-                      const semMatch = typeof c.semester === 'object' && c.semester ? c.semester.id === selectedSemester?.id : false
-                      const subMatch = typeof c.subject === 'object' && c.subject ? c.subject.id === selectedSubject?.id : false
-                      return semMatch && subMatch
-                    })
-                    if (selectedClassIds.size === classesToSelect.length && classesToSelect.length > 0) {
-                      setSelectedClassIds(new Set())
-                    } else {
-                      setSelectedClassIds(new Set(classesToSelect.map(c => c.id)))
-                    }
-                  }
-                }}
-              >
-                Chọn tất cả
-              </Button>
-            )}
-
-            {level === 'semester' && (
+            {level === 'season' && (
               <Button
                 size="sm"
                 onClick={() => {
                   if (showSemesterForm) {
                     setShowSemesterForm(false)
                     setEditingSemester(null)
-                    setSemesterForm({ code: '', startDate: '', endDate: '' })
+                    setSemesterForm({ code: '', season: '', startDate: '', endDate: '' })
                   } else {
                     setShowSemesterForm(true)
                   }
-                  setShowClassForm(false)
                 }}
                 variant={showSemesterForm ? 'secondary' : 'primary'}
                 className="shadow-sm transition-all duration-200 flex items-center gap-2"
               >
                 {showSemesterForm ? <X size={16} /> : <Plus size={16} />}
-                {showSemesterForm ? 'Đóng' : 'Tạo kỳ học mới'}
+                {showSemesterForm ? 'Đóng' : 'Tạo Mùa học mới'}
               </Button>
             )}
-            <Button
-              size="sm"
-              onClick={() => {
-                if (showClassForm) {
-                  setShowClassForm(false)
-                  setEditingClass(null)
-                  setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
-                  setMultiClassForm([{ code: '', lecturerId: '' }])
-                } else {
-                  setShowClassForm(true)
-                  const targetSemId = level === 'subject' || level === 'class' ? selectedSemester?.id : '';
-                  if (targetSemId) {
-                     const subjectsInTargetSemester = [...new Set(classes
-                         .filter(c => typeof c.semester === 'object' && c.semester && (c.semester as any).id === targetSemId)
-                         .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
-                         .filter(Boolean))];
-                     setClassForm({ code: '', name: '', subjectId: '', subjectIds: subjectsInTargetSemester as string[], semesterId: targetSemId, campus: '', lecturerId: '' })
+            {level === 'class' && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (showClassForm) {
+                    setShowClassForm(false)
+                    setEditingClass(null)
+                    setMultiClassForm([{ code: '', lecturerId: '' }])
                   } else {
-                     setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
-                  }
-                  
-                  if (level === 'class' && !editingClass) {
+                    setShowClassForm(true)
                     setMultiClassForm([{ code: '', lecturerId: '' }])
                   }
-                }
-                setShowSemesterForm(false)
-              }}
-              variant={showClassForm ? 'secondary' : 'primary'}
-              className="shadow-sm transition-all duration-200 flex items-center gap-2"
-            >
-              {showClassForm ? <X size={16} /> : <Plus size={16} />}
-              {showClassForm ? 'Đóng form' : 'Tạo lớp học mới'}
-            </Button>
+                }}
+                variant={showClassForm ? 'secondary' : 'primary'}
+                className="shadow-sm transition-all duration-200 flex items-center gap-2"
+              >
+                {showClassForm ? <X size={16} /> : <Plus size={16} />}
+                {showClassForm ? 'Đóng' : 'Tạo Lớp mới'}
+              </Button>
+            )}
           </div>
         }
       />
 
-      {level !== 'semester' && (
-        <div className="flex items-center gap-3 mb-4">
-          <Button 
-            variant="outline" size="sm" className="flex items-center gap-2"
+      {/* Back button */}
+      {level !== 'season' && (
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-slate-600 dark:text-slate-400"
             onClick={() => {
-              if (level === 'students') navigateToLevel('class')
-              else if (level === 'class') navigateToLevel('subject')
+              if (level === 'semester') navigateToLevel('season')
               else if (level === 'subject') navigateToLevel('semester')
+              else if (level === 'class') navigateToLevel('subject')
+              else if (level === 'students') navigateToLevel('class')
             }}
           >
             <ArrowLeft size={16} /> Quay lại
           </Button>
           <div className="text-sm text-slate-500 font-medium">
-            {level === 'subject' && `Học kỳ: ${selectedSemester?.code}`}
-            {level === 'class' && `${selectedSemester?.code} > Môn ${selectedSubject?.code}`}
-            {level === 'students' && `${selectedSemester?.code} > Môn ${selectedSubject?.code} > Lớp ${selectedClass?.code}`}
+            {level === 'semester' && `Mùa: ${selectedSeason}`}
+            {level === 'subject' && `${selectedSeason} > ${selectedSemester?.code}`}
+            {level === 'class' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code || selectedSubject?.name}`}
+            {level === 'students' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code} > Lớp ${selectedClass?.code}`}
           </div>
         </div>
       )}
 
+      {/* Season Create Form */}
       {showSemesterForm && (
         <Card className="p-6 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/10 mb-6 animate-in slide-in-from-top-4">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-            <CalendarDays size={20}/> {editingSemester ? `Chỉnh sửa Kỳ học: ${editingSemester.code}` : 'Tạo Kỳ học mới'}
+            <CalendarDays size={20} /> {editingSemester ? `Chỉnh sửa Kỳ học: ${editingSemester.code}` : 'Tạo Mùa học mới'}
           </h3>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input label="Tên/Mã Kỳ học" placeholder="Ví dụ: Fall 2026" value={semesterForm.code} onChange={(e) => setSemesterForm({ ...semesterForm, code: e.target.value })} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {editingSemester && (
+              <Input label="Tên/Mã Kỳ học" placeholder="Ví dụ: Kỳ 1" value={semesterForm.code} onChange={(e) => setSemesterForm({ ...semesterForm, code: e.target.value })} />
+            )}
+            <Input label={editingSemester ? "Mùa (Tuỳ chọn)" : "Tên Mùa học (*)"} placeholder="Ví dụ: Fall 2026" value={semesterForm.season} onChange={(e) => setSemesterForm({ ...semesterForm, season: e.target.value })} />
             <Input type="date" label="Ngày bắt đầu" value={semesterForm.startDate} onChange={(e) => setSemesterForm({ ...semesterForm, startDate: e.target.value })} />
             <Input type="date" label="Ngày kết thúc" value={semesterForm.endDate} onChange={(e) => setSemesterForm({ ...semesterForm, endDate: e.target.value })} />
           </div>
+          {!editingSemester && (
+            <p className="text-xs text-slate-500 mt-2">Hệ thống sẽ tự động tạo 9 kỳ (Kỳ 1 → Kỳ 9) và gán môn học mặc định theo chương trình đào tạo.</p>
+          )}
           <div className="mt-4 flex justify-end">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreateSemester} disabled={isSubmitting || !semesterForm.code}>
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2"/>} Lưu Kỳ học
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreateSemester} disabled={isSubmitting || (editingSemester ? !semesterForm.code : !semesterForm.season)}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingSemester ? 'Lưu Kỳ học' : 'Tạo Mùa học'}
             </Button>
           </div>
         </Card>
       )}
 
-      {showClassForm && (
-        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 animate-in slide-in-from-top-4 duration-300 mb-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-            <GraduationCap className="text-brand-500 w-5 h-5 ml-2" />
-            <CardHeader title={editingClass ? `Chỉnh sửa Lớp: ${editingClass.code}` : 'Tạo lớp mới'} />
-          </div>
-          <div className="p-6">
-            {level === 'class' && !editingClass ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Danh sách lớp cần tạo</h4>
-                  <Button size="sm" variant="outline" className="text-brand-600 border-brand-200 hover:bg-brand-50" onClick={() => setMultiClassForm([...multiClassForm, { code: '', lecturerId: '' }])}>
-                    <Plus size={16} className="mr-1" /> Thêm lớp
-                  </Button>
-                </div>
-                {multiClassForm.map((item, index) => (
-                  <div key={index} className="flex items-start gap-4 p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/50 relative">
-                    <div className="flex-1 grid gap-4 sm:grid-cols-2">
-                      <Input 
-                        label="Mã lớp" 
-                        placeholder="Ví dụ: SE1702" 
-                        value={item.code} 
-                        onChange={(e) => {
-                          const newForm = [...multiClassForm]
-                          newForm[index].code = e.target.value
-                          setMultiClassForm(newForm)
-                        }} 
-                      />
-                      <Select 
-                        label="Giảng viên (Tuỳ chọn)" 
-                        options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
-                        value={item.lecturerId} 
-                        onChange={(e) => {
-                          const newForm = [...multiClassForm]
-                          newForm[index].lecturerId = e.target.value
-                          setMultiClassForm(newForm)
-                        }} 
-                      />
-                    </div>
-                    {multiClassForm.length > 1 && (
-                      <button 
-                        type="button"
-                        className="mt-8 text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                        onClick={() => {
-                          const newForm = multiClassForm.filter((_, i) => i !== index)
-                          setMultiClassForm(newForm)
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
+      {/* Class Create Form */}
+      {showClassForm && level === 'class' && selectedSemester && selectedSubject && (
+        <Card className="p-6 border border-slate-200 dark:border-slate-700 mb-6 animate-in slide-in-from-top-4">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <GraduationCap size={20} /> {editingClass ? `Chỉnh sửa Lớp: ${editingClass.code}` : `Tạo Lớp mới cho ${selectedSubject.code}`}
+          </h3>
+          {editingClass ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Input label="Mã lớp" value={classForm.code} onChange={e => setClassForm({ ...classForm, code: e.target.value })} />
+              <Select label="Giảng viên" options={lecturerOptions} value={classForm.lecturerId} onChange={e => setClassForm({ ...classForm, lecturerId: e.target.value })} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {multiClassForm.map((row, idx) => (
+                <div key={idx} className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <Input label={idx === 0 ? "Mã lớp" : ""} placeholder={`Lớp ${idx + 1}`} value={row.code} onChange={e => {
+                      const updated = [...multiClassForm]; updated[idx].code = e.target.value; setMultiClassForm(updated)
+                    }} />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <Input label="Mã lớp" placeholder="Ví dụ: SE1702" value={classForm.code} onChange={(e) => setClassForm({ ...classForm, code: e.target.value })} />
-                <Select 
-                  label="Kỳ học" 
-                  options={[{value:'', label: 'Chọn kỳ học...'}, ...semesterOptions]} 
-                  value={classForm.semesterId || (selectedSemester?.id ?? '')} 
-                  onChange={(e) => setClassForm({ ...classForm, semesterId: e.target.value })} 
-                  disabled={(level === 'class' || level === 'subject') && !editingClass}
-                />
-                <Select 
-                  label="Môn học" 
-                  options={
-                    editingClass 
-                      ? [{value:'', label: 'Chọn môn học...'}, ...subjectOptions]
-                      : [{value:'', label: 'Tất cả các môn trong kỳ'}, ...subjectsInSemester.map(s => ({ value: s.id, label: `${s.code} - ${s.name}` }))]
-                  } 
-                  value={classForm.subjectId || (selectedSubject?.id ?? '')} 
-                  onChange={(e) => setClassForm({ ...classForm, subjectId: e.target.value })} 
-                  disabled={level === 'class' && !editingClass}
-                />
-                <Select 
-                  label="Giảng viên (Tuỳ chọn)" 
-                  options={[{value:'', label: 'Chưa phân công'}, ...lecturers]} 
-                  value={classForm.lecturerId} 
-                  onChange={(e) => setClassForm({ ...classForm, lecturerId: e.target.value })} 
-                />
-              </div>
-            )}
-            <div className="mt-6 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-4">
-              <Button
-                className="px-6 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium flex items-center gap-2"
-                onClick={handleCreateClass}
-                disabled={isSubmitting || (level === 'class' && !editingClass ? multiClassForm.every(c => c.code.trim() === '') : (!classForm.code || (!classForm.semesterId && !selectedSemester)))}
+                  <div className="flex-1">
+                    <Select label={idx === 0 ? "Giảng viên" : ""} options={lecturerOptions} value={row.lecturerId} onChange={e => {
+                      const updated = [...multiClassForm]; updated[idx].lecturerId = e.target.value; setMultiClassForm(updated)
+                    }} />
+                  </div>
+                  {multiClassForm.length > 1 && (
+                    <Button variant="outline" size="sm" className="text-red-500 mb-0.5" onClick={() => setMultiClassForm(multiClassForm.filter((_, i) => i !== idx))}>
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setMultiClassForm([...multiClassForm, { code: '', lecturerId: '' }])}>
+                <Plus size={14} className="mr-1" /> Thêm lớp
+              </Button>
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleCreateClass} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingClass ? 'Lưu' : 'Tạo Lớp'}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Loading / Error */}
+      {loading && <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-brand-500" /><p className="text-sm text-slate-500 mt-3">Đang tải dữ liệu...</p></div>}
+      {loadError && <div className="text-center py-8 text-red-500">{loadError}</div>}
+
+      {/* ═══════════════════════ LEVEL 1: SEASONS ═══════════════════════ */}
+      {!loading && level === 'season' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Object.entries(groupedSeasons).length === 0 && (
+            <div className="col-span-full text-center py-16 text-slate-400">
+              <CalendarDays size={48} className="mx-auto mb-3 opacity-50" />
+              <p className="text-lg font-medium">Chưa có mùa học nào</p>
+              <p className="text-sm">Nhấn "Tạo Mùa học mới" để bắt đầu</p>
+            </div>
+          )}
+          {Object.entries(groupedSeasons).map(([season, sems]) => {
+            const totalClasses = sems.reduce((sum, s) => sum + (s.classCount || 0), 0)
+            const totalSubjects = sems.reduce((sum, s) => sum + (s.subjectCount || 0), 0)
+            const startDate = sems[0]?.startDate
+            const endDate = sems[0]?.endDate
+            return (
+              <Card
+                key={season}
+                className="p-0 overflow-hidden cursor-pointer hover:shadow-lg hover:border-brand-300 dark:hover:border-brand-600 transition-all duration-200 group border border-slate-200 dark:border-slate-700"
+                onClick={() => handleSeasonClick(season)}
               >
-                {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang lưu...</> : 'Lưu thông tin lớp'}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {noteClass && (
-        <Card className="overflow-hidden border border-amber-200/70 bg-amber-50/40 shadow-md animate-in slide-in-from-top-4 mb-6">
-          <div className="border-b border-amber-100 p-4 flex items-center gap-2">
-            <StickyNote className="text-amber-500 w-5 h-5 ml-2" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-slate-900">Ghi chú nội bộ — <span className="font-mono text-brand-600">{noteClass.code}</span></h3>
-            </div>
-            <button onClick={() => setNoteClassId(null)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-          </div>
-          <div className="p-6 space-y-3">
-            <Textarea value={noteDraft} onChange={(e) => { setNoteDraft(e.target.value) }} placeholder="Thêm lưu ý riêng về lớp này..." maxLength={2000} rows={4} />
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-400">{noteDraft.length}/2000</span>
-              <Button size="sm" onClick={saveNote} disabled={savingNote || noteDraft === (noteClass.note ?? '')}>
-                {savingNote ? 'Đang lưu...' : 'Lưu ghi chú'}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {loading && (
-        <Card className="flex justify-center p-12 bg-slate-50/50"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></Card>
-      )}
-
-      {!loading && !loadError && (
-        <div className="animate-in fade-in duration-300">
-          
-          {level === 'semester' && (
-            <div className="space-y-4">
-              {selectedSemesterIds.size > 0 && (
-                <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in">
-                  <span className="text-sm font-medium text-red-800">Đã chọn {selectedSemesterIds.size} kỳ học</span>
-                  {selectedSemesterIds.size === 1 && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={(e) => {
-                        const semId = Array.from(selectedSemesterIds)[0];
-                        const sem = semesters.find(s => s.id === semId);
-                        if (sem) {
-                          handleEditSemester(sem, e);
-                          setSelectedSemesterIds(new Set());
-                        }
-                      }}
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                <div className="bg-gradient-to-r from-indigo-500 to-brand-500 p-4 text-white">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Layers size={20} /> {season}
+                    </h3>
+                    <button
+                      className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteSeason(season) }}
                     >
-                      <Edit3 size={16} className="mr-1" /> Chỉnh sửa
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={() => setConfirmBulkDeleteSemesters(true)} className="bg-red-600 hover:bg-red-700 text-white">
-                    <Trash2 size={16} className="mr-1" /> Xoá đã chọn
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelectedSemesterIds(new Set())}>
-                    Huỷ chọn
-                  </Button>
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {semesters.length === 0 ? (
-                <div className="col-span-full text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  Chưa có Học kỳ nào. Nhấn "Tạo kỳ học mới" để bắt đầu.
-                </div>
-              ) : (
-                [...semesters].sort((a, b) => a.code.localeCompare(b.code)).map(sem => {
-                  const match = sem.code.match(/\d+/);
-                  const curriculumSemester = match ? parseInt(match[0], 10) : null;
-                  const subjectCount = new Set([
-                    ...classes
-                      .filter(c => typeof c.semester === 'object' && c.semester ? c.semester.id === sem.id : false)
-                      .map(c => typeof c.subject === 'object' && c.subject ? (c.subject as any).id : null)
-                      .filter(Boolean),
-                    ...subjects
-                      .filter(s => curriculumSemester && s.semester === curriculumSemester)
-                      .map(s => s.id)
-                  ]).size
-                  return (
-                    <Card 
-                      key={sem.id} 
-                      className={`group cursor-pointer hover:border-brand-300 hover:shadow-md transition-all relative ${selectedSemesterIds.has(sem.id) ? 'border-brand-500 bg-brand-50/10' : 'bg-white'}`}
-                      onClick={() => {
-                        if (selectionMode) {
-                          setSelectedSemesterIds(prev => {
-                            const next = new Set(prev)
-                            if (next.has(sem.id)) next.delete(sem.id)
-                            else next.add(sem.id)
-                            return next
-                          })
-                        } else {
-                          setSelectedSemester(sem); setLevel('subject') 
-                        }
-                      }}
-                    >
-                      <div className="p-5 flex flex-col items-center justify-center text-center gap-3">
-                        {selectionMode && (
-                          <div className="absolute top-3 left-3">
-                            <input 
-                              type="checkbox" 
-                              className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
-                              checked={selectedSemesterIds.has(sem.id)}
-                              onChange={(e) => {
-                                const checked = e.target.checked
-                                setSelectedSemesterIds(prev => {
-                                  const next = new Set(prev)
-                                  if (checked) next.add(sem.id)
-                                  else next.delete(sem.id)
-                                  return next
-                                })
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            className="p-1.5 rounded-md hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                            onClick={(e) => handleEditSemester(sem, e)}
-                            title="Chỉnh sửa"
-                          >
-                            <Edit3 size={16} />
-                          </button>
-                          <button
-                            className="p-1.5 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteSemester(sem.id); }}
-                            title="Xoá"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center group-hover:scale-110 transition-transform mt-2">
-                          <CalendarDays size={24} />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg text-slate-800">{sem.code}</h3>
-                          <p className="text-sm text-slate-500">{subjectCount} Môn học</p>
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })
-              )}
-            </div>
-          </div>
-          )}
-
-          {level === 'subject' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {subjectsInSemester.length === 0 ? (
-                <div className="col-span-full text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  Chưa có lớp học nào thuộc các môn trong Học kỳ này. Nhấn "Tạo lớp học mới" để thêm lớp.
-                </div>
-              ) : (
-                [...subjectsInSemester].sort((a, b) => a.code.localeCompare(b.code)).map(sub => {
-                  const classCount = filteredClassesBySemester.filter(c => typeof c.subject === 'object' && c.subject ? c.subject.id === sub.id : false).length
-                  return (
-                    <Card 
-                      key={sub.id} 
-                      className="cursor-pointer hover:border-brand-300 hover:shadow-md transition-all relative bg-white"
-                      onClick={() => { setSelectedSubject(sub); setLevel('class') }}
-                    >
-                      <div className="p-5 flex flex-col items-center justify-center text-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Library size={24} />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg text-slate-800">{sub.code}</h3>
-                          <p className="text-sm text-slate-500">{classCount} Lớp học</p>
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })
-              )}
-            </div>
-          )}
-
-          {level === 'class' && (
-            <div className="space-y-4">
-              {selectedClassIds.size > 0 && (
-                <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in">
-                  <span className="text-sm font-medium text-red-800">Đã chọn {selectedClassIds.size} lớp học</span>
-                  {selectedClassIds.size === 1 && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={(e) => {
-                        const clsId = Array.from(selectedClassIds)[0];
-                        const cls = classes.find(c => c.id === clsId);
-                        if (cls) {
-                          handleEditClass(cls, e);
-                          setSelectedClassIds(new Set());
-                        }
-                      }}
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                    >
-                      <Edit3 size={16} className="mr-1" /> Chỉnh sửa
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={handleBulkDeleteClasses} className="bg-red-600 hover:bg-red-700 text-white">
-                    <Trash2 size={16} className="mr-1" /> Xoá đã chọn
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelectedClassIds(new Set())}>
-                    Huỷ chọn
-                  </Button>
-                </div>
-              )}
-              <Card className="border border-slate-100 shadow-sm bg-white relative">
-                <div className="p-2 overflow-visible">
-                  <DataTable<ClassRow>
-                    columns={[
-                      ...(selectionMode ? [{
-                        key: 'select', header: '',
-                        render: (r: ClassRow) => (
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer"
-                            checked={selectedClassIds.has(r.id)}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              setSelectedClassIds(prev => {
-                                const next = new Set(prev)
-                                if (checked) next.add(r.id)
-                                else next.delete(r.id)
-                                return next
-                              })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        )
-                      }] : []),
-                      {
-                        key: 'code', header: 'Mã lớp',
-                      render: (r) => (
-                        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => loadStudents(r)}>
-                          <Folder size={16} className="text-amber-400 group-hover:text-amber-500" />
-                          <span className="font-mono font-bold text-brand-600 group-hover:underline">{r.code}</span>
-                        </div>
-                      )
-                    },
-                    {
-                      key: 'lecturer', header: 'Giảng viên',
-                      render: (r) => r.lecturers?.[0]?.name || r.lecturer?.fullName || <span className="text-slate-400">—</span>,
-                    },
-                    {
-                      key: 'studentCount', header: 'Sĩ số',
-                      render: (r) => <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">{r.studentCount ?? 0} SV</span>
-                    },
-                    {
-                      key: 'actions', header: 'Thao tác',
-                      render: (r) => {
-                        const cls = r
-                        return (
-                          <div className="flex items-center gap-2 justify-end relative">
-                            <Button size="sm" variant="outline" className="text-brand-600 border-brand-200" onClick={(e: React.MouseEvent) => { e.stopPropagation(); loadStudents(cls) }}>
-                              <Users size={13} className="mr-1" />Xem DS
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={(e: React.MouseEvent) => { e.stopPropagation(); openNote(cls) }}>
-                              <StickyNote size={13} className="mr-1" />Ghi chú
-                            </Button>
-                            <button 
-                              className={`p-1 rounded hover:bg-slate-100 text-slate-500 ml-1 ${openMenuId === cls.id ? 'bg-slate-100 text-slate-700' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(openMenuId === cls.id ? null : cls.id)
-                              }}
-                            >
-                              <span className="font-bold tracking-widest leading-none" style={{ letterSpacing: '2px' }}>...</span>
-                            </button>
-                            {openMenuId === cls.id && (
-                              <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-50 animate-in fade-in zoom-in-95 duration-100">
-                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center text-slate-700 dark:text-slate-300 rounded-t-lg transition-colors" onClick={(e) => { setOpenMenuId(null); if (selectedClassIds.size === 1) { const id = Array.from(selectedClassIds)[0]; const scls = classes.find(c => c.id === id); if (scls) handleEditClass(scls, e); } else { handleEditClass(cls, e); } }}>
-                                  Chỉnh sửa
-                                </button>
-                                <div className="h-px bg-slate-100 dark:bg-slate-700 mx-2"></div>
-                                <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center text-red-600 dark:text-red-400 rounded-b-lg transition-colors" onClick={(e) => { setOpenMenuId(null); if (selectedClassIds.size > 0) handleBulkDeleteClasses(); else handleDeleteClass(cls.id, e); }}>
-                                  Xoá Lớp học
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      },
-                    },
-                  ]}
-                  data={finalFilteredClasses}
-                  keyExtractor={(r) => r.id}
-                  onRowClick={selectionMode ? (row) => {
-                    setSelectedClassIds(prev => {
-                      const next = new Set(prev)
-                      if (next.has(row.id)) next.delete(row.id)
-                      else next.add(row.id)
-                      return next
-                    })
-                  } : undefined}
-                />
-              </div>
-            </Card>
-          </div>
-          )}
-
-          {level === 'students' && selectedClass && (
-            <Card className="overflow-hidden shadow-sm bg-white">
-              <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Users className="text-brand-600" /> Danh sách Lớp {selectedClass.code}
-                </h3>
-              </div>
-              <div className="p-4">
-                {loadingStudents ? (
-                  <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
-                ) : classStudents.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    Chưa có sinh viên nào.
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                ) : (
-                  <DataTable<StudentRow>
-                    columns={[
-                      { key: 'name', header: 'Họ và tên', render: (r) => <span className="font-medium">{r.name}</span> },
-                      { key: 'email', header: 'Email', render: (r) => <span className="text-slate-600 text-sm">{r.email}</span> },
-                      { key: 'role', header: 'Vai trò', render: () => <span className="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800">Sinh viên</span> }
-                    ]}
-                    data={classStudents}
-                    keyExtractor={(r) => r.studentId || r.email}
-                  />
-                )}
-              </div>
-            </Card>
-          )}
-
+                  {(startDate || endDate) && (
+                    <p className="text-xs text-white/70 mt-1">
+                      {startDate ? new Date(startDate).toLocaleDateString('vi-VN') : '?'} — {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : '?'}
+                    </p>
+                  )}
+                </div>
+                <div className="p-4 flex gap-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">{sems.length}</p>
+                    <p className="text-xs text-slate-500">Kỳ học</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totalSubjects}</p>
+                    <p className="text-xs text-slate-500">Môn học</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{totalClasses}</p>
+                    <p className="text-xs text-slate-500">Lớp</p>
+                  </div>
+                </div>
+              </Card>
+            )
+          })}
         </div>
       )}
-      {/* Single Delete Confirmation Modal */}
-      {confirmDeleteSemester && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
-                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
-              </div>
-              <div className="text-center space-y-2 mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bạn có chắc chắn muốn xóa kỳ học này?</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Hành động này sẽ xóa toàn bộ các lớp học, bài nộp, và thông tin liên quan trong kỳ học này khỏi cơ sở dữ liệu. Hành động này không thể hoàn tác.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-end">
-                <Button variant="outline" className="flex-1" onClick={() => setConfirmDeleteSemester(null)}>
-                  Hủy bỏ
-                </Button>
-                <Button onClick={() => handleDeleteSemester(confirmDeleteSemester!)} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
-                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> : null}
-                  Xóa vĩnh viễn
-                </Button>
-              </div>
+
+      {/* ═══════════════════════ LEVEL 2: SEMESTERS IN SEASON ═══════════════════════ */}
+      {!loading && level === 'semester' && selectedSeason && (
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+            Các kỳ trong mùa <span className="text-brand-600 dark:text-brand-400">{selectedSeason}</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {semestersInSeason.map(sem => (
+              <Card
+                key={sem.id}
+                className="p-5 cursor-pointer hover:shadow-md hover:border-brand-300 dark:hover:border-brand-600 transition-all duration-200 group border border-slate-200 dark:border-slate-700"
+                onClick={() => handleSemesterClick(sem)}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <CalendarDays size={18} className="text-indigo-500" /> {sem.code}
+                  </h3>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${sem.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'}`}>
+                    {sem.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex gap-4 text-sm">
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                    <BookOpen size={14} className="text-indigo-500" />
+                    <span>{sem.subjectCount || 0} môn</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                    <GraduationCap size={14} className="text-emerald-500" />
+                    <span>{sem.classCount || 0} lớp</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════ LEVEL 3: SUBJECTS IN SEMESTER ═══════════════════════ */}
+      {!loading && level === 'subject' && selectedSemester && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+              Môn học trong <span className="text-brand-600 dark:text-brand-400">{selectedSemester.code}</span>
+            </h2>
+            <Button size="sm" onClick={() => { setShowAddSubjectModal(true); setSelectedSubjectIdsToAdd(new Set()) }}>
+              <Plus size={16} className="mr-1" /> Thêm môn học
+            </Button>
+          </div>
+
+          {loadingSemesterSubjects ? (
+            <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" /></div>
+          ) : semesterSubjects.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <Library size={40} className="mx-auto mb-2 opacity-50" />
+              <p>Chưa có môn học nào trong kỳ này</p>
+              <p className="text-sm">Nhấn "Thêm môn học" hoặc kiểm tra cấu hình Subject.Semester</p>
             </div>
-          </Card>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã môn</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Tên môn</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Kỳ mặc định</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {semesterSubjects.map(sub => (
+                    <tr
+                      key={sub.id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                      onClick={() => handleSubjectClick(sub)}
+                    >
+                      <td className="px-4 py-3 font-mono font-semibold text-brand-600 dark:text-brand-400">{sub.code}</td>
+                      <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{sub.name}</td>
+                      <td className="px-4 py-3 text-slate-500">Kỳ {sub.semester || '?'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700" onClick={(e) => handleRemoveSemesterSubject(sub.id, e)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════ LEVEL 4: CLASSES IN SUBJECT ═══════════════════════ */}
+      {!loading && level === 'class' && selectedSemester && selectedSubject && (
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+            Lớp học: <span className="text-brand-600 dark:text-brand-400">{selectedSubject.code}</span> — {selectedSemester.code}
+          </h2>
+
+          {loadingSubjectClasses ? (
+            <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" /></div>
+          ) : subjectClasses.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <GraduationCap size={40} className="mx-auto mb-2 opacity-50" />
+              <p>Chưa có lớp nào</p>
+              <p className="text-sm">Nhấn "Tạo Lớp mới" để thêm</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã lớp</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Giảng viên</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Sinh viên</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Trạng thái</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {subjectClasses.map((cls: any) => (
+                    <tr
+                      key={cls.id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                      onClick={() => loadStudents(cls)}
+                    >
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800 dark:text-slate-200">{cls.code}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{cls.lecturer?.name || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 text-xs font-semibold">
+                          <Users size={12} /> {cls.studentCount || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${cls.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'}`}>
+                          {cls.status || 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={(e) => handleEditClass(cls, e)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-md transition-colors">
+                            <Edit3 size={14} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); openNote(cls) }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors">
+                            <StickyNote size={14} />
+                          </button>
+                          <button onClick={(e) => handleDeleteClass(cls.id, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════ LEVEL 5: STUDENTS ═══════════════════════ */}
+      {!loading && level === 'students' && selectedClass && (
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+            Sinh viên Lớp <span className="text-brand-600 dark:text-brand-400">{selectedClass.code}</span>
+          </h2>
+          {loadingStudents ? (
+            <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" /></div>
+          ) : classStudents.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <Users size={40} className="mx-auto mb-2 opacity-50" />
+              <p>Chưa có sinh viên nào trong lớp</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">MSSV</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Họ tên</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Email</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {classStudents.map((s) => (
+                    <tr key={s.studentId} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="px-4 py-3 text-slate-400">{classStudents.indexOf(s) + 1}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800 dark:text-slate-200">{s.studentId || '—'}</td>
+                      <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{s.name || '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{s.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════ MODALS ═══════════════════════ */}
+
+      {/* Delete Season Confirm */}
+      {confirmDeleteSeason && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setConfirmDeleteSeason(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-3">
+                <ShieldAlert className="text-red-600 dark:text-red-400" size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Xoá mùa "{confirmDeleteSeason}"?</h3>
+              <p className="text-sm text-slate-500 mt-2">Toàn bộ 9 kỳ, môn học và lớp trong mùa này sẽ bị xoá vĩnh viễn.</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setConfirmDeleteSeason(null)}>Huỷ</Button>
+              <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDeleteSeason(confirmDeleteSeason)} disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />} Xoá
+              </Button>
+            </div>
+          </div>
         </div>,
         document.body
       )}
 
-      {/* Bulk Delete Confirmation Modal */}
-      {confirmBulkDeleteSemesters && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
-                <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
-              </div>
-              <div className="text-center space-y-2 mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Xác nhận xóa hàng loạt?</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Bạn đang chuẩn bị xóa vĩnh viễn <span className="font-bold text-red-600">{selectedSemesterIds.size}</span> kỳ học cùng toàn bộ dữ liệu lớp học bên trong. Hành động này không thể hoàn tác.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-end">
-                <Button variant="outline" className="flex-1" onClick={() => setConfirmBulkDeleteSemesters(false)}>
-                  Hủy bỏ
-                </Button>
-                <Button onClick={handleBulkDeleteSemesters} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
-                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> : null}
-                  Xóa vĩnh viễn
-                </Button>
-              </div>
+      {/* Add Subject Modal */}
+      {showAddSubjectModal && selectedSemester && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAddSubjectModal(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Library size={20} /> Thêm môn học vào {selectedSemester.code}
+            </h3>
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+              {subjects
+                .filter(s => !semesterSubjects.find(ss => ss.id === s.id))
+                .map(sub => (
+                  <label key={sub.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedSubjectIdsToAdd.has(sub.id)}
+                      onChange={() => {
+                        const next = new Set(selectedSubjectIdsToAdd)
+                        next.has(sub.id) ? next.delete(sub.id) : next.add(sub.id)
+                        setSelectedSubjectIdsToAdd(next)
+                      }}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <div>
+                      <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200">{sub.code}</span>
+                      <span className="text-sm text-slate-500 ml-2">{sub.name}</span>
+                      {sub.semester && <span className="text-xs text-indigo-500 ml-2">(Kỳ {sub.semester})</span>}
+                    </div>
+                  </label>
+                ))
+              }
             </div>
-          </Card>
+            <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <Button variant="outline" onClick={() => setShowAddSubjectModal(false)}>Huỷ</Button>
+              <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleAddSemesterSubjects} disabled={isSubmitting || selectedSubjectIdsToAdd.size === 0}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus size={14} className="mr-2" />}
+                Thêm {selectedSubjectIdsToAdd.size > 0 ? `(${selectedSubjectIdsToAdd.size})` : ''}
+              </Button>
+            </div>
+          </div>
         </div>,
         document.body
       )}
 
+      {/* Note Modal */}
+      {noteClassId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setNoteClassId(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <StickyNote size={18} /> Ghi chú nội bộ
+            </h3>
+            <Textarea
+              value={noteDraft}
+              onChange={e => setNoteDraft(e.target.value)}
+              placeholder="Nhập ghi chú..."
+              className="min-h-[120px]"
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <Button variant="outline" onClick={() => setNoteClassId(null)}>Đóng</Button>
+              <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={saveNote} disabled={savingNote}>
+                {savingNote ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Lưu
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

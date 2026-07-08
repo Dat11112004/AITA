@@ -21,7 +21,8 @@ export class CreateSemesterUseCase implements IUseCase<ReturnType<typeof CreateS
       data.code,
       data.isActive,
       data.startDate,
-      data.endDate
+      data.endDate,
+      data.season
     )
 
     await this.semesterRepo.create(semester)

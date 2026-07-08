@@ -1,3 +1,5 @@
+import type { PublishedAssignment, SubmissionResponse } from '@/types'
+
 export const AUTH_STORAGE_KEYS = {
   token: 'aita_token',
   user: 'aita_user',
@@ -134,10 +136,18 @@ export const api = {
   getSemesters: () => request<SemesterRow[]>(`/semesters`),
   createSemester: (body: CreateSemesterBody) =>
     request<SemesterRow>('/semesters', { method: 'POST', body: JSON.stringify(body) }),
+  createSeason: (body: CreateSeasonBody) =>
+    request<SemesterRow[]>('/semesters/season', { method: 'POST', body: JSON.stringify(body) }),
   updateSemester: (id: string, body: Partial<CreateSemesterBody>) =>
     request<SemesterRow>(`/semesters/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteSemester: (id: string) =>
     request<void>(`/semesters/${id}`, { method: 'DELETE' }),
+
+  getSemesterSubjects: (semesterId: string) => request<SubjectRow[]>(`/semesters/${semesterId}/subjects`),
+  addSemesterSubjects: (semesterId: string, subjectIds: string[]) => request<void>(`/semesters/${semesterId}/subjects`, { method: 'POST', body: JSON.stringify({ subjectIds }) }),
+  removeSemesterSubject: (semesterId: string, subjectId: string) => request<void>(`/semesters/${semesterId}/subjects/${subjectId}`, { method: 'DELETE' }),
+  deleteSeason: (season: string) => request<void>(`/semesters/season/${encodeURIComponent(season)}`, { method: 'DELETE' }),
+  getClassesBySubject: (semesterId: string, subjectId: string) => request<any[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
 
   // ─── Exams CRUD ───
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
@@ -403,16 +413,26 @@ export interface CreateSubjectBody {
 export interface SemesterRow {
   id: string
   code: string
+  season?: string
   startDate?: string
   endDate?: string
   isActive: boolean
+  classCount?: number
+  subjectCount?: number
 }
 
 export interface CreateSemesterBody {
   code: string
+  season?: string
   startDate?: string
   endDate?: string
   isActive?: boolean
+}
+
+export interface CreateSeasonBody {
+  season: string
+  startDate?: string
+  endDate?: string
 }
 
 export interface ExamRow {
@@ -501,7 +521,7 @@ export const gradingApi = {
   },
   
   getBatchStatus: (ids: string[]) => {
-    if (!ids || ids.length === 0) return Promise.resolve({ statuses: {} })
+    if (!ids || ids.length === 0) return Promise.resolve({ statuses: {} as Record<string, any> })
     return request<{ statuses: Record<string, any> }>('/grading/submissions/batch-status?ids=' + ids.join(','))
   },
   

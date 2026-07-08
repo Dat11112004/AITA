@@ -1,5 +1,5 @@
 import ProgressRing from './ProgressRing';
-import { Trophy, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 interface ScoreCardProps {
   score: number;

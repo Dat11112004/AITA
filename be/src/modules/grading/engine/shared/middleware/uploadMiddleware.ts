@@ -1,6 +1,7 @@
 // @ts-nocheck
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config';
 
@@ -12,6 +13,10 @@ import { config } from '../../config';
  */
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
+    // Ensure the directory exists before saving the file
+    if (!fs.existsSync(config.paths.uploadDir)) {
+      fs.mkdirSync(config.paths.uploadDir, { recursive: true });
+    }
     cb(null, config.paths.uploadDir);
   },
   filename: (_req, file, cb) => {

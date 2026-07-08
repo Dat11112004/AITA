@@ -45,8 +45,10 @@ import { SubjectsController } from '../../modules/subjects/presentation/subjects
 import { SemesterRepository } from '../../modules/semesters/infrastructure/repositories/semester.repository.js'
 import { ListSemestersUseCase } from '../../modules/semesters/application/use-cases/list-semesters.use-case.js'
 import { CreateSemesterUseCase } from '../../modules/semesters/application/use-cases/create-semester.use-case.js'
+import { CreateSeasonUseCase } from '../../modules/semesters/application/use-cases/create-season.use-case.js'
 import { UpdateSemesterUseCase } from '../../modules/semesters/application/use-cases/update-semester.use-case.js'
 import { DeleteSemesterUseCase } from '../../modules/semesters/application/use-cases/delete-semester.use-case.js'
+import { ManageSemesterSubjectsUseCase } from '../../modules/semesters/application/use-cases/manage-semester-subjects.use-case.js'
 import { SemestersController } from '../../modules/semesters/presentation/semesters.controller.js'
 // Removed assignments module use cases
 import { PrismaSubmissionRepository } from '../../modules/submissions/infrastructure/repositories/prisma-submission-repository.js'
@@ -139,7 +141,7 @@ export class DIContainer {
       const tokenService = new JwtTokenService()
       const hashService = new BcryptHashService()
       const eventDispatcher = new InMemoryEventDispatcher()
-      
+
       this.services.set('UnitOfWork', uow)
       this.services.set(TOKENS.UnitOfWork, uow)
       this.services.set(TOKENS.TokenService, tokenService)
@@ -254,14 +256,19 @@ export class DIContainer {
 
       const listSemestersUseCase = new ListSemestersUseCase(semesterRepo)
       const createSemesterUseCase = new CreateSemesterUseCase(semesterRepo)
+      const createSeasonUseCase = new CreateSeasonUseCase(semesterRepo)
       const updateSemesterUseCase = new UpdateSemesterUseCase(semesterRepo)
       const deleteSemesterUseCase = new DeleteSemesterUseCase(semesterRepo)
+      const manageSemesterSubjectsUseCase = new ManageSemesterSubjectsUseCase(semesterRepo)
 
       const semestersController = new SemestersController(
+        semesterRepo,
         listSemestersUseCase,
         createSemesterUseCase,
+        createSeasonUseCase,
         updateSemesterUseCase,
         deleteSemesterUseCase,
+        manageSemesterSubjectsUseCase,
         logger
       )
       this.services.set('SemestersController', semestersController)

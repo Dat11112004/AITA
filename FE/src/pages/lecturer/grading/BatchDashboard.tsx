@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MultiFileUpload from '@/components/modules/grading/MultiFileUpload';
 import { gradingApi as api } from '@/lib/api';
-import { CheckCircle2, XCircle, Clock, Loader2, ArrowRight, Terminal, ArrowLeft, Search, AlertCircle, PlayCircle, Info } from 'lucide-react';
+import { CheckCircle2, Loader2, ArrowRight, Terminal, ArrowLeft, Search, AlertCircle, PlayCircle } from 'lucide-react';
 import classNames from 'classnames';
 
 interface JobStatus {
@@ -18,7 +18,7 @@ interface JobStatus {
 }
 
 export default function BatchDashboard() {
-  const [batchId, setBatchId] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

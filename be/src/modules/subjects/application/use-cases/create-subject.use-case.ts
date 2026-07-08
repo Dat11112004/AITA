@@ -7,7 +7,7 @@ import { ConflictError } from '../../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
 
 export class CreateSubjectUseCase implements IUseCase<SubjectRequestDto, ReturnType<typeof SubjectResponseDto.from>> {
-  constructor(private readonly subjectRepo: ISubjectRepository) {}
+  constructor(private readonly subjectRepo: ISubjectRepository) { }
 
   async execute(dto: SubjectRequestDto) {
     const existing = await this.subjectRepo.findByCode(dto.data.code)
@@ -23,7 +23,13 @@ export class CreateSubjectUseCase implements IUseCase<SubjectRequestDto, ReturnT
       dto.data.semester
     )
 
-    await this.subjectRepo.create(subject)
+    // Create subject and auto-link to matching semesters
+    await this.subjectRepo.create(subject, [])
+
+    // If semester number is specified, auto-link to all semesters with matching semester number
+    if (subject.semester !== undefined && subject.semester !== null) {
+      await this.subjectRepo.autoLinkSemestersByNumber(subject.id, subject.semester)
+    }
 
     return SubjectResponseDto.from(subject as any)
   }

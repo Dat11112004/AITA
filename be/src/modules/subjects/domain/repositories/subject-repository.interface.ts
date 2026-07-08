@@ -13,4 +13,5 @@ export interface ISubjectRepository {
   update(subject: Subject, semesterIds?: string[]): Promise<void>
   delete(id: string): Promise<void>
   save(subject: Subject): Promise<void>
+  autoLinkSemestersByNumber(subjectId: string, semesterNumber: number): Promise<void>
 }

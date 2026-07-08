@@ -101,6 +101,7 @@ model Subject {
   Exam               Exam[]
   PromptTemplate     PromptTemplate[]
   SubjectProjectType SubjectProjectType[]
+  SemesterSubject    SemesterSubject[]
 }
 
 model Notification {
@@ -592,12 +593,28 @@ model SandboxExecution {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Semester {
-  Id        String    @id @default(uuid()) @db.UniqueIdentifier
-  Code      String?   @unique
-  StartDate DateTime? @db.DateTime2
-  EndDate   DateTime? @db.DateTime2
-  IsActive  Boolean?
-  Class      Class[]
+  Id              String            @id @default(uuid()) @db.UniqueIdentifier
+  Season          String?
+  Code            String?
+  StartDate       DateTime?         @db.DateTime2
+  EndDate         DateTime?         @db.DateTime2
+  IsActive        Boolean?
+  Class           Class[]
+  SemesterSubject SemesterSubject[]
+
+  @@unique([Season, Code])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model SemesterSubject {
+  SemesterId String   @db.UniqueIdentifier
+  SubjectId  String   @db.UniqueIdentifier
+  AssignedAt DateTime @default(now()) @db.DateTime2
+
+  Semester   Semester @relation(fields: [SemesterId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
+  Subject    Subject  @relation(fields: [SubjectId], references: [Id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([SemesterId, SubjectId])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.

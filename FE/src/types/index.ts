@@ -94,6 +94,7 @@ export interface RuleEvidence {
   hybridBreakdown?: {
     codePct: number;
     probePct: number;
+    visionPct?: number;
   };
 }
 
@@ -131,12 +132,14 @@ export interface SubmissionResponse {
 export interface RubricRule {
   id: string;
   title: string;
+  name?: string;
   description: string;
   category: string;
   weight: number;
   scoringStrategy: string;
   tags?: string[];
   requiredEvidence?: any[];
+  criteria?: any[];
 }
 
 export interface RubricDefinition {

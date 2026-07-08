@@ -5,10 +5,11 @@ export class Semester {
     public isActive: boolean,
     public startDate?: Date,
     public endDate?: Date,
+    public season?: string,
   ) {}
 
-  static create(id: string, code: string, isActive: boolean = true, startDate?: Date, endDate?: Date): Semester {
-    return new Semester(id, code, isActive, startDate, endDate)
+  static create(id: string, code: string, isActive: boolean = true, startDate?: Date, endDate?: Date, season?: string): Semester {
+    return new Semester(id, code, isActive, startDate, endDate, season)
   }
 
   static fromPersistence(data: any): Semester {
@@ -17,7 +18,8 @@ export class Semester {
       data.Code,
       data.IsActive ?? false,
       data.StartDate ?? undefined,
-      data.EndDate ?? undefined
+      data.EndDate ?? undefined,
+      data.Season ?? undefined
     )
   }
 }
