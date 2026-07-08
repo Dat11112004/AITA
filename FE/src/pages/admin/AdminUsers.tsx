@@ -8,13 +8,83 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare } from 'lucide-react'
+import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical } from 'lucide-react'
 
 const ROLE_TABS = [
   { id: 'all', label: 'Tất cả' },
   { id: 'lecturer', label: 'Giảng viên' },
   { id: 'student', label: 'Sinh viên' },
 ]
+
+const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) => {
+  const [open, setOpen] = useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && buttonRef.current) {
+      setRect(buttonRef.current.getBoundingClientRect());
+    }
+    setOpen(!open);
+  };
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      const handleScroll = () => setOpen(false);
+      window.addEventListener('scroll', handleScroll, true);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('scroll', handleScroll, true);
+      };
+    }
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={toggle}
+        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition"
+      >
+        <MoreVertical size={16} />
+      </button>
+      {open && rect && createPortal(
+        <div
+          ref={menuRef}
+          style={{ top: rect.bottom + window.scrollY + 4, left: rect.right + window.scrollX - 160 }}
+          className="absolute w-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl shadow-slate-200/20 border border-slate-200 dark:border-slate-700 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="py-1">
+            <button
+              className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
+              onClick={(e) => { e.preventDefault(); setOpen(false); onEdit(); }}
+            >
+              <Pencil size={14} className="text-slate-400" /> Sửa thông tin
+            </button>
+            <button
+              className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+              onClick={(e) => { e.preventDefault(); setOpen(false); onDelete(); }}
+            >
+              <Trash2 size={14} /> Xóa tài khoản
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
 
 export function AdminUsers() {
   const [activeTab, setActiveTab] = useState('all')
@@ -43,7 +113,45 @@ export function AdminUsers() {
   const [availableClassCodes, setAvailableClassCodes] = useState<Record<string, {classId: string, classCode: string, studentCount: number}[]>>({})
   const [semesterFilter, setSemesterFilter] = useState<string>('')
   const [subjectsBySemester, setSubjectsBySemester] = useState<Record<string, any[]>>({})
+  const [allSemesters, setAllSemesters] = useState<any[]>([])
 
+  useEffect(() => {
+    api.getSemesters().then(setAllSemesters).catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    if (semesterFilter && !subjectsBySemester[semesterFilter]) {
+      api.getSubjectsBySemester(semesterFilter).then(subjects => {
+        setSubjectsBySemester(prev => ({ ...prev, [semesterFilter]: subjects }));
+      }).catch(console.error);
+    }
+  }, [semesterFilter, subjectsBySemester]);
+
+  useEffect(() => {
+    if (semesterFilter && subjectsBySemester[semesterFilter]) {
+      const subjects = subjectsBySemester[semesterFilter];
+      let hasChanges = false;
+      const promises: Promise<void>[] = [];
+      const newCodesMap = { ...availableClassCodes };
+      
+      subjects.forEach(subj => {
+        const key = `${semesterFilter}_${subj.SubjectCode}`;
+        if (!newCodesMap[key]) {
+           promises.push(
+             api.getClassCodes(semesterFilter, subj.SubjectCode).then(codes => {
+               newCodesMap[key] = codes;
+               hasChanges = true;
+             })
+           );
+        }
+      });
+      if (promises.length > 0) {
+        Promise.all(promises).then(() => {
+          if (hasChanges) setAvailableClassCodes(newCodesMap);
+        }).catch(console.error);
+      }
+    }
+  }, [semesterFilter, subjectsBySemester]);
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,38 +214,17 @@ export function AdminUsers() {
       const dedupedClasses = Array.from(seen.values());
       setEditingUserClasses(dedupedClasses)
       
-      // Lấy danh sách class codes có sẵn cho từng môn học + học kỳ
-      const codesMap: Record<string, any[]> = {}
-      await Promise.all(classes.map(async (c) => {
-        if (!c.semesterCode || !c.subjectCode) return;
-        const key = `${c.semesterCode}_${c.subjectCode}`;
-        if (!codesMap[key]) {
-          try {
-            const codes = await api.getClassCodes(c.semesterCode, c.subjectCode);
-            codesMap[key] = codes;
-          } catch (err) {
-            console.error(`Failed to fetch class codes for ${key}`, err);
-          }
-        }
-      }));
-      setAvailableClassCodes(codesMap);
-      
-      // Pre-fetch subjects for each unique semester the user is enrolled in
+      // Default filter to the most recent enrolled semester, or the first available semester
       const uniqueSems = Array.from(new Set(classes.map((c: any) => c.semesterCode).filter(Boolean))) as string[];
-      try {
-        const semResults = await Promise.all(
-          uniqueSems.map(sem => api.getSubjectsBySemester(sem).then(subjects => ({ sem, subjects })))
-        );
-        const newSubMap: Record<string, any[]> = {};
-        for (const { sem, subjects } of semResults) newSubMap[sem] = subjects;
-        setSubjectsBySemester(newSubMap);
-      } catch (err) {
-        console.error('Failed to fetch subjects by semester', err);
-      }
-      
-      // Default filter to the first available semester or empty
+      uniqueSems.sort((a, b) => {
+        const numA = parseInt(a.match(/\d+/)?.[0] || '0', 10);
+        const numB = parseInt(b.match(/\d+/)?.[0] || '0', 10);
+        return numB - numA;
+      });
       if (uniqueSems.length > 0) {
-        setSemesterFilter(uniqueSems[0] as string);
+        setSemesterFilter(uniqueSems[0]);
+      } else if (allSemesters.length > 0) {
+        setSemesterFilter(allSemesters[0].Code || allSemesters[0].id || '');
       } else {
         setSemesterFilter('');
       }
@@ -183,12 +270,17 @@ export function AdminUsers() {
         }
         if (form.password) updateBody.password = form.password
         const updatedClasses = editingUserClasses
-          .filter(c => c.newClassCode && (c.newClassCode !== c.classCode || c.newSubjectCode))
-          .flatMap(c => (c.allClassIds || [c.classId]).map((id: string) => ({
-            classId: id,
-            newClassCode: c.newClassCode,
-            newSubjectCode: c.newSubjectCode
-          })));
+          .filter((c: any) => c.newClassCode && (c.newClassCode !== c.classCode || c.isNew))
+          .flatMap((c: any) => {
+             if (c.isNew) {
+               return [{ newClassCode: c.newClassCode, newSubjectCode: c.subjectCode, semesterCode: c.semesterCode, isNew: true }];
+             }
+             return (c.allClassIds || [c.classId]).map((id: string) => ({
+               classId: id,
+               newClassCode: c.newClassCode,
+               newSubjectCode: c.newSubjectCode
+             }))
+          });
         if (updatedClasses.length > 0) updateBody.updatedClasses = updatedClasses;
         await api.updateUser(editingUser.id, updateBody)
       } else {
@@ -566,52 +658,52 @@ export function AdminUsers() {
                   <div className="space-y-3">
                     {Object.entries(
                       selectedUserDetail.enrolledClasses.reduce((acc: any, c: any) => {
-                        const semKey = c.semesterCode || 'Khác';
+                        const semMatch = c.semesterCode?.match(/\d+/);
+                        const semKey = semMatch ? `Kỳ ${semMatch[0]}` : (c.semesterCode || 'Khác');
                         if (!acc[semKey]) acc[semKey] = {};
 
-                        const subKey = `${c.subjectCode} - ${c.subjectName}`;
-                        if (!acc[semKey][subKey]) acc[semKey][subKey] = [];
+                        const classKey = c.classCode || 'Chưa xếp lớp';
+                        if (!acc[semKey][classKey]) acc[semKey][classKey] = [];
 
-                        acc[semKey][subKey].push(c);
+                        acc[semKey][classKey].push(c);
                         return acc;
                       }, {})
                     ).sort((a: any, b: any) => {
-                      const numA = Number(a[0]);
-                      const numB = Number(b[0]);
-                      if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+                      const numA = parseInt(a[0].match(/\d+/)?.[0] || '0');
+                      const numB = parseInt(b[0].match(/\d+/)?.[0] || '0');
+                      if (numA && numB) return numB - numA;
                       return String(b[0]).localeCompare(String(a[0]));
-                    }).map(([semester, subjects]: [string, any]) => (
+                    }).map(([semester, classes]: [string, any]) => (
                       <details key={semester} className="group/sem border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-3 last:mb-0">
                         <summary className="bg-slate-50 dark:bg-slate-800/80 p-4 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer select-none flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                           <span className="flex items-center gap-2">
-                            Kỳ {semester}
-                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(subjects).length} môn</Badge>
+                            {semester}
+                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} lớp</Badge>
                           </span>
                           <span className="text-slate-400 group-open/sem:rotate-180 transition-transform duration-200 shrink-0 ml-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                           </span>
                         </summary>
                         <div className="p-4 space-y-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                          {Object.entries(subjects).sort((a: any, b: any) => a[0].localeCompare(b[0])).map(([subject, classes]: [string, any]) => (
-                            <details key={subject} className="group/sub border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                          {Object.entries(classes).sort((a: any, b: any) => a[0].localeCompare(b[0])).map(([classCode, classItems]: [string, any]) => (
+                            <details key={classCode} className="group/sub border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                               <summary className="bg-slate-50/50 dark:bg-slate-800/30 p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex justify-between items-start hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
-                                <span className="flex-1 pr-4 leading-relaxed">{subject}</span>
+                                <span className="flex-1 pr-4 leading-relaxed">{classCode}</span>
                                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classes.length} lớp</Badge>
+                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} môn</Badge>
                                   <span className="text-slate-400 group-open/sub:rotate-180 transition-transform duration-200">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                                   </span>
                                 </div>
                               </summary>
                               <div className="p-3 space-y-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                                {classes.map((c: any, idx: number) => (
+                                {classItems.map((c: any, idx: number) => (
                                   <div key={idx} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                    <h5 className="font-medium text-brand-600 dark:text-brand-400">
-                                      {c.classCode}
-                                      {c.isPending && <span className="ml-2 text-xs font-normal text-amber-600 italic bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">(Chờ tạo lớp)</span>}
+                                    <h5 className="font-medium text-brand-600 dark:text-brand-400 flex flex-wrap items-center gap-2">
+                                      {c.subjectName ? `${c.subjectCode} - ${c.subjectName}` : c.subjectCode}
                                     </h5>
                                     {c.instructorName && (
-                                      <span className="text-[13px] text-slate-500 flex items-center gap-1.5 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                                      <span className="text-[13px] text-slate-500 flex items-center gap-1.5 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md shrink-0">
                                         <Users size={14} className="text-brand-600 dark:text-brand-400" />
                                         {c.instructorName}
                                       </span>
@@ -634,47 +726,50 @@ export function AdminUsers() {
                   <div className="space-y-3">
                     {Object.entries(
                       selectedUserDetail.instructingClasses.reduce((acc: any, c: any) => {
-                        const semKey = c.semesterCode || 'Khác';
+                        const semMatch = c.semesterCode?.match(/\d+/);
+                        const semKey = semMatch ? `Kỳ ${semMatch[0]}` : (c.semesterCode || 'Khác');
                         if (!acc[semKey]) acc[semKey] = {};
 
-                        const subKey = `${c.subjectCode} - ${c.subjectName}`;
-                        if (!acc[semKey][subKey]) acc[semKey][subKey] = [];
+                        const classKey = c.classCode || 'Chưa xếp lớp';
+                        if (!acc[semKey][classKey]) acc[semKey][classKey] = [];
 
-                        acc[semKey][subKey].push(c);
+                        acc[semKey][classKey].push(c);
                         return acc;
                       }, {})
                     ).sort((a: any, b: any) => {
-                      const numA = Number(a[0]);
-                      const numB = Number(b[0]);
-                      if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+                      const numA = parseInt(a[0].match(/\d+/)?.[0] || '0');
+                      const numB = parseInt(b[0].match(/\d+/)?.[0] || '0');
+                      if (numA && numB) return numB - numA;
                       return String(b[0]).localeCompare(String(a[0]));
-                    }).map(([semester, subjects]: [string, any]) => (
+                    }).map(([semester, classes]: [string, any]) => (
                       <details key={semester} className="group/sem border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-3 last:mb-0">
                         <summary className="bg-slate-50 dark:bg-slate-800/80 p-4 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer select-none flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                           <span className="flex items-center gap-2">
-                            Kỳ {semester}
-                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(subjects).length} môn</Badge>
+                            {semester}
+                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} lớp</Badge>
                           </span>
                           <span className="text-slate-400 group-open/sem:rotate-180 transition-transform duration-200 shrink-0 ml-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                           </span>
                         </summary>
                         <div className="p-4 space-y-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                          {Object.entries(subjects).sort((a: any, b: any) => a[0].localeCompare(b[0])).map(([subject, classes]: [string, any]) => (
-                            <details key={subject} className="group/sub border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                          {Object.entries(classes).sort((a: any, b: any) => a[0].localeCompare(b[0])).map(([classCode, classItems]: [string, any]) => (
+                            <details key={classCode} className="group/sub border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                               <summary className="bg-slate-50/50 dark:bg-slate-800/30 p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex justify-between items-start hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
-                                <span className="flex-1 pr-4 leading-relaxed">{subject}</span>
+                                <span className="flex-1 pr-4 leading-relaxed">{classCode}</span>
                                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classes.length} lớp</Badge>
+                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} môn</Badge>
                                   <span className="text-slate-400 group-open/sub:rotate-180 transition-transform duration-200">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                                   </span>
                                 </div>
                               </summary>
                               <div className="p-3 space-y-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                                {classes.map((c: any, idx: number) => (
+                                {classItems.map((c: any, idx: number) => (
                                   <div key={idx} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                    <h5 className="font-medium text-brand-600 dark:text-brand-400">{c.classCode}</h5>
+                                    <h5 className="font-medium text-brand-600 dark:text-brand-400 flex flex-wrap items-center gap-2">
+                                      {c.subjectCode} - {c.subjectName}
+                                    </h5>
                                   </div>
                                 ))}
                               </div>
@@ -826,11 +921,26 @@ export function AdminUsers() {
                       value={semesterFilter}
                       onChange={(e) => setSemesterFilter(e.target.value)}
                       options={[
-                        { value: '', label: 'Tất cả các kỳ' },
-                        ...Array.from(new Set(editingUserClasses.map(c => c.semesterCode).filter(Boolean))).map(sem => ({
-                          value: sem,
-                          label: `Kỳ ${sem}`
-                        }))
+                        { value: '', label: 'Chọn kỳ học...' },
+                        ...allSemesters
+                          .filter((sem: any) => {
+                            const code = sem.code || sem.Code || sem.id;
+                            return editingUserClasses.some((c: any) => c.semesterCode === code);
+                          })
+                          .sort((a: any, b: any) => {
+                            const codeA = String(a.code || a.Code || a.id);
+                            const codeB = String(b.code || b.Code || b.id);
+                            const numA = parseInt(codeA.match(/\d+/)?.[0] || '0', 10);
+                            const numB = parseInt(codeB.match(/\d+/)?.[0] || '0', 10);
+                            return numB - numA; // Giảm dần (Kỳ mới nhất ở trên)
+                          })
+                          .map((sem: any) => {
+                            const code = sem.code || sem.Code || sem.id;
+                            return {
+                              value: code,
+                              label: String(code)
+                            };
+                          })
                       ]}
                       className="w-40"
                     />
@@ -846,98 +956,70 @@ export function AdminUsers() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {editingUserClasses
-                        .filter(c => !semesterFilter || c.semesterCode === semesterFilter)
-                        .map((c, i) => {
-                          const originalIndex = editingUserClasses.indexOf(c);
-                          const activeSubjectCode = c.newSubjectCode || c.subjectCode;
-                          const codeKey = `${c.semesterCode}_${activeSubjectCode}`;
+                      {semesterFilter && subjectsBySemester[semesterFilter] ? subjectsBySemester[semesterFilter].map((subj: any) => {
+                          const activeSubjectCode = subj.SubjectCode;
+                          const codeKey = `${semesterFilter}_${activeSubjectCode}`;
                           const rawCodes = availableClassCodes[codeKey] || [];
-                          // Deduplicate by classCode to prevent duplicate options in dropdown
                           const seenCodes = new Set<string>();
-                          const codes = rawCodes.filter(cd => {
+                          const codes = rawCodes.filter((cd: any) => {
                             if (seenCodes.has(cd.classCode)) return false;
                             seenCodes.add(cd.classCode);
                             return true;
                           });
-                          const subjectsInSem = subjectsBySemester[c.semesterCode] || [];
+                          
+                          const draftClass = editingUserClasses.find((c: any) => c.semesterCode === semesterFilter && c.subjectCode === activeSubjectCode);
+                          const originalIndex = draftClass ? editingUserClasses.indexOf(draftClass) : -1;
+                          const currentClassCode = draftClass?.newClassCode || draftClass?.classCode || '';
 
                           return (
-                            <tr key={c.classId || i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                            <tr key={activeSubjectCode} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                               <td className="px-4 py-2.5 font-medium text-slate-600 dark:text-slate-400 text-xs">
-                                {c.semesterCode || '-'}
+                                {semesterFilter}
+                              </td>
+                              <td className="px-4 py-2">
+                                <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                                  {subj.SubjectCode}{subj.SubjectName ? ` - ${subj.SubjectName}` : ''}
+                                </span>
                               </td>
                               <td className="px-4 py-2">
                                 <select
                                   className="w-full text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-                                  value={c.newSubjectCode || c.subjectCode || ''}
-                                  onChange={async e => {
+                                  value={currentClassCode}
+                                  onChange={e => {
+                                    const val = e.target.value;
                                     const newList = [...editingUserClasses];
-                                    newList[originalIndex] = { ...newList[originalIndex], newSubjectCode: e.target.value, newClassCode: '' };
-                                    setEditingUserClasses(newList);
-                                    const k = `${c.semesterCode}_${e.target.value}`;
-                                    if (e.target.value && !availableClassCodes[k]) {
-                                      try {
-                                        const fetched = await api.getClassCodes(c.semesterCode, e.target.value);
-                                        setAvailableClassCodes(prev => ({ ...prev, [k]: fetched }));
-                                      } catch {}
+                                    if (originalIndex >= 0) {
+                                      if (!val && draftClass?.isNew) {
+                                        newList.splice(originalIndex, 1);
+                                      } else {
+                                        newList[originalIndex] = { ...newList[originalIndex], newClassCode: val };
+                                      }
+                                    } else if (val) {
+                                      newList.push({
+                                        semesterCode: semesterFilter,
+                                        subjectCode: activeSubjectCode,
+                                        newClassCode: val,
+                                        isNew: true
+                                      });
                                     }
+                                    setEditingUserClasses(newList);
                                   }}
                                 >
-                                  {subjectsInSem.length > 0
-                                    ? [
-                                        // Ensure current subject code is always selectable even if not in list
-                                        ...(!subjectsInSem.some((s: any) => s.SubjectCode === (c.newSubjectCode || c.subjectCode))
-                                          ? [<option key="__current__" value={c.newSubjectCode || c.subjectCode || ''}>{c.newSubjectCode || c.subjectCode || '-'}</option>]
-                                          : []),
-                                        ...subjectsInSem.map((sub: any) => (
-                                          <option key={sub.SubjectCode} value={sub.SubjectCode}>{sub.SubjectCode}</option>
-                                        ))
-                                      ]
-                                    : <option value={c.subjectCode || ''}>{c.subjectCode || '-'}</option>
-                                  }
+                                  <option value="">-- Chưa xếp lớp --</option>
+                                  {!codes.some((cd: any) => cd.classCode === currentClassCode) && currentClassCode && (
+                                    <option key="__current_class__" value={currentClassCode}>{currentClassCode}</option>
+                                  )}
+                                  {codes.map((cd: any) => (
+                                    <option key={cd.classCode} value={cd.classCode}>{cd.classCode}</option>
+                                  ))}
                                 </select>
-                              </td>
-                              <td className="px-4 py-2">
-                                {codes.length > 0 ? (
-                                  <select
-                                    className="w-full text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-                                    value={c.newClassCode || c.classCode || ''}
-                                    onChange={e => {
-                                      const newList = [...editingUserClasses];
-                                      newList[originalIndex] = { ...newList[originalIndex], newClassCode: e.target.value };
-                                      setEditingUserClasses(newList);
-                                    }}
-                                  >
-                                    {!codes.some(cd => cd.classCode === (c.newClassCode || c.classCode)) && (c.newClassCode || c.classCode) && (
-                                      <option key="__current_class__" value={c.newClassCode || c.classCode}>{c.newClassCode || c.classCode}</option>
-                                    )}
-                                    {codes.map(cd => (
-                                      <option key={cd.classCode} value={cd.classCode}>{cd.classCode}</option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    className="w-full text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-                                    placeholder="Mã lớp..."
-                                    value={c.newClassCode || ''}
-                                    onChange={e => {
-                                      const newList = [...editingUserClasses];
-                                      newList[originalIndex] = { ...newList[originalIndex], newClassCode: e.target.value };
-                                      setEditingUserClasses(newList);
-                                    }}
-                                  />
-                                )}
                               </td>
                             </tr>
                           );
-                        })
-                      }
-                      {editingUserClasses.filter(c => !semesterFilter || c.semesterCode === semesterFilter).length === 0 && (
+                        }) : (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-slate-400 text-sm">
-                            Không có dữ liệu lớp học trong kỳ này.
+                            {semesterFilter ? 'Không có dữ liệu môn học trong kỳ này.' : 'Vui lòng chọn kỳ học.'}
                           </td>
                         </tr>
                       )}
@@ -1033,14 +1115,42 @@ export function AdminUsers() {
                   key: 'avatar',
                   header: 'Hình ảnh',
                   render: (r) => {
-                    const u = r as UserRow
-                    return u.avatar ? (
-                      <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-medium text-xs border border-slate-200">
-                        {u.name.charAt(0).toUpperCase()}
+                    const u = r as UserRow;
+                    const isLocked = u.status !== 'active';
+                    
+                    const isOnline = (() => {
+                      if (!u.lastLoginAt) return false;
+                      let timeStr = String(u.lastLoginAt);
+                      if (!timeStr.endsWith('Z') && !timeStr.includes('+')) {
+                        timeStr += 'Z'; // Fix timezone issue (BE returns UTC without Z)
+                      }
+                      const diff = Date.now() - new Date(timeStr).getTime();
+                      // Active session window: exactly 30 minutes to simulate real-time "Online" status
+                      return diff > -60000 && diff < 30 * 60 * 1000;
+                    })();
+                    
+                    let dotColor = 'bg-slate-400';
+                    if (isLocked) {
+                      dotColor = 'bg-red-500';
+                    } else if (isOnline) {
+                      dotColor = 'bg-green-500';
+                    }
+
+                    return (
+                      <div className="relative inline-block">
+                        {u.avatar ? (
+                          <img src={u.avatar} alt={u.name} className={`w-12 h-16 rounded-md object-cover border border-slate-200 shadow-sm ${isLocked ? 'opacity-50 grayscale' : ''}`} />
+                        ) : (
+                          <div className={`w-12 h-16 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-lg border border-slate-200 shadow-sm ${isLocked ? 'opacity-50' : ''}`}>
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span 
+                          className={`absolute -bottom-1 -right-1 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`} 
+                          title={isLocked ? 'Đã khóa' : isOnline ? 'Đang hoạt động' : 'Không hoạt động'}
+                        />
                       </div>
-                    )
+                    );
                   },
                   className: 'w-16'
                 },
@@ -1065,69 +1175,37 @@ export function AdminUsers() {
                   },
                   className: 'w-32'
                 },
-                {
-                  key: 'status',
-                  header: 'Trạng thái',
-                  render: (r) => {
-                    const u = r as UserRow;
-                    if (u.status !== 'active') {
-                      return <Badge variant="danger" className="px-2.5 py-0.5 rounded-full font-medium text-[11px]">Đã khóa</Badge>;
-                    }
-                    const isOnline = u.lastLoginAt ? (new Date().getTime() - new Date(u.lastLoginAt).getTime()) < 30 * 60 * 1000 : false;
-                    return (
-                      <Badge variant={isOnline ? 'success' : 'neutral'} className={`px-2.5 py-0.5 rounded-full font-medium text-[11px] ${isOnline ? "flex items-center gap-1.5 border-green-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
-                        {isOnline && <span className="w-1.5 h-1.5 rounded-full bg-green-100 animate-pulse" />}
-                        {isOnline ? 'Đang hoạt động' : 'Không hoạt động'}
-                      </Badge>
-                    );
-                  },
-                  className: 'w-40'
-                },
+
 
                 {
                   key: 'actions',
-                  header: 'Thao tác bảo mật',
+                  header: 'Hành động',
                   render: (r) => {
                     const u = r as UserRow
                     return (
                       <div className="flex gap-1 justify-end pr-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                        <ActionMenu 
+                          onEdit={() => {
                             if (selectedIds.size === 1) {
                               const id = Array.from(selectedIds)[0]
-                              const su = filteredUsers.find(u => u.id === id)
+                              const su = filteredUsers.find(user => user.id === id)
                               if (su) handleOpenEdit(su)
                             } else {
                               handleOpenEdit(u)
                             }
                           }}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 transition"
-                          title="Sửa thông tin tài khoản"
-                        >
-                          <Pencil size={14} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onDelete={() => {
                             if (selectedIds.size > 0) {
                               handleBulkDelete()
                             } else {
                               setConfirmDelete(u.id)
                             }
                           }}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 transition"
-                          title="Xóa tài khoản vĩnh viễn"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        />
                       </div>
                     )
                   },
-                  className: 'w-32 text-right'
+                  className: 'w-24 text-right'
                 },
               ]}
               data={filteredUsers}

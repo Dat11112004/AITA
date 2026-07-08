@@ -93,6 +93,8 @@ export class User extends AggregateRoot {
   avatar: string | null
   status: UserStatusType | null
   lastLoginAt: Date | null
+  resetPasswordOtp: string | null
+  resetPasswordOtpExpiry: Date | null
   roles: UserRoleType[]
 
   private constructor(
@@ -105,6 +107,8 @@ export class User extends AggregateRoot {
     avatar: string | null,
     status: UserStatusType | null,
     lastLoginAt: Date | null,
+    resetPasswordOtp: string | null,
+    resetPasswordOtpExpiry: Date | null,
     roles: UserRoleType[]
   ) {
     super()
@@ -117,6 +121,8 @@ export class User extends AggregateRoot {
     this.avatar = avatar
     this.status = status
     this.lastLoginAt = lastLoginAt
+    this.resetPasswordOtp = resetPasswordOtp
+    this.resetPasswordOtpExpiry = resetPasswordOtpExpiry
     this.roles = roles
   }
 
@@ -131,7 +137,7 @@ export class User extends AggregateRoot {
   ): User {
     const user = new User(
       id, email, passwordHash, fullName,
-      null, null, null, 'Active', null, [role]
+      null, null, null, 'Active', null, null, null, [role]
     )
     user.addDomainEvent(new UserCreatedEvent(user.id, user.email))
     return user
@@ -147,9 +153,11 @@ export class User extends AggregateRoot {
     avatar: string | null,
     status: UserStatusType | null,
     lastLoginAt: Date | null,
+    resetPasswordOtp: string | null,
+    resetPasswordOtpExpiry: Date | null,
     roles: UserRoleType[]
   ): User {
-    return new User(id, email, passwordHash, fullName, studentCode, phone, avatar, status, lastLoginAt, roles)
+    return new User(id, email, passwordHash, fullName, studentCode, phone, avatar, status, lastLoginAt, resetPasswordOtp, resetPasswordOtpExpiry, roles)
   }
 
   // ── Business Logic ──
@@ -207,6 +215,11 @@ export class User extends AggregateRoot {
 
   changePassword(newHash: string): void {
     this.passwordHash = newHash
+  }
+
+  setResetPasswordOtp(otp: string | null, expiry: Date | null): void {
+    this.resetPasswordOtp = otp
+    this.resetPasswordOtpExpiry = expiry
   }
 
   assignRole(role: UserRoleType): void {

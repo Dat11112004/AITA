@@ -21,6 +21,8 @@ import { GetMeUseCase } from '../../modules/auth/application/use-cases/get-me.us
 import { RefreshTokenUseCase } from '../../modules/auth/application/use-cases/refresh-token.use-case.js'
 import { LogoutUseCase } from '../../modules/auth/application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../../modules/auth/application/use-cases/change-password.use-case.js'
+import { ForgotPasswordUseCase } from '../../modules/auth/application/use-cases/forgot-password.use-case.js'
+import { ResetPasswordUseCase } from '../../modules/auth/application/use-cases/reset-password.use-case.js'
 import { UpdateProfileUseCase } from '../../modules/auth/application/use-cases/update-profile.use-case.js'
 import { DismissPasswordChangeUseCase } from '../../modules/auth/application/use-cases/dismiss-password-change.use-case.js'
 import { AuthController } from '../../modules/auth/presentation/auth.controller.js'
@@ -169,6 +171,9 @@ export class DIContainer {
       uow.registerFactory(TOKENS.EnrollmentRepository, (client) => new PrismaEnrollmentRepository(client))
       uow.registerFactory(TOKENS.RefreshTokenRepository, (client) => new PrismaRefreshTokenRepository(client))
 
+      // ── Email Service ──────────────────────────────────────────
+      const emailService = new NodemailerService()
+
       // ── Auth Module ─────────────────────────────────────────────
       const refreshTokenRepo = new PrismaRefreshTokenRepository(uow.getClient())
       this.services.set(TOKENS.RefreshTokenRepository, refreshTokenRepo)
@@ -179,6 +184,8 @@ export class DIContainer {
       const refreshTokenUseCase = new RefreshTokenUseCase(refreshTokenRepo, userRepo, tokenService, logger)
       const logoutUseCase = new LogoutUseCase(refreshTokenRepo, logger)
       const changePasswordUseCase = new ChangePasswordUseCase(userRepo, hashService, logger)
+      const forgotPasswordUseCase = new ForgotPasswordUseCase(userRepo, emailService)
+      const resetPasswordUseCase = new ResetPasswordUseCase(userRepo, hashService)
       const updateProfileUseCase = new UpdateProfileUseCase(userRepo)
       const dismissPasswordChangeUseCase = new DismissPasswordChangeUseCase(userRepo)
 
@@ -189,6 +196,8 @@ export class DIContainer {
         refreshTokenUseCase,
         logoutUseCase,
         changePasswordUseCase,
+        forgotPasswordUseCase,
+        resetPasswordUseCase,
         updateProfileUseCase,
         dismissPasswordChangeUseCase,
         logger
@@ -259,7 +268,6 @@ export class DIContainer {
       this.services.set(TOKENS.SemestersController, semestersController)
 
       // ── Email & Notifications for Exams ──────────────────────
-      const emailService = new NodemailerService()
       const sendAssignmentNotificationUseCase = new SendAssignmentNotificationUseCase(emailService)
 
       // ── Exams (Replaces Assignments) ─────────────────────────

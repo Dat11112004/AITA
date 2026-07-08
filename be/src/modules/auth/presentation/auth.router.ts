@@ -24,6 +24,8 @@ export class AuthRouter {
     this.router.get('/me', authenticate, asyncHandler((req, res) => authController.getMe(req, res)))
     this.router.patch('/profile', authenticate, uploadAvatarMiddleware.single('avatar'), asyncHandler((req, res) => authController.updateProfile(req, res)))
     this.router.post('/change-password', authenticate, asyncHandler((req, res) => authController.changePassword(req, res)))
+    this.router.post('/forgot-password', asyncHandler((req, res) => authController.forgotPassword(req, res)))
+    this.router.post('/reset-password', asyncHandler((req, res) => authController.resetPassword(req, res)))
     this.router.post('/dismiss-password-change', authenticate, asyncHandler((req, res) => authController.dismissPasswordChange(req, res)))
     this.router.post('/logout', authenticate, asyncHandler((req, res) => authController.logout(req, res)))
   }

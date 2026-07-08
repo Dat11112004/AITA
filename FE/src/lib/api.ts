@@ -60,6 +60,8 @@ export const api = {
   updateProfile: (data: FormData) => request<any>('/auth/profile', { method: 'PATCH', body: data }),
   dismissPasswordChange: () => request<void>('/auth/dismiss-password-change', { method: 'POST' }),
   changePassword: (body: unknown) => request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
+  forgotPassword: (email: string) => request<void>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (body: { email: string, otp: string, newPassword: string }) => request<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
 
   getStatsOverview: () => request<Record<string, string | number>>('/stats/overview'),
   getActivity: () => request<ActivityLog[]>('/stats/activity'),

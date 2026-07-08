@@ -124,20 +124,33 @@ export class GetUserDetailsUseCase implements IUseCase<string, any> {
                     isPending: false
                 })),
                 ...user.PendingEnrollment.filter(pe => {
-                    // Filter out semester-wide pending enrollments if they are already enrolled in at least one class for that semester/classCode
-                    if (!pe.SubjectCode) {
-                        const hasEnrolled = user.StudentClass.some(sc => 
-                            sc.Class?.ClassCode === pe.ClassCode && 
-                            sc.Class?.Semester?.Code === pe.SemesterCode
-                        );
-                        return !hasEnrolled;
-                    }
-                    return true;
+                    const peSemNumMatch = pe.SemesterCode?.match(/\d+/);
+                    const peSemNum = peSemNumMatch ? parseInt(peSemNumMatch[0], 10) : null;
+
+                    const hasEnrolled = user.StudentClass.some(sc => {
+                        // ClassCode must match
+                        if (sc.Class?.ClassCode !== pe.ClassCode) return false;
+                        
+                        // Semester must match
+                        const scSemCode = sc.Class?.Semester?.Code;
+                        const scSemNumMatch = scSemCode?.match(/\d+/);
+                        const scSemNum = scSemNumMatch ? parseInt(scSemNumMatch[0], 10) : null;
+                        const isSemMatch = scSemCode === pe.SemesterCode || (peSemNum !== null && scSemNum === peSemNum);
+                        if (!isSemMatch) return false;
+                        
+                        // Subject must match (if it's a subject-specific pending)
+                        if (pe.SubjectCode) {
+                            return sc.Class?.Subject?.SubjectCode?.toLowerCase() === pe.SubjectCode.toLowerCase();
+                        }
+                        return true;
+                    });
+                    
+                    return !hasEnrolled;
                 }).map(pe => ({
                     classId: `pending-${pe.Id}`,
                     classCode: pe.ClassCode,
-                    subjectCode: pe.SubjectCode || 'Chưa xếp môn',
-                    subjectName: pe.SubjectCode ? 'Đang chờ lớp' : 'Vui lòng tạo lớp',
+                    subjectCode: pe.SubjectCode || 'Đang chờ xếp môn',
+                    subjectName: null,
                     semesterCode: pe.SemesterCode,
                     enrolledAt: pe.CreatedAt ? pe.CreatedAt.toISOString() : null,
                     instructorName: null,

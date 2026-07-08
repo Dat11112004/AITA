@@ -58,11 +58,22 @@ export class PreviewImportStudentsExcelUseCase {
             if (!semesterCode) errors.push('Thiếu Kỳ học')
             if (!classCode) errors.push('Thiếu Lớp học')
 
+            let resolvedSemesterCode = semesterCode
             // Validate semester exists
             if (semesterCode) {
-                const semesterExists = semesters.some(s => s.Code?.toLowerCase() === semesterCode.toLowerCase())
-                if (!semesterExists) {
-                    errors.push(`Kỳ học "${semesterCode}" chưa được tạo.`)
+                const semesterNumberMatch = semesterCode.match(/\d+/)
+                const semesterNumber = semesterNumberMatch ? parseInt(semesterNumberMatch[0], 10) : null
+                
+                const existingSemester = semesters.find(s => {
+                    if (s.Code === semesterCode) return true
+                    if (s.Code?.toLowerCase() === semesterCode.toLowerCase()) return true
+                    const sNumMatch = s.Code?.match(/\d+/)
+                    const sNum = sNumMatch ? parseInt(sNumMatch[0], 10) : null
+                    return sNum !== null && sNum === semesterNumber
+                })
+                
+                if (existingSemester && existingSemester.Code) {
+                    resolvedSemesterCode = existingSemester.Code
                 }
             }
 
@@ -74,11 +85,11 @@ export class PreviewImportStudentsExcelUseCase {
                 fullName: fullName || '',
                 email: email || '',
                 phone: phone || '',
-                semester: semesterCode || '',
+                semester: resolvedSemesterCode || '',
                 className: classCode || '',
                 password: password,
                 isValid: errors.length === 0,
-                errors
+                errors: errors
             })
         }
 

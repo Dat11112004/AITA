@@ -63,7 +63,7 @@ export class UpdateUserUseCase implements IUseCase<UpdateUserInput, UserResponse
             const prisma = new (PrismaClient as any)();
             for (const item of dto.updatedClasses) {
                 try {
-                    if (item.classId.startsWith('pending-')) {
+                    if (item.classId && item.classId.startsWith('pending-')) {
                         const peId = item.classId.replace('pending-', '');
                         const pe = await prisma.pendingEnrollment.findUnique({ where: { Id: peId } });
                         if (pe) {
@@ -111,7 +111,79 @@ export class UpdateUserUseCase implements IUseCase<UpdateUserInput, UserResponse
                                 await prisma.pendingEnrollment.delete({ where: { Id: peId } });
                             }
                         }
-                    } else {
+                    } else if (item.isNew && item.semesterCode && item.newSubjectCode && item.newClassCode) {
+                        const semester = await prisma.semester.findFirst({ where: { Code: item.semesterCode } });
+                        const subject = await prisma.subject.findFirst({ where: { SubjectCode: item.newSubjectCode } });
+                        
+                        if (semester && subject) {
+                            let newClass = await prisma.class.findUnique({
+                                where: {
+                                    ClassCode_SubjectId_SemesterId: {
+                                        ClassCode: item.newClassCode,
+                                        SubjectId: subject.Id,
+                                        SemesterId: semester.Id
+                                    }
+                                }
+                            });
+                            
+                            if (!newClass) {
+                                newClass = await prisma.class.create({
+                                    data: {
+                                        ClassCode: item.newClassCode,
+                                        SubjectId: subject.Id,
+                                        SemesterId: semester.Id,
+                                        Status: 'active'
+                                    }
+                                });
+                            }
+                            
+                            const role = user.roles[0] || 'STUDENT';
+                            if (role === 'STUDENT') {
+                                const exists = await prisma.studentClass.findUnique({
+                                    where: { UserId_ClassId: { UserId: id, ClassId: newClass.Id } }
+                                });
+                                if (!exists) {
+                                    await prisma.studentClass.create({
+                                        data: { UserId: id, ClassId: newClass.Id, EnrolledAt: new Date() }
+                                    });
+                                    
+                                    // Create blank submissions for all exams in the new class
+                                    const examClasses = await prisma.examClass.findMany({
+                                        where: { ClassId: newClass.Id }
+                                    });
+                                    for (const ec of examClasses) {
+                                        const existingSubmission = await prisma.submission.findFirst({
+                                            where: { StudentId: id, ExamId: ec.ExamId, ClassId: newClass.Id }
+                                        });
+                                        if (!existingSubmission) {
+                                            await prisma.submission.create({
+                                                data: {
+                                                    StudentId: id,
+                                                    ExamId: ec.ExamId,
+                                                    ClassId: newClass.Id,
+                                                    GradingStatus: 'Missing',
+                                                    ReviewStatus: 'Pending',
+                                                    TotalScore: 0,
+                                                    FinalScore: 0,
+                                                    AttemptNumber: 1,
+                                                    IsLatest: true
+                                                }
+                                            });
+                                        }
+                                    }
+                                }
+                            } else if (role === 'LECTURER') {
+                                const exists = await prisma.instructorClass.findUnique({
+                                    where: { UserId_ClassId: { UserId: id, ClassId: newClass.Id } }
+                                });
+                                if (!exists) {
+                                    await (prisma as any).instructorClass.create({
+                                        data: { UserId: id, ClassId: newClass.Id, AssignedAt: new Date() }
+                                    });
+                                }
+                            }
+                        }
+                    } else if (item.classId) {
                         const oldClass = await prisma.class.findUnique({ where: { Id: item.classId } });
                         if (oldClass && oldClass.SubjectId && oldClass.SemesterId) {
                             let targetSubjectId = oldClass.SubjectId;

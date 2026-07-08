@@ -119,7 +119,7 @@ export function DashboardTopbar(_props: Props) {
             "
           >
             {/* Avatar */}
-            <div className={`flex h-8 w-8 shrink-0 overflow-hidden items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient} text-[12px] font-bold text-white shadow-sm`}>
+            <div className={`flex h-9 w-9 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[12px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
               {user?.avatar ? (
                 <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
@@ -152,7 +152,7 @@ export function DashboardTopbar(_props: Props) {
             ">
               {/* User info */}
               <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-                <div className={`flex h-9 w-9 shrink-0 overflow-hidden items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient} text-[13px] font-bold text-white`}>
+                <div className={`flex h-11 w-11 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[14px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
                   {user?.avatar ? (
                     <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (

@@ -97,6 +97,42 @@ export class ChangePasswordRequestDto {
   }
 }
 
+export class ForgotPasswordRequestDto {
+  email!: string
+
+  static readonly schema = z.object({
+    email: z.string().email('Email không hợp lệ'),
+  })
+
+  static from(data: unknown): ForgotPasswordRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new ForgotPasswordRequestDto()
+    dto.email = parsed.email
+    return dto
+  }
+}
+
+export class ResetPasswordRequestDto {
+  email!: string
+  otp!: string
+  newPassword!: string
+
+  static readonly schema = z.object({
+    email: z.string().email('Email không hợp lệ'),
+    otp: z.string().length(6, 'Mã xác thực phải gồm 6 chữ số'),
+    newPassword: z.string().min(6, 'Mật khẩu mới phải có ít nhất 6 ký tự'),
+  })
+
+  static from(data: unknown): ResetPasswordRequestDto {
+    const parsed = this.schema.parse(data)
+    const dto = new ResetPasswordRequestDto()
+    dto.email = parsed.email
+    dto.otp = parsed.otp
+    dto.newPassword = parsed.newPassword
+    return dto
+  }
+}
+
 export class UpdateProfileRequestDto {
   fullName?: string
   phone?: string

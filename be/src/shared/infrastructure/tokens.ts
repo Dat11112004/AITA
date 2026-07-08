@@ -47,6 +47,8 @@ export const TOKENS = {
   RefreshTokenUseCase: Symbol.for('RefreshTokenUseCase'),
   LogoutUseCase: Symbol.for('LogoutUseCase'),
   ChangePasswordUseCase: Symbol.for('ChangePasswordUseCase'),
+  ForgotPasswordUseCase: Symbol.for('ForgotPasswordUseCase'),
+  ResetPasswordUseCase: Symbol.for('ResetPasswordUseCase'),
   ClassesController: Symbol.for('ClassesController'),
   SubjectController: Symbol.for('SubjectController'),
   AssignmentsController: Symbol.for('AssignmentsController'),

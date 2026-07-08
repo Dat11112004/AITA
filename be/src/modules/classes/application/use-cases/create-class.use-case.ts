@@ -118,6 +118,8 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
       console.error('Failed to auto-enroll students:', err)
     }
 
-    return ClassResponseDto.from(result as any)
+    // Fetch the updated class so the frontend immediately sees the correct studentCount
+    const updatedClass = await classRepo.findById(result!.id)
+    return ClassResponseDto.from(updatedClass as any)
   }
 }

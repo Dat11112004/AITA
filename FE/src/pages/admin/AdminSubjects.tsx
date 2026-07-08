@@ -317,7 +317,7 @@ export function AdminSubjects() {
                   header: 'Kỳ học',
                   render: (r: SubjectRow) => r.semester ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                      Kỳ {r.semester}
+                      {/^k[yỳ]/i.test(String(r.semester)) ? r.semester : `Kỳ ${r.semester}`}
                     </span>
                   ) : (
                     <span className="text-slate-400 text-xs italic">Chưa xếp</span>

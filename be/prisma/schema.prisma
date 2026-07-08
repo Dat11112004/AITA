@@ -18,6 +18,8 @@ model User {
   Status                                 String?
   LastLoginAt                            DateTime?               @db.DateTime2
   RequirePasswordChange                  Boolean?                @default(false)
+  ResetPasswordOtp                       String?
+  ResetPasswordOtpExpiry                 DateTime?               @db.DateTime2
   AiUsageLog                             AiUsageLog[]
   AuditLog                               AuditLog[]
   Exam                                   Exam[]

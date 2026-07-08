@@ -14,9 +14,11 @@ export const UpdateUserDto = z.object({
     password: z.string().min(6).optional(),
     role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])).optional(),
     updatedClasses: z.array(z.object({
-        classId: z.string(),
+        classId: z.string().optional(),
         newClassCode: z.string(),
-        newSubjectCode: z.string().optional()
+        newSubjectCode: z.string().optional(),
+        semesterCode: z.string().optional(),
+        isNew: z.boolean().optional()
     })).optional(),
     addedClasses: z.array(z.string()).optional(),
     deletedClasses: z.array(z.string()).optional()

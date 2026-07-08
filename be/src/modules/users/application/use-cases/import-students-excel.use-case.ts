@@ -93,7 +93,7 @@ export class ImportStudentsExcelUseCase {
                     const fullName = getField(row, 'fullName')
                     const email = getField(row, 'email')
                     const phone = getField(row, 'phone')
-                    const semesterCode = getField(row, 'semester')
+                    let semesterCode = getField(row, 'semester')
                     const classCode = getField(row, 'classCode')
                     const outOfSemesterStr = getField(row, 'outOfSemesterSubjects') || ''
                     const passedStr = getField(row, 'passedSubjects') || ''
@@ -102,6 +102,26 @@ export class ImportStudentsExcelUseCase {
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
                         throw new Error('Thiếu thông tin bắt buộc (MSSV, Họ và tên, Email, Kỳ học, Lớp học)')
                     }
+
+                    // Resolve semesterCode to existing if fuzzy matched (e.g. "1" matches "Kỳ 1")
+                    const allSemesters = await prisma.semester.findMany()
+                    const semesterNumberMatch = semesterCode.match(/\d+/)
+                    const semesterNumber = semesterNumberMatch ? parseInt(semesterNumberMatch[0], 10) : null
+                    
+                    const existingSemester = allSemesters.find(s => {
+                        if (s.Code === semesterCode) return true
+                        if (s.Code?.toLowerCase() === semesterCode!.toLowerCase()) return true
+                        const sNumMatch = s.Code?.match(/\d+/)
+                        const sNum = sNumMatch ? parseInt(sNumMatch[0], 10) : null
+                        return sNum !== null && sNum === semesterNumber
+                    })
+                    
+                    if (existingSemester && existingSemester.Code) {
+                        semesterCode = existingSemester.Code
+                    } else if (semesterNumberMatch) {
+                        semesterCode = `Kỳ ${semesterNumberMatch[0]}`
+                    }
+
 
                     // 1. Check duplicate MSSV or Email
                     let user = await prisma.user.findFirst({
@@ -229,16 +249,7 @@ export class ImportStudentsExcelUseCase {
                     const classesToEnroll: string[] = []
                     
                     // Main classes check
-                    const allSemesters = await prisma.semester.findMany()
-                    const semesterNumberMatch = semesterCode?.match(/\d+/)
-                    const semesterNumber = semesterNumberMatch ? parseInt(semesterNumberMatch[0], 10) : null
-                    
-                    const semester = allSemesters.find(s => {
-                        if (s.Code === semesterCode) return true
-                        const sNumMatch = s.Code?.match(/\d+/)
-                        const sNum = sNumMatch ? parseInt(sNumMatch[0], 10) : null
-                        return sNum !== null && sNum === semesterNumber
-                    })
+                    const semester = await prisma.semester.findFirst({ where: { Code: semesterCode } })
 
                     if (semester) {
                         const classes = await prisma.class.findMany({

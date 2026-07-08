@@ -7,9 +7,11 @@ import { GetMeUseCase } from '../application/use-cases/get-me.use-case.js'
 import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case.js'
 import { LogoutUseCase } from '../application/use-cases/logout.use-case.js'
 import { ChangePasswordUseCase } from '../application/use-cases/change-password.use-case.js'
+import { ForgotPasswordUseCase } from '../application/use-cases/forgot-password.use-case.js'
+import { ResetPasswordUseCase } from '../application/use-cases/reset-password.use-case.js'
 import { UpdateProfileUseCase } from '../application/use-cases/update-profile.use-case.js'
 import { DismissPasswordChangeUseCase } from '../application/use-cases/dismiss-password-change.use-case.js'
-import { LoginRequestDto, RegisterStudentRequestDto, RefreshTokenRequestDto, LogoutRequestDto, ChangePasswordRequestDto, UpdateProfileRequestDto } from '../application/dtos/auth.dto.js'
+import { LoginRequestDto, RegisterStudentRequestDto, RefreshTokenRequestDto, LogoutRequestDto, ChangePasswordRequestDto, UpdateProfileRequestDto, ForgotPasswordRequestDto, ResetPasswordRequestDto } from '../application/dtos/auth.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class AuthController extends BaseController {
@@ -20,6 +22,8 @@ export class AuthController extends BaseController {
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
     private readonly changePasswordUseCase: ChangePasswordUseCase,
+    private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
+    private readonly resetPasswordUseCase: ResetPasswordUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly dismissPasswordChangeUseCase: DismissPasswordChangeUseCase,
     private readonly logger: ILogger,
@@ -93,5 +97,19 @@ export class AuthController extends BaseController {
     this.logger.info(`Received dismiss password change request for user: ${req.user?.id}`)
     await this.dismissPasswordChangeUseCase.execute(req.user!.id)
     this.ok(res, null, 'Bỏ qua đổi mật khẩu thành công')
+  }
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    this.logger.info('Received forgot password request')
+    const dto = ForgotPasswordRequestDto.from(req.body)
+    await this.forgotPasswordUseCase.execute({ dto })
+    this.ok(res, null, 'Mã xác thực đã được gửi đến email của bạn')
+  }
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    this.logger.info('Received reset password request')
+    const dto = ResetPasswordRequestDto.from(req.body)
+    await this.resetPasswordUseCase.execute({ dto })
+    this.ok(res, null, 'Đổi mật khẩu thành công')
   }
 }

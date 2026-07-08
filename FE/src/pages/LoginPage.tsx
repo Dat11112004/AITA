@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { LiveClock } from '@/components/ui/LiveClock'
 import { useAuth } from '@/store/AuthContext'
-import { ApiError } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import type { UserRole } from '@/types'
 import { useLanguage } from '@/store/LanguageContext'
 import { useTheme } from '@/store/ThemeContext'
@@ -33,6 +33,36 @@ export function LoginPage() {
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPw, setShowPw] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [view, setView] = useState<'login' | 'forgot_email' | 'forgot_otp_password'>('login')
+  const [otp, setOtp] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    const savedCreds = localStorage.getItem('rememberedCreds')
+    if (savedCreds) {
+      setRememberMe(true)
+    }
+  }, [])
+
+  const handleEmailChange = (val: string | React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = typeof val === 'string' ? val : val.target.value;
+    setEmail(newEmail);
+    
+    const savedCreds = localStorage.getItem('rememberedCreds');
+    if (savedCreds) {
+      try {
+        const creds = JSON.parse(atob(savedCreds));
+        if (creds.email === newEmail) {
+          setPassword(creds.password);
+        } else if (password === creds.password) {
+          // Xóa password nếu người dùng thay đổi email khác với email đã lưu
+          setPassword('');
+        }
+      } catch (err) {}
+    }
+  }
 
   const go = (role: UserRole) => {
     const r = params.get('redirect')
@@ -51,9 +81,37 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(''); setLoading(true)
     try {
-      go(await login(email, password))
+      const role = await login(email, password)
+      if (rememberMe) {
+        localStorage.setItem('rememberedCreds', btoa(JSON.stringify({ email, password })))
+      } else {
+        localStorage.removeItem('rememberedCreds')
+      }
+      go(role)
     }
     catch (e) { setErr(e instanceof ApiError ? e.message : t('auth.failed.login')) }
+    finally { setLoading(false) }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr(''); setMsg(''); setLoading(true)
+    try {
+      await api.forgotPassword(email)
+      setMsg('Mã xác thực đã được gửi đến email của bạn')
+      setView('forgot_otp_password')
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Có lỗi xảy ra') }
+    finally { setLoading(false) }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr(''); setMsg(''); setLoading(true)
+    try {
+      await api.resetPassword({ email, otp, newPassword })
+      setMsg('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
+      setView('login')
+      setPassword('')
+      setOtp('')
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Có lỗi xảy ra') }
     finally { setLoading(false) }
   }
 
@@ -186,16 +244,68 @@ export function LoginPage() {
                   {err}
                 </div>
               )}
+              {msg && (
+                <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800/40 dark:bg-green-900/20 dark:text-green-400 animate-slide-in">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  {msg}
+                </div>
+              )}
 
-              {/* Removed Tabs */}
+              {view === 'login' && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <AuthField id="l-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={handleEmailChange} placeholder="you@email.com" autoComplete="email" required />
+                  <AuthField id="l-pw" icon={<Lock size={16} />} label={t('auth.password')} type={showPw ? 'text' : 'password'} value={password} onChange={setPassword} placeholder={t('auth.password_placeholder')} autoComplete="current-password" required
+                    suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
+                  />
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
+                      <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
+                      Ghi nhớ mật khẩu
+                    </label>
+                    <button type="button" onClick={() => { setView('forgot_email'); setErr(''); setMsg(''); }} className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+                  <SubmitButton loading={loading} text={t('auth.tab.login')} />
+                </form>
+              )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <AuthField id="l-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
-                <AuthField id="l-pw" icon={<Lock size={16} />} label={t('auth.password')} type={showPw ? 'text' : 'password'} value={password} onChange={setPassword} placeholder={t('auth.password_placeholder')} required
-                  suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
-                />
-                <SubmitButton loading={loading} text={t('auth.tab.login')} />
-              </form>
+              {view === 'forgot_email' && (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Nhập email của bạn để nhận mã khôi phục mật khẩu.
+                  </div>
+                  <AuthField id="f-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={setEmail} placeholder="you@email.com" autoComplete="email" required />
+                  <div className="flex gap-3 mt-6">
+                    <button type="button" onClick={() => { setView('login'); setErr(''); setMsg(''); }} className="w-1/3 rounded-xl py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-all border border-transparent dark:border-slate-700">
+                      Hủy
+                    </button>
+                    <div className="w-2/3">
+                      <SubmitButton loading={loading} text="Gửi mã OTP" />
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {view === 'forgot_otp_password' && (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Nhập mã xác thực (OTP) đã được gửi đến email và mật khẩu mới của bạn.
+                  </div>
+                  <AuthField id="r-otp" icon={<CheckCircle2 size={16} />} label="Mã xác thực (OTP)" type="text" value={otp} onChange={setOtp} placeholder="123456" autoComplete="one-time-code" required />
+                  <AuthField id="r-pw" icon={<Lock size={16} />} label="Mật khẩu mới" type={showPw ? 'text' : 'password'} value={newPassword} onChange={setNewPassword} placeholder="Mật khẩu mới" autoComplete="new-password" required
+                    suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
+                  />
+                  <div className="flex gap-3 mt-6">
+                    <button type="button" onClick={() => { setView('login'); setErr(''); setMsg(''); }} className="w-1/3 rounded-xl py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-all border border-transparent dark:border-slate-700">
+                      Hủy
+                    </button>
+                    <div className="w-2/3">
+                      <SubmitButton loading={loading} text="Đổi mật khẩu" />
+                    </div>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
 
@@ -227,10 +337,10 @@ export function LoginPage() {
 
 /* ── Sub-components ──────────────────────────────── */
 
-function AuthField({ id, icon, label, type, value, onChange, placeholder, required, hint, suffix }: {
+function AuthField({ id, icon, label, type, value, onChange, placeholder, required, hint, suffix, autoComplete }: {
   id: string; icon: React.ReactNode; label: string; type: string
   value: string; onChange: (v: string) => void; placeholder?: string
-  required?: boolean; hint?: string; suffix?: React.ReactNode
+  required?: boolean; hint?: string; suffix?: React.ReactNode; autoComplete?: string
 }) {
   const [focused, setFocused] = useState(false)
   return (
@@ -254,7 +364,7 @@ function AuthField({ id, icon, label, type, value, onChange, placeholder, requir
           onChange={e => onChange(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={placeholder} required={required}
+          placeholder={placeholder} required={required} autoComplete={autoComplete}
           className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none"
         />
         {suffix}

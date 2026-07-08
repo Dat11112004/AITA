@@ -56,7 +56,19 @@ export class ImportUsersUseCase {
                 // 5. Handle Class mapping if provided
                 if (item.classCode && item.semesterCode && item.subjectCode) {
                     // Find semester
-                    let semester = await prisma.semester.findUnique({ where: { Code: item.semesterCode } })
+                    const semesterCodeStr = item.semesterCode as string;
+                    const allSemesters = await prisma.semester.findMany()
+                    const semesterNumberMatch = semesterCodeStr.match(/\d+/)
+                    const semesterNumber = semesterNumberMatch ? parseInt(semesterNumberMatch[0], 10) : null
+                    
+                    let semester = allSemesters.find(s => {
+                        if (s.Code === semesterCodeStr) return true
+                        if (s.Code?.toLowerCase() === semesterCodeStr.toLowerCase()) return true
+                        const sNumMatch = s.Code?.match(/\d+/)
+                        const sNum = sNumMatch ? parseInt(sNumMatch[0], 10) : null
+                        return sNum !== null && sNum === semesterNumber
+                    })
+
                     if (!semester) {
                         semester = await prisma.semester.create({
                             data: {
@@ -79,7 +91,13 @@ export class ImportUsersUseCase {
                     }
 
                     // Find class
-                    let classRecord = await prisma.class.findUnique({ where: { ClassCode: item.classCode } })
+                    let classRecord = await prisma.class.findFirst({ 
+                        where: { 
+                            ClassCode: item.classCode,
+                            SubjectId: subject.Id,
+                            SemesterId: semester.Id
+                        } 
+                    })
                     if (!classRecord) {
                         classRecord = await prisma.class.create({
                             data: {
