@@ -11,9 +11,14 @@ export class CreateSemesterUseCase implements IUseCase<ReturnType<typeof CreateS
   async execute(dto: ReturnType<typeof CreateSemesterRequestDto.from>) {
     const { data } = dto
 
-    const existing = await this.semesterRepo.findByCode(data.code)
+    // Check composite uniqueness matching the DB constraint @@unique([Season, Code])
+    const existing = await this.semesterRepo.findByCodeAndSeason(data.code, data.season)
     if (existing) {
-      throw new ConflictError('Kỳ học này đã tồn tại')
+      throw new ConflictError(
+        data.season
+          ? `Kỳ học "${data.code}" trong mùa "${data.season}" đã tồn tại`
+          : `Kỳ học "${data.code}" đã tồn tại`
+      )
     }
 
     const semester = Semester.create(

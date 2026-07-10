@@ -9,6 +9,7 @@ import { UpdateClassUseCase } from '../application/use-cases/update-class.use-ca
 import { DeleteClassUseCase } from '../application/use-cases/delete-class.use-case.js'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
+import { GetClassCodesBySubjectUseCase } from '../application/use-cases/get-class-codes-by-subject.use-case.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
 import { prisma } from '../../../database/prisma.js'
 
@@ -21,6 +22,7 @@ export class ClassesController extends BaseController {
     private readonly updateClassNoteUseCase: UpdateClassNoteUseCase,
     private readonly updateClassUseCase: UpdateClassUseCase,
     private readonly deleteClassUseCase: DeleteClassUseCase,
+    private readonly getClassCodesBySubjectUseCase: GetClassCodesBySubjectUseCase,
     private readonly logger: ILogger
   ) {
     super()
@@ -149,5 +151,15 @@ export class ClassesController extends BaseController {
       .filter((s: any) => s !== null)
 
     this.ok(res, subjects, MESSAGES.SUCCESS)
+  }
+
+  async getClassCodesBySubject(req: Request, res: Response): Promise<void> {
+    const subjectId = req.params.subjectId as string
+    if (!subjectId) {
+      throw new Error('SubjectId is required')
+    }
+    this.logger.info(`Fetching class codes for subject ${subjectId}`)
+    const result = await this.getClassCodesBySubjectUseCase.execute(subjectId)
+    this.ok(res, result, MESSAGES.SUCCESS)
   }
 }

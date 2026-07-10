@@ -8,6 +8,7 @@ import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case
 import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../application/use-cases/import-students-excel.use-case.js'
+import { PreviewImportStudentsExcelUseCase } from '../application/use-cases/preview-import-students-excel.use-case.js'
 import { CreateUserDto, UpdateUserDto, ImportUsersBatchDto } from '../application/dtos/user.dto.js'
 import { GetUserDetailsUseCase } from '../application/use-cases/get-user-details.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
@@ -22,6 +23,7 @@ export class UsersController extends BaseController {
         private readonly toggleLockUseCase: ToggleLockUseCase,
         private readonly importUseCase: ImportUsersUseCase,
         private readonly importStudentsExcelUseCase: ImportStudentsExcelUseCase,
+        private readonly previewImportStudentsExcelUseCase: PreviewImportStudentsExcelUseCase,
         private readonly getUserDetailsUseCase: GetUserDetailsUseCase,
         private readonly logger: ILogger
     ) {
@@ -78,6 +80,30 @@ export class UsersController extends BaseController {
         this.created(res, result, 'Users imported successfully')
     }
 
+    async previewImportStudentsExcel(req: Request, res: Response): Promise<void> {
+        this.logger.debug('Received preview import students excel request')
+        const file = req.file
+        if (!file) {
+            res.status(400).json({ status: 'error', message: 'File Excel là bắt buộc', data: null })
+            return
+        }
+
+        try {
+            const fileBuffer = fs.readFileSync(file.path)
+
+            const result = await this.previewImportStudentsExcelUseCase.execute({
+                fileBuffer,
+                fileName: file.originalname
+            })
+            this.ok(res, result, 'Xem trước danh sách sinh viên thành công')
+        } finally {
+            // Cleanup the file after reading it into buffer
+            if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path)
+            }
+        }
+    }
+
     async importStudentsExcel(req: Request, res: Response): Promise<void> {
         this.logger.debug('Received import students excel request')
         const file = req.file
@@ -91,7 +117,7 @@ export class UsersController extends BaseController {
 
         try {
             const fileBuffer = fs.readFileSync(file.path)
-            
+
             const result = await this.importStudentsExcelUseCase.execute({
                 fileBuffer,
                 fileName: file.originalname,

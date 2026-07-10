@@ -84,17 +84,40 @@ async function main() {
     create: { UserId: student.Id, RoleId: studentRole.Id },
   })
 
-  // Create subject
-  const subject = await prisma.subject.upsert({
-    where: { SubjectCode: 'PRJ301' },
-    update: {},
-    create: {
-      SubjectCode: 'PRJ301',
-      SubjectName: 'Java Web Application Development',
-      Description: 'Xây dựng ứng dụng web với Java',
-      IsActive: true,
-    },
-  })
+  // Create subjects
+  const defaultSubjects = [
+    { code: 'PRF192', name: 'Programming Fundamentals', desc: 'Học các kiến thức lập trình cơ bản bằng ngôn ngữ C: biến, kiểu dữ liệu, toán tử, điều kiện, vòng lặp, hàm, mảng, chuỗi, con trỏ cơ bản, cấu trúc dữ liệu (struct), đọc/ghi tệp và tư duy giải thuật.', semester: 1 },
+    { code: 'PRO192', name: 'Object-Oriented Programming', desc: 'Lập trình hướng đối tượng bằng Java: class, object, constructor, encapsulation, inheritance, polymorphism, abstraction, interface, exception handling, collection framework và làm việc với file.', semester: 2 },
+    { code: 'CSD201', name: 'Data Structures and Algorithms', desc: 'Nghiên cứu cấu trúc dữ liệu và thuật toán: linked list, stack, queue, tree, binary search tree, heap, hash table, graph, các thuật toán sắp xếp, tìm kiếm và phân tích độ phức tạp Big-O.', semester: 3 },
+    { code: 'DBI202', name: 'Introduction to Database Systems', desc: 'Thiết kế và quản lý cơ sở dữ liệu quan hệ: mô hình ERD, chuẩn hóa (Normalization), khóa, ràng buộc, SQL (DDL, DML, DCL), JOIN, VIEW, INDEX, TRIGGER, PROCEDURE và TRANSACTION.', semester: 3 },
+    { code: 'SWP391', name: 'Software Development Project', desc: 'Thực hiện dự án phần mềm theo nhóm, áp dụng quy trình phát triển phần mềm từ phân tích yêu cầu, thiết kế, lập trình, kiểm thử, quản lý mã nguồn bằng Git và trình bày sản phẩm hoàn chỉnh.', semester: 4 },
+    { code: 'PRJ301', name: 'Java Web Application Development', desc: 'Phát triển ứng dụng Web bằng Java với Servlet, JSP, JSTL, MVC, JDBC, Session, Cookie, Filter, Authentication, Authorization và kết nối cơ sở dữ liệu.', semester: 5 },
+    { code: 'PRM392', name: 'Mobile Programming', desc: 'Phát triển ứng dụng di động Android bằng Java hoặc Kotlin: Activity, Fragment, Intent, RecyclerView, SQLite/Room, REST API, Firebase, Material Design và quản lý vòng đời ứng dụng.', semester: 5 },
+    { code: 'PRN212', name: 'C# Programming and .NET', desc: 'Phát triển ứng dụng bằng C# và .NET: LINQ, Entity Framework Core, ASP.NET Core Web API, Dependency Injection, Authentication (JWT), RESTful API và kết nối SQL Server.', semester: 6 },
+    { code: 'WDP301', name: 'Web Application Development', desc: 'Xây dựng ứng dụng web hiện đại với HTML5, CSS3, JavaScript, Responsive Design, AJAX/Fetch API, REST API và tích hợp Frontend với Backend.', semester: 6 },
+    { code: 'SWD392', name: 'Software Architecture and Design', desc: 'Thiết kế kiến trúc phần mềm sử dụng UML, Design Pattern (Singleton, Factory, Repository, Strategy...), kiến trúc nhiều lớp (Layered Architecture), Clean Architecture, SOLID Principles và tối ưu khả năng bảo trì, mở rộng hệ thống.', semester: 7 },
+  ]
+
+  for (const subj of defaultSubjects) {
+    await prisma.subject.upsert({
+      where: { SubjectCode: subj.code },
+      update: {
+        SubjectName: subj.name,
+        Description: subj.desc,
+        Semester: subj.semester
+      },
+      create: {
+        SubjectCode: subj.code,
+        SubjectName: subj.name,
+        Description: subj.desc,
+        IsActive: true,
+        Semester: subj.semester
+      }
+    })
+  }
+
+  // Fetch PRJ301 to use as default subject for subsequent dummy test items below
+  const subject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'PRJ301' } })
 
   // Create semester
   const semester = await prisma.semester.upsert({

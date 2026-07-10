@@ -33,6 +33,7 @@ import { EnrollStudentUseCase } from '../../modules/classes/application/use-case
 import { UpdateClassNoteUseCase } from '../../modules/classes/application/use-cases/update-class-note.use-case.js'
 import { UpdateClassUseCase } from '../../modules/classes/application/use-cases/update-class.use-case.js'
 import { DeleteClassUseCase } from '../../modules/classes/application/use-cases/delete-class.use-case.js'
+import { GetClassCodesBySubjectUseCase } from '../../modules/classes/application/use-cases/get-class-codes-by-subject.use-case.js'
 import { PrismaClassRepository } from '../../modules/classes/infrastructure/repositories/prisma-class-repository.js'
 import { PrismaEnrollmentRepository } from '../../modules/classes/infrastructure/repositories/prisma-enrollment-repository.js'
 import { ClassesController } from '../../modules/classes/presentation/classes.controller.js'
@@ -48,6 +49,7 @@ import { CreateSemesterUseCase } from '../../modules/semesters/application/use-c
 import { CreateSeasonUseCase } from '../../modules/semesters/application/use-cases/create-season.use-case.js'
 import { UpdateSemesterUseCase } from '../../modules/semesters/application/use-cases/update-semester.use-case.js'
 import { DeleteSemesterUseCase } from '../../modules/semesters/application/use-cases/delete-semester.use-case.js'
+import { DeleteSeasonUseCase } from '../../modules/semesters/application/use-cases/delete-season.use-case.js'
 import { ManageSemesterSubjectsUseCase } from '../../modules/semesters/application/use-cases/manage-semester-subjects.use-case.js'
 import { SemestersController } from '../../modules/semesters/presentation/semesters.controller.js'
 // Removed assignments module use cases
@@ -67,6 +69,7 @@ import { DeleteUserUseCase } from '../../modules/users/application/use-cases/del
 import { ToggleLockUseCase } from '../../modules/users/application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../../modules/users/application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../../modules/users/application/use-cases/import-students-excel.use-case.js'
+import { PreviewImportStudentsExcelUseCase } from '../../modules/users/application/use-cases/preview-import-students-excel.use-case.js'
 import { GetUserDetailsUseCase } from '../../modules/users/application/use-cases/get-user-details.use-case.js'
 import { UsersController as ModularUsersController } from '../../modules/users/presentation/users.controller.js'
 import { ExternalAiService } from '../../modules/ai/infrastructure/external-ai.service.js'
@@ -215,6 +218,7 @@ export class DIContainer {
       const updateClassNoteUseCase = new UpdateClassNoteUseCase(classRepo)
       const updateClassUseCase = new UpdateClassUseCase(uow)
       const deleteClassUseCase = new DeleteClassUseCase(uow)
+      const getClassCodesBySubjectUseCase = new GetClassCodesBySubjectUseCase(uow)
 
       const classController = new ClassesController(
         listClassesUseCase,
@@ -224,6 +228,7 @@ export class DIContainer {
         updateClassNoteUseCase,
         updateClassUseCase,
         deleteClassUseCase,
+        getClassCodesBySubjectUseCase,
         logger
       )
       this.services.set('ClassController', classController)
@@ -259,6 +264,7 @@ export class DIContainer {
       const createSeasonUseCase = new CreateSeasonUseCase(semesterRepo)
       const updateSemesterUseCase = new UpdateSemesterUseCase(semesterRepo)
       const deleteSemesterUseCase = new DeleteSemesterUseCase(semesterRepo)
+      const deleteSeasonUseCase = new DeleteSeasonUseCase(uow)
       const manageSemesterSubjectsUseCase = new ManageSemesterSubjectsUseCase(semesterRepo)
 
       const semestersController = new SemestersController(
@@ -268,6 +274,7 @@ export class DIContainer {
         createSeasonUseCase,
         updateSemesterUseCase,
         deleteSemesterUseCase,
+        deleteSeasonUseCase,
         manageSemesterSubjectsUseCase,
         logger
       )
@@ -346,6 +353,7 @@ export class DIContainer {
       const toggleLockUseCase = new ToggleLockUseCase(userRepo, logger)
       const importUsersUseCase = new ImportUsersUseCase()
       const importStudentsExcelUseCase = new ImportStudentsExcelUseCase(emailService)
+      const previewImportStudentsExcelUseCase = new PreviewImportStudentsExcelUseCase()
       const getUserDetailsUseCase = new GetUserDetailsUseCase(logger)
 
       const modularUsersController = new ModularUsersController(
@@ -356,6 +364,7 @@ export class DIContainer {
         toggleLockUseCase,
         importUsersUseCase,
         importStudentsExcelUseCase,
+        previewImportStudentsExcelUseCase,
         getUserDetailsUseCase,
         logger
       )

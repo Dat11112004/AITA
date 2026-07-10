@@ -375,16 +375,16 @@ model GradingSession {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model ImportBatch {
-  Id           String  @id @default(uuid()) @db.UniqueIdentifier
-  FileName     String?
-  FileUrl      String?
-  Status       String?
-  TotalRows    Int?
-  SuccessCount Int?
-  ErrorCount   Int?
-  ErrorDetails String?
-  ImportedBy   String? @db.UniqueIdentifier
-  User         User?   @relation(fields: [ImportedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
+  Id              String  @id @default(uuid()) @db.UniqueIdentifier
+  FileName        String?
+  FileUrl         String?
+  Status          String?
+  TotalRows       Int?
+  SuccessCount    Int?
+  ErrorCount      Int?
+  ErrorDetails    String?
+  ImportedBy      String? @db.UniqueIdentifier
+  User            User?   @relation(fields: [ImportedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -716,6 +716,7 @@ model PendingEnrollment {
   Id           String    @id @default(uuid()) @db.UniqueIdentifier
   UserId       String    @db.UniqueIdentifier
   SemesterCode String?
+  Season       String?
   ClassCode    String?
   SubjectCode  String?
   Status       String?   @default("Pending")

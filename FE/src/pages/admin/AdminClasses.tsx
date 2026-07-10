@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
+import { DropdownMenu } from '@/components/ui/DropdownMenu'
 import { api, type ClassRow, type SemesterRow, type SubjectRow, type Option, type StudentRow } from '@/lib/api'
 import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, ArrowLeft, Edit3, Trash2, ShieldAlert, BookOpen, Layers } from 'lucide-react'
 
@@ -24,10 +25,12 @@ export function AdminClasses() {
 
   const [editingSemester, setEditingSemester] = useState<SemesterRow | null>(null)
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null)
+  const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [subjectForm, setSubjectForm] = useState({ code: '', name: '', description: '' })
 
   // Drill-down state
   const [level, setLevel] = useState<Level>('season')
@@ -302,6 +305,52 @@ export function AdminClasses() {
       setSemesterSubjects(prev => prev.filter(s => s.id !== subjectId))
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Xoá môn học thất bại')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // ─── Edit Subject ───
+  const handleEditSubject = (sub: SubjectRow) => {
+    setEditingSubject(sub)
+    setSubjectForm({
+      code: sub.code,
+      name: sub.name,
+      description: sub.description || '',
+    })
+  }
+
+  const handleSaveSubject = async () => {
+    if (!editingSubject || isSubmitting) return
+    if (!subjectForm.code.trim() || !subjectForm.name.trim()) {
+      alert('Mã môn và tên môn không được để trống')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await api.updateSubject(editingSubject.id, {
+        code: subjectForm.code.trim(),
+        name: subjectForm.name.trim(),
+        description: subjectForm.description.trim() || undefined,
+      })
+      setSemesterSubjects(prev =>
+        prev.map(s =>
+          s.id === editingSubject.id
+            ? { ...s, code: subjectForm.code, name: subjectForm.name, description: subjectForm.description }
+            : s
+        )
+      )
+      setSubjects(prev =>
+        prev.map(s =>
+          s.id === editingSubject.id
+            ? { ...s, code: subjectForm.code, name: subjectForm.name, description: subjectForm.description }
+            : s
+        )
+      )
+      setEditingSubject(null)
+      setSubjectForm({ code: '', name: '', description: '' })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Cập nhật môn học thất bại')
     } finally {
       setIsSubmitting(false)
     }
@@ -679,7 +728,7 @@ export function AdminClasses() {
                   <tr>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã môn</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Tên môn</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Kỳ mặc định</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mô tả môn học</th>
                     <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Hành động</th>
                   </tr>
                 </thead>
@@ -692,11 +741,25 @@ export function AdminClasses() {
                     >
                       <td className="px-4 py-3 font-mono font-semibold text-brand-600 dark:text-brand-400">{sub.code}</td>
                       <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{sub.name}</td>
-                      <td className="px-4 py-3 text-slate-500">Kỳ {sub.semester || '?'}</td>
+                      <td className="px-4 py-3 text-slate-500 line-clamp-2">{sub.description || '—'}</td>
                       <td className="px-4 py-3 text-center">
-                        <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700" onClick={(e) => handleRemoveSemesterSubject(sub.id, e)}>
-                          <Trash2 size={14} />
-                        </Button>
+                        <DropdownMenu
+                          items={[
+                            {
+                              id: 'edit',
+                              label: 'Chỉnh sửa',
+                              icon: <Edit3 size={14} />,
+                              onClick: (e) => { e.stopPropagation(); handleEditSubject(sub) },
+                            },
+                            {
+                              id: 'delete',
+                              label: 'Xoá',
+                              icon: <Trash2 size={14} />,
+                              onClick: (e) => handleRemoveSemesterSubject(sub.id, e),
+                              isDanger: true,
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -754,17 +817,29 @@ export function AdminClasses() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={(e) => handleEditClass(cls, e)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-md transition-colors">
-                            <Edit3 size={14} />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); openNote(cls) }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors">
-                            <StickyNote size={14} />
-                          </button>
-                          <button onClick={(e) => handleDeleteClass(cls.id, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                        <DropdownMenu
+                          items={[
+                            {
+                              id: 'edit',
+                              label: 'Chỉnh sửa',
+                              icon: <Edit3 size={14} />,
+                              onClick: (e) => handleEditClass(cls, e),
+                            },
+                            {
+                              id: 'note',
+                              label: 'Ghi chú',
+                              icon: <StickyNote size={14} />,
+                              onClick: (e) => { e.stopPropagation(); openNote(cls) },
+                            },
+                            {
+                              id: 'delete',
+                              label: 'Xoá',
+                              icon: <Trash2 size={14} />,
+                              onClick: (e) => handleDeleteClass(cls.id, e),
+                              isDanger: true,
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -875,6 +950,45 @@ export function AdminClasses() {
               <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleAddSemesterSubjects} disabled={isSubmitting || selectedSubjectIdsToAdd.size === 0}>
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus size={14} className="mr-2" />}
                 Thêm {selectedSubjectIdsToAdd.size > 0 ? `(${selectedSubjectIdsToAdd.size})` : ''}
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Subject Modal */}
+      {editingSubject && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setEditingSubject(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Edit3 size={20} /> Chỉnh sửa môn học
+            </h3>
+            <div className="space-y-3">
+              <Input
+                label="Mã môn (*)"
+                placeholder="Ví dụ: PRN222"
+                value={subjectForm.code}
+                onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
+              />
+              <Input
+                label="Tên môn (*)"
+                placeholder="Ví dụ: Object-Oriented Programming"
+                value={subjectForm.name}
+                onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+              />
+              <Textarea
+                label="Mô tả môn học"
+                placeholder="Nhập mô tả chi tiết về môn học..."
+                value={subjectForm.description}
+                onChange={(e) => setSubjectForm({ ...subjectForm, description: e.target.value })}
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <Button variant="outline" onClick={() => setEditingSubject(null)}>Huỷ</Button>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSaveSubject} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Lưu thay đổi
               </Button>
             </div>
           </div>

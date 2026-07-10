@@ -2,6 +2,7 @@
 import { randomUUID } from 'crypto'
 import { Semester } from '../../domain/entities/semester.entity.js'
 import type { ISemesterRepository } from '../../domain/repositories/semester-repository.interface.js'
+import { matchesSeason, type DetectedSeason } from '../../../../shared/utils/season-detector.util.js'
 
 export class SemesterRepository implements ISemesterRepository {
   constructor(private readonly prisma: any) { }
@@ -16,8 +17,31 @@ export class SemesterRepository implements ISemesterRepository {
     return raw ? Semester.fromPersistence(raw) : null
   }
 
+  async findByCodeAndSeason(code: string, season?: string): Promise<Semester | null> {
+    // Filter in-process using matchesSeason to handle all DB storage formats:
+    // 'Fall', 'Fall2026', 'Fall 2026', 'fall-2026', etc.
+    const candidates = await this.prisma.semester.findMany({ where: { Code: code } })
+    if (!season) {
+      return candidates[0] ? Semester.fromPersistence(candidates[0]) : null
+    }
+    // Build a minimal DetectedSeason for matching (year extracted from season string if present)
+    const yearMatch = season.match(/\b(20\d{2})\b/)
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 0
+    const seasonName = season.replace(/[^a-zA-Z]/g, '').trim() || season
+    const pseudo: DetectedSeason = { season: seasonName, year, formatted: `${seasonName} ${year}` }
+    const match = candidates.find((r: any) => matchesSeason(r.Season, pseudo)) ?? null
+    return match ? Semester.fromPersistence(match) : null
+  }
+
   async findBySeason(season: string): Promise<Semester[]> {
-    const raw = await this.prisma.semester.findMany({ where: { Season: season } })
+    // Filter in-process using matchesSeason to handle all DB storage formats:
+    // 'Fall', 'Fall2026', 'Fall 2026', 'fall-2026', '2026Fall', etc.
+    const all = await this.prisma.semester.findMany()
+    const yearMatch = season.match(/\b(20\d{2})\b/)
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 0
+    const seasonName = season.replace(/[^a-zA-Z]/g, '').trim() || season
+    const pseudo: DetectedSeason = { season: seasonName, year, formatted: `${seasonName} ${year}` }
+    const raw = all.filter((r: any) => matchesSeason(r.Season, pseudo))
     return raw.map((r: any) => Semester.fromPersistence(r))
   }
 

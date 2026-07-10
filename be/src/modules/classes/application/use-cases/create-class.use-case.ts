@@ -7,9 +7,10 @@ import { CreateClassRequestDto, ClassResponseDto } from '../dtos/class.dto.js'
 import { Class } from '../../domain/entities/class.entity.js'
 import { TOKENS } from '../../../../shared/infrastructure/tokens.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
+import { detectSeasonFromFilename, matchesSeason } from '../../../../shared/utils/season-detector.util.js'
 
 export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, ReturnType<typeof ClassResponseDto.from>> {
-  constructor(private readonly uow: IUnitOfWork) {}
+  constructor(private readonly uow: IUnitOfWork) { }
 
   async execute(dto: CreateClassRequestDto) {
     const { data } = dto
@@ -19,8 +20,11 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
     const subjectRepo = this.uow.resolve<any>(TOKENS.SubjectRepository)
     const semesterRepo = this.uow.resolve<any>(TOKENS.SemesterRepository)
     const userRepo = this.uow.resolve<any>(TOKENS.UserRepository)
-    
-    const existingClass = await classRepo.findByCodeAndSubject(data.code, data.subjectId as string)
+
+    if (!data.semesterId || !data.subjectId) {
+      throw new Error('SemesterId and SubjectId are required')
+    }
+    const existingClass = await classRepo.findByCodeSemesterAndSubject(data.code, data.semesterId, data.subjectId)
     if (existingClass) {
       throw new ConflictError(MESSAGES.CLASS_ALREADY_EXISTS)
     }
@@ -66,26 +70,41 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
     // Auto-enrollment logic
     try {
       const { prisma } = await import('../../../../database/prisma.js')
-      
+
       const pendingEnrollmentsAll = await (prisma as any).pendingEnrollment.findMany({
         where: {
           ClassCode: data.code,
           Status: 'Pending'
         }
       })
-      
+
       const targetSemNumMatch = semester.code?.match(/\d+/)
       const targetSemNum = targetSemNumMatch ? parseInt(targetSemNumMatch[0], 10) : null
       const targetSubjectCode = subject.subjectCode?.toLowerCase()
 
+      const dbSemester = await (prisma as any).semester.findUnique({ where: { Id: data.semesterId } })
+      const dbSeason = dbSemester?.Season
+
       const pendingEnrollments = pendingEnrollmentsAll.filter((pe: any) => {
+        let isSeasonMatch = true
+        if (dbSeason && pe.Season) {
+          try {
+            const detected = detectSeasonFromFilename(pe.Season + '.xlsx')
+            isSeasonMatch = matchesSeason(dbSeason, detected)
+          } catch (e) {
+            isSeasonMatch = false
+          }
+        } else if (pe.Season && !dbSeason) {
+          isSeasonMatch = false // Pending has season, but target semester does not have season assigned yet
+        }
+
         const peSemNumMatch = pe.SemesterCode?.match(/\d+/)
         const peSemNum = peSemNumMatch ? parseInt(peSemNumMatch[0], 10) : null
-        
+
         const isSemesterMatch = pe.SemesterCode === semester.code || (peSemNum !== null && peSemNum === targetSemNum)
         const isSubjectMatch = pe.SubjectCode ? pe.SubjectCode.toLowerCase() === targetSubjectCode : true
-        
-        return isSemesterMatch && isSubjectMatch
+
+        return isSemesterMatch && isSubjectMatch && isSeasonMatch
       })
 
       if (pendingEnrollments.length > 0) {
@@ -100,7 +119,7 @@ export class CreateClassUseCase implements IUseCase<CreateClassRequestDto, Retur
             })
           }
         }
-        
+
         // Mark as enrolled ONLY if it is a subject-specific pending enrollment.
         // If it's a semester-wide (SubjectCode is null), we keep it Pending
         // so they get enrolled in all other subjects for this class/semester too!

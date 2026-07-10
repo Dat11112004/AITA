@@ -5,6 +5,7 @@ import { CreateSemesterUseCase } from '../application/use-cases/create-semester.
 import { CreateSeasonUseCase } from '../application/use-cases/create-season.use-case.js'
 import { UpdateSemesterUseCase } from '../application/use-cases/update-semester.use-case.js'
 import { DeleteSemesterUseCase } from '../application/use-cases/delete-semester.use-case.js'
+import { DeleteSeasonUseCase } from '../application/use-cases/delete-season.use-case.js'
 import { ListSemestersUseCase } from '../application/use-cases/list-semesters.use-case.js'
 import { ManageSemesterSubjectsUseCase } from '../application/use-cases/manage-semester-subjects.use-case.js'
 
@@ -20,8 +21,8 @@ export class SemestersController extends BaseController {
     private readonly createSeasonUseCase: CreateSeasonUseCase,
     private readonly updateSemesterUseCase: UpdateSemesterUseCase,
     private readonly deleteSemesterUseCase: DeleteSemesterUseCase,
+    private readonly deleteSeasonUseCase: DeleteSeasonUseCase,
     private readonly manageSemesterSubjectsUseCase: ManageSemesterSubjectsUseCase,
-
     private readonly logger: ILogger
   ) {
     super()
@@ -78,7 +79,7 @@ export class SemestersController extends BaseController {
     const season = decodeURIComponent(seasonParam)
 
     this.logger.info(`Deleting entire season: ${season}`)
-    await this.semesterRepo.deleteBySeason(season)
+    await this.deleteSeasonUseCase.execute(season)
     this.noContent(res)
   }
 

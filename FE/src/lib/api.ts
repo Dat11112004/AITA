@@ -30,7 +30,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok || json.success === false || json.statusCode >= 400) {
-    throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lỗi API', json.statusCode || res.status, json.error?.code)
+    throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lá»—i API', json.statusCode || res.status, json.error?.code)
   }
   return (json.Data !== undefined ? json.Data : json.data) as T
 }
@@ -111,7 +111,7 @@ export const api = {
   getClassOptions: () => request<Option[]>(`/settings/options/classes`),
   getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
 
-  // ─── Admin: User CRUD ───
+  // â”€â”€â”€ Admin: User CRUD â”€â”€â”€
   updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string, updatedClasses?: { classId: string, newClassCode: string, newSubjectCode?: string }[] }) =>
     request<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (id: string) =>
@@ -123,7 +123,7 @@ export const api = {
   importStudentsExcel: (body: FormData) =>
     request<any>(`/users/import-students-excel`, { method: 'POST', body }),
 
-  // ─── Subjects CRUD ───
+  // â”€â”€â”€ Subjects CRUD â”€â”€â”€
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
   createSubject: (body: CreateSubjectBody) =>
     request<SubjectRow>('/subjects', { method: 'POST', body: JSON.stringify(body) }),
@@ -132,7 +132,7 @@ export const api = {
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
-  // ─── Semesters CRUD ───
+  // â”€â”€â”€ Semesters CRUD â”€â”€â”€
   getSemesters: () => request<SemesterRow[]>(`/semesters`),
   createSemester: (body: CreateSemesterBody) =>
     request<SemesterRow>('/semesters', { method: 'POST', body: JSON.stringify(body) }),
@@ -149,7 +149,7 @@ export const api = {
   deleteSeason: (season: string) => request<void>(`/semesters/season/${encodeURIComponent(season)}`, { method: 'DELETE' }),
   getClassesBySubject: (semesterId: string, subjectId: string) => request<any[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
 
-  // ─── Exams CRUD ───
+  // â”€â”€â”€ Exams CRUD â”€â”€â”€
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
   getExam: (id: string) => request<ExamRow>(`/exams/${id}`),
   createExam: (body: CreateExamBody) =>
@@ -157,7 +157,7 @@ export const api = {
   updateExam: (id: string, body: Partial<CreateExamBody>) =>
     request<ExamRow>(`/exams/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ─── Submissions ───
+  // â”€â”€â”€ Submissions â”€â”€â”€
   async getSubmissions(params?: { assignmentId?: string; status?: string }) {
     const q = new URLSearchParams(params as Record<string, string>).toString()
     return request<SubmissionRow[]>(`/submissions?${q}`)
@@ -178,12 +178,12 @@ export const api = {
   bulkPublishGrades: (assignmentId: string) =>
     request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
 
-  // ─── Grading & Rubric ───
+  // â”€â”€â”€ Grading & Rubric â”€â”€â”€
   startGradingSession: (assignmentId: string) =>
     request<{ sessionId: string }>('/grading/start', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
   getRubricRules: () => request<any[]>('/rubric/rules'),
 
-  // ─── AI Features ───
+  // â”€â”€â”€ AI Features â”€â”€â”€
   generateExerciseAI: (body: { topic: string, difficulty: string, type: string }) =>
     request<any>('/ai/generate-exercise', { method: 'POST', body: JSON.stringify(body) }),
   generateRubricAI: (body: any) => {
@@ -211,29 +211,29 @@ export const api = {
   updateAIConfig: (body: any) =>
     request<any>('/ai/config', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ─── Settings ───
+  // â”€â”€â”€ Settings â”€â”€â”€
   getSettingsConfig: () => request<any>('/settings'),
   updateSettingsConfig: (body: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // 💡 Notifications 💡
+  // ðŸ’¡ Notifications ðŸ’¡
   getNotifications: (page = 1, limit = 20) => request<any>(`/notifications?page=${page}&limit=${limit}`),
   markNotificationAsRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsAsRead: () => request<void>('/notifications/read-all', { method: 'PUT' }),
   broadcastNotification: (body: any) => request<any>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
 
-  // ─── Audit Logs ───
+  // â”€â”€â”€ Audit Logs â”€â”€â”€
   getAuditLogs: () => request<any[]>('/audit/logs'),
   getAIAuditLogs: () => request<any[]>('/audit/ai-usage'),
 
-  // ─── Reports ───
+  // â”€â”€â”€ Reports â”€â”€â”€
   getSystemReports: () => request<any>('/reports'),
   getHealthReports: () => request<any>('/reports/health'),
 
 }
 
-/* ═══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Type Definitions
-   ═══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 export interface AuthUser {
   id: string
@@ -244,7 +244,7 @@ export interface AuthUser {
   status: string
   externalId?: string | null
   avatar?: string | null
-  // true khi tài khoản được tạo qua import — hệ thống ép đổi mật khẩu lần đầu đăng nhập
+  // true khi tÃ i khoáº£n Ä‘Æ°á»£c táº¡o qua import â€” há»‡ thá»‘ng Ã©p Ä‘á»•i máº­t kháº©u láº§n Ä‘áº§u Ä‘Äƒng nháº­p
   requirePasswordChange?: boolean
 }
 
@@ -290,7 +290,7 @@ export interface ClassRow {
   lecturers?: AuthUser[]
   studentCount?: number
   count?: number
-  // Internal staff note — present only for ADMIN/LECTURER (BE omits it for students).
+  // Internal staff note â€” present only for ADMIN/LECTURER (BE omits it for students).
   note?: string | null
 }
 
@@ -582,4 +582,5 @@ export const gradingApi = {
   
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
 }
+
 

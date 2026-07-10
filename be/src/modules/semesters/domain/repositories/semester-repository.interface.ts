@@ -3,6 +3,7 @@ import { Semester } from '../entities/semester.entity.js'
 export interface ISemesterRepository {
   findById(id: string): Promise<Semester | null>
   findByCode(code: string): Promise<Semester | null>
+  findByCodeAndSeason(code: string, season?: string): Promise<Semester | null>
   findBySeason(season: string): Promise<Semester[]>
   findAll(activeOnly?: boolean): Promise<Semester[]>
   create(semester: Semester): Promise<void>
