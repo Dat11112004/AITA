@@ -24,7 +24,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
     outOfSemesterSubjects: ['môn khác kỳ hiện tại (nợ/học vượt)', 'môn khác kì hiện tại (nợ/học vượt)', 'mon khac ky hien tai', 'out of semester subjects', 'nợ/học vượt', 'khác kỳ', 'khác kì'],
     passedSubjects: ['môn đã học vượt thành công', 'mon da hoc vuot thanh cong', 'passed subjects', 'học vượt thành công', 'đã học'],
     // Cột nợ môn — dùng riêng biệt, lookup KHÔNG bị giới hạn theo mùa hiện tại
-    retakeSubjects: ['nợ môn', 'no mon', 'môn nợ', 'mon no', 'retake subjects', 'retake', 'subject debt', 'nợ', 'debt subjects', 'môn học nợ', 'mon hoc no'],
+    retakeSubjects: ['nợ môn', 'no mon', 'môn nợ', 'mon no', 'retake subjects', 'retake', 'subject debt', 'nợ', 'debt subjects', 'môn học nợ', 'mon hoc no', 'môn học lại', 'mon hoc lai'],
+    retakeClasses: ['lớp nợ môn', 'lop no mon', 'lớp nợ', 'lop no', 'lớp học lại', 'lop hoc lai', 'retake classes', 'retake class'],
     avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh'],
 }
 
@@ -163,6 +164,7 @@ export class ImportStudentsExcelUseCase {
                     const passedStr = getField(row, 'passedSubjects') || ''
                     // Cột nợ môn riêng: lookup không giới hạn mùa
                     const retakeStr = getField(row, 'retakeSubjects') || ''
+                    const retakeClassStr = getField(row, 'retakeClasses') || ''
                     const avatarUrlRaw = getField(row, 'avatar') || ''
 
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
@@ -274,14 +276,27 @@ export class ImportStudentsExcelUseCase {
                         }
                     }
 
-                    // Nợ môn — hỗ trợ 2 format:
-                    //   1. SubjectCode-ClassCode  (vd: PRO232-SE17C01)
-                    //   2. SubjectCode only       (vd: PRO232) → tự tìm class phù hợp
-                    const retakeStrs = retakeStr.split(',').map((s: string) => s.trim()).filter(Boolean)
-                    for (const retakeEntry of retakeStrs) {
-                        const parts = retakeEntry.split('-')
-                        const subjectCode = parts[0].trim()
-                        const clsCode = parts.length >= 2 ? parts.slice(1).join('-').trim() : null
+                    // Nợ môn — hỗ trợ 2 format, mở rộng nhận khoảng trắng và ánh xạ song song Lớp Học Lại
+                    const retakeStrs = retakeStr.split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean)
+                    const retakeClassStrs = retakeClassStr.split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean)
+
+                    for (let j = 0; j < retakeStrs.length; j++) {
+                        const retakeEntry = retakeStrs[j];
+                        let subjectCode = retakeEntry;
+                        let clsCode = null;
+
+                        if (retakeEntry.includes('-')) {
+                            // Support legacy hyphen format (e.g., PRO232-SE17C01)
+                            const parts = retakeEntry.split('-')
+                            subjectCode = parts[0].trim()
+                            clsCode = parts.length >= 2 ? parts.slice(1).join('-').trim() : null
+                        } else {
+                            // Ánh xạ linh hoạt 1-1, hoặc dùng lớp đầu tiên nếu khai báo ít lớp hơn môn.
+                            // GIỮ NULL NẾU KHÔNG CÓ LỚP NỢ ĐỂ KHÔNG PHÁ VỠ HÀNH VI TỰ DÒ (Format 2).
+                            const explicitlyProvidedClass = retakeClassStrs[j] || retakeClassStrs[0];
+                            clsCode = explicitlyProvidedClass || null;
+                        }
+
                         pendingEnrollments.push({
                             UserId: user.Id,
                             SemesterCode: null,
@@ -317,10 +332,19 @@ export class ImportStudentsExcelUseCase {
                         }
                     }
                     // Track retake classes để sync deletion KHÔNG nhầm xóa
-                    for (const retakeEntry of retakeStrs) {
-                        const parts = retakeEntry.split('-')
-                        const subjectCode = parts[0].trim()
-                        const clsCode = parts.length >= 2 ? parts.slice(1).join('-').trim() : null
+                    for (let j = 0; j < retakeStrs.length; j++) {
+                        const retakeEntry = retakeStrs[j];
+                        let subjectCode = retakeEntry;
+                        let clsCode = null;
+
+                        if (retakeEntry.includes('-')) {
+                            const parts = retakeEntry.split('-')
+                            subjectCode = parts[0].trim()
+                            clsCode = parts.length >= 2 ? parts.slice(1).join('-').trim() : null
+                        } else {
+                            clsCode = retakeClassStrs[j] || retakeClassStrs[0] || null;
+                        }
+
                         if (clsCode) {
                             processedClasses.push({
                                 subjectCode,
@@ -343,8 +367,11 @@ export class ImportStudentsExcelUseCase {
                             }
                         })
                         if (!existingPe) {
+                            // Strip in-memory-only flags (IsRetake, RetakeClassCode) that
+                            // are NOT columns in the PendingEnrollment table before persisting.
+                            const { IsRetake, RetakeClassCode, ...dbFields } = pe as any
                             await (prisma as any).pendingEnrollment.create({
-                                data: pe
+                                data: dbFields
                             })
                         }
                     }
@@ -442,86 +469,70 @@ export class ImportStudentsExcelUseCase {
                         if (cls) classesToEnroll.push(cls.Id)
                     }
 
-                    // ── Nợ môn lookup — KHÔNG giới hạn mùa ──────────────────────────────
-                    // Môn nợ thuộc kỳ/mùa cũ hơn → phải tìm trên toàn bộ DB.
+                    // ── Nợ môn lookup — 3 BƯỚC THEO THUẬT TOÁN BẠN YÊU CẦU ─────────────────────
                     for (const pe of pendingEnrollments) {
                         if (!(pe as any).IsRetake || !pe.SubjectCode) continue
 
+                        // Bước 1: Tìm kiếm môn học trên hệ thống (xem thử nó có bằng nhau không)
+                        const retakeSubj = await prisma.subject.findUnique({
+                            where: { SubjectCode: pe.SubjectCode }
+                        })
+
+                        if (!retakeSubj) {
+                            console.warn(`[Import][Retake] Không tìm thấy môn gốc '${pe.SubjectCode}' — bỏ qua`)
+                            continue
+                        }
+
                         const retakeClassCode = (pe as any).RetakeClassCode as string | null
+                        const targetClassCodeToFind = retakeClassCode || classCode // Format 1 dùng lớp khai báo, Format 2 dùng lớp chính
 
-                        if (retakeClassCode) {
-                            // Format 1: SubjectCode-ClassCode → tìm chính xác theo class code + subject
-                            let cls = await prisma.class.findFirst({
+                        // Bước 2: Tìm kiếm lớp trên hệ thống dựa vào ClassCode và SubjectId (không giới hạn kỳ)
+                        let cls = await prisma.class.findFirst({
+                            where: {
+                                ClassCode: targetClassCodeToFind,
+                                SubjectId: retakeSubj.Id,
+                            },
+                            select: { Id: true, SemesterId: true }
+                        })
+
+                        if (cls) {
+                            classesToEnroll.push(cls.Id)
+                            if (!retakeClassCode) console.log(`[Import][Retake-Auto] Tìm thấy class cho môn '${pe.SubjectCode}': ${cls.Id}`)
+                        } else if (retakeClassCode) {
+                            // Bước 3: Nếu khai báo (Format 1) mà không có lớp trên hệ thống, tự động đi kiếm kì nào chứa môn đó để tạo
+                            let semSubj = await (prisma as any).semesterSubject.findFirst({
                                 where: {
+                                    SubjectId: retakeSubj.Id,
+                                    SemesterId: { in: Array.from(targetSemesterIds) }
+                                }
+                            })
+
+                            if (!semSubj) {
+                                // Fallback phòng hờ dùng kỳ cũ nếu season này chưa link
+                                semSubj = await (prisma as any).semesterSubject.findFirst({
+                                    where: { SubjectId: retakeSubj.Id },
+                                    orderBy: { AssignedAt: 'desc' }
+                                })
+                            }
+
+                            if (!semSubj) {
+                                console.warn(`[Import][Retake] Không tìm thấy Semester chứa môn '${pe.SubjectCode}' — bỏ qua`)
+                                continue
+                            }
+
+                            cls = await prisma.class.create({
+                                data: {
                                     ClassCode: retakeClassCode,
-                                    Subject: { SubjectCode: pe.SubjectCode },
-                                },
-                                select: { Id: true, SemesterId: true }
-                            })
-
-                            if (!cls) {
-                                // Auto-create: tìm subject → tìm SemesterSubject bất kỳ (ưu tiên mùa hiện tại)
-                                const retakeSubj = await prisma.subject.findUnique({
-                                    where: { SubjectCode: pe.SubjectCode }
-                                })
-
-                                if (retakeSubj) {
-                                    // Ưu tiên SemesterSubject trong mùa hiện tại, fallback sang mùa khác
-                                    let semSubj = await (prisma as any).semesterSubject.findFirst({
-                                        where: {
-                                            SubjectId: retakeSubj.Id,
-                                            SemesterId: { in: Array.from(targetSemesterIds) }
-                                        }
-                                    })
-                                    if (!semSubj) {
-                                        semSubj = await (prisma as any).semesterSubject.findFirst({
-                                            where: { SubjectId: retakeSubj.Id },
-                                            orderBy: { AssignedAt: 'desc' }
-                                        })
-                                    }
-
-                                    if (semSubj) {
-                                        cls = await prisma.class.create({
-                                            data: {
-                                                ClassCode: retakeClassCode,
-                                                SubjectId: retakeSubj.Id,
-                                                SemesterId: semSubj.SemesterId,
-                                                Status: 'Active'
-                                            }
-                                        })
-                                        console.log(`[Import][Retake] Auto-created class '${retakeClassCode}' cho môn nợ '${pe.SubjectCode}'`)
-                                    } else {
-                                        console.warn(`[Import][Retake] Không tìm thấy SemesterSubject cho môn '${pe.SubjectCode}' — bỏ qua`)
-                                    }
+                                    SubjectId: retakeSubj.Id,
+                                    SemesterId: semSubj.SemesterId,
+                                    Status: 'Active'
                                 }
-                            }
-
-                            if (cls) classesToEnroll.push(cls.Id)
+                            })
+                            classesToEnroll.push(cls.Id)
+                            console.log(`[Import][Retake] Auto-created class '${retakeClassCode}' cho môn nợ '${pe.SubjectCode}' trong kỳ ${semSubj.SemesterId}`)
                         } else {
-                            // Format 2: Chỉ SubjectCode → tự tìm class theo Subject.Semester
-                            const retakeSubj = await prisma.subject.findUnique({
-                                where: { SubjectCode: pe.SubjectCode },
-                                select: { Id: true, Semester: true }
-                            })
-
-                            if (retakeSubj) {
-                                // Tìm class phù hợp nhất: cùng SubjectId, ưu tiên mùa có enrollments
-                                const existingCls = await prisma.class.findFirst({
-                                    where: {
-                                        SubjectId: retakeSubj.Id,
-                                        ClassCode: classCode,   // dùng class code chính
-                                    },
-                                    orderBy: { Id: 'desc' },
-                                    select: { Id: true }
-                                })
-
-                                if (existingCls) {
-                                    classesToEnroll.push(existingCls.Id)
-                                    console.log(`[Import][Retake-Auto] Tìm thấy class cho môn '${pe.SubjectCode}': ${existingCls.Id}`)
-                                } else {
-                                    console.warn(`[Import][Retake-Auto] Không tìm thấy class cho môn '${pe.SubjectCode}' với classCode '${classCode}' — bỏ qua`)
-                                }
-                            }
+                            // Format 2 không tìm thấy thì bỏ qua
+                            console.warn(`[Import][Retake-Auto] Không tìm thấy class cho môn '${pe.SubjectCode}' với classCode '${classCode}' — bỏ qua`)
                         }
                     }
 
@@ -672,31 +683,56 @@ export class ImportStudentsExcelUseCase {
                 const targetSemesterIds = new Set(targetSemesters.map(s => s.Id))
 
                 for (const pc of processedClasses) {
-                    let clsId: string | null = null
+                    const clsIds: string[] = []
                     if (pc.semesterCode && pc.classCode) {
-                        // Scope semester lookup to the detected season
+                        // Scope semester lookup to the detected season.
+                        // Use findMany to track ALL subject-classes for this semester+classCode,
+                        // not just one. This prevents sync-deletion from removing main-class
+                        // students (e.g. Tín in Kỳ 1 SE18C02) from shared retake classes
+                        // (e.g. PRF192-SE18C02) where a retake student is also enrolled.
                         const semester = targetSemesters.find(s => s.Code === pc.semesterCode) ?? null
                         if (semester) {
-                            const cls = await prisma.class.findFirst({
-                                where: { SemesterId: semester.Id, ClassCode: pc.classCode }
+                            const classes = await prisma.class.findMany({
+                                where: { SemesterId: semester.Id, ClassCode: pc.classCode },
+                                select: { Id: true }
                             })
-                            if (cls) clsId = cls.Id
+                            clsIds.push(...classes.map(c => c.Id))
                         }
                     } else if (pc.subjectCode && pc.classCode) {
-                        // Retake classes KHÔNG giới hạn mùa — tìm toàn DB theo SubjectCode + ClassCode
-                        // Extra classes bình thường vẫn tìm trong targetSemesterIds
-                        const isRetakeEntry = (pc as any).isRetake === true
-                        const cls = await prisma.class.findFirst({
-                            where: {
-                                ClassCode: pc.classCode,
-                                Subject: { SubjectCode: pc.subjectCode },
-                                ...(!isRetakeEntry && { SemesterId: { in: Array.from(targetSemesterIds) } })
-                            }
+                        // Tìm đúng lớp đã enroll cho Retake / Extra dựa trên logic đồng bộ
+                        const targetSubj = await prisma.subject.findUnique({
+                            where: { SubjectCode: pc.subjectCode }
                         })
-                        if (cls) clsId = cls.Id
+                        if (targetSubj) {
+                            let lookupSemesterId: string | undefined = undefined;
+
+                            if (!pc.isRetake) {
+                                // Môn extra bình thường: tìm kỳ trong target mùa hiện tại
+                                const semSubj = await (prisma as any).semesterSubject.findFirst({
+                                    where: {
+                                        SubjectId: targetSubj.Id,
+                                        SemesterId: { in: Array.from(targetSemesterIds) }
+                                    }
+                                })
+                                lookupSemesterId = semSubj ? semSubj.SemesterId : undefined;
+                            }
+
+                            const clsParams: any = {
+                                ClassCode: pc.classCode,
+                                SubjectId: targetSubj.Id,
+                            }
+                            if (lookupSemesterId) {
+                                clsParams.SemesterId = lookupSemesterId
+                            }
+
+                            const cls = await prisma.class.findFirst({
+                                where: clsParams
+                            })
+                            if (cls) clsIds.push(cls.Id)
+                        }
                     }
 
-                    if (clsId) {
+                    for (const clsId of clsIds) {
                         if (!classRosters.has(clsId)) {
                             classRosters.set(clsId, new Set())
                         }
@@ -744,13 +780,18 @@ export class ImportStudentsExcelUseCase {
             }
 
             // Update batch final status
+            let errorDetailsStr = JSON.stringify(errors)
+            if (errorDetailsStr.length > 3900) {
+                // Keep safe even if schema is NVarChar(Max), in case of SQL Driver limits.
+                errorDetailsStr = errorDetailsStr.substring(0, 3900) + '... (truncated)'
+            }
             const finalBatch = await prisma.importBatch.update({
                 where: { Id: batch.Id },
                 data: {
                     Status: 'COMPLETED',
                     SuccessCount: successCount,
                     ErrorCount: errorCount,
-                    ErrorDetails: JSON.stringify(errors)
+                    ErrorDetails: errorDetailsStr
                 }
             })
 
@@ -762,15 +803,18 @@ export class ImportStudentsExcelUseCase {
                 errorCount,
                 errors
             }
-
         } catch (err: any) {
             // Only mark batch as failed if it was created successfully
             if (batch?.Id) {
+                let errorDetailsStr = err.message || 'Unknown error'
+                if (errorDetailsStr.length > 3900) {
+                    errorDetailsStr = errorDetailsStr.substring(0, 3900) + '... (truncated)'
+                }
                 await prisma.importBatch.update({
                     where: { Id: batch.Id },
                     data: {
                         Status: 'FAILED',
-                        ErrorDetails: err.message
+                        ErrorDetails: errorDetailsStr
                     }
                 }).catch(() => { }) // Silently fail if batch update fails
             }

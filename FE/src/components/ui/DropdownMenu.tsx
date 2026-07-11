@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { MoreVertical } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 export interface DropdownMenuItem {
     id: string
@@ -18,10 +19,11 @@ interface DropdownMenuProps {
 
 export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' }: DropdownMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [coords, setCoords] = useState({ top: 0, right: 0 })
     const triggerRef = useRef<HTMLButtonElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
 
-    // Close menu when clicking outside
+    // Close menu when clicking outside or scrolling
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (
@@ -34,9 +36,17 @@ export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' 
             }
         }
 
+        function handleScroll() {
+            setIsOpen(false)
+        }
+
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside)
-            return () => document.removeEventListener('mousedown', handleClickOutside)
+            window.addEventListener('scroll', handleScroll, true) // Capture scroll on any container
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside)
+                window.removeEventListener('scroll', handleScroll, true)
+            }
         }
     }, [isOpen])
 
@@ -46,24 +56,34 @@ export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' 
         setIsOpen(false)
     }
 
+    const toggleMenu = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!isOpen && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect()
+            setCoords({
+                top: rect.bottom + 4,
+                right: window.innerWidth - rect.right
+            })
+        }
+        setIsOpen(!isOpen)
+    }
+
     return (
         <div className="relative inline-block">
             <button
                 ref={triggerRef}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    setIsOpen(!isOpen)
-                }}
+                onClick={toggleMenu}
                 className={`p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300 rounded-md transition-colors ${triggerClassName}`}
                 title="Hành động"
             >
                 <MoreVertical size={16} />
             </button>
 
-            {isOpen && (
+            {isOpen && createPortal(
                 <div
                     ref={menuRef}
-                    className={`absolute right-0 mt-1 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${menuClassName}`}
+                    className={`fixed mt-1 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-100 ${menuClassName}`}
+                    style={{ top: coords.top, right: coords.right }}
                 >
                     <div className="py-1">
                         {items.map((item, idx) => (
@@ -80,7 +100,8 @@ export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' 
                             </button>
                         ))}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     )

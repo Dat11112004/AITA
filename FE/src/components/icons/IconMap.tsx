@@ -20,6 +20,12 @@ import {
   Upload,
   Users,
   Zap,
+  Library,
+  FileSignature,
+  Bot,
+  BellRing,
+  UserCircle,
+  FileCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -45,6 +51,12 @@ const ICONS: Record<string, LucideIcon> = {
   Clock,
   Code2,
   Target,
+  Library,
+  FileSignature,
+  Bot,
+  BellRing,
+  UserCircle,
+  FileCheck,
 }
 
 interface IconProps {
@@ -55,6 +67,9 @@ interface IconProps {
 
 export function Icon({ name, className, size = 20 }: IconProps) {
   const LucideIcon = ICONS[name]
-  if (!LucideIcon) return null
+  if (!LucideIcon) {
+    console.warn(`Icon ${name} not found in IconMap`)
+    return <div className={`w-[${size}px] h-[${size}px] shrink-0`} /> // fallback to maintain spacing
+  }
   return <LucideIcon className={className} size={size} />
 }

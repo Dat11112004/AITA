@@ -1,0 +1,87 @@
+graph LR
+    A["🎯<br/>ADMIN<br/>DASHBOARD"]
+    
+    A --> B["👥 USER"]
+    A --> C["📚 ACADEMIC"]
+    A --> D["📝 GRADING"]
+    A --> E["⚙️ SETTINGS"]
+    
+    %% User Management - trải ra phải
+    B --> B1["Create<br/>User"]
+    B --> B2["Edit<br/>User"]
+    B --> B3["Delete<br/>User"]
+    B --> B4["Bulk<br/>Ops"]
+    B --> B5["Import<br/>Students"]
+    
+    B1 --> B1A["Validate<br/>Email"]
+    B1A --> B1B["Set<br/>Password"]
+    
+    B2 --> B2A["Update<br/>Profile"]
+    B2A --> B2B["Change<br/>Role"]
+    
+    B4 --> B4A["Select<br/>Multiple"]
+    B4A --> B4B["Batch<br/>Action"]
+    
+    B5 --> B5A["Upload<br/>Excel"]
+    B5A --> B5B["Preview"]
+    B5B --> B5C["Validate"]
+    B5C --> B5D["Import"]
+    B5D --> B5E["Retakes"]
+    
+    %% Academic Structure
+    C --> C1["Semester"]
+    C --> C2["Subject"]
+    C --> C3["Class"]
+    
+    C1 --> C1A["Create<br/>Season"]
+    C1A --> C1B["Auto-gen<br/>9 kỳ"]
+    C1B --> C1C["Edit"]
+    
+    C2 --> C2A["Create<br/>Subject"]
+    C2A --> C2B["Assign<br/>Semester"]
+    C2B --> C2C["Manage<br/>Retakes"]
+    
+    C3 --> C3A["Create<br/>Class"]
+    C3A --> C3B["Assign<br/>Instructor"]
+    C3B --> C3C["Enroll<br/>Students"]
+    
+    %% Assignment & Grading
+    D --> D1["Exam"]
+    D --> D2["Grading"]
+    D --> D3["Review"]
+    
+    D1 --> D1A["Create<br/>Exam"]
+    D1A --> D1B["Add<br/>Sections"]
+    D1B --> D1C["Set<br/>Rubric"]
+    
+    D2 --> D2A["Auto<br/>Grade"]
+    D2A --> D2B["Manual<br/>Grade"]
+    D2B --> D2C["AI<br/>Review"]
+    
+    D3 --> D3A["View<br/>Submissions"]
+    D3A --> D3B["Review<br/>Feedback"]
+    D3B --> D3C["Publish<br/>Grades"]
+    
+    %% System Settings
+    E --> E1["Season<br/>Settings"]
+    E --> E2["Grading<br/>Profiles"]
+    E --> E3["Project<br/>Types"]
+    E --> E4["AI<br/>Config"]
+    
+    E1 --> E1A["Create<br/>Season"]
+    E1A --> E1B["Active"]
+    
+    E2 --> E2A["Templates"]
+    E2A --> E2B["Steps"]
+    
+    E3 --> E3A["Project<br/>Type"]
+    E3A --> E3B["Docker"]
+    
+    E4 --> E4A["API<br/>Keys"]
+    E4A --> E4B["Limits"]
+    
+    style A fill:#4F46E5,color:#fff,stroke:#4F46E5,stroke-width:4px
+    style B fill:#06B6D4,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style C fill:#10B981,color:#fff,stroke:#10B981,stroke-width:2px
+    style D fill:#F59E0B,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style E fill:#EC4899,color:#fff,stroke:#EC4899,stroke-width:2px

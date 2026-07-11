@@ -1,0 +1,81 @@
+graph LR
+    A["🎓<br/>STUDENT<br/>DASHBOARD"]
+    
+    A --> B["📚 MY CLASSES"]
+    A --> C["📝 ASSIGNMENTS"]
+    A --> D["✅ SUBMISSIONS"]
+    A --> E["📊 GRADES"]
+    
+    %% My Classes - trải ra phải
+    B --> B1["View<br/>Classes"]
+    B --> B2["Class<br/>Info"]
+    B --> B3["Class<br/>Materials"]
+    
+    B1 --> B1A["Enrolled<br/>Classes"]
+    B1A --> B1B["Filter by<br/>Semester"]
+    B1B --> B1C["Search"]
+    
+    B2 --> B2A["Instructor<br/>Info"]
+    B2A --> B2B["Schedule"]
+    B2B --> B2C["Location"]
+    
+    B3 --> B3A["Download<br/>Files"]
+    B3A --> B3B["View<br/>Resources"]
+    B3B --> B3C["Announcements"]
+    
+    %% Assignments
+    C --> C1["View<br/>Assignments"]
+    C --> C2["Assignment<br/>Details"]
+    C --> C3["Download<br/>Resources"]
+    
+    C1 --> C1A["List All<br/>Assignments"]
+    C1A --> C1B["Filter by<br/>Class"]
+    C1B --> C1C["Sort by<br/>Due Date"]
+    
+    C2 --> C2A["Due Date"]
+    C2A --> C2B["Description"]
+    C2B --> C2C["Rubric"]
+    
+    C3 --> C3A["Download<br/>Files"]
+    C3A --> C3B["Test Cases"]
+    C3B --> C3C["Sample Code"]
+    
+    %% Submissions
+    D --> D1["Submit<br/>Work"]
+    D --> D2["View<br/>Submissions"]
+    D --> D3["Retake<br/>Assignment"]
+    
+    D1 --> D1A["Upload<br/>Files"]
+    D1A --> D1B["Write<br/>Code"]
+    D1B --> D1C["Submit"]
+    
+    D2 --> D2A["View All<br/>Submissions"]
+    D2A --> D2B["Check<br/>Status"]
+    D2B --> D2C["Attempt<br/>Number"]
+    
+    D3 --> D3A["Click<br/>Retake"]
+    D3A --> D3B["New<br/>Attempt"]
+    D3B --> D3C["Re-Submit"]
+    
+    %% Grades
+    E --> E1["Gradebook"]
+    E --> E2["View<br/>Grade"]
+    E --> E3["Feedback"]
+    
+    E1 --> E1A["All<br/>Grades"]
+    E1A --> E1B["By<br/>Class"]
+    E1B --> E1C["By<br/>Assignment"]
+    
+    E2 --> E2A["Overall<br/>Score"]
+    E2A --> E2B["Component<br/>Breakdown"]
+    E2B --> E2C["Rubric<br/>Scores"]
+    
+    E3 --> E3A["Instructor<br/>Feedback"]
+    E3A --> E3B["Comments"]
+    E3B --> E3C["AI<br/>Suggestions"]
+    
+    style A fill:#10B981,color:#fff,stroke:#10B981,stroke-width:4px
+    style B fill:#3B82F6,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style C fill:#8B5CF6,color:#fff,stroke:#8B5CF6,stroke-width:2px
+    style D fill:#EC4899,color:#fff,stroke:#EC4899,stroke-width:2px
+    style E fill:#F59E0B,color:#fff,stroke:#F59E0B,stroke-width:2px

@@ -20,25 +20,25 @@ const sidebarTheme: Record<UserRole, {
   hoverBg: string
 }> = {
   admin: {
-    bg:        'bg-[#0f172a]', // slate-900
-    logoRing:  'bg-brand-600',
-    activeBg:  'bg-white/10',
-    activeBar: 'bg-brand-400',
-    hoverBg:   'hover:bg-white/5',
+    bg:        'bg-slate-900', // Deep dark blue
+    logoRing:  'bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20',
+    activeBg:  'bg-gradient-to-r from-brand-500/15 to-transparent border border-brand-500/20',
+    activeBar: 'bg-brand-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]',
+    hoverBg:   'hover:bg-slate-800/50',
   },
   lecturer: {
-    bg:        'bg-[#0f172a]',
-    logoRing:  'bg-brand-600',
-    activeBg:  'bg-brand-500/15',
-    activeBar: 'bg-brand-400',
-    hoverBg:   'hover:bg-white/5',
+    bg:        'bg-slate-900',
+    logoRing:  'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/20',
+    activeBg:  'bg-gradient-to-r from-emerald-500/15 to-transparent border border-emerald-500/20',
+    activeBar: 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]',
+    hoverBg:   'hover:bg-slate-800/50',
   },
   student: {
-    bg:        'bg-[#0f172a]',
-    logoRing:  'bg-brand-600',
-    activeBg:  'bg-brand-500/15',
-    activeBar: 'bg-brand-400',
-    hoverBg:   'hover:bg-white/5',
+    bg:        'bg-slate-900',
+    logoRing:  'bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-lg shadow-indigo-500/20',
+    activeBg:  'bg-gradient-to-r from-indigo-500/15 to-transparent border border-indigo-500/20',
+    activeBar: 'bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.8)]',
+    hoverBg:   'hover:bg-slate-800/50',
   },
 }
 
@@ -81,14 +81,14 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
               key={item.id}
               to={item.path}
               className={`
-                group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+                group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium
                 outline-none select-none transition-all duration-150
                 focus-visible:ring-2 focus-visible:ring-white/30
                 ${isActive
                   ? `${theme.activeBg} text-white`
-                  : `text-white/55 ${theme.hoverBg} hover:text-white`
+                  : `text-slate-400 ${theme.hoverBg} hover:text-slate-100`
                 }
-                ${collapsed ? 'justify-center' : ''}
+                ${collapsed ? 'justify-center px-3' : ''}
               `}
             >
               {/* Active bar */}
@@ -137,10 +137,10 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
         <Link
           to="/"
           className={`
-            group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm
-            text-white/50 ${theme.hoverBg} hover:text-white
+            group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm
+            text-slate-400 ${theme.hoverBg} hover:text-slate-100
             transition-all duration-150
-            ${collapsed ? 'justify-center' : ''}
+            ${collapsed ? 'justify-center px-3' : ''}
           `}
         >
           <Home size={18} className="shrink-0 transition-transform group-hover:scale-105" />
@@ -157,10 +157,10 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
           type="button"
           onClick={onToggleCollapse}
           className={`
-            flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm
-            text-white/50 ${theme.hoverBg} hover:text-white
+            flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm
+            text-slate-400 ${theme.hoverBg} hover:text-slate-100
             transition-all duration-150
-            ${collapsed ? 'justify-center' : ''}
+            ${collapsed ? 'justify-center px-3' : ''}
           `}
         >
           {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Thu gọn</span></>}
