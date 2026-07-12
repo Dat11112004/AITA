@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Trash2, Clock, MoreVertical } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 
 export default function AssignmentPage() {
@@ -15,6 +16,22 @@ export default function AssignmentPage() {
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [hasActiveBatch, setHasActiveBatch] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 10;
+  
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+      const handler = setTimeout(() => {
+          setDebouncedSearch(searchQuery);
+          setPage(1);
+      }, 500);
+      return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = () => setOpenMenuId(null);
@@ -23,20 +40,37 @@ export default function AssignmentPage() {
   }, []);
 
   useEffect(() => {
-    async function load() {
+    async function loadAssignment() {
+        try {
+            const data = await api.getAssignment(id || 'student-management-system');
+            setAssignment(data);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    loadAssignment();
+  }, [id]);
+
+  useEffect(() => {
+    async function loadHistory() {
+      setLoading(true);
       try {
-        const data = await api.getAssignment(id || 'student-management-system');
-        setAssignment(data);
-        const histData = await api.getHistory(id || 'student-management-system');
-        setHistory(histData);
+        const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch);
+        setHistory(res.history || []);
+        if (res.meta) {
+            setTotalPages(res.meta.totalPages || 1);
+            setTotalItems(res.meta.total || 0);
+        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    load();
+    loadHistory();
+  }, [id, page, limit, debouncedSearch]);
 
+  useEffect(() => {
     const checkBatch = () => {
       const jobsKey = id ? `batchJobs_${id}` : 'batchJobs';
       const savedJobs = localStorage.getItem(jobsKey);
@@ -63,89 +97,173 @@ export default function AssignmentPage() {
     };
   }, [id]);
 
-  const handleDeleteHistory = async (e: React.MouseEvent, historyId: string) => {
+  const handleDeleteHistory = (e: React.MouseEvent, historyId: string) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this graded assignment?")) {
-      try {
-        await api.deleteHistory(historyId);
-        setHistory(history.filter(x => x.id !== historyId));
-      } catch (err) {
-        alert("Failed to delete.");
-      }
-    }
+    setDeleteModalId(historyId);
     setOpenMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModalId) return;
+    try {
+      if (deleteModalId === 'BULK') {
+        const ids = Array.from(selectedIds);
+        await Promise.all(ids.map(id => api.deleteHistory(id)));
+        setHistory(history.filter(x => !selectedIds.has(x.id)));
+        setSelectedIds(new Set());
+      } else {
+        await api.deleteHistory(deleteModalId);
+        setHistory(history.filter(x => x.id !== deleteModalId));
+        const newSelected = new Set(selectedIds);
+        newSelected.delete(deleteModalId);
+        setSelectedIds(newSelected);
+      }
+      setDeleteModalId(null);
+    } catch (err) {
+      console.error("Failed to delete", err);
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(history.map(h => h.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) newSet.add(id);
+    else newSet.delete(id);
+    setSelectedIds(newSet);
   };
 
   const handleViewHistory = (historyId: string) => {
     navigate(`/lecturer/grading/result/${historyId}`);
   };
 
-  if (loading) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
+  if (loading && !assignment) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
   if (!assignment) return <div className="text-center py-20 text-red-400">Assignment not found</div>;
 
-  const filteredHistory = history.filter(item => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const displayId = (item.studentId || item.id.split('-')[0]).toLowerCase();
-    return displayId.includes(q);
-  });
-
   return (
-    <div className="max-w-6xl mx-auto pb-8 -mt-2 sm:-mt-4">
+    <div className="max-w-6xl mx-auto pb-2 -mt-2 sm:-mt-4">
+      <div className="mb-6 animate-fade-in">
+        <button onClick={() => navigate(`/lecturer/grading/assignments`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
+          <ArrowLeft size={20} />
+          Back to assignments
+        </button>
+      </div>
+
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden mb-8">
-        <div className="p-8 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50">
+        <div className="p-6 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 text-brand-600 dark:text-brand-400 mb-2">
-              <BookOpen size={24} />
+              <BookOpen size={20} />
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
               >
-                <ListChecks size={18} />
+                <ListChecks size={20} />
                 Review rubric
               </button>
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
                 className={classNames(
-                  "flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors shadow-sm text-white",
+                  "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
                   hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
                 )}
               >
                 {hasActiveBatch ? (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
                     Live grading status
                   </>
                 ) : (
                   <>
-                    <Upload size={18} />
+                    <Upload size={20} />
                     Submit submissions
                   </>
                 )}
               </button>
             </div>
           </div>
-          <h1 className="text-3xl font-bold dark:text-white text-slate-900 mb-4">{assignment.metadata?.title || 'Assignment'}</h1>
-          <p className="dark:text-slate-300 text-slate-600 leading-relaxed text-lg">Project type: {assignment.metadata?.projectType}</p>
+          <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          {assignment.metadata?.projectType && (
+            <div className="flex items-center mt-3 animate-fade-in">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-sm font-bold rounded-full border border-brand-200 dark:border-brand-500/20 shadow-sm">
+                <Layers size={16} />
+                <span className="uppercase tracking-wider">{assignment.metadata.projectType}</span>
+              </div>
+            </div>
+          )}
         </div>
         
-        <div className="p-8">
-          <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-6">
-            <ListChecks size={24} className="text-brand-500" />
+        <div className="p-6">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-3">
+            <ListChecks size={22} className="text-brand-500" />
             <h2 className="text-xl font-semibold dark:text-white text-slate-800">Details</h2>
           </div>
           <ul className="space-y-3">
             {assignment.metadata?.description ? (
-              <li className="dark:text-slate-300 text-slate-600">
+              <li className="dark:text-slate-300 text-slate-600 text-base leading-relaxed">
                  {assignment.metadata.description}
               </li>
             ) : (
               <li className="dark:text-slate-500 text-slate-400 italic">No description provided.</li>
             )}
           </ul>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <Users size={24} />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">44</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br/><span className="font-normal opacity-80">Tổng số</span></div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">28</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br/><span className="font-normal opacity-80">63.6%</span></div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <Clock size={24} />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">10</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br/><span className="font-normal opacity-80">22.7%</span></div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 flex items-center justify-center shrink-0">
+            <Hourglass size={24} />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">6</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br/><span className="font-normal opacity-80">13.6%</span></div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 flex items-center justify-center shrink-0">
+            <Star size={24} />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">9.12</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br/><span className="font-normal opacity-80">/10</span></div>
+          </div>
         </div>
       </div>
 
@@ -197,7 +315,19 @@ export default function AssignmentPage() {
         </div>
       </div>
 
-      {filteredHistory.length === 0 ? (
+      {selectedIds.size > 0 && (
+        <div className="bg-brand-50 border border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 rounded-lg p-3 mb-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
+          <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">Đã chọn {selectedIds.size} sinh viên</span>
+          <button 
+            onClick={() => setDeleteModalId('BULK')}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Trash2 size={16} /> Xóa {selectedIds.size} kết quả
+          </button>
+        </div>
+      )}
+
+      {history.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Clock className="mx-auto h-12 w-12 text-slate-400 mb-4" />
           <h3 className="text-lg font-medium text-slate-900 dark:text-slate-200 mb-2">No history found</h3>
@@ -208,7 +338,14 @@ export default function AssignmentPage() {
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400">
-                <th className="py-4 px-4 w-10 text-center"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" /></th>
+                <th className="py-4 px-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={history.length > 0 && selectedIds.size === history.length}
+                    onChange={handleSelectAll}
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                  />
+                </th>
                 <th className="py-4 px-4">Sinh viên</th>
                 <th className="py-4 px-4">Mã sinh viên</th>
                 <th className="py-4 px-4">Thời gian nộp</th>
@@ -218,8 +355,13 @@ export default function AssignmentPage() {
                 <th className="py-4 px-4 text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {filteredHistory.map((item) => {
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 relative">
+              {loading && (
+                <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
+                   <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+                </div>
+              )}
+              {history.map((item) => {
                 const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
                 let colorClass = 'text-slate-600 bg-slate-200';
                 let textClass = 'text-slate-600';
@@ -242,7 +384,12 @@ export default function AssignmentPage() {
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
                   >
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.has(item.id)}
+                        onChange={(e) => handleSelectOne(item.id, e.target.checked)}
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                      />
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
@@ -303,80 +450,180 @@ export default function AssignmentPage() {
           </table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {filteredHistory.map((item) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
+                <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+            </div>
+          )}
+          {history.map((item) => {
             const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
-            let scoreColor = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-900/50';
-            if (percentage >= 80) scoreColor = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50';
-            else if (percentage >= 50) scoreColor = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-900/50';
+            let barColor = 'bg-red-500';
+            let textColor = 'text-red-500';
+            if (percentage >= 80) {
+                barColor = 'bg-emerald-500'; textColor = 'text-emerald-500';
+            } else if (percentage >= 70) {
+                barColor = 'bg-blue-500'; textColor = 'text-blue-500';
+            } else if (percentage >= 50) {
+                barColor = 'bg-orange-500'; textColor = 'text-orange-500';
+            }
 
             const displayId = item.studentId || item.id.split('-')[0];
+            const initials = displayId.substring(0, 2).toUpperCase();
+            
+            const avatarColors = ['bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400', 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400', 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'];
+            const avatarColor = avatarColors[displayId.charCodeAt(displayId.length - 1) % avatarColors.length];
 
             return (
               <div 
                 key={item.id} 
                 onClick={() => handleViewHistory(item.id)}
-                className="group bg-white dark:bg-slate-900 rounded-2xl shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-800 transition-all cursor-pointer relative overflow-hidden"
+                className="group bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 transition-all cursor-pointer relative overflow-hidden hover:border-brand-300 flex flex-col"
               >
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
+                <div className="p-5 flex-1">
+                  <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 dark:text-slate-400 overflow-hidden">
-                        <img src={`https://ui-avatars.com/api/?name=${displayId}&background=random&color=fff`} alt={displayId} className="w-full h-full object-cover" />
+                      <div className={classNames("w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0", avatarColor)}>
+                        {initials}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[150px]">
+                        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[15px] leading-snug">
                           {displayId}
                         </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {new Date(item.assessedAt).toLocaleDateString()}
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
                         </p>
                       </div>
                     </div>
-                    
-                    <div className="relative">
-                      <button
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                      ĐIỂM CUỐI CÙNG
+                    </div>
+                    <div className="flex justify-between items-end mb-2">
+                        <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
+                            {item.score} <span className="text-[15px] font-medium text-slate-400">/ {item.maxScore || 10}</span>
+                        </div>
+                        <div className={classNames("text-sm font-bold", textColor)}>
+                            {percentage % 1 === 0 ? percentage : percentage.toFixed(1)}%
+                        </div>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className={classNames("h-full rounded-full transition-all duration-300", barColor)} style={{ width: `${percentage}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 pt-0 mt-auto flex items-center gap-2">
+                    <button className="flex-1 flex items-center justify-center gap-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <Eye size={16} className="text-slate-400" />
+                        Xem chi tiết
+                    </button>
+                    <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenMenuId(openMenuId === item.id ? null : item.id);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
+                        className="p-2 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800 rounded-lg transition-colors relative"
                       >
                         <MoreVertical size={16} />
-                      </button>
-
+                        
                       {openMenuId === item.id && (
-                        <div className="absolute right-0 top-8 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden animate-fade-in-up">
-                          <button
+                        <div className="absolute right-0 bottom-full mb-2 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden animate-fade-in-up">
+                          <div
                             onClick={(e) => handleDeleteHistory(e, item.id)}
-                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors cursor-pointer"
                           >
                             <Trash2 size={14} />
                             Xóa
-                          </button>
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex items-end justify-between">
-                    <div>
-                      <div className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                        Final Score
-                      </div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white flex items-baseline gap-1">
-                        {item.score} <span className="text-sm font-medium text-slate-400">/ {item.maxScore}</span>
-                      </div>
-                    </div>
-                    <div className={`px-2.5 py-1 rounded-full text-xs font-bold border ${scoreColor}`}>
-                      {percentage.toFixed(0)}%
-                    </div>
-                  </div>
+                    </button>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 0 && history.length > 0 && (
+        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4 mt-4">
+          <div className="text-sm text-slate-500 dark:text-slate-400">
+            Hiển thị <span className="font-medium text-slate-900 dark:text-white">{Math.min((page - 1) * limit + 1, totalItems)}</span> - <span className="font-medium text-slate-900 dark:text-white">{Math.min(page * limit, totalItems)}</span> trong <span className="font-medium text-slate-900 dark:text-white">{totalItems}</span> sinh viên
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .map((p, idx, arr) => (
+                <React.Fragment key={p}>
+                  {idx > 0 && p - arr[idx - 1] > 1 && (
+                    <span className="px-3 py-2 text-slate-400">...</span>
+                  )}
+                  <button
+                    onClick={() => setPage(p)}
+                    className={classNames(
+                      "w-10 h-10 rounded-lg text-sm font-medium transition-colors",
+                      page === p
+                        ? "bg-brand-600 text-white shadow-md shadow-brand-500/20 border border-brand-600"
+                        : "border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    {p}
+                  </button>
+                </React.Fragment>
+              ))}
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalId && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={24} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Xác nhận xóa</h3>
+              <p className="text-center text-slate-500 dark:text-slate-400 text-sm">
+                Bạn có chắc chắn muốn xóa {deleteModalId === 'BULK' ? `${selectedIds.size} kết quả chấm điểm` : 'kết quả chấm điểm này'} không? Thao tác này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100 dark:border-slate-700/50">
+              <button 
+                onClick={() => setDeleteModalId(null)}
+                className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+              >
+                Xóa ngay
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

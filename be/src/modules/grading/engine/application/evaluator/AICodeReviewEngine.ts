@@ -226,7 +226,7 @@ STRICT RULES:
       try {
         const cacheKey = "code_" + crypto.createHash('sha256').update(prompt).digest('hex');
         let response: any;
-        
+
         const finalParsed = await AiClientManager.executeWithFallback(async (client, model) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 90000);
@@ -241,117 +241,109 @@ STRICT RULES:
               }, { signal: controller.signal as any }),
               new Promise((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), 90000))
             ]);
-            
+
             let text = (result as any).choices[0].message.content?.trim() || "{}";
             text = text.replace(/^```json/g, "").replace(/```$/g, "").trim();
-            
+
             // State-machine JSON sanitizer: Robustly fix literal newlines inside JSON string values.
             try {
-                let sanitizedText = "";
-                let inString = false;
-                let isEscaped = false;
-                for (let i = 0; i < text.length; i++) {
-                    const char = text[i];
-                    if (char === '\\') {
-                        isEscaped = !isEscaped;
-                        sanitizedText += char;
-                    } else if (char === '"' && !isEscaped) {
-                        inString = !inString;
-                        sanitizedText += char;
-                        isEscaped = false;
-                    } else if (char === '\n' && inString) {
-                        sanitizedText += '\\n'; // Escape literal newline
-                        isEscaped = false;
-                    } else if (char === '\r' && inString) {
-                        // Ignore carriage return inside string to prevent breaking JSON
-                        isEscaped = false;
-                    } else {
-                        sanitizedText += char;
-                        isEscaped = false;
-                    }
+              let sanitizedText = "";
+              let inString = false;
+              let isEscaped = false;
+              for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === '\\') {
+                  isEscaped = !isEscaped;
+                  sanitizedText += char;
+                } else if (char === '"' && !isEscaped) {
+                  inString = !inString;
+                  sanitizedText += char;
+                  isEscaped = false;
+                } else if (char === '\n' && inString) {
+                  sanitizedText += '\\n'; // Escape literal newline
+                  isEscaped = false;
+                } else if (char === '\r' && inString) {
+                  // Ignore carriage return inside string to prevent breaking JSON
+                  isEscaped = false;
+                } else {
+                  sanitizedText += char;
+                  isEscaped = false;
                 }
-                text = sanitizedText;
+              }
+              text = sanitizedText;
             } catch (e) {
-                // Ignore sanitizer errors
+              // Ignore sanitizer errors
             }
-            
+
             let parsedObj: any;
             try {
-                parsedObj = JSON.parse(text);
-                return parsedObj;
+              parsedObj = JSON.parse(text);
+              return parsedObj;
             } catch (parseError: any) {
-                console.warn(`[AICodeReviewEngine] JSON Parse Failed: ${parseError.message}. Using REGEX fallback extraction...`);
-                try {
-                    let passed = false;
-                    if (text.includes('"passed": true') || text.includes('"passed":true') || text.includes('"passed":  true')) {
-                        passed = true;
-                    }
-
-                    let percentageComplete = 0;
-                    const pctMatch = text.match(/"percentageComplete"\s*:\s*([0-9.]+)/);
-                    if (pctMatch) {
-                        percentageComplete = parseFloat(pctMatch[1]);
-                    }
-
-                    let reasoning = "Không thể trích xuất nhận xét do lỗi định dạng AI.";
-                    const reasoningMatch = text.match(/"reasoning"\s*:\s*"([\s\S]*?)"\s*(,\s*"relevantSnippets"|,\s*"relevantFiles"|})/);
-                    if (reasoningMatch) {
-                        reasoning = reasoningMatch[1].replace(/\\n/g, ' ').replace(/\n/g, ' ').replace(/\\"/g, '"');
-                    } else {
-                        const fallbackMatch = text.match(/"reasoning"\s*:\s*"([\s\S]*)$/); // Match until end of string if truncated
-                        if (fallbackMatch) {
-                            reasoning = fallbackMatch[1].replace(/\\n/g, ' ').replace(/\n/g, ' ').replace(/\\"/g, '"').replace(/"\s*\]?\s*\}?$/, '');
-                        }
-                    }
-
-                    // Extract snippets via order-agnostic Regex
-                    const relevantSnippets: any[] = [];
-                    const arrayMatch = text.match(/"relevantSnippets"\s*:\s*\[([\s\S]*?)\]/);
-                    if (arrayMatch) {
-                        const blocks = arrayMatch[1].match(/\{[\s\S]*?\}/g);
-                        if (blocks) {
-                            for (const block of blocks) {
-                                let codeSnippet = "";
-                                let filePath = "";
-                                let explanation = "Được trích xuất qua luồng cứu hộ dự phòng.";
-                                
-                                const codeM = block.match(/"codeSnippet"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
-                                if (codeM) codeSnippet = codeM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-                                
-                                const fileM = block.match(/"filePath"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
-                                if (fileM) filePath = fileM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-                                
-                                const expM = block.match(/"explanation"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
-                                if (expM) explanation = expM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-                                
-                                if (codeSnippet && filePath) {
-                                    relevantSnippets.push({ codeSnippet, filePath, explanation });
-                                }
-                            }
-                        }
-                    }
-
-                    const regexFallbackObj = {
-                        passed,
-                        confidence: 0.5,
-                        percentageComplete,
-                        reasoning,
-                        relevantSnippets,
-                        relevantFiles: []
-                    };
-                    
-                    return regexFallbackObj;
-                } catch (regexErr: any) {
-                    console.error("[AICodeReviewEngine] Regex Fallback Failed. Returning graceful 0 score.");
-                    return {
-                        passed: false,
-                        confidence: 0,
-                        percentageComplete: 0,
-                        reasoning: `AI Code Review service failed: Đoạn code trích xuất quá dài hoặc chứa ký tự đặc biệt khiến JSON bị vỡ (${parseError.message}).`,
-                        relevantSnippets: [],
-                        relevantFiles: []
-                    };
+              console.warn(`[AICodeReviewEngine] JSON Parse Failed: ${parseError.message}. Using REGEX fallback extraction...`);
+              try {
+                let passed = false;
+                if (text.includes('"passed": true') || text.includes('"passed":true') || text.includes('"passed":  true')) {
+                  passed = true;
                 }
+
+                let percentageComplete = 0;
+                const pctMatch = text.match(/"percentageComplete"\s*:\s*([0-9.]+)/);
+                if (pctMatch) {
+                  percentageComplete = parseFloat(pctMatch[1]);
+                }
+
+                let reasoning = "Không thể trích xuất nhận xét do lỗi định dạng AI.";
+                const reasoningMatch = text.match(/"reasoning"\s*:\s*"([\s\S]*?)"\s*(,\s*"relevantSnippets"|,\s*"relevantFiles"|})/);
+                if (reasoningMatch) {
+                  reasoning = reasoningMatch[1].replace(/\\n/g, ' ').replace(/\n/g, ' ').replace(/\\"/g, '"');
+                } else {
+                  const fallbackMatch = text.match(/"reasoning"\s*:\s*"([\s\S]*)$/); // Match until end of string if truncated
+                  if (fallbackMatch) {
+                    reasoning = fallbackMatch[1].replace(/\\n/g, ' ').replace(/\n/g, ' ').replace(/\\"/g, '"').replace(/"\s*\]?\s*\}?$/, '');
+                  }
+                }
+
+                // Extract snippets via order-agnostic Regex
+                const relevantSnippets: any[] = [];
+                const arrayMatch = text.match(/"relevantSnippets"\s*:\s*\[([\s\S]*?)\]/);
+                if (arrayMatch) {
+                  const blocks = arrayMatch[1].match(/\{[\s\S]*?\}/g);
+                  if (blocks) {
+                    for (const block of blocks) {
+                      let codeSnippet = "";
+                      let filePath = "";
+                      let explanation = "Được trích xuất qua luồng cứu hộ dự phòng.";
+
+                      const codeM = block.match(/"codeSnippet"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
+                      if (codeM) codeSnippet = codeM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+
+                      const fileM = block.match(/"filePath"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
+                      if (fileM) filePath = fileM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+
+                      const expM = block.match(/"explanation"\s*:\s*"([\s\S]*?)"(?=\s*(?:,|}|$))/);
+                      if (expM) explanation = expM[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+
+                      if (codeSnippet && filePath) {
+                        relevantSnippets.push({ codeSnippet, filePath, explanation });
+                      }
+                    }
+                  }
+                }
+
+                const regexFallbackObj = {
+                  passed,
+                  confidence: 0.5,
+                  percentageComplete,
+                  reasoning,
+                  relevantSnippets,
+                  relevantFiles: []
+                };
+
+                return regexFallbackObj;
+              } catch (regexErr: any) {
+                throw new Error(`AI Code Review service failed: Đoạn code trích xuất quá dài hoặc chứa ký tự đặc biệt khiến JSON bị vỡ (${parseError.message}).`);
+              }
             }
           } finally {
             clearTimeout(timeoutId);
@@ -361,59 +353,59 @@ STRICT RULES:
         // --- ENFORCE RULE 8 WITHOUT RETRIES (SPEED OPTIMIZATION) ---
         // If the AI gives a score > 0 but stubbornly returns 0 valid snippets, synthesize the evidence
         // to prevent retries (which slow down the system).
-        
+
         const scorePct = typeof finalParsed.percentageComplete === 'number' ? finalParsed.percentageComplete : (finalParsed.passed ? 1 : 0);
         if (!finalParsed.relevantSnippets) finalParsed.relevantSnippets = [];
-        
+
         // Ensure snippets have the required fields to be rendered by the dashboard
         const hasValidSnippets = finalParsed.relevantSnippets.some((s: any) => s && s.codeSnippet && s.codeSnippet.trim() !== '' && s.filePath);
 
         if (scorePct > 0 && !hasValidSnippets) {
-            finalParsed.relevantSnippets = []; // Clear invalid ones
-            
-            // Attempt to synthesize from relevantFiles
-            if (finalParsed.relevantFiles && finalParsed.relevantFiles.length > 0) {
-                for (const file of finalParsed.relevantFiles) {
-                    const escapedFile = file.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-                    // Allow partial paths: match anything before the file name on the same line
-                    // Stop matching at \n\n--- OR \n\n... [CONTENT TRUNCATED
-                    const regex = new RegExp(`// FILE:\\s*(?:[^\\n]*?)${escapedFile}\\s*\\n([\\s\\S]*?)(?=\\n\\n---|\\n\\n\\.\\.\\. \\[CONTENT TRUNCATED)`);
-                    const match = prompt.match(regex);
-                    if (match) {
-                        let content = match[1].trim();
-                        finalParsed.relevantSnippets.push({
-                            codeSnippet: content, // Return full file content
-                            filePath: file,
-                            explanation: "Toàn bộ mã nguồn tệp được trích xuất làm bằng chứng dự phòng."
-                        });
-                    }
-                }
+          finalParsed.relevantSnippets = []; // Clear invalid ones
+
+          // Attempt to synthesize from relevantFiles
+          if (finalParsed.relevantFiles && finalParsed.relevantFiles.length > 0) {
+            for (const file of finalParsed.relevantFiles) {
+              const escapedFile = file.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+              // Allow partial paths: match anything before the file name on the same line
+              // Stop matching at \n\n--- OR \n\n... [CONTENT TRUNCATED
+              const regex = new RegExp(`// FILE:\\s*(?:[^\\n]*?)${escapedFile}\\s*\\n([\\s\\S]*?)(?=\\n\\n---|\\n\\n\\.\\.\\. \\[CONTENT TRUNCATED)`);
+              const match = prompt.match(regex);
+              if (match) {
+                let content = match[1].trim();
+                finalParsed.relevantSnippets.push({
+                  codeSnippet: content, // Return full file content
+                  filePath: file,
+                  explanation: "Toàn bộ mã nguồn tệp được trích xuất làm bằng chứng dự phòng."
+                });
+              }
             }
-            
-            // Fallback to first file in prompt if STILL empty
-            if (finalParsed.relevantSnippets.length === 0) {
-                 const match = prompt.match(/\/\/ FILE:\s*([^\n]+)\s*\n([\s\S]*?)(?=\n\n---|\n\n\.\.\. \[CONTENT TRUNCATED)/);
-                 if (match) {
-                     let content = match[2].trim();
-                     finalParsed.relevantSnippets.push({
-                         codeSnippet: content, // Return full file content
-                         filePath: match[1].trim(),
-                         explanation: "Toàn bộ mã nguồn tệp được trích xuất làm bằng chứng dự phòng."
-                     });
-                 }
+          }
+
+          // Fallback to first file in prompt if STILL empty
+          if (finalParsed.relevantSnippets.length === 0) {
+            const match = prompt.match(/\/\/ FILE:\s*([^\n]+)\s*\n([\s\S]*?)(?=\n\n---|\n\n\.\.\. \[CONTENT TRUNCATED)/);
+            if (match) {
+              let content = match[2].trim();
+              finalParsed.relevantSnippets.push({
+                codeSnippet: content, // Return full file content
+                filePath: match[1].trim(),
+                explanation: "Toàn bộ mã nguồn tệp được trích xuất làm bằng chứng dự phòng."
+              });
             }
+          }
         }
 
         return finalParsed;
       } catch (error: any) {
         lastError = error;
-        const isTimeoutOrRateLimit = error.message?.includes('AI_TIMEOUT') || 
-                                     error.message?.includes('abort') || 
-                                     error.status === 429 || 
-                                     error.status === 503 ||
-                                     error.message?.includes('fetch failed') ||
-                                     error instanceof SyntaxError;
-        
+        const isTimeoutOrRateLimit = error.message?.includes('AI_TIMEOUT') ||
+          error.message?.includes('abort') ||
+          error.status === 429 ||
+          error.status === 503 ||
+          error.message?.includes('fetch failed') ||
+          error instanceof SyntaxError;
+
         if (error.status === 429 || (error.message && error.message.includes('429'))) {
           console.error(`[AICodeReviewEngine] Global rate limit (429) hit. Aborting code review for this rule to prevent nested retry floods.`);
           break;
@@ -423,21 +415,14 @@ STRICT RULES:
           console.warn(`[AICodeReviewEngine] Attempt ${attempt} failed (Error: ${error.message}). Retrying with reduced context (${maxContextLengths[attempt]} chars)...`);
           continue; // Retry loop
         }
-        
+
         // If it's a completely different error, or we exhausted all retries, break and return failure
         break;
       }
     }
 
     console.error(`[AICodeReviewEngine] Failed to evaluate after ${attempt} attempts:`, lastError);
-    return {
-      passed: false,
-      confidence: 0,
-      percentageComplete: 0,
-      reasoning: `AI Code Review service failed: ${lastError?.message || lastError || "Unknown error"}`,
-      relevantSnippets: [],
-      relevantFiles: []
-    };
+    throw new Error(`AI Code Review service failed: ${lastError?.message || lastError || "Unknown error"}`);
   }
 
   /**

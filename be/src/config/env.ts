@@ -7,7 +7,7 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   DATABASE_URL: z.string(),
   JWT_SECRET: z.string().min(16),
-  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('1h'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   AI_STUB_MODE: z

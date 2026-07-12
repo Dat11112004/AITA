@@ -1,34 +1,29 @@
 import type { NavItem } from '@/types'
 
 export const ADMIN_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/admin', icon: 'LayoutDashboard' },
-  { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'Users' },
-  { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'BookOpen' },
-  { id: 'subjects', label: 'Môn học', path: '/admin/subjects', icon: 'Library' },
-  { id: 'exams', label: 'Kỳ thi', path: '/admin/exams', icon: 'FileSignature' },
-  { id: 'reports', label: 'Báo cáo', path: '/admin/reports', icon: 'BarChart3' },
-  { id: 'audit-logs', label: 'Nhật ký', path: '/admin/audit-logs', icon: 'FileText' },
-  { id: 'ai-config', label: 'Cấu hình AI', path: '/admin/ai-config', icon: 'Bot' },
-  { id: 'settings', label: 'Cài đặt', path: '/admin/settings', icon: 'Settings' },
-  { id: 'notifications', label: 'Thông báo', path: '/admin/notifications', icon: 'BellRing' },
-  { id: 'profile', label: 'Hồ sơ', path: '/admin/profile', icon: 'UserCircle' },
+  { id: 'overview', label: 'Tổng quan', path: '/admin', icon: 'LayoutDashboard', category: 'Chung' },
+  { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'Users', category: 'Quản lý Đào tạo' },
+  { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'BookOpen', category: 'Quản lý Đào tạo' },
+  { id: 'subjects', label: 'Môn học', path: '/admin/subjects', icon: 'Library', category: 'Quản lý Đào tạo' },
+  { id: 'exams', label: 'Kỳ thi', path: '/admin/exams', icon: 'FileSignature', category: 'Quản lý Đào tạo' },
+  { id: 'reports', label: 'Báo cáo', path: '/admin/reports', icon: 'BarChart3', category: 'Phân tích & Báo cáo' },
+  { id: 'audit-logs', label: 'Nhật ký', path: '/admin/audit-logs', icon: 'FileText', category: 'Phân tích & Báo cáo' },
+  { id: 'ai-config', label: 'Cấu hình AI', path: '/admin/ai-config', icon: 'Bot', category: 'Hệ thống' },
+  { id: 'settings', label: 'Cài đặt', path: '/admin/settings', icon: 'Settings', category: 'Hệ thống' },
 ]
 
 export const LECTURER_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/lecturer', icon: 'LayoutDashboard' },
-  { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen' },
-  { id: 'assignments', label: 'Bài tập', path: '/lecturer/assignments', icon: 'FileText' },
-  { id: 'exams', label: 'Kỳ thi', path: '/lecturer/exams', icon: 'FileSignature' },
-  { id: 'grading-assignments', label: 'Quản lý bài chấm', path: '/lecturer/grading/assignments', icon: 'FileCheck' },
-  { id: 'profile', label: 'Hồ sơ', path: '/lecturer/profile', icon: 'UserCircle' },
+  { id: 'overview', label: 'Tổng quan', path: '/lecturer', icon: 'LayoutDashboard', category: 'Chung' },
+  { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen', category: 'Đào tạo' },
+  { id: 'grading-assignments', label: 'Quản lý Bài tập', path: '/lecturer/grading/assignments', icon: 'FileCheck', category: 'Học liệu' },
+  { id: 'teamwork', label: 'Đánh giá Nhóm', path: '/lecturer/grading/teamwork', icon: 'Users', category: 'Chấm điểm' },
 ]
 
 export const STUDENT_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/student', icon: 'LayoutDashboard' },
-  { id: 'courses', label: 'Khóa học', path: '/student/courses', icon: 'BookOpen' },
-  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'GraduationCap' },
-  { id: 'assignments', label: 'Bài tập', path: '/student/assignments', icon: 'ClipboardList' },
-  { id: 'profile', label: 'Hồ sơ', path: '/student/profile', icon: 'UserCircle' },
+  { id: 'overview', label: 'Tổng quan', path: '/student', icon: 'LayoutDashboard', category: 'Chung' },
+  { id: 'courses', label: 'Khóa học', path: '/student/courses', icon: 'BookOpen', category: 'Học tập' },
+  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'GraduationCap', category: 'Học tập' },
+  { id: 'assignments', label: 'Bài tập', path: '/student/assignments', icon: 'ClipboardList', category: 'Đánh giá & Chấm điểm' },
 ]
 
 export const PUBLIC_NAV = [

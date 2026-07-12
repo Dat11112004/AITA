@@ -40,8 +40,8 @@ export function LoginPage() {
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
-    const savedCreds = localStorage.getItem('rememberedCreds')
-    if (savedCreds) {
+    const savedUser = localStorage.getItem('aita_user')
+    if (savedUser) {
       setRememberMe(true)
     }
   }, [])
@@ -49,19 +49,6 @@ export function LoginPage() {
   const handleEmailChange = (val: string | React.ChangeEvent<HTMLInputElement>) => {
     const newEmail = typeof val === 'string' ? val : val.target.value;
     setEmail(newEmail);
-    
-    const savedCreds = localStorage.getItem('rememberedCreds');
-    if (savedCreds) {
-      try {
-        const creds = JSON.parse(atob(savedCreds));
-        if (creds.email === newEmail) {
-          setPassword(creds.password);
-        } else if (password === creds.password) {
-          // Xóa password nếu người dùng thay đổi email khác với email đã lưu
-          setPassword('');
-        }
-      } catch (err) {}
-    }
   }
 
   const go = (role: UserRole) => {
@@ -81,12 +68,7 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(''); setLoading(true)
     try {
-      const role = await login(email, password)
-      if (rememberMe) {
-        localStorage.setItem('rememberedCreds', btoa(JSON.stringify({ email, password })))
-      } else {
-        localStorage.removeItem('rememberedCreds')
-      }
+      const role = await login(email, password, rememberMe)
       go(role)
     }
     catch (e) { setErr(e instanceof ApiError ? e.message : t('auth.failed.login')) }

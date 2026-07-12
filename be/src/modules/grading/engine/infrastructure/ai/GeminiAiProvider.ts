@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { IAiProvider, ParsedBlueprint, ParsedRequirement } from '../../core/contracts/IAiProvider';
+import { IAiProvider, ParsedBlueprint, ParsedRequirement, DocumentImage } from '../../core/contracts/IAiProvider';
 // import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { config } from '../../config';
@@ -12,7 +12,8 @@ export class GeminiAiProvider implements IAiProvider {
     }
 
 
-      public async parseRequirementsAsync(prompt: string): Promise<ParsedBlueprint> {
+    public async parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[]): Promise<ParsedBlueprint> {
+        const hasImages = documentImages && documentImages.length > 0;
         const systemPrompt = `You are an expert software architect and academic grader at FPT University.
 
 Extract ALL grading criteria from this assignment document — every concrete, testable requirement a student must implement OR answer to earn marks.
@@ -132,11 +133,20 @@ OUTPUT FORMAT (JSON OBJECT)
   ]
 }`;
 
-        const fullPrompt = `${systemPrompt}\n\nDocument Text:\n${prompt}`;
+        // ═══════════════════════════════════════════════════════
+        // IMAGE ANALYSIS ADDENDUM — Only when document contains images
+        // ═══════════════════════════════════════════════════════
+        const imageAnalysisAddendum = hasImages ? `\n\n════════════════════════════════════════\nIMAGE ANALYSIS INSTRUCTIONS (CRITICAL)\n════════════════════════════════════════\nThis document contains ${documentImages!.length} embedded image(s). These images may include:\n- Database schemas / ERD diagrams showing tables, columns, data types, and relationships\n- UI mockup designs showing the expected visual layout\n- Architecture diagrams\n\nYou MUST carefully analyze EVERY image provided. For each image:\n1. If it is a DATABASE SCHEMA / ERD: Extract ALL table names, column names, data types, primary keys, foreign keys, and relationships. Include these details in the relevant requirement descriptions (e.g., "Table 'Products' must have columns: Id (int, PK), Name (nvarchar), Price (decimal), CategoryId (int, FK to Categories)").
+2. If it is a UI MOCKUP: Describe the layout, components, navigation structure, and any specific design requirements visible in the mockup. Set isUIVisible=true for requirements derived from it.
+3. If it is an ARCHITECTURE DIAGRAM: Extract layers, components, and their interactions.\n\nDo NOT ignore images. The text may say "See diagram below" — YOU are seeing that diagram right now. Extract its full content into your requirements.` : '';
+
+        const fullSystemPrompt = systemPrompt + imageAnalysisAddendum;
+
+        const fullPrompt = `${fullSystemPrompt}\n\nDocument Text:\n${prompt}`;
 
         // Debug: Log prompt stats
-        console.log(`[GeminiAiProvider] parseRequirementsAsync - systemPrompt: ${systemPrompt.length} chars, userPrompt: ${prompt.length} chars, total: ${(systemPrompt.length + prompt.length)} chars`);
-        
+        console.log(`[GeminiAiProvider] parseRequirementsAsync - systemPrompt: ${fullSystemPrompt.length} chars, userPrompt: ${prompt.length} chars, images: ${documentImages?.length || 0}, total: ${(fullSystemPrompt.length + prompt.length)} chars`);
+
         // Check for problematic content in prompt
         const hasNullBytes = prompt.includes('\0');
         const hasInvalidChars = /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(prompt);
@@ -151,15 +161,43 @@ OUTPUT FORMAT (JSON OBJECT)
                 let response: any;
                 response = await AiClientManager.executeWithFallback(async (client, model) => {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 120000);
+                    const timeoutMs = hasImages ? 180000 : 120000; // Extra time for vision
+                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     try {
+                        // Build message content: multimodal if images exist, text-only otherwise
+                        let userMessageContent: any;
+                        if (hasImages) {
+                            // Multimodal: text + images (same format as evaluateImageAsync)
+                            const parts: any[] = [{ type: "text", text: prompt }];
+                            for (const img of documentImages!) {
+                                parts.push({
+                                    type: "text",
+                                    text: `[DOCUMENT IMAGE — ${img.label}${img.isMockup ? ' (TEACHER MOCKUP/REFERENCE)' : ''}]:`
+                                });
+                                parts.push({
+                                    type: "image_url",
+                                    image_url: {
+                                        url: `data:${img.contentType};base64,${img.buffer.toString('base64')}`,
+                                        detail: "high" // High detail for DB schema text recognition
+                                    }
+                                });
+                            }
+                            userMessageContent = parts;
+                            console.log(`[GeminiAiProvider] Sending multimodal request with ${documentImages!.length} images (detail: high)`);
+                        } else {
+                            userMessageContent = prompt;
+                        }
+
                         return await Promise.race([
                             client.chat.completions.create({
                                 model: model,
-                                messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }],
+                                messages: [
+                                    { role: "system", content: fullSystemPrompt },
+                                    { role: "user", content: userMessageContent }
+                                ],
                                 temperature: 0
                             }, { signal: controller.signal as any }),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), 120000))
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs))
                         ]);
                     } finally {
                         clearTimeout(timeoutId);
@@ -169,6 +207,17 @@ OUTPUT FORMAT (JSON OBJECT)
                 let jsonText = response.choices[0].message.content || "{}";
                 jsonText = jsonText.replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
                 let blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+
+                // Remove empty requirements hallucinated by the AI and clean markdown
+                if (blueprint.requirements && Array.isArray(blueprint.requirements)) {
+                    blueprint.requirements = blueprint.requirements
+                        .filter(req => req && req.title && req.title.trim() !== '' && req.description && req.description.trim() !== '')
+                        .map(req => {
+                            req.title = req.title.replace(/\*\*/g, '');
+                            req.description = req.description.replace(/\*\*/g, '');
+                            return req;
+                        });
+                }
 
                 // ═══════════════════════════════════════════════════════
                 // CODE-LEVEL ALGORITHM DETECTION FALLBACK
@@ -214,15 +263,15 @@ OUTPUT FORMAT (JSON OBJECT)
                     for (const group of blueprint.gradingGroups) {
                         const reqsInGroup = blueprint.requirements.filter(r => r.groupId === group.id);
                         if (reqsInGroup.length === 0) continue;
-                        
+
                         const reqsWithMarks = reqsInGroup.filter(r => typeof r.marks === 'number' && r.marks > 0);
                         const reqsWithoutMarks = reqsInGroup.filter(r => typeof r.marks !== 'number' || r.marks <= 0);
-                        
+
                         const assignedPoints = reqsWithMarks.reduce((sum, r) => sum + (r.marks as number), 0);
-                        
+
                         if (reqsWithoutMarks.length > 0) {
                             const remainingPoints = Math.max(0, group.points - assignedPoints);
-                            
+
                             // Give each req a weight based on complexity
                             reqsWithoutMarks.forEach(r => {
                                 (r as any)._weight = r.complexity === 'high' ? 3 : (r.complexity === 'low' ? 1 : 2);
@@ -243,7 +292,7 @@ OUTPUT FORMAT (JSON OBJECT)
                             let diff = remainingPoints - currentSum;
                             const step = 0.25;
                             let safetyCounter = 0;
-                            
+
                             while (Math.abs(diff) > 0.01 && safetyCounter < 100) {
                                 safetyCounter++;
                                 if (diff > 0) {
@@ -259,14 +308,14 @@ OUTPUT FORMAT (JSON OBJECT)
                                     diff += step;
                                 }
                             }
-                            
+
                             // Cleanup temp variable and round to 2 decimals to fix float math issues
                             reqsWithoutMarks.forEach(r => {
                                 r.marks = Math.round((r.marks as number) * 100) / 100;
                                 delete (r as any)._weight;
                             });
                         }
-                        
+
                         // Re-sum to prevent AI rounding errors on the group total
                         const actualGroupPoints = reqsInGroup.reduce((sum, r) => sum + (r.marks as number), 0);
                         group.points = actualGroupPoints;
@@ -274,7 +323,7 @@ OUTPUT FORMAT (JSON OBJECT)
                     }
                     blueprint.totalMarks = totalComputed;
                 }
-                
+
                 // ═══════════════════════════════════════════════════════
                 // DETERMINISTIC ALGORITHM RUBRIC OVERRIDE (SENIOR SOLUTION)
                 // ═══════════════════════════════════════════════════════
@@ -353,7 +402,7 @@ OUTPUT FORMAT (JSON OBJECT)
         // 1. Determine strategies deterministically
         const strategyMap = new Map<string, string>();
         let hasStdInOutProbe = false;
-        
+
         for (const req of requirements) {
             let strategy = "AICodeReview";
             if (req.isWrittenAnswer) {
@@ -489,7 +538,7 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
             if (assignmentDescription) {
                 systemPrompt += `\n\n--- ORIGINAL ASSIGNMENT DESCRIPTION ---\n${assignmentDescription}\n---------------------------------------`;
             }
-            
+
             const prompt = `Requirements to configure:\n${JSON.stringify(unresolvedProbeReqs, null, 2)}`;
             try {
                 const response = await AiClientManager.executeWithFallback(async (client, model) => {
@@ -700,7 +749,7 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
             }
             messageContent.push({
                 type: "image_url",
-                image_url: { 
+                image_url: {
                     url: `data:image/jpeg;base64,${img.buffer.toString("base64")}`,
                     detail: "low"
                 }
@@ -708,7 +757,7 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
         });
 
         console.log(`[GeminiAiProvider] Sending ${imageBuffers.length} images to Vision AI (detail: low) for rule: ${requirement.substring(0, 50)}...`);
-        
+
         let imageHashData = '';
         imageBuffers.forEach((img) => {
             imageHashData += img.buffer.length.toString() + (img.isMockup ? '1' : '0');
@@ -742,12 +791,12 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
                     clearTimeout(timeoutId);
                 }
             }, cacheKey);
-            
+
             let text = response.choices[0].message.content?.trim() || "{}";
 
             text = text.replace(/^```json/g, "").replace(/```$/g, "").trim();
             const parsedResult = JSON.parse(text);
-            
+
             console.log(`[GeminiAiProvider] Vision API returned in ${Date.now() - startTime}ms. Confidence: ${parsedResult.score}`);
 
             const score = parseFloat(parsedResult.score);
@@ -759,7 +808,7 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
             };
         } catch (error: any) {
             console.error(`[GeminiAiProvider] Failed to evaluate image (outer):`, error.message || error);
-            return { score: 0.0, explanation: `Hệ thống chấm điểm AI Vision gặp sự cố: ${error.message}` };
+            throw new Error(`Hệ thống chấm điểm AI Vision gặp sự cố: ${error.message || 'Unknown error'}`);
         }
     }
 
@@ -770,7 +819,7 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
     // This ensures test cases are IDENTICAL to the examples shown to students.
     private extractExamplesFromDescription(description: string): { input: string; output: string }[] {
         const examples: { input: string; output: string }[] = [];
-        
+
         // Strip HTML tags but preserve whitespace structure
         const text = description
             .replace(/<br\s*\/?>/gi, '\n')
@@ -781,29 +830,29 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
             .replace(/&gt;/g, '>')
             .replace(/&nbsp;/g, ' ')
             .replace(/&#?\w+;/g, '');
-        
+
         // Restrict search area to the examples section to avoid matching "input" in technical requirements
         let searchArea = text;
         const examplesSectionMatch = text.match(/expected behavior|example inputs and outputs|examples?|test cases?/i);
         if (examplesSectionMatch && examplesSectionMatch.index !== undefined) {
             searchArea = text.substring(examplesSectionMatch.index);
         }
-        
+
         // Strategy 1: Find "Input:" / "Output:" blocks  
         // Matches patterns like:
         //   Input:\n  5\n  1 2 3 4 5\n  9\n  Output:\n  0 1
         const ioPattern = /(?:input|input example)[:\s]*\n([\s\S]*?)(?:output|expected output)[:\s]*\n([\s\S]*?)(?=(?:input|input example)[:\s]*\n|$)/gi;
         let match;
-        
+
         while ((match = ioPattern.exec(searchArea)) !== null) {
             const rawInput = match[1].trim();
             const rawOutput = match[2].trim();
-            
+
             if (rawInput && rawOutput) {
                 // Clean each line: trim whitespace, join with \n
                 const inputLines = rawInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 const outputLines = rawOutput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                
+
                 if (inputLines.length > 0 && outputLines.length > 0) {
                     examples.push({
                         input: inputLines.join('\n'),
@@ -812,12 +861,12 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
                 }
             }
         }
-        
+
         if (examples.length > 0) {
             console.log(`[GeminiAiProvider] extractExamplesFromDescription: Found ${examples.length} examples via Input/Output pattern.`);
             return examples;
         }
-        
+
         // Strategy 2: Find "In:" / "Out:" shorthand blocks
         const shortPattern = /(?:^|\n)\s*In:\s*([\s\S]*?)(?:^|\n)\s*Out:\s*([\s\S]*?)(?=(?:^|\n)\s*In:|$)/gim;
         while ((match = shortPattern.exec(searchArea)) !== null) {
@@ -830,11 +879,11 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
                 });
             }
         }
-        
+
         if (examples.length > 0) {
             console.log(`[GeminiAiProvider] extractExamplesFromDescription: Found ${examples.length} examples via In/Out pattern.`);
         }
-        
+
         return examples;
     }
 }

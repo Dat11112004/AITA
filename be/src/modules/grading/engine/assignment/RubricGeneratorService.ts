@@ -92,6 +92,15 @@ export class RubricGeneratorService {
             // LLM-DIRECTED ROUTING (NEW INTELLIGENT SYSTEM)
             // ═══════════════════════════════════════════════════════
             
+            const hasDataAuthLogic = ["firebase", "firestore", "auth", "đăng nhập", "đăng ký", "login", "register", "database", "cơ sở dữ liệu", "lưu trữ", "sql", "mongo", "crud", "api", "fetch"].some(kw => textToCheck.includes(kw));
+
+            // CRITICAL OVERRIDE: If the requirement involves Database/Auth/Firebase logic, 
+            // it MUST NOT be graded purely by AIVision. It must be AICodeReview.
+            if (hasDataAuthLogic && req.recommendedEngine !== 'AICodeReview' && req.recommendedEngine !== 'HTTPProbe') {
+                req.recommendedEngine = 'AICodeReview';
+                req.isArchitectureCode = true;
+            }
+
             // Safety override: If the requirement is clearly asking to answer questions, explain, or describe, force it to AiTextAnalysis.
             if (/^(explain|answer|describe|why|how|what|list|analyze)\b/i.test(req.title) || (/explain|describe|answer/i.test(textToCheck) && !/implement|build|create|add|display|show|design architecture/i.test(textToCheck))) {
                 req.recommendedEngine = 'AiTextAnalysis';
@@ -390,6 +399,13 @@ export class RubricGeneratorService {
                         const steps = req.complexityReason.split(/[,;]/).length;
                         reasonBonus = steps > 2 ? 2 : (steps > 1 ? 1 : 0);
                     }
+                    
+                    // Penalty for non-functional or clean code rules to prioritize functional requirements
+                    const textToCheck = (req.title + " " + req.description).toLowerCase();
+                    if (/clean code|structured|solid|dry|tổ chức rõ ràng|mã nguồn sạch/.test(textToCheck)) {
+                        base = 1;
+                        reasonBonus = 0;
+                    }
                 }
                 
                 return { ...rule, weight: base + reasonBonus };
@@ -402,9 +418,9 @@ export class RubricGeneratorService {
         const currentTotal = computedRules.reduce((sum, r) => sum + r.weight, 0);
         
         if (currentTotal > 0 && Math.abs(currentTotal - 10.0) > 0.01) {
-            // Scale to exactly 10.0 using 0.05 steps to meet standard academic rubric increments while preserving parent weights
+            // Scale to exactly 10.0 using 0.25 steps to meet standard academic rubric increments while preserving parent weights
             const scale = 10.0 / currentTotal;
-            const step = 0.05;
+            const step = 0.25;
             let currentSum = 0;
             
             computedRules.forEach(rule => {

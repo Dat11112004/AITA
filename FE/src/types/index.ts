@@ -8,6 +8,7 @@ export interface NavItem {
   path: string
   icon: string
   badge?: string
+  category?: string
 }
 
 export interface BreadcrumbItem {
@@ -127,6 +128,7 @@ export interface SubmissionResponse {
   failedRules: ScoreRule[];
   manualReviewNotes?: string[];
   assessedAt?: string;
+  error?: string;
 }
 
 export interface RubricRule {

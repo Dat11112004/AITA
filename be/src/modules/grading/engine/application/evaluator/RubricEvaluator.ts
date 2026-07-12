@@ -73,12 +73,13 @@ export class RubricEvaluator {
         let currentRuleIndex = 0;
         const totalRules = rubric.rules.length;
 
-        for (const rule of rubric.rules) {
-            const job = globalJobManager.getJob(submissionId);
+        try {
+            for (const rule of rubric.rules) {
+                const job = globalJobManager.getJob(submissionId);
             if (job?.isCancelled) {
                 throw new Error('Cancelled by user');
             }
-            
+
             currentRuleIndex++;
 
             if (onProgress) {
@@ -123,7 +124,7 @@ export class RubricEvaluator {
 
                     if (isUI) {
                         let images = bestSection?.images?.filter((img: any) => !img.isMockup) || [];
-                        
+
                         if (scoredSections[0].score > 0 && images.length > 0) {
                             // Take the first image of the confidently matched section
                             const img = images[0];
@@ -261,6 +262,33 @@ export class RubricEvaluator {
             } else {
                 failedRules.push(scoredRule);
             }
+        } // Close for loop
+        } catch (err: any) {
+            console.warn(`[RubricEvaluator] Evaluation interrupted for ${submissionId}: ${err.message}. Building partial report.`);
+            
+            totalScore = Math.round(totalScore * 100) / 100;
+            if (totalScore > rubric.totalWeight) totalScore = rubric.totalWeight;
+
+            const partialReport: AssessmentReport = {
+                submissionId,
+                assignmentId,
+                studentId,
+                totalScore,
+                maxPossibleScore: rubric.totalWeight,
+                isPass: false,
+                passedRules,
+                failedRules,
+                manualReviewNotes: requiresManualReview ? manualReviewNotes : undefined,
+                error: err.message || 'Unknown error occurred during evaluation',
+                auditMetadata: {
+                    evaluatorVersion: '1.0.0',
+                    timestamp: new Date().toISOString(),
+                    auditLogIds: []
+                }
+            };
+
+            err.partialReport = partialReport;
+            throw err;
         }
 
         totalScore = Math.round(totalScore * 100) / 100;
@@ -295,7 +323,7 @@ export class RubricEvaluator {
             switch (rule.scoringStrategy as string) {
                 case "AIVision": {
                     const ruleText = (rule.title + " " + (rule.description || "")).toLowerCase();
-                    
+
                     // Get ALL screenshots from the pool (captured by Playwright's universal route discovery)
                     const screenshotEvidences = context.evidencePool.filter(e => e.type === 'browser.screenshot.captured');
 
@@ -342,11 +370,11 @@ export class RubricEvaluator {
                             for (const kw of ruleKeywords) {
                                 if (sectionKeywords.includes(kw)) matches++;
                             }
-                            
+
                             let studentImageCount = (s.images || []).filter(img => !img.isMockup).length;
                             if (index > 0) studentImageCount += (arr[index - 1].images || []).filter(img => !img.isMockup).length;
                             if (index < arr.length - 1) studentImageCount += (arr[index + 1].images || []).filter(img => !img.isMockup).length;
-                            
+
                             let adjustedMatches = matches;
                             // Since this matching logic is purely for finding Evidence IMAGES to send to Gemini Vision,
                             // we heavily penalize text-only sections (like the teacher's exam prompt) to ensure 
@@ -356,7 +384,7 @@ export class RubricEvaluator {
                             }
 
                             matchScores.push({ index, matches: adjustedMatches });
-                            
+
                             // If more than 60% of keywords match AND it has images, consider it the correct section!
                             if (ruleKeywords.length > 0 && matches >= (ruleKeywords.length * 0.6) && studentImageCount > 0) {
                                 matchingIndices.push(index);
@@ -384,19 +412,19 @@ export class RubricEvaluator {
                                 if (nextIdx < context.extractedDocument!.sections.length) {
                                     const nextSection = context.extractedDocument!.sections[nextIdx];
                                     const nextPartLabel = (nextSection.partLabel || '').toLowerCase();
-                                    
+
                                     // Stop expanding if the next section is a numbered major heading
                                     const isMajorHeading = /^(question|requirement|part|task|bài|câu)\s*[0-9]+/i.test(nextPartLabel) ||
-                                                           /^[0-9]+[\.\)]\s*(question|requirement|part|task|bài|câu)/i.test(nextPartLabel);
-                                    
+                                        /^[0-9]+[\.\)]\s*(question|requirement|part|task|bài|câu)/i.test(nextPartLabel);
+
                                     if (isMajorHeading) break;
-                                    
+
                                     expandedIndices.add(nextIdx);
                                 }
                             }
                         });
-                        
-                        const matchingSections = Array.from(expandedIndices).sort((a,b) => a-b).map(idx => context.extractedDocument!.sections[idx]);
+
+                        const matchingSections = Array.from(expandedIndices).sort((a, b) => a - b).map(idx => context.extractedDocument!.sections[idx]);
 
                         extractedImages = matchingSections.flatMap((s, idx) => (s.images || []).map(img => ({ ...img, sectionIndex: idx })));
 
@@ -404,11 +432,11 @@ export class RubricEvaluator {
                         if (extractedImages.length === 0 && (rule.category?.toUpperCase().includes('UI') || rule.category?.toUpperCase().includes('UX'))) {
                             extractedImages = context.extractedDocument.sections
                                 .map((s, idx) => ({ section: s, sectionIndex: idx }))
-                                .filter(({section}) => {
+                                .filter(({ section }) => {
                                     const lbl = (section.partLabel || '').toUpperCase();
                                     return !lbl.includes('DESCRIPTION') && !lbl.includes('QUESTION') && !lbl.includes('PROBLEM');
                                 })
-                                .flatMap(({section, sectionIndex}) => (section.images || []).map(img => ({ ...img, sectionIndex })));
+                                .flatMap(({ section, sectionIndex }) => (section.images || []).map(img => ({ ...img, sectionIndex })));
                         }
 
                         // Prioritize student submissions (!isMockup) over teacher mockups
@@ -489,7 +517,7 @@ export class RubricEvaluator {
                     let finalPassed = false;
                     let finalReason = "";
                     const evidencePayload: any = {};
-                    
+
                     if (!visionOutput && !codeResult) {
                         return this.fail(rule, "Cả hai hệ thống AI Vision và AI Code Review đều gặp sự cố hoặc không có dữ liệu.");
                     }
@@ -532,12 +560,12 @@ export class RubricEvaluator {
 
                         finalScore = visionScore + codeScore;
                         finalPassed = finalScore >= (rule.weight * 0.7); // 70% threshold for hybrid
-                        
+
                         // Only format the display strings to avoid mutating the actual mathematical score
                         const formatScore = (s: number) => parseFloat(s.toFixed(3));
-                        
+
                         finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: ${formatScore(visionScore)}/${formatScore(rule.weight * 0.5)}, Điểm Code: ${formatScore(codeScore)}/${formatScore(rule.weight * 0.5)}.\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Không có dữ liệu'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Không có dữ liệu'}`;
-                        
+
                         if (smartCompensationTriggered) {
                             finalReason += `\n\n💡 Bù trừ thông minh: Mặc dù ảnh chụp UI không thể hiện đầy đủ các trạng thái động (như Loading/Empty state), hệ thống phát hiện Mã nguồn (Code) đã triển khai phần logic tương ứng. Điểm UI được tự động bù trừ dựa trên Logic Code.`;
                         }
@@ -743,7 +771,7 @@ export class RubricEvaluator {
                         if (context.extractedDocument) {
                             const sanitize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
                             const hint = rule.contextHint ? sanitize(rule.contextHint) : sanitize(rule.title);
-                            
+
                             const getKeywords = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 3);
                             const ruleKeywords = getKeywords(rule.title + " " + (rule.contextHint || ""));
 
@@ -758,7 +786,7 @@ export class RubricEvaluator {
 
                                 let combinedText = s.title + " " + s.textContent;
                                 if (index > 0) combinedText += " " + arr[index - 1].title + " " + arr[index - 1].textContent;
-                                
+
                                 const sectionKeywords = getKeywords(combinedText);
                                 let matches = 0;
                                 for (const kw of ruleKeywords) {
@@ -780,8 +808,8 @@ export class RubricEvaluator {
                                     }
                                 }
                             });
-                            
-                            const matchingSections = Array.from(expandedIndices).sort((a,b) => a-b).map(idx => context.extractedDocument!.sections[idx]);
+
+                            const matchingSections = Array.from(expandedIndices).sort((a, b) => a - b).map(idx => context.extractedDocument!.sections[idx]);
 
                             if (matchingSections.length > 0) {
                                 studentAnswer = matchingSections.map(s => {
@@ -845,18 +873,15 @@ export class RubricEvaluator {
 
                     // --- Execute Parallel ---
                     const [textResult, codeResult] = await Promise.all([
-                        textPromise.catch(err => {
-                            console.error(`[RubricEvaluator] Text Analysis failed for ${rule.id}:`, err);
-                            return null;
-                        }),
-                        codePromise.catch(err => {
-                            console.warn(`[RubricEvaluator] Code Review failed for hybrid rule ${rule.id}:`, err);
-                            return null;
-                        })
+                        textPromise,
+                        codePromise
                     ]);
 
-                    if (!textResult && !codeResult) {
-                        return this.fail(rule, "Không tìm thấy tài liệu lý thuyết hoặc mã nguồn của sinh viên.");
+                    if (isHybrid && !textResult && !codeResult) {
+                        return this.fail(rule, "Không tìm thấy tài liệu lý thuyết và mã nguồn của sinh viên.");
+                    }
+                    if (!isHybrid && !textResult) {
+                        return this.fail(rule, "Không tìm thấy tài liệu báo cáo (Word/PDF/MD) của sinh viên trong bài nộp.");
                     }
 
                     let finalScore = 0;
@@ -984,4 +1009,3 @@ export class RubricEvaluator {
         return keywords.filter(k => k.length > 2);
     }
 }
-

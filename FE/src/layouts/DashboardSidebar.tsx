@@ -71,15 +71,26 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
 
       {/* ── Nav ──────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 space-y-0.5">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
+          const prevItem = index > 0 ? navItems[index - 1] : null;
+          const showCategory = item.category && (!prevItem || prevItem.category !== item.category);
+
           const isActive =
             location.pathname === item.path ||
             (item.path !== `/${role}` && location.pathname.startsWith(item.path))
 
           return (
-            <Link
-              key={item.id}
-              to={item.path}
+            <div key={item.id} className={showCategory && index > 0 ? "mt-2 pt-5 border-t border-white/[0.08] flex flex-col" : "flex flex-col"}>
+              {showCategory && !collapsed && (
+                <div className="px-3 pb-2 text-[11px] font-extrabold uppercase tracking-widest text-indigo-300/70 mb-1 flex items-center gap-2">
+                  {item.category}
+                </div>
+              )}
+              {showCategory && collapsed && index > 0 && (
+                <div className="mx-3 my-3 h-px bg-white/10" />
+              )}
+              <Link
+                to={item.path}
               className={`
                 group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium
                 outline-none select-none transition-all duration-150
@@ -103,7 +114,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
               />
 
               {!collapsed && (
-                <span className="truncate leading-none">{item.label}</span>
+                <span className="truncate leading-tight">{item.label}</span>
               )}
 
               {!collapsed && item.badge && (
@@ -128,6 +139,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
                 </div>
               )}
             </Link>
+            </div>
           )
         })}
       </nav>

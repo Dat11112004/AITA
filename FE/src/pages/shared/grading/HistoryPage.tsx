@@ -23,12 +23,8 @@ export default function HistoryPage() {
 
   const loadHistory = async () => {
     try {
-      const data = await api.getHistory();
-      if (assignmentIdFilter) {
-          setHistory(data.filter((x: any) => x.assignmentId === assignmentIdFilter));
-      } else {
-          setHistory(data);
-      }
+      const res: any = await api.getHistory(assignmentIdFilter || undefined, 1, 100);
+      setHistory(res.history || []);
     } catch (err) {
       console.error("Failed to load history", err);
     } finally {

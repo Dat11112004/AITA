@@ -23,7 +23,7 @@ export default function StatusBadge({ passed, isPartial, className }: StatusBadg
   }
 
   return (
-    <div 
+    <div
       className={classNames(
         "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider",
         bgColor,

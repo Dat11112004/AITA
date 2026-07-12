@@ -20,59 +20,60 @@ const isValidUUID = (id: string | undefined) => {
 export class SubmissionHistoryRepository {
     constructor() {}
 
-    async getAllAsync(assignmentId?: string): Promise<GradedSubmission[]> {
-        const query = assignmentId 
-            ? (isValidUUID(assignmentId) 
-                ? Prisma.sql`
-                    SELECT s.Id, s.ExamId, s.StudentId, s.FinalScore, s.TotalScore, s.GradedAt, 
-                           JSON_VALUE(s.ReportData, '$.__metadata.assignmentId') as MetaAssignmentId,
-                           JSON_VALUE(s.ReportData, '$.__metadata.studentId') as MetaStudentId,
-                           JSON_VALUE(s.ReportData, '$.__metadata.title') as MetaTitle,
-                           JSON_VALUE(s.ReportData, '$.totalScore') as JsonTotalScore,
-                           JSON_VALUE(s.ReportData, '$.maxPossibleScore') as JsonMaxScore,
-                           e.Title as ExamTitle
-                    FROM [dbo].[Submission] s
-                    LEFT JOIN [dbo].[Exam] e ON s.ExamId = e.Id
-                    WHERE s.GradingStatus = 'GRADED' AND s.ExamId = CAST(${assignmentId} AS UNIQUEIDENTIFIER)
-                    ORDER BY s.GradedAt DESC`
-                : Prisma.sql`
-                    SELECT s.Id, s.ExamId, s.StudentId, s.FinalScore, s.TotalScore, s.GradedAt, 
-                           JSON_VALUE(s.ReportData, '$.__metadata.assignmentId') as MetaAssignmentId,
-                           JSON_VALUE(s.ReportData, '$.__metadata.studentId') as MetaStudentId,
-                           JSON_VALUE(s.ReportData, '$.__metadata.title') as MetaTitle,
-                           JSON_VALUE(s.ReportData, '$.totalScore') as JsonTotalScore,
-                           JSON_VALUE(s.ReportData, '$.maxPossibleScore') as JsonMaxScore,
-                           e.Title as ExamTitle
-                    FROM [dbo].[Submission] s
-                    LEFT JOIN [dbo].[Exam] e ON s.ExamId = e.Id
-                    WHERE s.GradingStatus = 'GRADED' 
-                      AND s.ReportData LIKE ${'%"assignmentId":"' + assignmentId + '"%'}
-                    ORDER BY s.GradedAt DESC`)
-            : Prisma.sql`
-                SELECT s.Id, s.ExamId, s.StudentId, s.FinalScore, s.TotalScore, s.GradedAt, 
-                       JSON_VALUE(s.ReportData, '$.__metadata.assignmentId') as MetaAssignmentId,
-                       JSON_VALUE(s.ReportData, '$.__metadata.studentId') as MetaStudentId,
-                       JSON_VALUE(s.ReportData, '$.__metadata.title') as MetaTitle,
-                       JSON_VALUE(s.ReportData, '$.totalScore') as JsonTotalScore,
-                       JSON_VALUE(s.ReportData, '$.maxPossibleScore') as JsonMaxScore,
-                       e.Title as ExamTitle
-                FROM [dbo].[Submission] s
-                LEFT JOIN [dbo].[Exam] e ON s.ExamId = e.Id
-                WHERE s.GradingStatus = 'GRADED'
-                ORDER BY s.GradedAt DESC`;
+    async getAllAsync(
+        assignmentId?: string,
+        options?: { page?: number; limit?: number; search?: string }
+    ): Promise<{ data: GradedSubmission[]; total: number }> {
+        const page = options?.page || 1;
+        const limit = options?.limit || 10;
+        const search = options?.search?.trim();
 
-        const submissions: any[] = await prisma.$queryRaw(query);
+        const where: Prisma.SubmissionWhereInput = {
+            GradingStatus: 'GRADED',
+        };
 
-        return submissions.map(s => ({
-            id: s.Id,
-            assignmentId: s.ExamId || s.MetaAssignmentId || undefined,
-            studentId: s.StudentId || s.MetaStudentId || undefined,
-            score: s.JsonTotalScore !== null && s.JsonTotalScore !== undefined ? Number(s.JsonTotalScore) : (s.FinalScore !== null ? Number(s.FinalScore) : 0),
-            maxScore: s.JsonMaxScore !== null && s.JsonMaxScore !== undefined ? Number(s.JsonMaxScore) : (s.TotalScore !== null ? Number(s.TotalScore) : 10),
-            assessedAt: s.GradedAt ? new Date(s.GradedAt).toISOString() : new Date().toISOString(),
-            title: s.ExamTitle || s.MetaTitle || 'Grading Report',
-            report: {} // Empty to save massive memory during list fetch!
-        }));
+        const andConditions: any[] = [];
+
+        if (assignmentId) {
+            andConditions.push({
+                OR: [
+                    { ExamId: assignmentId },
+                    { ReportData: { contains: `"assignmentId":"${assignmentId}"` } }
+                ]
+            });
+        }
+
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { StudentId: { contains: search } },
+                    { Id: { contains: search } },
+                    { ReportData: { contains: `"studentId":"${search}"` } }
+                ]
+            });
+        }
+
+        if (andConditions.length > 0) {
+            where.AND = andConditions;
+        }
+
+        const total = await prisma.submission.count({ where });
+
+        const submissions = await prisma.submission.findMany({
+            where,
+            include: { Exam: true },
+            orderBy: { GradedAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+
+        const data = submissions.map(s => {
+            const graded = this.toGradedSubmission(s);
+            graded.report = {}; // Empty to save massive memory during list fetch!
+            return graded;
+        });
+
+        return { data, total };
     }
 
     async getByIdAsync(id: string): Promise<GradedSubmission | null> {
@@ -97,8 +98,20 @@ export class SubmissionHistoryRepository {
         };
         const reportJson = JSON.stringify(enrichedReport);
         
-        const validExamId = isValidUUID(submission.assignmentId) ? submission.assignmentId : undefined;
-        const validStudentId = isValidUUID(submission.studentId) ? submission.studentId : undefined;
+        let validExamId = isValidUUID(submission.assignmentId) ? submission.assignmentId : undefined;
+        let validStudentId = isValidUUID(submission.studentId) ? submission.studentId : undefined;
+
+        // Verify that the Exam actually exists to prevent Foreign Key constraint violations
+        if (validExamId) {
+            const examExists = await prisma.exam.findUnique({ where: { Id: validExamId }, select: { Id: true } });
+            if (!examExists) validExamId = undefined;
+        }
+
+        // Verify that the Student actually exists
+        if (validStudentId) {
+            const studentExists = await prisma.user.findUnique({ where: { Id: validStudentId }, select: { Id: true } });
+            if (!studentExists) validStudentId = undefined;
+        }
 
         const existing = await prisma.submission.findUnique({ where: { Id: submission.id } });
 
