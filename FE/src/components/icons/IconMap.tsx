@@ -7,6 +7,8 @@ import {
   Clock,
   Code2,
   FileText,
+  FileCheck,
+  FileSignature,
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
@@ -21,11 +23,9 @@ import {
   Users,
   Zap,
   Library,
-  FileSignature,
   Bot,
   BellRing,
   UserCircle,
-  FileCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -38,6 +38,8 @@ const ICONS: Record<string, LucideIcon> = {
   Settings,
   BookOpen,
   FileText,
+  FileCheck,
+  FileSignature,
   Sparkles,
   CheckSquare,
   ShieldCheck,
@@ -52,11 +54,9 @@ const ICONS: Record<string, LucideIcon> = {
   Code2,
   Target,
   Library,
-  FileSignature,
   Bot,
   BellRing,
   UserCircle,
-  FileCheck,
 }
 
 interface IconProps {

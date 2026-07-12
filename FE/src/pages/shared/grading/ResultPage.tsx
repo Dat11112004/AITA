@@ -3,17 +3,17 @@ import { useLocation, useParams, Link } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { gradingApi as api } from '@/lib/api';
 
 export default function ResultPage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
-  
+
   const [result, setResult] = useState<SubmissionResponse | null>((location.state?.result as SubmissionResponse) || null);
   const [loading, setLoading] = useState(!result);
   const [error, setError] = useState<string | null>(null);
-  
+
   const gradingTime = location.state?.gradingTime as number | undefined;
 
   useEffect(() => {
@@ -66,11 +66,27 @@ export default function ResultPage() {
         <span>Go back</span>
       </button>
 
+      {result.error && (
+        <div className="mb-8 p-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl flex items-start gap-4 shadow-sm animate-fade-in">
+          <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-red-100 dark:border-red-500/20">
+            <AlertTriangle className="text-red-500" size={24} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-1">⚠️ Báo Cáo Chấm Điểm Dở Dang</h3>
+            <p className="text-[15px] text-red-700/80 dark:text-red-300/80 leading-relaxed">
+              Bài chấm bị ngắt quãng giữa chừng do lỗi: <strong>{result.error}</strong>.
+              <br />
+              Dưới đây là điểm số và chi tiết của các tiêu chí đã được AI phân tích trước khi hệ thống bị gián đoạn.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-8">
-        <ScoreCard 
-          score={result.score} 
-          maxScore={result.maxScore} 
-          assessedAt={result.assessedAt || new Date().toISOString()} 
+        <ScoreCard
+          score={result.score}
+          maxScore={result.maxScore}
+          assessedAt={result.assessedAt || new Date().toISOString()}
           gradingTime={gradingTime}
         />
 

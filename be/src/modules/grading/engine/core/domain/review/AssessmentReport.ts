@@ -69,19 +69,20 @@ export interface AssessmentReport {
     submissionId: string;
     assignmentId: string;
     studentId: string;
-    
+
     // Score Breakdown
     totalScore: number;
     maxPossibleScore: number;
     isPass: boolean;
-    
+
     passedRules: ScoredRule[];
     failedRules: ScoredRule[];
-    
+
     // Review and Feedback
     manualReviewNotes?: string[];
     aiFeedback?: AiFeedback[];
-    
+    error?: string;
+
     // Traceability
     auditMetadata: {
         evaluatorVersion: string;

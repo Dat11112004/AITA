@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { api, type AuthUser, AUTH_STORAGE_KEYS } from '@/lib/api'
+import { api, type AuthUser, AUTH_STORAGE_KEYS, getStoredItem, setStoredItem, removeStoredItem } from '@/lib/api'
 import type { UserRole } from '@/types'
 
 interface AuthContextValue {
@@ -15,8 +15,8 @@ interface AuthContextValue {
   token: string | null
   loading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<UserRole>
-  register: (email: string, password: string, fullName: string) => Promise<UserRole>
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<UserRole>
+  register: (email: string, password: string, fullName: string, rememberMe?: boolean) => Promise<UserRole>
   logout: () => void
   error: string | null
 }
@@ -24,18 +24,18 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 function readStoredUser(): AuthUser | null {
-  const raw = localStorage.getItem(AUTH_STORAGE_KEYS.user)
+  const raw = getStoredItem(AUTH_STORAGE_KEYS.user)
   if (!raw) return null
   try {
     return JSON.parse(raw) as AuthUser
   } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEYS.user)
+    removeStoredItem(AUTH_STORAGE_KEYS.user)
     return null
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(AUTH_STORAGE_KEYS.token))
+  const [token, setToken] = useState<string | null>(() => getStoredItem(AUTH_STORAGE_KEYS.token))
   const [user, setUser] = useState<AuthUser | null>(() => readStoredUser())
   const [loading, setLoading] = useState(!!token)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) {
       setLoading(false)
       setUser(null)
-      localStorage.removeItem(AUTH_STORAGE_KEYS.user)
+      removeStoredItem(AUTH_STORAGE_KEYS.user)
       return
     }
 
@@ -54,13 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((u) => {
         if (u.role) u.role = u.role.toLowerCase() as any
         setUser(u)
-        localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(u))
+        const remember = !!localStorage.getItem(AUTH_STORAGE_KEYS.token)
+        setStoredItem(AUTH_STORAGE_KEYS.user, JSON.stringify(u), remember)
         setError(null)
       })
       .catch((err) => {
         console.error('Token verification failed:', err)
-        localStorage.removeItem(AUTH_STORAGE_KEYS.token)
-        localStorage.removeItem(AUTH_STORAGE_KEYS.user)
+        removeStoredItem(AUTH_STORAGE_KEYS.token)
+        removeStoredItem(AUTH_STORAGE_KEYS.refreshToken)
+        removeStoredItem(AUTH_STORAGE_KEYS.user)
         setToken(null)
         setUser(null)
         setError(err instanceof Error ? err.message : 'Session expired')
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false))
   }, [token])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     setError(null)
     setLoading(true)
     try {
@@ -78,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(response.token)
       setUser(response.user)
-      localStorage.setItem(AUTH_STORAGE_KEYS.token, response.token)
-      localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(response.user))
+      setStoredItem(AUTH_STORAGE_KEYS.token, response.token, rememberMe)
+      setStoredItem(AUTH_STORAGE_KEYS.refreshToken, response.refreshToken, rememberMe)
+      setStoredItem(AUTH_STORAGE_KEYS.user, JSON.stringify(response.user), rememberMe)
 
       return userRole
     } catch (err) {
@@ -91,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const register = useCallback(async (email: string, password: string, fullName: string) => {
+  const register = useCallback(async (email: string, password: string, fullName: string, rememberMe = true) => {
     setError(null)
     setLoading(true)
     try {
@@ -101,8 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(response.token)
       setUser(response.user)
-      localStorage.setItem(AUTH_STORAGE_KEYS.token, response.token)
-      localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(response.user))
+      setStoredItem(AUTH_STORAGE_KEYS.token, response.token, rememberMe)
+      setStoredItem(AUTH_STORAGE_KEYS.refreshToken, response.refreshToken, rememberMe)
+      setStoredItem(AUTH_STORAGE_KEYS.user, JSON.stringify(response.user), rememberMe)
 
       return userRole
     } catch (err) {
@@ -115,8 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_STORAGE_KEYS.token)
-    localStorage.removeItem(AUTH_STORAGE_KEYS.user)
+    removeStoredItem(AUTH_STORAGE_KEYS.token)
+    removeStoredItem(AUTH_STORAGE_KEYS.refreshToken)
+    removeStoredItem(AUTH_STORAGE_KEYS.user)
     setToken(null)
     setUser(null)
     setError(null)

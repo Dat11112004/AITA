@@ -54,10 +54,10 @@ export default function FileUpload({ onUpload, accept = ".zip", errorMessage = "
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-12">
+    <div className="w-full max-w-2xl mx-auto mt-4">
       <div 
         className={classNames(
-          "relative glass-panel p-12 flex flex-col items-center justify-center border-2 border-dashed transition-all duration-300",
+          "relative glass-panel p-8 flex flex-col items-center justify-center border-2 border-dashed transition-all duration-300 rounded-xl",
           dragActive ? "border-emerald-500 bg-emerald-500/10 scale-105" : "dark:border-slate-600 border-slate-300 dark:hover:border-slate-500 hover:border-slate-400",
           isUploading && "opacity-50 pointer-events-none"
         )}

@@ -1,17 +1,19 @@
 // @ts-nocheck
-import { IAiProvider } from '../core/contracts/IAiProvider';
+import { IAiProvider, DocumentImage } from '../core/contracts/IAiProvider';
 
 export class RequirementParserService {
     constructor(private readonly aiProvider: IAiProvider) {}
 
     /**
      * Parses raw assignment text into a structured Draft Blueprint using AI.
+     * When documentImages are provided (from uploaded .docx files), they are sent
+     * alongside the text to enable the AI to analyze DB schemas, UI mockups, etc.
      */
-    public async parseRequirementsAsync(rawText: string): Promise<any> {
-        console.log(`[RequirementParserService] Parsing requirements via AI...`);
+    public async parseRequirementsAsync(rawText: string, documentImages?: DocumentImage[]): Promise<any> {
+        console.log(`[RequirementParserService] Parsing requirements via AI... (images: ${documentImages?.length || 0})`);
         
         try {
-            const draftBlueprint = await this.aiProvider.parseRequirementsAsync(rawText);
+            const draftBlueprint = await this.aiProvider.parseRequirementsAsync(rawText, documentImages);
             
             // Add ID and Status before returning
             return {
@@ -33,7 +35,22 @@ export class RequirementParserService {
                 framework: 'net8',
                 assignmentTitle: 'Extracted Title (Fallback)',
                 description: 'Short description',
-                requirements: ['Requirement 1 (Fallback)']
+                requirements: [
+                    {
+                        id: 'req-fallback-1',
+                        groupId: 'g1',
+                        title: 'Fallback Requirement',
+                        description: 'This is a fallback requirement because parsing failed.',
+                        marks: 10,
+                        complexity: 'low',
+                        isUIVisible: false,
+                        isCRUD: false,
+                        isWrittenAnswer: false,
+                        isArchitectureCode: false,
+                        isDiagramTask: false,
+                        isSoftDelete: false
+                    }
+                ]
             };
         }
     }

@@ -29,7 +29,7 @@ export default function AssignmentRubricPage() {
   if (!assignment) return <div className="text-center py-20 text-red-400">Assignment not found</div>;
 
   return (
-    <div className="max-w-5xl mx-auto pb-8 -mt-2 sm:-mt-4">
+    <div className="max-w-6xl mx-auto pb-8 -mt-2 sm:-mt-4">
       <div className="mb-6 animate-fade-in">
           <button onClick={() => navigate(`/lecturer/grading/assignments/${id}`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
             <ArrowLeft size={20} />
@@ -107,18 +107,40 @@ export default function AssignmentRubricPage() {
                     )}
                     </td>
                     <td className="px-6 py-4 text-center">
-                    <span className={classNames(
-                        "px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider",
-                        rule.scoringStrategy === 'AIVision' 
-                            ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' 
-                            : rule.scoringStrategy === 'StdInOutProbe' || rule.scoringStrategy === 'HTTPProbe'
-                            ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                            : rule.scoringStrategy === 'AICodeReview' || rule.scoringStrategy === 'AiTextAnalysis'
-                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        )}>
-                        {rule.scoringStrategy === 'AIVision' ? '👁 Visual' : rule.scoringStrategy === 'StdInOutProbe' ? '⌨️ I/O test' : rule.scoringStrategy === 'HTTPProbe' ? '🌐 API probe' : rule.scoringStrategy === 'AICodeReview' ? '🤖 AI review' : rule.scoringStrategy === 'AiTextAnalysis' ? '📝 Text analysis' : '⚡ Auto'}
-                    </span>
+                    {(() => {
+                        let text = 'AUTO';
+                        let colorClass = 'text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:border-slate-700';
+                        
+                        switch (rule.scoringStrategy) {
+                            case 'AIVision':
+                                text = 'VISUAL AI';
+                                colorClass = 'text-fuchsia-700 bg-fuchsia-50 border-fuchsia-200 dark:text-fuchsia-300 dark:bg-fuchsia-500/10 dark:border-fuchsia-500/20 shadow-[0_0_10px_rgba(217,70,239,0.1)]';
+                                break;
+                            case 'AICodeReview':
+                                text = 'CODE AI';
+                                colorClass = 'text-indigo-700 bg-indigo-50 border-indigo-200 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.1)]';
+                                break;
+                            case 'AiTextAnalysis':
+                                text = 'TEXT AI';
+                                colorClass = 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.1)]';
+                                break;
+                            case 'StdInOutProbe':
+                                text = 'I/O PROBE';
+                                colorClass = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
+                                break;
+                            case 'HTTPProbe':
+                                text = 'API PROBE';
+                                colorClass = 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/20 shadow-[0_0_10px_rgba(14,165,233,0.1)]';
+                                break;
+                        }
+                        
+                        return (
+                            <div className={classNames("inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap tracking-wider", colorClass)}>
+                                <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-75"></span>
+                                {text}
+                            </div>
+                        );
+                    })()}
                     </td>
                     <td className="px-8 py-4 text-right font-bold dark:text-emerald-400 text-emerald-600">{typeof (rule as any).weight === 'number' ? (rule as any).weight.toString() : (rule as any).weight}</td>
                 </tr>

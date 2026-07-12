@@ -1,9 +1,27 @@
-import type { PublishedAssignment, SubmissionResponse } from '@/types'
+
 
 export const AUTH_STORAGE_KEYS = {
   token: 'aita_token',
+  refreshToken: 'aita_refresh_token',
   user: 'aita_user',
 } as const
+
+export function getStoredItem(key: string): string | null {
+  return localStorage.getItem(key) || sessionStorage.getItem(key)
+}
+
+export function setStoredItem(key: string, value: string, remember: boolean) {
+  if (remember) {
+    localStorage.setItem(key, value)
+  } else {
+    sessionStorage.setItem(key, value)
+  }
+}
+
+export function removeStoredItem(key: string) {
+  localStorage.removeItem(key)
+  sessionStorage.removeItem(key)
+}
 
 const BASE = (import.meta as any).env.VITE_API_URL || '/api'
 
@@ -17,16 +35,97 @@ export class ApiError extends Error {
   }
 }
 
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: any) => void, reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
-  const res = await fetch(`${BASE}${path}`, {
+  let token = getStoredItem(AUTH_STORAGE_KEYS.token)
+  
+  const headers: HeadersInit = {
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  }
+
+  let res = await fetch(`${BASE}${path}`, {
     ...options,
-    headers: {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
+    headers,
   })
+
+  if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh-token') {
+    const refreshTokenStr = getStoredItem(AUTH_STORAGE_KEYS.refreshToken);
+    if (refreshTokenStr) {
+      if (isRefreshing) {
+        return new Promise<T>((resolve, reject) => {
+          failedQueue.push({ 
+            resolve: (newToken) => {
+              // Retry with new token
+              const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
+              fetch(`${BASE}${path}`, { ...options, headers: retryHeaders })
+                .then(r => r.json())
+                .then(j => {
+                  if (!j.success && j.statusCode >= 400) reject(new ApiError(j.Message || j.error?.message || 'Lỗi API', j.statusCode, j.error?.code))
+                  else resolve(j.Data !== undefined ? j.Data : j.data)
+                })
+                .catch(reject)
+            }, 
+            reject 
+          });
+        });
+      }
+
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${BASE}/auth/refresh-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: refreshTokenStr })
+        });
+
+        const refreshData = await refreshRes.json().catch(() => ({}));
+        if (!refreshRes.ok || refreshData.success === false) {
+          throw new Error('Session expired');
+        }
+
+        const data = refreshData.Data !== undefined ? refreshData.Data : refreshData.data;
+        
+        const remember = !!localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
+        
+        setStoredItem(AUTH_STORAGE_KEYS.token, data.token, remember);
+        setStoredItem(AUTH_STORAGE_KEYS.refreshToken, data.refreshToken, remember);
+        if (data.user) {
+          setStoredItem(AUTH_STORAGE_KEYS.user, JSON.stringify(data.user), remember);
+        }
+
+        token = data.token;
+        processQueue(null, data.token);
+
+        // Retry original request
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+        res = await fetch(`${BASE}${path}`, { ...options, headers });
+      } catch (err) {
+        processQueue(err as Error, null);
+        removeStoredItem(AUTH_STORAGE_KEYS.token);
+        removeStoredItem(AUTH_STORAGE_KEYS.refreshToken);
+        removeStoredItem(AUTH_STORAGE_KEYS.user);
+        window.location.href = '/login';
+        throw err;
+      } finally {
+        isRefreshing = false;
+      }
+    }
+  }
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok || json.success === false || json.statusCode >= 400) {
@@ -37,7 +136,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   login: (email: string, password: string) =>
-    request<{ token: string; user: AuthUser }>('/auth/login', {
+    request<{ token: string; refreshToken: string; user: AuthUser }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }).then(res => {
@@ -46,7 +145,7 @@ export const api = {
     }),
 
   register: (body: { email: string; password: string; fullName: string; externalId?: string }) =>
-    request<{ token: string; user: AuthUser }>('/auth/register', {
+    request<{ token: string; refreshToken: string; user: AuthUser }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
     }).then(res => {
@@ -452,15 +551,15 @@ export interface CreateExamBody {
 }
 
 export const gradingApi = {
-  getAssignments: () => request<PublishedAssignment[]>('/grading/assignments'),
+  getAssignments: () => request<any[]>('/grading/assignments'),
   clearCache: () => request<void>('/grading/cache/clear', { method: 'POST' }),
-  getAssignment: (id: string) => request<PublishedAssignment>('/grading/assignments/' + id),
+  getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
   
   uploadAssignment: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return request<PublishedAssignment>('/grading/assignments/upload', {
+    return request<any>('/grading/assignments/upload', {
       method: 'POST',
       body: formData,
     })
@@ -469,10 +568,10 @@ export const gradingApi = {
   extractText: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return request<{ text: string }>('/grading/assignments/extract-text', {
+    return request<{ text: any, documentImageKey: string | null }>('/grading/assignments/extract-text', {
       method: 'POST',
       body: formData,
-    }).then(res => res.text)
+    })
   },
   
   generateContent: (prompt: string) => request<{ markdown: string }>('/grading/assignments/generate-content', {
@@ -480,22 +579,22 @@ export const gradingApi = {
     body: JSON.stringify({ prompt }),
   }).then(res => res.markdown),
   
-  parseRubric: (content: string) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
+  parseRubric: (content: string, documentImageKey?: string | null) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, documentImageKey }),
   }),
   
-  parseRequirements: (content: string) => request<any>('/grading/assignments/parse-requirements', {
+  parseRequirements: (content: string, documentImageKey?: string | null) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {
     method: 'POST',
-    body: JSON.stringify({ content }),
-  }),
+    body: JSON.stringify({ content, documentImageKey }),
+  }).then(res => res.blueprint),
   
   generateRubric: (blueprint: any) => request<{ rubric: any }>('/grading/assignments/generate-rubric', {
     method: 'POST',
     body: JSON.stringify({ blueprint }),
   }).then(res => res.rubric),
   
-  publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<PublishedAssignment>('/grading/assignments/publish', {
+  publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<any>('/grading/assignments/publish', {
     method: 'POST',
     body: JSON.stringify({ metadata, blueprint, rubric }),
   }),
@@ -525,13 +624,21 @@ export const gradingApi = {
     return request<{ statuses: Record<string, any> }>('/grading/submissions/batch-status?ids=' + ids.join(','))
   },
   
+  cancelBatch: (ids: string[]) => {
+    if (!ids || ids.length === 0) return Promise.resolve({ success: true, cancelledCount: 0 })
+    return request<{ success: boolean, cancelledCount: number }>('/grading/submissions/batch-cancel', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    })
+  },
+  
   subscribeToProgress: (
     submissionId: string, 
     onProgress: (job: any) => void,
     onComplete: () => void,
     onError: (err: any) => void
   ) => {
-    const token = localStorage.getItem(AUTH_STORAGE_KEYS.token)
+    const token = getStoredItem(AUTH_STORAGE_KEYS.token)
     // EventSource doesn't support headers directly in browser API. 
     // Usually tokens for SSE are passed via query params.
     const url = '/api/grading/submissions/' + submissionId + '/stream?token=' + token
@@ -571,13 +678,18 @@ export const gradingApi = {
     }
   },
   
-  getSubmissionResult: (submissionId: string) => request<SubmissionResponse>('/grading/submissions/' + submissionId + '/result'),
+  getSubmissionResult: (submissionId: string) => request<any>('/grading/submissions/' + submissionId + '/result'),
   
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
-  getHistory: (assignmentId?: string) => {
-    const url = assignmentId ? `/grading/submissions/history?assignmentId=${assignmentId}` : '/grading/submissions/history';
-    return request<{ history: any[] }>(url).then(res => res.history);
+  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string) => {
+    const params = new URLSearchParams();
+    if (assignmentId) params.append('assignmentId', assignmentId);
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    if (search) params.append('search', search);
+    
+    return request<{ history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
   },
   
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),

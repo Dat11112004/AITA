@@ -145,9 +145,9 @@ CRITICAL: All text fields (reasoning, suggestions) MUST be in Vietnamese.`;
 
     let response: any;
     let lastError: any;
-    
+
     const cacheKey = "txt_" + crypto.createHash('sha256').update(prompt).digest('hex');
-    
+
     try {
       response = await AiClientManager.executeWithFallback(async (client, model) => {
         const controller = new AbortController();
@@ -184,18 +184,9 @@ CRITICAL: All text fields (reasoning, suggestions) MUST be in Vietnamese.`;
       parsed.confidence = Math.max(0, Math.min(1, parsed.confidence || 0.8));
 
       return parsed;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AiTextAnalysisEngine] Failed to evaluate:', error);
-      return {
-        score: 0,
-        percentage: 0,
-        reasoning: "AI Text Analysis service is currently unavailable or timed out.",
-        keyConceptsCovered: [],
-        keyConceptsMissing: [],
-        suggestions: "Hệ thống chấm điểm AI đang bị gián đoạn, vui lòng liên hệ giảng viên.",
-        confidence: 0,
-        studentAnswerExtracted: ""
-      };
+      throw new Error(`AI Text Analysis service failed: ${error.message || 'Unknown error'}`);
     }
   }
 
@@ -209,21 +200,13 @@ CRITICAL: All text fields (reasoning, suggestions) MUST be in Vietnamese.`;
       try {
         const result = await this.evaluateAsync(input);
         results.push(result);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[AiTextAnalysisEngine] Batch item failed for: ${input.context?.partLabel}`, error);
-        results.push({
-          score: 0,
-          percentage: 0,
-          reasoning: 'Lỗi hệ thống khi chấm điểm. Cần giảng viên review thủ công.',
-          keyConceptsCovered: [],
-          keyConceptsMissing: [],
-          suggestions: '',
-          confidence: 0,
-          studentAnswerExtracted: ""
-        });
+        throw error;
       }
     }
     return results;
   }
 }
+
 

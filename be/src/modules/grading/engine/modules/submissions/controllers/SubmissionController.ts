@@ -83,6 +83,7 @@ export class SubmissionController extends BaseController {
       // 1. Unzip the file
       const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
       await extractZipAsync(req.file.path, extractDir);
+      await this.extractNestedZips(extractDir);
 
       // Initialize Job
       globalJobManager.initJob(submissionId);
@@ -143,6 +144,7 @@ export class SubmissionController extends BaseController {
 
           const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
           await extractZipAsync(file.path, extractDir);
+          await this.extractNestedZips(extractDir);
 
           globalJobManager.initJob(submissionId);
           this.enqueueSubmissionJob(submissionId, publishedAssignment, submission, extractDir);
@@ -310,6 +312,24 @@ export class SubmissionController extends BaseController {
 
           } catch (err: any) {
               console.error(`[SubmissionController] Job ${submissionId} failed:`, err);
+              
+              if (err.partialReport) {
+                  try {
+                      await this.historyRepo.saveAsync({
+                          id: submissionId,
+                          assignmentId: publishedAssignment.id,
+                          studentId: submission.studentId,
+                          score: err.partialReport.totalScore || 0,
+                          maxScore: err.partialReport.maxPossibleScore || 0,
+                          assessedAt: new Date().toISOString(),
+                          title: publishedAssignment.metadata.title,
+                          report: err.partialReport
+                      });
+                  } catch (historyErr) {
+                      console.error(`[SubmissionController] Failed to save partial history for ${submissionId}:`, historyErr);
+                  }
+              }
+
               globalJobManager.failJob(submissionId, err.message || 'Unknown error');
           } finally {
               if (sandboxHandle) {
@@ -371,6 +391,24 @@ export class SubmissionController extends BaseController {
       this.ok(res, { success: true }, 'Job cancellation requested.');
   };
 
+  cancelBatch = async (req: Request, res: Response) => {
+      const { ids } = req.body;
+      if (!Array.isArray(ids)) {
+          throw new BadRequestError('Missing or invalid ids array');
+      }
+
+      let cancelledCount = 0;
+      for (const id of ids) {
+          const job = globalJobManager.getJob(id);
+          if (job && job.state !== 'completed' && job.state !== 'failed') {
+              globalJobManager.cancelJob(id);
+              cancelledCount++;
+          }
+      }
+
+      this.ok(res, { success: true, cancelledCount }, `Requested cancellation for ${cancelledCount} jobs.`);
+  };
+
   getResult = async (req: Request, res: Response) => {
       const id = req.params.id as string;
       const job = globalJobManager.getJob(id);
@@ -386,12 +424,23 @@ export class SubmissionController extends BaseController {
               throw new BadRequestError('Submission report not found. The grading data may have expired — please re-submit and grade again.');
           }
       } else {
-          if (job.state !== 'completed') {
+          if (job.state === 'completed') {
+              report = job.result;
+              // Clear job to save memory since we've already saved it to History DB
+              globalJobManager.clearJob(id);
+          } else if (job.state === 'failed') {
+              // Try to fetch partial report from history db
+              const historyItem = await this.historyRepo.getByIdAsync(id);
+              if (historyItem && historyItem.report && Object.keys(historyItem.report).length > 0) {
+                  report = historyItem.report;
+              } else {
+                  throw new BadRequestError('Job failed and no partial report was generated. Error: ' + job.error);
+              }
+              // Clear job to save memory
+              globalJobManager.clearJob(id);
+          } else {
               throw new BadRequestError('Job is not completed yet. Current state: ' + job.state);
           }
-          report = job.result;
-          // Clear job to save memory since we've already saved it to History DB
-          globalJobManager.clearJob(id);
       }
 
       this.ok(res, { submissionId: id, score: report.totalScore || 0, maxScore: report.maxPossibleScore || 0, rules: report.passedRules || [], failedRules: report.failedRules || [], manualReviewNotes: report.manualReviewNotes || [] }, 'Result fetched successfully');
@@ -400,16 +449,29 @@ export class SubmissionController extends BaseController {
   getHistory = async (req: Request, res: Response) => {
       try {
           const assignmentId = req.query.assignmentId as string | undefined;
-          const items = await this.historyRepo.getAllAsync(assignmentId);
-          this.ok(res, { history: items.map(x => ({
-              id: x.id,
-              title: x.title,
-              assignmentId: x.assignmentId,
-              studentId: x.studentId,
-              score: x.score,
-              maxScore: x.maxScore,
-              assessedAt: x.assessedAt
-          })) }, 'History fetched successfully');
+          const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+          const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+          const search = req.query.search as string | undefined;
+
+          const result = await this.historyRepo.getAllAsync(assignmentId, { page, limit, search });
+          
+          this.ok(res, { 
+              history: result.data.map(x => ({
+                  id: x.id,
+                  title: x.title,
+                  assignmentId: x.assignmentId,
+                  studentId: x.studentId,
+                  score: x.score,
+                  maxScore: x.maxScore,
+                  assessedAt: x.assessedAt
+              })),
+              meta: {
+                  total: result.total,
+                  page,
+                  limit,
+                  totalPages: Math.ceil(result.total / limit)
+              }
+          }, 'History fetched successfully');
       } catch (err) {
           res.status(500).json({ success: false, error: 'Failed to fetch history' });
       }
@@ -481,6 +543,25 @@ export class SubmissionController extends BaseController {
 
     await walk(dir);
     return { files, projectType };
+  }
+
+  private async extractNestedZips(dir: string): Promise<void> {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+              await this.extractNestedZips(fullPath);
+          } else if (entry.name.toLowerCase().endsWith('.zip')) {
+              const extractPath = path.join(dir, entry.name.slice(0, -4));
+              try {
+                  await extractZipAsync(fullPath, extractPath);
+                  await fs.unlink(fullPath);
+                  await this.extractNestedZips(extractPath);
+              } catch (e) {
+                  console.error(`[SubmissionController] Failed to extract nested zip ${fullPath}:`, e);
+              }
+          }
+      }
   }
 
   /**

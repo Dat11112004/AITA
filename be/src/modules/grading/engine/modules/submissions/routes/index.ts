@@ -20,6 +20,7 @@ export function createSubmissionRoutes(): Router {
 
   router.post('/', uploadMiddleware.single('file'), controller.submit);
   router.post('/upload-batch', uploadMiddleware.array('files', 50), controller.submitBatch);
+  router.post('/batch-cancel', controller.cancelBatch);
   router.get('/batch-status', controller.getBatchStatus);
   router.get('/history', controller.getHistory);
   router.delete('/history/:id', controller.deleteHistory);

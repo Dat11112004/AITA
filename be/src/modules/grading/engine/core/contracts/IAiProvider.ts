@@ -1,4 +1,17 @@
 // @ts-nocheck
+
+/** Represents an image extracted from an assignment document (DB schema, UI mockup, etc.) */
+export interface DocumentImage {
+    /** Image binary data */
+    buffer: Buffer;
+    /** Content type (image/png, image/jpeg, etc.) */
+    contentType: string;
+    /** Auto-labeled context from surrounding text */
+    label: string;
+    /** True if detected as a teacher template/mockup */
+    isMockup?: boolean;
+}
+
 export interface ParsedRequirement {
   id: string;
   title: string;
@@ -44,7 +57,7 @@ export interface IAiProvider {
     /**
      * Parses a natural language requirement into structured Rubric rules.
      */
-    parseRequirementsAsync(prompt: string): Promise<ParsedBlueprint>;
+    parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[]): Promise<ParsedBlueprint>;
 
     /**
      * Evaluates a screenshot or image against a specific requirement.
