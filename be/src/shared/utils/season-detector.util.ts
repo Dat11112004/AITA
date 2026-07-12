@@ -141,13 +141,14 @@ function strategyIndependent(base: string): Match | null {
   const season = extractSeason(base)
   const year = extractYear(base)
   if (season && year) return { season, year }
+  if (season && !year) return { season, year: new Date().getFullYear() }
   return null
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 const HINT_MESSAGE =
-  'Tên file cần chứa mùa học và năm học (ví dụ: Fall2026.xlsx, Spring_2026_students.xlsx, WINTER-2026.xlsx)'
+  'Tên file cần chứa mùa học (ví dụ: Fall2026.xlsx, Summer.xlsx, WINTER-2026.xlsx)'
 
 /**
  * Detects season and year from an Excel filename.

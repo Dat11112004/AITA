@@ -15,7 +15,7 @@ type ImportStudentRow = Record<string, unknown>
 // Chấp nhận cả header tiếng Việt lẫn tiếng Anh (file của Admin có thể xuất từ template khác nhau).
 // So khớp không phân biệt hoa thường và bỏ khoảng trắng thừa.
 const HEADER_ALIASES: Record<string, string[]> = {
-    mssv: ['mssv', 'student id', 'studentid', 'student code'],
+    mssv: ['mssv', 'student id', 'studentid', 'student code', 'mssv/gv'],
     fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname'],
     email: ['email'],
     phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone'],
@@ -45,6 +45,11 @@ export class ImportStudentsExcelUseCase {
 
     async execute(input: { fileBuffer: Buffer; fileName: string; fileUrl: string; importedByUserId: string }) {
         const { fileBuffer, fileName, fileUrl, importedByUserId } = input
+
+        const normalizedName = fileName.toLowerCase()
+        if (!normalizedName.includes('student') && !normalizedName.includes('học sinh') && !normalizedName.includes('hoc_sinh') && !normalizedName.includes('hs')) {
+            throw new AppError('INVALID_FILE_NAME', 'Tên file không hợp lệ. Vui lòng đặt tên file có chứa từ khoá "student" hoặc "học sinh" (ví dụ: Student_Spring2026.xlsx)', 400)
+        }
 
         let successCount = 0
         let errorCount = 0
@@ -257,8 +262,8 @@ export class ImportStudentsExcelUseCase {
 
                     // Extra classes (học vượt / ngoài kỳ) — format: SubjectCode-ClassCode
                     const extraClassesStrs = [
-                        ...outOfSemesterStr.split(',').map(s => s.trim()).filter(Boolean),
-                        ...passedStr.split(',').map(s => s.trim()).filter(Boolean)
+                        ...outOfSemesterStr.split(/[,;]|\s+và\s+|\n|\s+/).map((s: string) => s.trim()).filter(Boolean),
+                        ...passedStr.split(/[,;]|\s+và\s+|\n|\s+/).map((s: string) => s.trim()).filter(Boolean)
                     ]
 
                     for (const extraStr of extraClassesStrs) {
@@ -277,8 +282,8 @@ export class ImportStudentsExcelUseCase {
                     }
 
                     // Nợ môn — hỗ trợ 2 format, mở rộng nhận khoảng trắng và ánh xạ song song Lớp Học Lại
-                    const retakeStrs = retakeStr.split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean)
-                    const retakeClassStrs = retakeClassStr.split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean)
+                    const retakeStrs = retakeStr.split(/[,;]|\s+và\s+|\n|\s+/).map((s: string) => s.trim()).filter(Boolean)
+                    const retakeClassStrs = retakeClassStr.split(/[,;]|\s+và\s+|\n|\s+/).map((s: string) => s.trim()).filter(Boolean)
 
                     for (let j = 0; j < retakeStrs.length; j++) {
                         const retakeEntry = retakeStrs[j];
@@ -636,31 +641,72 @@ export class ImportStudentsExcelUseCase {
                             email,
                             'Thông tin tài khoản hệ thống AITA',
                             `
-                                <p>Chào <strong>${fullName}</strong>,</p>
-                                <p>Tài khoản của bạn đã được tạo thành công trên hệ thống AITA.</p>
-                                <ul>
-                                    <li><strong>MSSV:</strong> ${mssv}</li>
-                                    <li><strong>Email đăng nhập:</strong> ${email}</li>
-                                    <li><strong>Mật khẩu tạm:</strong> ${rawPassword}</li>
-                                </ul>
-                                <p><strong>Lưu ý:</strong> đây là mật khẩu tạm. Khi đăng nhập lần đầu trên website, hệ thống sẽ yêu cầu bạn đổi mật khẩu mới để bảo mật tài khoản.</p>
+                                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
+                                    <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px 20px; text-align: center;">
+                                        <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 0.5px;">Chào mừng đến với AITA</h1>
+                                        <p style="color: #ffedd5; margin: 8px 0 0 0; font-size: 15px;">Hệ thống Quản lý & Điểm danh Thông minh</p>
+                                    </div>
+                                    <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+                                        <p style="font-size: 16px; margin-top: 0;">Chào Sinh viên <strong style="color: #0f172a;">${fullName}</strong>,</p>
+                                        <p>Tài khoản của bạn đã được khởi tạo thành công. Dưới đây là thông tin đăng nhập của bạn:</p>
+                                        
+                                        <div style="background: #fff7ed; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #fed7aa;">
+                                            <table style="width: 100%; border-collapse: collapse;">
+                                                <tr>
+                                                    <td style="padding: 8px 0; border-bottom: 1px solid #fed7aa; color: #9a3412; width: 140px;">Mã Sinh viên:</td>
+                                                    <td style="padding: 8px 0; border-bottom: 1px solid #fed7aa; font-weight: 600; color: #9a3412;">${mssv}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 8px 0; border-bottom: 1px solid #fed7aa; color: #9a3412;">Email:</td>
+                                                    <td style="padding: 8px 0; border-bottom: 1px solid #fed7aa; font-weight: 600; color: #9a3412;">${email}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 0 4px 0; color: #9a3412;">Mật khẩu tạm thời:</td>
+                                                    <td style="padding: 12px 0 4px 0;">
+                                                        <span style="background: #ea580c; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 1px;">${rawPassword}</span>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        
+                                        <p style="background: #fef2f2; color: #b91c1c; padding: 12px 16px; border-radius: 6px; font-size: 14px; border-left: 4px solid #ef4444; margin-bottom: 24px;">
+                                            <strong>⚠️ Lưu ý bảo mật:</strong> Vui lòng đổi mật khẩu ngay trong lần đăng nhập đầu tiên để bảo vệ tài khoản của bạn.
+                                        </p>
+                                        
+                                        <p style="margin-bottom: 0;">Trân trọng,<br><strong style="color: #0f172a;">Ban quản trị AITA</strong></p>
+                                    </div>
+                                </div>
                             `
                         )
                     }
 
                     // 6.2. Send Class Enrollment Email
                     const classEnrollmentContent = `
-                        <p>Chào <strong>${fullName}</strong>,</p>
-                        <p>Bạn vừa được phân bổ vào danh sách lớp học trên hệ thống AITA.</p>
-                        <ul>
-                            <li><strong>Kỳ học:</strong> ${semesterCode}</li>
-                            <li><strong>Lớp định danh:</strong> ${classCode}</li>
-                        </ul>
-                        <p><strong>Chi tiết các môn đã xếp lớp:</strong></p>
-                        <ul>
-                            ${enrolledClassDetails.length > 0 ? enrolledClassDetails.join('\n') : '<li>Đang chờ giảng viên tạo lớp, vui lòng theo dõi thêm.</li>'}
-                        </ul>
-                        <p>Vui lòng đăng nhập vào hệ thống (Email: <strong>${email}</strong>) để theo dõi và nộp bài tập.</p>
+                        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
+                            <div style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 30px 20px; text-align: center;">
+                                <h1 style="color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 0.5px;">Xếp Lớp Học Phần</h1>
+                                <p style="color: #e0f2fe; margin: 8px 0 0 0; font-size: 15px;">Hệ thống AITA</p>
+                            </div>
+                            <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+                                <p style="font-size: 16px; margin-top: 0;">Chào Sinh viên <strong style="color: #0f172a;">${fullName}</strong>,</p>
+                                <p>Bạn vừa được phân bổ vào danh sách lớp học mới. Dưới đây là thông tin chi tiết:</p>
+                                
+                                <div style="background: #f0f9ff; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #bae6fd;">
+                                    <div style="margin-bottom: 12px; border-bottom: 1px solid #bae6fd; padding-bottom: 12px;">
+                                        <p style="margin: 0 0 4px 0; color: #0369a1;"><strong>Kỳ học:</strong> ${semesterCode}</p>
+                                        <p style="margin: 0; color: #0369a1;"><strong>Lớp định danh:</strong> ${classCode}</p>
+                                    </div>
+                                    <p style="margin: 0 0 8px 0; color: #0c4a6e; font-weight: 600;">Chi tiết các môn đã xếp lớp:</p>
+                                    <ul style="margin: 0; padding-left: 20px; color: #0c4a6e; line-height: 1.8;">
+                                        ${enrolledClassDetails.length > 0 ? enrolledClassDetails.join('\n') : '<li>Đang chờ giảng viên tạo lớp, vui lòng theo dõi thêm.</li>'}
+                                    </ul>
+                                </div>
+                                
+                                <p>Vui lòng đăng nhập vào hệ thống (Email: <strong style="color: #0f172a;">${email}</strong>) để theo dõi và nộp bài tập.</p>
+                                
+                                <p style="margin-bottom: 0; margin-top: 30px;">Trân trọng,<br><strong style="color: #0f172a;">Ban quản trị AITA</strong></p>
+                            </div>
+                        </div>
                     `
                     await this.emailService.sendEmail(
                         email,

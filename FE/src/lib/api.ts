@@ -122,6 +122,8 @@ export const api = {
     request<any>(`/users/import`, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
   importStudentsExcel: (body: FormData) =>
     request<any>(`/users/import-students-excel`, { method: 'POST', body }),
+  importLecturersExcel: (body: FormData) =>
+    request<any>(`/users/import-lecturers-excel`, { method: 'POST', body }),
 
   // â”€â”€â”€ Subjects CRUD â”€â”€â”€
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),

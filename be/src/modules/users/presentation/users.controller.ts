@@ -9,6 +9,8 @@ import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case
 import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../application/use-cases/import-students-excel.use-case.js'
 import { PreviewImportStudentsExcelUseCase } from '../application/use-cases/preview-import-students-excel.use-case.js'
+import { ImportLecturersExcelUseCase } from '../application/use-cases/import-lecturers-excel.use-case.js'
+import { PreviewImportLecturersExcelUseCase } from '../application/use-cases/preview-import-lecturers-excel.use-case.js'
 import { CreateUserDto, UpdateUserDto, ImportUsersBatchDto } from '../application/dtos/user.dto.js'
 import { GetUserDetailsUseCase } from '../application/use-cases/get-user-details.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
@@ -24,6 +26,8 @@ export class UsersController extends BaseController {
         private readonly importUseCase: ImportUsersUseCase,
         private readonly importStudentsExcelUseCase: ImportStudentsExcelUseCase,
         private readonly previewImportStudentsExcelUseCase: PreviewImportStudentsExcelUseCase,
+        private readonly importLecturersExcelUseCase: ImportLecturersExcelUseCase,
+        private readonly previewImportLecturersExcelUseCase: PreviewImportLecturersExcelUseCase,
         private readonly getUserDetailsUseCase: GetUserDetailsUseCase,
         private readonly logger: ILogger
     ) {
@@ -127,6 +131,56 @@ export class UsersController extends BaseController {
             this.created(res, result, 'Đã nhập danh sách sinh viên từ Excel thành công')
         } finally {
             // Cleanup the file after reading it into buffer
+            if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path)
+            }
+        }
+    }
+
+    async previewImportLecturersExcel(req: Request, res: Response): Promise<void> {
+        this.logger.debug('Received preview import lecturers excel request')
+        const file = req.file
+        if (!file) {
+            res.status(400).json({ status: 'error', message: 'File Excel là bắt buộc', data: null })
+            return
+        }
+
+        try {
+            const fileBuffer = fs.readFileSync(file.path)
+
+            const result = await this.previewImportLecturersExcelUseCase.execute({
+                fileBuffer,
+                fileName: file.originalname
+            })
+            this.ok(res, result, 'Xem trước danh sách giảng viên thành công')
+        } finally {
+            if (fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path)
+            }
+        }
+    }
+
+    async importLecturersExcel(req: Request, res: Response): Promise<void> {
+        this.logger.debug('Received import lecturers excel request')
+        const file = req.file
+        if (!file) {
+            res.status(400).json({ status: 'error', message: 'File Excel là bắt buộc', data: null })
+            return
+        }
+
+        const importedByUserId = req.user?.id || ''
+
+        try {
+            const fileBuffer = fs.readFileSync(file.path)
+
+            const result = await this.importLecturersExcelUseCase.execute({
+                fileBuffer,
+                fileName: file.originalname,
+                fileUrl: `/uploads/imports/${file.filename}`,
+                importedByUserId
+            })
+            this.created(res, result, 'Đã nhập danh sách giảng viên từ Excel thành công')
+        } finally {
             if (fs.existsSync(file.path)) {
                 fs.unlinkSync(file.path)
             }

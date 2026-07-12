@@ -77,10 +77,10 @@ describe('SeasonDetectorUtil', () => {
             }).toThrow(SeasonDetectorError)
         })
 
-        test('should throw error for missing year', () => {
-            expect(() => {
-                detectSeasonFromFilename('Fall_students.xlsx')
-            }).toThrow(SeasonDetectorError)
+        test('should fallback to current year for missing year', () => {
+            const result = detectSeasonFromFilename('Fall_students.xlsx')
+            expect(result.season).toBe('Fall')
+            expect(result.year).toBe(new Date().getFullYear())
         })
 
         test('should throw error for invalid year format', () => {
@@ -107,10 +107,10 @@ describe('SeasonDetectorUtil', () => {
             }).toThrow(SeasonDetectorError)
         })
 
-        test('should throw error for reversed format (year then season)', () => {
-            expect(() => {
-                detectSeasonFromFilename('2026_Fall.xlsx')
-            }).toThrow(SeasonDetectorError)
+        test('should work for reversed format (year then season)', () => {
+            const result = detectSeasonFromFilename('2026_Fall.xlsx')
+            expect(result.season).toBe('Fall')
+            expect(result.year).toBe(2026)
         })
     })
 

@@ -95,6 +95,7 @@ export function AdminUsers() {
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'lecturer', externalId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [importSuccess, setImportSuccess] = useState('')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -105,8 +106,11 @@ export function AdminUsers() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showLecturerImport, setShowLecturerImport] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
+  const [importLecturerFile, setImportLecturerFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importingLecturer, setImportingLecturer] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [selectedUserDetail, setSelectedUserDetail] = useState<any>(null)
@@ -382,18 +386,63 @@ export function AdminUsers() {
 
     setImporting(true)
     setError('')
+    setImportSuccess('')
     try {
       const formData = new FormData()
       formData.append('file', importFile)
 
-      await api.importStudentsExcel(formData)
-      setImportFile(null)
-      setShowImport(false)
+      const res = await api.importStudentsExcel(formData)
+      
+      if (res.errorCount > 0) {
+        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        if (res.errors && res.errors.length > 0) {
+          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+        }
+        setError(msg)
+      } else {
+        setImportSuccess(`Đã import thành công ${res.successCount} sinh viên.`)
+        setImportFile(null)
+      }
+
       load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import thất bại')
     } finally {
       setImporting(false)
+    }
+  }
+
+  const handleLecturerImport = async () => {
+    if (!importLecturerFile) {
+      setError('Vui lòng chọn file Excel')
+      return
+    }
+
+    setImportingLecturer(true)
+    setError('')
+    setImportSuccess('')
+    try {
+      const formData = new FormData()
+      formData.append('file', importLecturerFile)
+
+      const res = await api.importLecturersExcel(formData)
+
+      if (res.errorCount > 0) {
+        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        if (res.errors && res.errors.length > 0) {
+          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+        }
+        setError(msg)
+      } else {
+        setImportSuccess(`Đã import thành công ${res.successCount} giảng viên. Emails phân công đã được gửi.`)
+        setImportLecturerFile(null)
+      }
+
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import thất bại')
+    } finally {
+      setImportingLecturer(false)
     }
   }
 
@@ -465,7 +514,16 @@ export function AdminUsers() {
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowImport(true); setShowForm(false); setError(''); }}
+                  onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
+                >
+                  <Upload size={16} />
+                  Import Giảng viên (Excel)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                  onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
                   Import Sinh viên (Excel)
@@ -806,36 +864,115 @@ export function AdminUsers() {
           {error && (
             <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div><span className="font-semibold">Lỗi:</span> {error}</div>
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
             </div>
           )}
 
-          <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-              <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
-              <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                MSSV | Họ và tên | Email | môn đã học vượt thành công | Số điện thoại | Kỳ học | Lớp học | Môn khác kì hiện tại (nợ/học vượt) | Hình ảnh{'\n'}
-                QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
-              </pre>
-            </div>
-
-            <div>
-              <input
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
-                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Hủy bỏ</Button>
-              <Button onClick={handleImport} disabled={importing} className="bg-brand-600 hover:bg-brand-700 text-white">
-                {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
-                {importing ? 'Đang Import...' : 'Tiến hành Import'}
+          {importSuccess ? (
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
+                <CheckSquare className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
+              <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowImport(false)}>
+                Quay lại
               </Button>
             </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
+                  MSSV | Họ và tên | Email | môn đã học vượt thành công | Số điện thoại | Kỳ học | Lớp học | Môn khác kì hiện tại (nợ/học vượt) | Hình ảnh{'\n'}
+                  QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
+                </pre>
+              </div>
+
+              <div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
+                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Hủy bỏ</Button>
+                <Button onClick={handleImport} disabled={importing} className="bg-brand-600 hover:bg-brand-700 text-white">
+                  {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                  {importing ? 'Đang Import...' : 'Tiến hành Import'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Import Lecturer Modal */}
+      {showLecturerImport && (
+        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
+            <CardHeader
+              title="Import Danh sách Giảng viên (Excel)"
+              description="Tải lên file Excel theo chuẩn template quy định."
+            />
+            <button type="button" onClick={() => setShowLecturerImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <X size={18} />
+            </button>
           </div>
+
+          {error && (
+            <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
+            </div>
+          )}
+
+          {importSuccess ? (
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
+                <CheckSquare className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
+              <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowLecturerImport(false)}>
+                Quay lại
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
+                  MSSV/GV | Họ và tên | Email | Môn dạy | Lớp dạy | Hình ảnh{'\n'}
+                  GV0001 | Nguyễn Văn A | nva@... | DBI201 | SE18C01 SE18C02 | blob:https://...{'\n'}
+                  GV0002 | Trần Thị B | ttb@... | DBI201; CSD201 | SE18C01 SE18C02; SE18C03 | ...
+                </pre>
+                <div className="mt-2 text-xs text-brand-600 dark:text-brand-400">
+                  * Mẹo: Dùng dấu chấm phẩy (;) hoặc Alt+Enter để tách các môn khác nhau. Ví dụ trên: Cô B dạy DBI201 cho 2 lớp (SE18C01, SE18C02) và dạy CSD201 cho lớp SE18C03.
+                </div>
+              </div>
+
+              <div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
+                  onChange={(e) => setImportLecturerFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <Button type="button" variant="ghost" onClick={() => setShowLecturerImport(false)}>Hủy bỏ</Button>
+                <Button onClick={handleLecturerImport} disabled={importingLecturer} className="bg-brand-600 hover:bg-brand-700 text-white">
+                  {importingLecturer ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                  {importingLecturer ? 'Đang Import...' : 'Tiến hành Import'}
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 

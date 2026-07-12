@@ -1,97 +1,242 @@
 erDiagram
-    USER ||--o{ USER_ROLE : has
-    USER ||--o{ REFRESH_TOKEN : owns
-    USER ||--o{ OAUTH_IDENTITY : has
-    USER ||--o{ STUDENT_CLASS : enrolls
-    USER ||--o{ INSTRUCTOR_CLASS : teaches
-    USER ||--o{ SUBMISSION : submits
-    USER ||--o{ GRADING_SESSION : triggers
-    USER ||--o{ AUDIT_LOG : creates
+    %% ===== USER & AUTH =====
+    USER {
+        string id PK
+        string email
+        string name
+        string password_hash
+        string role
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
 
-    ROLE ||--o{ USER_ROLE : assigned_to
+    ROLE {
+        string id PK
+        string code
+        string name
+    }
 
-    SEMESTER ||--o{ SEMESTER_SUBJECT : contains
-    SEMESTER ||--o{ CLASS : has
-    SEMESTER ||--o{ PENDING_ENROLLMENT : references
+    USER_ROLE {
+        string id PK
+        string user_id FK
+        string role_id FK
+    }
 
-    SUBJECT ||--o{ SEMESTER_SUBJECT : assigned_to
-    SUBJECT ||--o{ CLASS : offered_as
-    SUBJECT ||--o{ EXAM : contains
-    SUBJECT ||--o{ ASSIGNMENT_TEMPLATE : uses
+    %% ===== ACADEMIC STRUCTURE =====
+    SEMESTER {
+        string id PK
+        string name
+        string code
+        datetime start_date
+        datetime end_date
+        boolean is_active
+    }
 
-    SEMESTER_SUBJECT ||--o{ CLASS : "defines class offerings"
+    SUBJECT {
+        string id PK
+        string code
+        string name
+        string description
+        string semester_id FK
+    }
 
-    CLASS ||--o{ STUDENT_CLASS : enrolls
-    CLASS ||--o{ INSTRUCTOR_CLASS : assigns
-    CLASS ||--o{ EXAM_CLASS : offers
-    CLASS ||--o{ SUBMISSION : receives
+    CLASS {
+        string id PK
+        string code
+        string name
+        string subject_id FK
+        string instructor_id FK
+        int capacity
+        datetime created_at
+    }
 
-    STUDENT_CLASS ||--o{ SUBMISSION : participates
+    %% ===== ENROLLMENT =====
+    STUDENT_CLASS {
+        string id PK
+        string class_id FK
+        string student_id FK
+        string enrollment_status
+        datetime enrolled_at
+    }
 
-    INSTRUCTOR_CLASS ||--o{ EXAM : teaches
+    INSTRUCTOR_CLASS {
+        string id PK
+        string class_id FK
+        string instructor_id FK
+        datetime assigned_at
+    }
 
-    EXAM ||--o{ EXAM_CLASS : offered_in
-    EXAM ||--o{ EXAM_SECTION : contains
-    EXAM ||--o{ EXAM_ATTACHMENT : has
-    EXAM ||--o{ TEST_CASE : defines
-    EXAM ||--o{ SUBMISSION : receives
-    EXAM ||--o{ SAMPLE_CODE : provides
-    EXAM ||--o{ EXAM_GENERATION_HISTORY : tracks
-    EXAM ||--o{ GRADING_PROFILE : uses
+    %% ===== EXAM & ASSIGNMENT =====
+    EXAM {
+        string id PK
+        string title
+        string description
+        string class_id FK
+        string creator_id FK
+        datetime start_time
+        datetime end_time
+        string status
+        datetime created_at
+    }
 
-    EXAM_SECTION ||--o{ RUBRIC_RULE : defines
+    ASSIGNMENT {
+        string id PK
+        string title
+        string description
+        string class_id FK
+        string creator_id FK
+        datetime deadline
+        string status
+        datetime created_at
+    }
 
-    RUBRIC_RULE ||--o{ RUBRIC_CRITERION : breaks_down
-    RUBRIC_RULE ||--o{ RULE_SCORE : evaluates
+    EXAM_SECTION {
+        string id PK
+        string exam_id FK
+        string title
+        int order
+        int duration_minutes
+    }
 
-    RUBRIC_CRITERION ||--o{ CRITERION_SCORE : evaluates
+    %% ===== SUBMISSION & GRADING =====
+    SUBMISSION {
+        string id PK
+        string exam_id FK
+        string assignment_id FK
+        string student_id FK
+        string file_url
+        datetime submitted_at
+        string status
+        datetime created_at
+    }
 
-    SUBMISSION ||--o{ SUBMISSION_ARTIFACT : contains
-    SUBMISSION ||--o{ GRADING_SESSION : initiates
-    SUBMISSION ||--o{ APPEAL : receives
-    SUBMISSION ||--o{ EXECUTION_RESULT : produces
+    GRADING_PROFILE {
+        string id PK
+        string exam_id FK
+        string assignment_id FK
+        string title
+        decimal total_points
+    }
 
-    EXECUTION_RESULT ||--o{ RULE_SCORE : generates
-    EXECUTION_RESULT ||--o{ GRADING_JOB : belongs_to
+    GRADING_SESSION {
+        string id PK
+        string submission_id FK
+        string grader_id FK
+        string status
+        datetime started_at
+        datetime completed_at
+    }
 
-    RULE_SCORE ||--o{ CRITERION_SCORE : breaks_down
-    RULE_SCORE ||--o{ EVIDENCE : has
+    GRADE {
+        string id PK
+        string submission_id FK
+        string student_id FK
+        decimal score
+        string feedback
+        string grader_id FK
+        datetime graded_at
+    }
 
-    GRADING_SESSION ||--o{ GRADING_JOB : orchestrates
-    GRADING_SESSION ||--o{ BUILD_ARTIFACT : produces
-    GRADING_SESSION ||--o{ SANDBOX_EXECUTION : runs
+    RUBRIC_CRITERION {
+        string id PK
+        string grading_profile_id FK
+        string description
+        decimal max_points
+    }
 
-    GRADING_JOB ||--o{ GRADING_PROFILE_STEP : executes
-    GRADING_JOB ||--o{ JOB_DEPENDENCY : depends_on
+    %% ===== AI & FEEDBACK =====
+    AI_FEEDBACK {
+        string id PK
+        string submission_id FK
+        string content
+        string strengths
+        string improvements
+        datetime generated_at
+    }
 
-    GRADING_PROFILE ||--o{ GRADING_PROFILE_STEP : contains
+    LEARNING_PATH {
+        string id PK
+        string feedback_id FK
+        string student_id FK
+        string recommendations
+        datetime created_at
+    }
 
-    GRADING_PROFILE_STEP ||--o{ GRADING_JOB : configures
+    %% ===== APPEAL & NOTIFICATION =====
+    APPEAL {
+        string id PK
+        string submission_id FK
+        string student_id FK
+        string message
+        string status
+        datetime submitted_at
+    }
 
-    PROJECT_TYPE ||--o{ PROJECT_TYPE_COMPOSITION : hierarchical
-    PROJECT_TYPE ||--o{ SUBJECT_PROJECT_TYPE : mapped_to
-    PROJECT_TYPE ||--o{ GRADING_PROFILE : uses
+    NOTIFICATION {
+        string id PK
+        string recipient_id FK
+        string type
+        string message
+        boolean is_read
+        datetime created_at
+    }
 
-    ASSIGNMENT_TEMPLATE ||--o{ GRADING_PROFILE : uses
-    ASSIGNMENT_TEMPLATE ||--o{ PROJECT_TYPE : uses
+    AUDIT_LOG {
+        string id PK
+        string user_id FK
+        string action
+        string entity_type
+        string entity_id
+        datetime timestamp
+    }
 
-    APPEAL ||--o{ SUBMISSION : contests
+    %% ===== RELATIONSHIPS =====
+    USER ||--o{ USER_ROLE : "has"
+    ROLE ||--o{ USER_ROLE : "assigned"
 
-    NOTIFICATION ||--o{ NOTIFICATION_RECIPIENT : sends_to
+    SEMESTER ||--o{ SUBJECT : "contains"
+    SEMESTER ||--o{ CLASS : "has"
 
-    NOTIFICATION_RECIPIENT ||--o{ USER : notifies
+    SUBJECT ||--o{ CLASS : "offered_in"
+    SUBJECT ||--o{ EXAM : "includes"
+    SUBJECT ||--o{ ASSIGNMENT : "includes"
 
-    AI_API_KEY ||--o{ AI_USAGE_LOG : powers
+    CLASS ||--o{ STUDENT_CLASS : "enrolls"
+    CLASS ||--o{ INSTRUCTOR_CLASS : "assigns"
+    CLASS ||--o{ EXAM : "has"
+    CLASS ||--o{ ASSIGNMENT : "has"
+    CLASS ||--o{ SUBMISSION : "receives"
 
-    AI_USAGE_LOG ||--o{ USER : logs
-    AI_USAGE_LOG ||--o{ EXAM : references
-    AI_USAGE_LOG ||--o{ SUBMISSION : references
+    USER ||--o{ STUDENT_CLASS : "participates"
+    USER ||--o{ INSTRUCTOR_CLASS : "teaches"
+    USER ||--o{ EXAM : "creates"
+    USER ||--o{ ASSIGNMENT : "creates"
+    USER ||--o{ SUBMISSION : "submits"
+    USER ||--o{ GRADE : "receives"
+    USER ||--o{ GRADING_SESSION : "initiates"
+    USER ||--o{ AUDIT_LOG : "creates"
 
-    PROMPT_TEMPLATE ||--o{ EXAM : uses
-    PROMPT_TEMPLATE ||--o{ USER : created_by
+    EXAM ||--o{ EXAM_SECTION : "contains"
+    EXAM ||--o{ SUBMISSION : "receives"
+    EXAM ||--o{ GRADING_PROFILE : "uses"
+    EXAM ||--o{ AI_FEEDBACK : "generates"
 
-    REFERENCE_ARTIFACT ||--o{ EXAM : provides
+    ASSIGNMENT ||--o{ SUBMISSION : "receives"
+    ASSIGNMENT ||--o{ GRADING_PROFILE : "uses"
+    ASSIGNMENT ||--o{ AI_FEEDBACK : "generates"
 
-    IMPORT_BATCH ||--o{ USER : imported_by
+    SUBMISSION ||--o{ GRADING_SESSION : "initiates"
+    SUBMISSION ||--o{ GRADE : "produces"
+    SUBMISSION ||--o{ APPEAL : "receives"
+    SUBMISSION ||--o{ AI_FEEDBACK : "receives"
 
-    PENDING_ENROLLMENT ||--o{ USER : queues
+    GRADING_PROFILE ||--o{ RUBRIC_CRITERION : "has"
+    GRADING_SESSION ||--o{ GRADE : "produces"
+
+    AI_FEEDBACK ||--o{ LEARNING_PATH : "suggests"
+
+    APPEAL ||--o{ SUBMISSION : "contests"
+
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ LEARNING_PATH : "follows"

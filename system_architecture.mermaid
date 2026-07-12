@@ -1,0 +1,63 @@
+graph LR
+    subgraph Users["👥 Users"]
+        Admin["🔐 Admin"]
+        Lecturer["👨‍🏫 Lecturer"]
+        Student["👨‍🎓 Student"]
+    end
+
+    subgraph Core["🎯 Core Services"]
+        Web["💻 Web Client<br/>React + Vite"]
+        API["🔗 Backend API<br/>Express + Node.js"]
+        Mobile["📱 Mobile App<br/>Expo + React Native"]
+        AI["🤖 AI Module<br/>Gemini Integration"]
+    end
+
+    subgraph Database["💾 Data Layer"]
+        DB["🗄️ SQL Server<br/>Prisma ORM"]
+        Cache["⚡ Redis Cache<br/>Session & Data"]
+    end
+
+    subgraph External["🌐 External Services"]
+        Gemini["🧠 Gemini API<br/>AI Model"]
+        S3["☁️ S3 Storage<br/>File Upload"]
+        Monitoring["📊 Monitoring<br/>System Health"]
+        Auth["🔑 Google Identity<br/>Authentication"]
+    end
+
+    Admin -->|Login| Web
+    Lecturer -->|Login| Web
+    Student -->|Login| Web
+    
+    Student -->|Mobile| Mobile
+    Lecturer -->|Mobile| Mobile
+
+    Web -->|API Call| API
+    Mobile -->|API Call| API
+    
+    API -->|Query/Mutate| DB
+    API -->|Cache| Cache
+    API -->|AI Processing| AI
+    
+    AI -->|External Call| Gemini
+    
+    API -->|Upload| S3
+    API -->|Metrics| Monitoring
+    API -->|Auth Check| Auth
+
+    
+    style Admin fill:#06b6d4,stroke:#0891b2,color:#111827
+    style Lecturer fill:#06b6d4,stroke:#0891b2,color:#111827
+    style Student fill:#06b6d4,stroke:#0891b2,color:#111827
+    
+    style Web fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style API fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style Mobile fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style AI fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    
+    style DB fill:#fbbf24,stroke:#d97706,color:#111827
+    style Cache fill:#fbbf24,stroke:#d97706,color:#111827
+    
+    style Gemini fill:#ec4899,stroke:#be185d,color:#fff
+    style S3 fill:#ec4899,stroke:#be185d,color:#fff
+    style Monitoring fill:#ec4899,stroke:#be185d,color:#fff
+    style Auth fill:#ec4899,stroke:#be185d,color:#fff
