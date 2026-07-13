@@ -199,6 +199,13 @@ export const api = {
     const q = new URLSearchParams(params).toString()
     return request<AssignmentRow[]>(`/assignments${q ? `?${q}` : ''}`)
   },
+  
+  // Student Portal
+  getStudentDashboard: () => request<any>('/student-portal/dashboard'),
+  getStudentSubjects: () => request<any[]>('/student-portal/subjects'),
+  getStudentClassDetail: (classId: string) => request<any>(`/student-portal/classes/${classId}`),
+  getStudentAiHint: (submissionId: string, ruleScoreId: string) => request<any>(`/submissions/${submissionId}/ai-feedback?ruleScoreId=${ruleScoreId}`),
+
   getAssignment: (id: string) => request<AssignmentRow>(`/assignments/${id}`),
   createAssignment: (body: unknown) => {
     const isFormData = body instanceof FormData;

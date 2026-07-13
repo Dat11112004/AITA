@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, forwardRef } from 'react'
 
 interface CardProps {
   children: ReactNode
@@ -9,21 +9,25 @@ interface CardProps {
 
 const padMap = { none: '', sm: 'p-4', md: 'p-5', lg: 'p-6' }
 
-export function Card({ children, className = '', padding = 'md', onClick }: CardProps) {
-  return (
-    <div
-      onClick={onClick}
-      className={`
-        rounded-2xl border border-amber-100/80 bg-white
-        shadow-sm transition-colors duration-200
-        dark:bg-[#161b27] dark:border-slate-800
-        ${padMap[padding]} ${className}
-      `}
-    >
-      {children}
-    </div>
-  )
-}
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ children, className = '', padding = 'md', onClick }, ref) => {
+    return (
+      <div
+        ref={ref}
+        onClick={onClick}
+        className={`
+          rounded-2xl border border-amber-100/80 bg-white
+          shadow-sm transition-colors duration-200
+          dark:bg-[#161b27] dark:border-slate-800
+          ${padMap[padding]} ${className}
+        `}
+      >
+        {children}
+      </div>
+    )
+  }
+)
+Card.displayName = 'Card'
 
 interface CardHeaderProps {
   title: string

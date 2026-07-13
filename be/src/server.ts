@@ -10,8 +10,10 @@ if (env.NODE_ENV === 'development') {
     .then(() => console.log('🌱 Dev seed: test accounts ready (admin/lecturer/student @fpt.edu.vn)'))
     .catch((err) => console.warn('⚠️ Dev seed skipped:', err instanceof Error ? err.message : err))
 }
+import { deadlineReminderJob } from './shared/infrastructure/jobs/deadline-reminder.job.js'
 
 app.listen(env.PORT, () => {
+  deadlineReminderJob.start()
   console.log(`\n🎓 AITA Backend — http://localhost:${env.PORT}`)
   console.log(`   API base:  http://localhost:${env.PORT}/api`)
   console.log(`   Health:    GET /api/health`)

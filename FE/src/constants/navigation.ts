@@ -21,10 +21,11 @@ export const LECTURER_NAV: NavItem[] = [
 ]
 
 export const STUDENT_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/student', icon: 'LayoutDashboard', category: 'Chung' },
-  { id: 'courses', label: 'Khóa học', path: '/student/courses', icon: 'BookOpen', category: 'Học tập' },
-  { id: 'classes', label: 'Bảng điểm', path: '/student/classes', icon: 'GraduationCap', category: 'Học tập' },
-  { id: 'assignments', label: 'Bài tập', path: '/student/assignments', icon: 'ClipboardList', category: 'Đánh giá & Chấm điểm' },
+  { id: 'overview', label: 'Dashboard', path: '/student', icon: 'LayoutDashboard', category: 'Chung' },
+  { id: 'classes', label: 'Lớp học', path: '/student/classes', icon: 'Users', category: 'Học tập' },
+  { id: 'subjects', label: 'Môn học', path: '/student/subjects', icon: 'BookOpen', category: 'Học tập' },
+  { id: 'results', label: 'Kết quả', path: '/student/results', icon: 'FileText', category: 'Học tập' },
+  { id: 'notifications', label: 'Notifications', path: '/student/notifications', icon: 'Bell', category: 'Hệ thống' },
   { id: 'settings', label: 'Cài đặt', path: '/student/profile', icon: 'Settings', category: 'Hệ thống' },
 ]
 

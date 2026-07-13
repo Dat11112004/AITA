@@ -8,6 +8,7 @@ import { PublishGradeUseCase } from '../application/use-cases/publish-grade.use-
 import { RecentSubmissionsUseCase } from '../application/use-cases/recent-submissions.use-case.js'
 import { SubmitFeedbackUseCase } from '../application/use-cases/submit-feedback.use-case.js'
 import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-grades.use-case.js'
+import { GetAiHintUseCase } from '../application/use-cases/get-ai-hint.use-case.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class SubmissionsController extends BaseController {
@@ -19,6 +20,7 @@ export class SubmissionsController extends BaseController {
         private readonly publishGradeUseCase: PublishGradeUseCase,
         private readonly submitFeedbackUseCase: SubmitFeedbackUseCase,
         private readonly bulkPublishGradesUseCase: BulkPublishGradesUseCase,
+        private readonly getAiHintUseCase: GetAiHintUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -70,5 +72,13 @@ export class SubmissionsController extends BaseController {
         this.logger.debug(`Received request to submit feedback for submission: ${req.params.id}`)
         const result = await this.submitFeedbackUseCase.execute({ id: String(req.params.id), user: req.user!, feedback: req.body.feedback })
         this.ok(res, result, 'Gửi ý kiến thành công')
+    }
+
+    async getAiHint(req: Request, res: Response): Promise<void> {
+        const submissionId = String(req.params.id)
+        const ruleScoreId = String(req.query.ruleScoreId)
+        this.logger.debug(`Received request for AI hint for submission: ${submissionId}, rule: ${ruleScoreId}`)
+        const result = await this.getAiHintUseCase.execute({ submissionId, ruleScoreId, user: req.user! })
+        this.ok(res, result, 'Lấy gợi ý AI thành công')
     }
 }

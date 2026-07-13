@@ -23,5 +23,6 @@ export class SubmissionsRouter {
         this.router.post('/', authenticate, asyncHandler((req: any, res: any) => ctrl.submit(req, res)))
         this.router.patch('/:id/grade', authenticate, asyncHandler((req: any, res: any) => ctrl.publishGrade(req, res)))
         this.router.post('/:id/feedback', authenticate, asyncHandler((req: any, res: any) => ctrl.submitFeedback(req, res)))
+        this.router.get('/:id/ai-feedback', authenticate, asyncHandler((req: any, res: any) => ctrl.getAiHint(req, res)))
     }
 }

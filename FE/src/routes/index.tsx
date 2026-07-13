@@ -44,9 +44,12 @@ import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRub
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail'
-import { StudentClasses } from '@/pages/student/StudentClasses'
-import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
+import { StudentSubjects } from '@/pages/student/StudentSubjects'
+import { StudentClasses } from '@/pages/student/StudentClasses'
+import { StudentClassDetail } from '@/pages/student/StudentClassDetail'
+import { StudentResults } from '@/pages/student/StudentResults'
+import { StudentNotifications } from '@/pages/student/StudentNotifications'
 
 export function AppRoutes() {
   return (
@@ -142,12 +145,14 @@ export function AppRoutes() {
         }
       >
         <Route index element={<StudentOverview />} />
+        <Route path="classes" element={<StudentClasses />} />
+        <Route path="subjects" element={<StudentSubjects />} />
+        <Route path="classes/:id" element={<StudentClassDetail />} />
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
         <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
-        <Route path="classes" element={<StudentClasses />} />
-        <Route path="courses" element={<StudentCourses />} />
-        <Route path="ai-feedback" element={<StudentAIFeedback />} />
+        <Route path="results" element={<StudentResults />} />
+        <Route path="notifications" element={<StudentNotifications />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

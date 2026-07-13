@@ -45,6 +45,15 @@ export function Profile() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const passwordCardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (mustChangePassword && passwordCardRef.current) {
+      setTimeout(() => {
+        passwordCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 500)
+    }
+  }, [mustChangePassword])
 
   useEffect(() => {
     if (user) {
@@ -141,63 +150,7 @@ export function Profile() {
 
   return (
     <>
-      {mustChangePassword && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 text-center bg-gradient-to-b from-amber-50 to-white dark:from-slate-800 dark:to-slate-900">
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <KeyRound size={32} />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">CHÚ Ý: Đổi Mật Khẩu</h2>
-              <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium bg-amber-100/50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50">
-                Tài khoản của bạn đang sử dụng mật khẩu tạm thời. Vì lý do bảo mật, bạn <strong>BẮT BUỘC</strong> phải thay đổi sang mật khẩu mới trước khi tiếp tục truy cập các tính năng của hệ thống.
-              </p>
-            </div>
-            <div className="p-6 space-y-4">
-              <Input
-                type="password"
-                label="Mật khẩu tạm hiện tại"
-                value={passwordForm.oldPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-              />
-              <Input
-                type="password"
-                label="Mật khẩu mới (Tối thiểu 6 ký tự)"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-              />
-              <Input
-                type="password"
-                label="Xác nhận mật khẩu mới"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-              />
-              <Button 
-                onClick={handleChangePassword} 
-                disabled={savingPassword || !passwordForm.newPassword} 
-                className="w-full bg-brand-600 hover:bg-brand-700 text-white mt-4 h-11 text-base font-bold shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
-              >
-                {savingPassword ? <><Loader2 size={18} className="animate-spin mr-2" /> Đang cập nhật...</> : 'Xác nhận đổi mật khẩu'}
-              </Button>
-              {user?.role !== 'student' && (
-                <button 
-                  onClick={async () => {
-                    try {
-                      await api.dismissPasswordChange();
-                      window.location.href = `/${user.role}`;
-                    } catch(e: any) { alert(e.message) }
-                  }}
-                  className="w-full text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 mt-3 underline underline-offset-4 transition-colors font-medium"
-                >
-                  Bỏ qua lần này (Chỉ dành cho Giảng viên)
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={`space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500 ${mustChangePassword ? 'pointer-events-none blur-sm opacity-50 select-none' : ''}`}>
+      <div className="space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500">
         <PageHeader
           title="Hồ sơ Cá nhân"
           description="Quản lý thông tin cá nhân và bảo mật tài khoản của bạn."
@@ -348,7 +301,7 @@ export function Profile() {
           </Card>
 
           {/* Password Form */}
-          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+          <Card ref={passwordCardRef} className="overflow-hidden border border-slate-200 dark:border-slate-800">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <KeyRound className="text-amber-500 w-5 h-5 ml-1" />
@@ -359,6 +312,12 @@ export function Profile() {
               </Button>
             </div>
             <div className="p-6 space-y-4 max-w-md">
+              {mustChangePassword && (
+                <div className="p-3 mb-4 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-400 flex items-start gap-3">
+                  <Shield size={18} className="shrink-0 mt-0.5" />
+                  <p>Tài khoản của bạn đang sử dụng mật khẩu tạm thời. Vui lòng đổi mật khẩu để đảm bảo an toàn.</p>
+                </div>
+              )}
               <Input
                 type="password"
                 label="Mật khẩu hiện tại"

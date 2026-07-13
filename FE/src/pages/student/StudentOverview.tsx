@@ -1,16 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, type AssignmentRow } from '@/lib/api'
+import { api } from '@/lib/api'
 import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar, Bell, Check } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 
 export function StudentOverview() {
   const navigate = useNavigate()
-  const [assignments, setAssignments] = useState<AssignmentRow[]>([])
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-
-  const [classes, setClasses] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
 
   const loadData = useCallback(() => {
@@ -18,14 +16,12 @@ export function StudentOverview() {
     setLoading(true)
     setError(null)
     Promise.all([
-      api.getAssignments({ limit: '10' }),
-      api.getClasses(),
+      api.getStudentDashboard(),
       api.getNotifications(1, 5).catch(() => [])
     ])
-      .then(([assignmentsData, classesData, notifData]) => {
+      .then(([data, notifData]) => {
         if (alive) {
-          setAssignments(assignmentsData || [])
-          setClasses(classesData || [])
+          setDashboardData(data || {})
           setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
         }
       })
@@ -42,16 +38,13 @@ export function StudentOverview() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  // Filter out upcoming tasks
-  const upcomingTasks = assignments.filter(a => a.due && new Date(a.due) > new Date()).slice(0, 5)
-
-  // Mapped enrolled subjects from classes
-  const subjects = classes.map(c => ({
-    id: c.id,
-    code: typeof c.subject === 'object' ? c.subject.code : c.subject || 'N/A',
-    name: typeof c.subject === 'object' ? c.subject.name : 'Môn học',
-    teacher: c.lecturers?.[0]?.name || c.lecturers?.[0]?.fullName || 'Chưa phân công',
-  }))
+  const upcomingTasks = dashboardData?.upcomingAssignments || []
+  const subjects = dashboardData?.enrolledClasses?.map((c: any) => ({
+    id: c.subject?.id || c.id,
+    code: c.subject?.code || c.classCode,
+    name: c.subject?.name || 'Môn học',
+    teacher: c.lecturers?.[0]?.name || 'Chưa phân công',
+  })) || []
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -102,10 +95,10 @@ export function StudentOverview() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
-            {subjects.map((sub, idx) => (
+            {subjects.map((sub: any, idx: number) => (
               <div 
                 key={idx}
-                onClick={() => navigate(`/student/classes`)}
+                onClick={() => navigate(`/student/classes/${sub.id}`)}
                 className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
               >
                 <div>
@@ -147,7 +140,7 @@ export function StudentOverview() {
                   Bạn đã hoàn thành mọi bài tập!
                 </div>
               ) : (
-                upcomingTasks.map((item) => (
+                upcomingTasks.map((item: any) => (
                   <div key={item.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/student/assignments/${item.id}`)}>
                     <div className="flex items-start gap-3">
                       <div className="mt-1">

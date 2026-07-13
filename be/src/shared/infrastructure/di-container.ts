@@ -61,6 +61,7 @@ import { PublishGradeUseCase } from '../../modules/submissions/application/use-c
 import { BulkPublishGradesUseCase } from '../../modules/submissions/application/use-cases/bulk-publish-grades.use-case.js'
 import { RecentSubmissionsUseCase } from '../../modules/submissions/application/use-cases/recent-submissions.use-case.js'
 import { SubmitFeedbackUseCase } from '../../modules/submissions/application/use-cases/submit-feedback.use-case.js'
+import { GetAiHintUseCase } from '../../modules/submissions/application/use-cases/get-ai-hint.use-case.js'
 import { SubmissionsController } from '../../modules/submissions/presentation/submissions.controller.js'
 import { ListUsersUseCase } from '../../modules/users/application/use-cases/list-users.use-case.js'
 import { CreateUserUseCase } from '../../modules/users/application/use-cases/create-user.use-case.js'
@@ -334,6 +335,7 @@ export class DIContainer {
       const bulkPublishGradesUseCase = new BulkPublishGradesUseCase(submissionRepo)
       const recentSubmissionsUseCase = new RecentSubmissionsUseCase(submissionRepo)
       const submitFeedbackUseCase = new SubmitFeedbackUseCase(uow.getClient())
+      const getAiHintUseCase = new GetAiHintUseCase()
 
       const submissionController = new SubmissionsController(
         listSubmissionsUseCase,
@@ -343,6 +345,7 @@ export class DIContainer {
         publishGradeUseCase,
         submitFeedbackUseCase,
         bulkPublishGradesUseCase,
+        getAiHintUseCase,
         logger
       )
       this.services.set('SubmissionController', submissionController)
