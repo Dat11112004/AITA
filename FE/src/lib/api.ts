@@ -349,7 +349,8 @@ export interface AuthUser {
   avatar?: string | null
   phone?: string
   lecturerCode?: string
-  // true khi tÃ i khoáº£n Ä‘Æ°á»£c táº¡o qua import â€” há»‡ thá»‘ng Ã©p Ä‘á»•i máº­t kháº©u láº§n Ä‘áº§u Ä‘Äƒng nháº­p
+  studentCode?: string
+  // true khi tài khoản được tạo qua import — hệ thống ép đổi mật khẩu lần đầu đăng nhập
   requirePasswordChange?: boolean
 }
 
