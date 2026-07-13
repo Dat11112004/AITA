@@ -16,8 +16,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
     code: ['mã', 'ma', 'mã giảng viên', 'instructor code', 'lecturer code', 'mssv/gv'],
     fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'tên', 'name'],
     email: ['email', 'gmail'],
-    subjects: ['môn dạy', 'mon day', 'subjects'],
-    classes: ['lớp dạy', 'lop day', 'classes'],
+    phone: ['số điện thoại', 'so dien thoai', 'sđt', 'sdt', 'phone'],
     avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh']
 }
 
@@ -41,6 +40,14 @@ export class ImportLecturersExcelUseCase {
         const normalizedName = fileName.toLowerCase()
         if (!normalizedName.includes('lecturer') && !normalizedName.includes('giảng viên') && !normalizedName.includes('giang_vien') && !normalizedName.includes('gv')) {
             throw new AppError('INVALID_FILE_NAME', 'Tên file không hợp lệ. Vui lòng đặt tên file có chứa từ khoá "lecturer" hoặc "giảng viên" (ví dụ: Lecturer_Spring2026.xlsx)', 400)
+        }
+
+        // BẮT BUỘC THEO THỨ TỰ: Học sinh -> Giảng viên -> Phân công
+        const studentCount = await prisma.userRole.count({
+            where: { Role: { RoleName: 'STUDENT' } }
+        })
+        if (studentCount === 0) {
+            throw new AppError('STUDENT_IMPORT_REQUIRED', 'Vui lòng import danh sách Học sinh (Sinh viên) vào hệ thống trước khi import danh sách Giảng viên.', 400)
         }
 
         let successCount = 0
@@ -145,12 +152,11 @@ export class ImportLecturersExcelUseCase {
                     const code = getField(row, 'code')
                     const fullName = getField(row, 'fullName')
                     const email = getField(row, 'email')
-                    const subjectsStr = getField(row, 'subjects') || ''
-                    const classesStr = getField(row, 'classes') || ''
+                    const phone = getField(row, 'phone')
                     const avatarUrlRaw = getField(row, 'avatar') || ''
 
-                    if (!code || !fullName || !email || !subjectsStr || !classesStr) {
-                        throw new Error('Thiếu thông tin bắt buộc (Mã GV, Họ và tên, Email, Môn dạy, Lớp dạy)')
+                    if (!code || !fullName || !email) {
+                        throw new Error('Thiếu thông tin bắt buộc (Mã GV, Họ và tên, Email)')
                     }
 
                     // Check duplicate User
@@ -158,7 +164,7 @@ export class ImportLecturersExcelUseCase {
                         where: {
                             OR: [
                                 { Email: email },
-                                { StudentCode: code }
+                                { LecturerCode: code }
                             ]
                         }
                     })
@@ -180,9 +186,10 @@ export class ImportLecturersExcelUseCase {
                         passwordHash = await bcrypt.hash(rawPassword, 10)
                         user = await prisma.user.create({
                             data: {
-                                StudentCode: code,
+                                LecturerCode: code,
                                 FullName: fullName,
                                 Email: email,
+                                Phone: phone,
                                 Avatar: secureAvatarUrl,
                                 PasswordHash: passwordHash,
                                 Status: 'Active',
@@ -199,7 +206,8 @@ export class ImportLecturersExcelUseCase {
                         // Cập nhật avatar nếu có, và đảm bảo role LECTURER
                         const dataToUpdate: any = {}
                         if (secureAvatarUrl) dataToUpdate.Avatar = secureAvatarUrl
-                        if (code && user.StudentCode !== code) dataToUpdate.StudentCode = code
+                        if (code && user.LecturerCode !== code) dataToUpdate.LecturerCode = code
+                        if (phone && user.Phone !== phone) dataToUpdate.Phone = phone
 
                         if (Object.keys(dataToUpdate).length > 0) {
                             user = await prisma.user.update({
@@ -207,109 +215,13 @@ export class ImportLecturersExcelUseCase {
                                 data: dataToUpdate
                             });
                         }
-                        
+
                         const hasRole = await prisma.userRole.findFirst({
                             where: { UserId: user.Id, RoleId: lecturerRole.Id }
                         })
                         if (!hasRole) {
                             await prisma.userRole.create({
                                 data: { UserId: user.Id, RoleId: lecturerRole.Id, AssignedAt: new Date() }
-                            })
-                        }
-                    }
-
-                    // Phân tích theo từng dòng (Alt+Enter) hoặc dấu chấm phẩy (;) để gom nhóm Môn - Lớp
-                    const subjectGroups = subjectsStr.split(/\n|;/).map(s => s.trim()).filter(Boolean)
-                    const classGroups = classesStr.split(/\n|;/).map(s => s.trim()).filter(Boolean)
-
-                    const classesToAssign: string[] = []
-                    const enrolledClassDetails: string[] = []
-
-                    const maxGroups = Math.max(subjectGroups.length, classGroups.length)
-
-                    for (let i = 0; i < maxGroups; i++) {
-                        // Lấy group tương ứng, nếu thiếu thì lấy group cuối cùng
-                        const sGroup = subjectGroups[i] || subjectGroups[subjectGroups.length - 1] || subjectGroups[0]
-                        const cGroup = classGroups[i] || classGroups[classGroups.length - 1] || classGroups[0]
-
-                        if (!sGroup || !cGroup) continue
-
-                        // Tách các môn và lớp trong group hiện tại (bằng dấu phẩy hoặc khoảng trắng)
-                        const subjectsInGroup = sGroup.split(/[,]\s*|\s+và\s+|\s+/).map(s => s.trim()).filter(Boolean)
-                        const classesInGroup = cGroup.split(/[,]\s*|\s+và\s+|\s+/).map(s => s.trim()).filter(Boolean)
-
-                        for (const subjectCode of subjectsInGroup) {
-                            for (const classCode of classesInGroup) {
-                                processedClasses.push({ subjectCode, classCode, userId: user.Id })
-
-                        const targetSubj = await prisma.subject.findUnique({
-                            where: { SubjectCode: subjectCode }
-                        })
-
-                        if (!targetSubj) {
-                            console.warn(`[Import Lecturer] Không tìm thấy môn '${subjectCode}' — bỏ qua`)
-                            continue
-                        }
-
-                        // Lookup class within this season
-                        let cls = await prisma.class.findFirst({
-                            where: {
-                                ClassCode: classCode,
-                                SubjectId: targetSubj.Id,
-                                SemesterId: { in: Array.from(targetSemesterIds) }
-                            },
-                            select: { Id: true, SemesterId: true }
-                        })
-
-                        if (!cls) {
-                            // Find which semester in this season has this subject
-                            const semSubj = await (prisma as any).semesterSubject.findFirst({
-                                where: {
-                                    SubjectId: targetSubj.Id,
-                                    SemesterId: { in: Array.from(targetSemesterIds) }
-                                }
-                            })
-
-                            if (!semSubj) {
-                                console.warn(`[Import Lecturer] Không tìm thấy môn '${subjectCode}' trong mùa '${detectedSeasonInfo.formatted}' — bỏ qua`)
-                                continue
-                            }
-
-                            cls = await prisma.class.create({
-                                data: {
-                                    ClassCode: classCode,
-                                    SubjectId: targetSubj.Id,
-                                    SemesterId: semSubj.SemesterId,
-                                    Status: 'Active'
-                                }
-                            })
-                            console.log(`[Import Lecturer] Auto-created class '${classCode}' cho môn '${subjectCode}' trong kỳ ${semSubj.SemesterId}`)
-                        }
-
-                        classesToAssign.push(cls.Id)
-                        const studentCount = await prisma.studentClass.count({ where: { ClassId: cls.Id } })
-                        enrolledClassDetails.push(`
-                            <tr>
-                                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">${subjectCode}</td>
-                                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #334155;">${classCode}</td>
-                                <td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; text-align: center;">
-                                    <span style="background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 700;">${studentCount}</span>
-                                </td>
-                            </tr>
-                        `)
-                            }
-                        }
-                    }
-
-                    // Assign classes
-                    const uniqueClassesToAssign = [...new Set(classesToAssign)]
-                    for (const classId of uniqueClassesToAssign) {
-                        const existingEnrollment = await prisma.instructorClass.findUnique({
-                            where: { UserId_ClassId: { UserId: user.Id, ClassId: classId } }
-                        })
-                        if (!existingEnrollment) {
-                            await prisma.instructorClass.create({
-                                data: { UserId: user.Id, ClassId: classId, EnrolledAt: new Date() }
                             })
                         }
                     }
@@ -359,42 +271,6 @@ export class ImportLecturersExcelUseCase {
                         )
                     }
 
-                    const classEnrollmentContent = `
-                        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
-                            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px 20px; text-align: center;">
-                                <h1 style="color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 0.5px;">Phân Công Giảng Dạy</h1>
-                                <p style="color: #d1fae5; margin: 8px 0 0 0; font-size: 15px;">Mùa học ${detectedSeasonInfo.formatted}</p>
-                            </div>
-                            <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
-                                <p style="font-size: 16px; margin-top: 0;">Kính gửi Giảng viên <strong style="color: #0f172a;">${fullName}</strong>,</p>
-                                <p>Thầy/cô đã được phân công phụ trách các lớp học trên hệ thống AITA. Dưới đây là danh sách chi tiết các lớp:</p>
-                                
-                                <div style="border-radius: 8px; margin: 24px 0; border: 1px solid #e2e8f0; overflow: hidden;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: left; background: #ffffff;">
-                                        <thead>
-                                            <tr style="background: #f8fafc;">
-                                                <th style="padding: 12px 16px; font-size: 14px; color: #475569; border-bottom: 2px solid #e2e8f0;">Môn Học</th>
-                                                <th style="padding: 12px 16px; font-size: 14px; color: #475569; border-bottom: 2px solid #e2e8f0;">Lớp Học</th>
-                                                <th style="padding: 12px 16px; font-size: 14px; color: #475569; border-bottom: 2px solid #e2e8f0; text-align: center;">Số Sinh Viên</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${enrolledClassDetails.length > 0 ? enrolledClassDetails.join('\n') : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">Chưa có dữ liệu phân công</td></tr>'}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                
-                                <p>Thầy/cô vui lòng đăng nhập vào hệ thống để kiểm tra danh sách sinh viên, quản lý điểm danh và thiết lập cấu hình môn học.</p>
-                                
-                                <p style="margin-bottom: 0; margin-top: 30px;">Trân trọng,<br><strong style="color: #0f172a;">Ban quản trị AITA</strong></p>
-                            </div>
-                        </div>
-                    `
-                    emailPromises.push(
-                        this.emailService.sendEmail(email, 'Phân công giảng dạy hệ thống AITA', classEnrollmentContent)
-                            .catch(e => console.error(`Failed to send assignment email to ${email}:`, e))
-                    )
-
                     successCount++
                 } catch (err: any) {
                     errorCount++
@@ -436,7 +312,7 @@ export class ImportLecturersExcelUseCase {
                 // for classes IN THIS SEASON that they are NOT mapped to in processedClasses.
 
                 const userIdsInFile = [...new Set(processedClasses.map(p => p.userId))]
-                
+
                 for (const uId of userIdsInFile) {
                     // Find all classes this user is currently instructing in this season
                     const currentClasses = await prisma.instructorClass.findMany({

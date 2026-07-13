@@ -27,6 +27,13 @@ export class PrismaUserRepository implements IUserRepository {
       })
     }
     
+    if (!raw) {
+      raw = await this.client.user.findFirst({
+        where: { LecturerCode: email },
+        include: this.include,
+      })
+    }
+    
     return raw ? UserMapper.toDomain(raw) : null
   }
 
@@ -51,6 +58,7 @@ export class PrismaUserRepository implements IUserRepository {
         { FullName: { contains: filter.search } },
         { Email: { contains: filter.search } },
         { StudentCode: { contains: filter.search } },
+        { LecturerCode: { contains: filter.search } },
       ]
     }
     if (filter?.ids) {

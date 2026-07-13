@@ -106,6 +106,7 @@ export class GetUserDetailsUseCase implements IUseCase<string, any> {
             role: primaryRole.toLowerCase(),
             status: user.Status?.toLowerCase() || 'active',
             studentCode: user.StudentCode,
+            lecturerCode: user.LecturerCode,
             phone: user.Phone,
             avatar: user.Avatar,
             lastLoginAt: user.LastLoginAt ? user.LastLoginAt.toISOString() : null,

@@ -223,6 +223,8 @@ export const api = {
     request<any>(`/users/import-students-excel`, { method: 'POST', body }),
   importLecturersExcel: (body: FormData) =>
     request<any>(`/users/import-lecturers-excel`, { method: 'POST', body }),
+  importTeachingAssignmentsExcel: (body: FormData) =>
+    request<any>(`/users/import-teaching-assignments-excel`, { method: 'POST', body }),
 
   // â”€â”€â”€ Subjects CRUD â”€â”€â”€
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
@@ -345,6 +347,8 @@ export interface AuthUser {
   status: string
   externalId?: string | null
   avatar?: string | null
+  phone?: string
+  lecturerCode?: string
   // true khi tÃ i khoáº£n Ä‘Æ°á»£c táº¡o qua import â€” há»‡ thá»‘ng Ã©p Ä‘á»•i máº­t kháº©u láº§n Ä‘áº§u Ä‘Äƒng nháº­p
   requirePasswordChange?: boolean
 }
@@ -356,6 +360,7 @@ export interface UserRow {
   role: string
   status: string
   studentCode?: string
+  lecturerCode?: string
   phone?: string
   avatar?: string
   lastLoginAt?: string

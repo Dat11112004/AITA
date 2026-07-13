@@ -21,8 +21,8 @@ export class PreviewImportStudentsExcelUseCase {
         const { fileBuffer, fileName } = input
 
         const normalizedName = fileName.toLowerCase()
-        if (!normalizedName.includes('student') && !normalizedName.includes('học sinh') && !normalizedName.includes('hoc_sinh') && !normalizedName.includes('hs')) {
-            throw new AppError('INVALID_FILE_NAME', 'Tên file không hợp lệ. Vui lòng đặt tên file có chứa từ khoá "student" hoặc "học sinh" (ví dụ: Student_Spring2026.xlsx)', 400)
+        if (!normalizedName.includes('student') && !normalizedName.includes('học sinh') && !normalizedName.includes('hoc_sinh') && !normalizedName.includes('hs') && !normalizedName.includes('sinh viên') && !normalizedName.includes('sinh_vien') && !normalizedName.includes('sv')) {
+            throw new AppError('INVALID_FILE_NAME', 'Tên file không hợp lệ. Vui lòng đặt tên file có chứa từ khoá "student", "sinh viên", "học sinh" hoặc "sv" (ví dụ: Student_Spring2026.xlsx)', 400)
         }
 
         // 1. SEASON DETECTION: Extract and validate season from filename

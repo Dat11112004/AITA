@@ -13,6 +13,7 @@ model User {
   PasswordHash                           String?
   FullName                               String?
   StudentCode                            String?
+  LecturerCode                           String?
   Phone                                  String?
   Avatar                                 String?
   Status                                 String?

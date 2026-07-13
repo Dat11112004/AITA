@@ -58,6 +58,7 @@ export class UserResponseDto {
             role: primaryRole.toLowerCase(),
             status: (user.status || user.Status || 'active').toLowerCase(),
             studentCode: user.studentCode || user.StudentCode,
+            lecturerCode: user.lecturerCode || user.LecturerCode,
             phone: user.phone || user.Phone,
             avatar: user.avatarUrl || user.AvatarUrl || user.avatar || user.Avatar,
             lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : (user.LastLoginAt ? user.LastLoginAt.toISOString() : null),

@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield, GraduationCap, AlertTriangle } from 'lucide-react'
+import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield, GraduationCap } from 'lucide-react'
 import { useAuth } from '@/store/AuthContext'
 import { api, type ClassRow } from '@/lib/api'
 
@@ -14,17 +14,17 @@ export function Profile() {
   // Tài khoản import vào bằng mật khẩu tạm → LoginPage đẩy về đây kèm ?forcePasswordChange=1
   const mustChangePassword = params.get('forcePasswordChange') === '1' || !!user?.requirePasswordChange
 
-  // Giảng viên: danh sách lớp/môn đang dạy theo kỳ (GET /classes đã tự lọc theo instructor)
-  const [teaching, setTeaching] = useState<ClassRow[]>([])
-  const [teachingLoading, setTeachingLoading] = useState(false)
+  // Giảng viên và Sinh viên: danh sách lớp/môn đang dạy hoặc đang học
+  const [userClasses, setUserClasses] = useState<ClassRow[]>([])
+  const [classesLoading, setClassesLoading] = useState(false)
   useEffect(() => {
-    if (user?.role !== 'lecturer') return
+    if (user?.role !== 'lecturer' && user?.role !== 'student') return
     let alive = true
-    setTeachingLoading(true)
+    setClassesLoading(true)
     api.getClasses(1, 100)
-      .then(res => { if (alive) setTeaching(res || []) })
-      .catch(() => { if (alive) setTeaching([]) })
-      .finally(() => { if (alive) setTeachingLoading(false) })
+      .then(res => { if (alive) setUserClasses(res || []) })
+      .catch(() => { if (alive) setUserClasses([]) })
+      .finally(() => { if (alive) setClassesLoading(false) })
     return () => { alive = false }
   }, [user?.role])
 
@@ -111,6 +111,16 @@ export function Profile() {
       })
       alert('Đổi mật khẩu thành công!')
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
+      
+      try {
+        const stored = JSON.parse(localStorage.getItem('aita_user') || '{}')
+        stored.requirePasswordChange = false
+        localStorage.setItem('aita_user', JSON.stringify(stored))
+      } catch (e) {}
+
+      if (mustChangePassword && user) {
+        window.location.href = `/${user.role}`
+      }
     } catch (e: any) {
       alert(e.message || 'Lỗi đổi mật khẩu')
     } finally {
@@ -130,42 +140,71 @@ export function Profile() {
   }
 
   return (
-    <div className="space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <PageHeader
-        title="Hồ sơ Cá nhân"
-        description="Quản lý thông tin cá nhân và bảo mật tài khoản của bạn."
-        breadcrumbs={[{ label: 'Hồ sơ' }]}
-      />
-
+    <>
       {mustChangePassword && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 relative">
-          <AlertTriangle size={20} className="shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-bold">Bạn đang dùng mật khẩu tạm.</p>
-            <p>Vui lòng đổi mật khẩu ngay tại mục <strong>Đổi Mật Khẩu</strong> bên dưới trước khi sử dụng hệ thống.</p>
-          </div>
-          <div className="ml-auto flex items-center">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900/40"
-              onClick={async () => {
-                try {
-                  await api.dismissPasswordChange()
-                  alert('Đã bỏ qua đổi mật khẩu tạm')
-                  window.location.href = `/${user.role}`
-                } catch (e: any) {
-                  alert(e.message || 'Lỗi khi bỏ qua')
-                }
-              }}
-            >
-              Bỏ qua
-            </Button>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-200 dark:border-slate-800">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 text-center bg-gradient-to-b from-amber-50 to-white dark:from-slate-800 dark:to-slate-900">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <KeyRound size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">CHÚ Ý: Đổi Mật Khẩu</h2>
+              <p className="text-sm text-amber-700 dark:text-amber-400 mt-2 font-medium bg-amber-100/50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                Tài khoản của bạn đang sử dụng mật khẩu tạm thời. Vì lý do bảo mật, bạn <strong>BẮT BUỘC</strong> phải thay đổi sang mật khẩu mới trước khi tiếp tục truy cập các tính năng của hệ thống.
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input
+                type="password"
+                label="Mật khẩu tạm hiện tại"
+                value={passwordForm.oldPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+              />
+              <Input
+                type="password"
+                label="Mật khẩu mới (Tối thiểu 6 ký tự)"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              />
+              <Input
+                type="password"
+                label="Xác nhận mật khẩu mới"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              />
+              <Button 
+                onClick={handleChangePassword} 
+                disabled={savingPassword || !passwordForm.newPassword} 
+                className="w-full bg-brand-600 hover:bg-brand-700 text-white mt-4 h-11 text-base font-bold shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
+              >
+                {savingPassword ? <><Loader2 size={18} className="animate-spin mr-2" /> Đang cập nhật...</> : 'Xác nhận đổi mật khẩu'}
+              </Button>
+              {user?.role !== 'student' && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      await api.dismissPasswordChange();
+                      window.location.href = `/${user.role}`;
+                    } catch(e: any) { alert(e.message) }
+                  }}
+                  className="w-full text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 mt-3 underline underline-offset-4 transition-colors font-medium"
+                >
+                  Bỏ qua lần này (Chỉ dành cho Giảng viên)
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className={`space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500 ${mustChangePassword ? 'pointer-events-none blur-sm opacity-50 select-none' : ''}`}>
+        <PageHeader
+          title="Hồ sơ Cá nhân"
+          description="Quản lý thông tin cá nhân và bảo mật tài khoản của bạn."
+          breadcrumbs={[{ label: 'Hồ sơ' }]}
+        />
+
+        <div className="grid md:grid-cols-3 gap-8">
 
         {/* Left Column: Avatar & Basic Info */}
         <div className="md:col-span-1 space-y-6">
@@ -198,31 +237,50 @@ export function Profile() {
               )}
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">{user.fullName || user.name}</h3>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <Mail size={14} /> {user.email}
-            </p>
+            
+            <div className="flex flex-col items-center gap-1 mt-2">
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Mail size={14} /> {user.email}
+              </p>
+              {user.phone && (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  📞 {user.phone}
+                </p>
+              )}
+              {user.studentCode && user.role === 'student' && (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  Mã SV: <span className="font-bold text-slate-700 dark:text-slate-200">{user.studentCode}</span>
+                </p>
+              )}
+              {user.lecturerCode && user.role === 'lecturer' && (
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  Mã GV: <span className="font-bold text-slate-700 dark:text-slate-200">{user.lecturerCode}</span>
+                </p>
+              )}
+            </div>
+
             <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
               {getRoleLabel(user.role)}
             </div>
           </Card>
 
-          {user.role === 'lecturer' && (
+          {(user.role === 'lecturer' || user.role === 'student') && (
             <Card className="p-0 border-slate-200 dark:border-slate-800 overflow-hidden">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
-                <GraduationCap size={16} className="text-brand-600" /> Phân công giảng dạy
+                <GraduationCap size={16} className="text-brand-600" /> {user.role === 'lecturer' ? 'Phân công giảng dạy' : 'Lớp học đang tham gia'}
               </div>
               <div className="p-4 space-y-2 text-sm">
-                {teachingLoading && <p className="text-slate-500">Đang tải...</p>}
-                {!teachingLoading && teaching.length === 0 && (
-                  <p className="text-slate-500">Chưa được phân công lớp nào.</p>
+                {classesLoading && <p className="text-slate-500">Đang tải...</p>}
+                {!classesLoading && userClasses.length === 0 && (
+                  <p className="text-slate-500">{user.role === 'lecturer' ? 'Chưa được phân công lớp nào.' : 'Chưa tham gia lớp nào.'}</p>
                 )}
-                {!teachingLoading && teaching.map((cls) => {
+                {!classesLoading && userClasses.map((cls) => {
                   const semesterLabel = typeof cls.semester === 'string'
                     ? cls.semester
                     : (cls.semester as any)?.name || (cls.semester as any)?.code || 'Chưa rõ kỳ'
                   const subjectLabel = typeof cls.subject === 'object' && cls.subject
-                    ? cls.subject.code || cls.subject.name
-                    : cls.subject
+                    ? (cls.subject.code || cls.subject.name)
+                    : cls.subject || 'Chưa rõ môn'
                   return (
                     <div key={cls.id} className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
                       <div className="min-w-0">
@@ -325,5 +383,6 @@ export function Profile() {
         </div>
       </div>
     </div>
+    </>
   )
 }

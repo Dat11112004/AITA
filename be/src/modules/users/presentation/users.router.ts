@@ -25,6 +25,7 @@ export class UsersRouter {
         this.router.post('/import-students-excel', authenticate, requireRoles('ADMIN'), uploadExcelMiddleware.single('file'), asyncHandler((req, res) => ctrl.importStudentsExcel(req, res)))
         this.router.post('/preview-import-lecturers-excel', authenticate, requireRoles('ADMIN'), uploadExcelMiddleware.single('file'), asyncHandler((req, res) => ctrl.previewImportLecturersExcel(req, res)))
         this.router.post('/import-lecturers-excel', authenticate, requireRoles('ADMIN'), uploadExcelMiddleware.single('file'), asyncHandler((req, res) => ctrl.importLecturersExcel(req, res)))
+        this.router.post('/import-teaching-assignments-excel', authenticate, requireRoles('ADMIN'), uploadExcelMiddleware.single('file'), asyncHandler((req, res) => ctrl.importTeachingAssignmentsExcel(req, res)))
         this.router.patch('/:id', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.update(req, res)))
         this.router.delete('/:id', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.delete(req, res)))
         this.router.patch('/:id/lock', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.toggleLock(req, res)))

@@ -107,10 +107,13 @@ export function AdminUsers() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showLecturerImport, setShowLecturerImport] = useState(false)
+  const [showAssignmentImport, setShowAssignmentImport] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importLecturerFile, setImportLecturerFile] = useState<File | null>(null)
+  const [importAssignmentFile, setImportAssignmentFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
   const [importingLecturer, setImportingLecturer] = useState(false)
+  const [importingAssignment, setImportingAssignment] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [selectedUserDetail, setSelectedUserDetail] = useState<any>(null)
@@ -195,7 +198,7 @@ export function AdminUsers() {
 
   const handleOpenEdit = async (user: UserRow) => {
     setEditingUser(user)
-    setForm({ fullName: user.name, email: user.email, password: '', role: user.role, externalId: user.studentCode || '' })
+    setForm({ fullName: user.name, email: user.email, password: '', role: user.role, externalId: user.studentCode || user.lecturerCode || '' })
     setEditingUserClasses([])
     setShowForm(true)
     setError('')
@@ -446,6 +449,40 @@ export function AdminUsers() {
     }
   }
 
+  const handleAssignmentImport = async () => {
+    if (!importAssignmentFile) {
+      setError('Vui lòng chọn file Excel')
+      return
+    }
+
+    setImportingAssignment(true)
+    setError('')
+    setImportSuccess('')
+    try {
+      const formData = new FormData()
+      formData.append('file', importAssignmentFile)
+
+      const res = await api.importTeachingAssignmentsExcel(formData)
+
+      if (res.errorCount > 0) {
+        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        if (res.errors && res.errors.length > 0) {
+          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+        }
+        setError(msg)
+      } else {
+        setImportSuccess(`Đã import thành công phân công giảng dạy.`)
+        setImportAssignmentFile(null)
+      }
+
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import thất bại')
+    } finally {
+      setImportingAssignment(false)
+    }
+  }
+
   const filteredUsers = users
 
   return (
@@ -514,19 +551,28 @@ export function AdminUsers() {
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
+                  onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
-                  Import Giảng viên (Excel)
+                  Import Giảng viên
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
+                  onClick={() => { setShowAssignmentImport(true); setShowLecturerImport(false); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
-                  Import Sinh viên (Excel)
+                  Import Phân công
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                  onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
+                >
+                  <Upload size={16} />
+                  Import Sinh viên
                 </Button>
                 <Button
                   size="sm"
@@ -687,7 +733,7 @@ export function AdminUsers() {
               <div className="grid sm:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Mã định danh (MSSV/MSGV)</p>
-                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.studentCode || 'Không có'}</p>
+                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.studentCode || selectedUserDetail.lecturerCode || 'Không có'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">{selectedUserDetail.role === 'lecturer' ? 'Môn giảng dạy' : 'Lớp'}</p>
@@ -946,13 +992,10 @@ export function AdminUsers() {
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
                 <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
                 <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  MSSV/GV | Họ và tên | Email | Môn dạy | Lớp dạy | Hình ảnh{'\n'}
-                  GV0001 | Nguyễn Văn A | nva@... | DBI201 | SE18C01 SE18C02 | blob:https://...{'\n'}
-                  GV0002 | Trần Thị B | ttb@... | DBI201; CSD201 | SE18C01 SE18C02; SE18C03 | ...
+                  MSSV/GV | Họ và tên | Email | Số điện thoại | Hình ảnh{'\n'}
+                  GV0001 | Nguyễn Văn A | nva@fpt.edu.vn | 0912345678 | https://example.com/avatar.jpg{'\n'}
+                  GV0002 | Trần Thị B | ttb@fpt.edu.vn | 0987654321 | https://example.com/avatar2.jpg
                 </pre>
-                <div className="mt-2 text-xs text-brand-600 dark:text-brand-400">
-                  * Mẹo: Dùng dấu chấm phẩy (;) hoặc Alt+Enter để tách các môn khác nhau. Ví dụ trên: Cô B dạy DBI201 cho 2 lớp (SE18C01, SE18C02) và dạy CSD201 cho lớp SE18C03.
-                </div>
               </div>
 
               <div>
@@ -969,6 +1012,69 @@ export function AdminUsers() {
                 <Button onClick={handleLecturerImport} disabled={importingLecturer} className="bg-brand-600 hover:bg-brand-700 text-white">
                   {importingLecturer ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
                   {importingLecturer ? 'Đang Import...' : 'Tiến hành Import'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Import Teaching Assignments Modal */}
+      {showAssignmentImport && (
+        <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
+            <CardHeader
+              title="Import Phân công Giảng dạy (Excel)"
+              description="Tải lên file Excel để phân công lớp/môn cho giảng viên."
+            />
+            <button type="button" onClick={() => setShowAssignmentImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+              <X size={18} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
+            </div>
+          )}
+
+          {importSuccess ? (
+            <div className="flex flex-col items-center justify-center p-8 space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
+                <CheckSquare className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
+              <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowAssignmentImport(false)}>
+                Quay lại
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
+                  Mã GV | Họ và tên | Môn dạy | Lớp dạy{'\n'}
+                  GV0001 | Nguyễn Văn A | DBI201 | SE18C01{'\n'}
+                  GV0002 | Trần Thị B | CSD201 | SE18C03
+                </pre>
+              </div>
+
+              <div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
+                  onChange={(e) => setImportAssignmentFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <Button type="button" variant="ghost" onClick={() => setShowAssignmentImport(false)}>Hủy bỏ</Button>
+                <Button onClick={handleAssignmentImport} disabled={importingAssignment} className="bg-brand-600 hover:bg-brand-700 text-white">
+                  {importingAssignment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
+                  {importingAssignment ? 'Đang Import...' : 'Tiến hành Import'}
                 </Button>
               </div>
             </div>
@@ -1243,7 +1349,7 @@ export function AdminUsers() {
                   header: 'Mã số hệ thống',
                   render: (r) => {
                     const u = r as UserRow
-                    const code = u.studentCode || '-'
+                    const code = u.studentCode || u.lecturerCode || '-'
                     return <span className="font-mono text-[12px] font-semibold text-slate-700 dark:text-slate-300 block max-w-[120px] truncate" title={code}>{code}</span>
                   },
                   className: 'w-32 pl-4'

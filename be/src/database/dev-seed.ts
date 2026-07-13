@@ -14,27 +14,43 @@ const ACCOUNTS = [
 ] as const
 
 export async function seedTestAccounts(): Promise<void> {
-  for (const acc of ACCOUNTS) {
-    const role = await prisma.role.upsert({
-      where: { RoleName: acc.role },
-      update: {},
-      create: { RoleName: acc.role },
-    })
-    const user = await prisma.user.upsert({
-      where: { Email: acc.email },
-      update: {},
-      create: {
-        Email: acc.email,
-        PasswordHash: await bcrypt.hash(acc.password, 10),
-        FullName: acc.fullName,
-        StudentCode: acc.code,
-        Status: 'Active',
-      },
-    })
-    await prisma.userRole.upsert({
-      where: { UserId_RoleId: { UserId: user.Id, RoleId: role.Id } },
-      update: {},
-      create: { UserId: user.Id, RoleId: role.Id },
-    })
+  try {
+    // Proactively connect to test the connection and prevent verbose Prisma query stack traces on failure.
+    await prisma.$connect()
+  } catch (error: any) {
+    if (error?.message?.includes("Can't reach database server")) {
+      throw new Error("Can't reach database server. Please ensure SQL Server is running and accessible.")
+    }
+    throw new Error(error?.message?.split('\n').pop() || 'Database connection failed.')
+  }
+
+  try {
+    for (const acc of ACCOUNTS) {
+      const role = await prisma.role.upsert({
+        where: { RoleName: acc.role },
+        update: {},
+        create: { RoleName: acc.role },
+      })
+      const user = await prisma.user.upsert({
+        where: { Email: acc.email },
+        update: {},
+        create: {
+          Email: acc.email,
+          PasswordHash: await bcrypt.hash(acc.password, 10),
+          FullName: acc.fullName,
+          StudentCode: acc.code,
+          Status: 'Active',
+        },
+      })
+      await prisma.userRole.upsert({
+        where: { UserId_RoleId: { UserId: user.Id, RoleId: role.Id } },
+        update: {},
+        create: { UserId: user.Id, RoleId: role.Id },
+      })
+    }
+  } catch (error: any) {
+    // If it fails during upsert, also sanitize the error message to keep console clean
+    const cleanMsg = error?.message?.split('\n').pop() || 'Error seeding database.'
+    throw new Error(`Seed failed: ${cleanMsg}`)
   }
 }

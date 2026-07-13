@@ -89,6 +89,7 @@ export class User extends AggregateRoot {
   passwordHash: string | null
   fullName: string | null
   studentCode: string | null
+  lecturerCode: string | null
   phone: string | null
   avatar: string | null
   status: UserStatusType | null
@@ -103,6 +104,7 @@ export class User extends AggregateRoot {
     passwordHash: string | null,
     fullName: string | null,
     studentCode: string | null,
+    lecturerCode: string | null,
     phone: string | null,
     avatar: string | null,
     status: UserStatusType | null,
@@ -117,6 +119,7 @@ export class User extends AggregateRoot {
     this.passwordHash = passwordHash
     this.fullName = fullName
     this.studentCode = studentCode
+    this.lecturerCode = lecturerCode
     this.phone = phone
     this.avatar = avatar
     this.status = status
@@ -137,7 +140,7 @@ export class User extends AggregateRoot {
   ): User {
     const user = new User(
       id, email, passwordHash, fullName,
-      null, null, null, 'Active', null, null, null, [role]
+      null, null, null, null, 'Active', null, null, null, [role]
     )
     user.addDomainEvent(new UserCreatedEvent(user.id, user.email))
     return user
@@ -149,6 +152,7 @@ export class User extends AggregateRoot {
     passwordHash: string | null,
     fullName: string | null,
     studentCode: string | null,
+    lecturerCode: string | null,
     phone: string | null,
     avatar: string | null,
     status: UserStatusType | null,
@@ -157,7 +161,7 @@ export class User extends AggregateRoot {
     resetPasswordOtpExpiry: Date | null,
     roles: UserRoleType[]
   ): User {
-    return new User(id, email, passwordHash, fullName, studentCode, phone, avatar, status, lastLoginAt, resetPasswordOtp, resetPasswordOtpExpiry, roles)
+    return new User(id, email, passwordHash, fullName, studentCode, lecturerCode, phone, avatar, status, lastLoginAt, resetPasswordOtp, resetPasswordOtpExpiry, roles)
   }
 
   // ── Business Logic ──
@@ -192,11 +196,13 @@ export class User extends AggregateRoot {
     phone?: string
     avatar?: string
     studentCode?: string
+    lecturerCode?: string
   }): void {
     if (params.fullName !== undefined) this.fullName = params.fullName
     if (params.phone !== undefined) this.phone = params.phone
     if (params.avatar !== undefined) this.avatar = params.avatar
     if (params.studentCode !== undefined) this.studentCode = params.studentCode
+    if (params.lecturerCode !== undefined) this.lecturerCode = params.lecturerCode
   }
 
   deactivate(): void {

@@ -36,6 +36,14 @@ export class PreviewImportLecturersExcelUseCase {
             throw new AppError('INVALID_FILE_NAME', 'Tên file không hợp lệ. Vui lòng đặt tên file có chứa từ khoá "lecturer" hoặc "giảng viên" (ví dụ: Lecturer_Spring2026.xlsx)', 400)
         }
 
+        // BẮT BUỘC THEO THỨ TỰ: Học sinh -> Giảng viên -> Phân công
+        const studentCount = await prisma.userRole.count({
+            where: { Role: { RoleName: 'STUDENT' } }
+        })
+        if (studentCount === 0) {
+            throw new AppError('STUDENT_IMPORT_REQUIRED', 'Vui lòng import danh sách Học sinh (Sinh viên) vào hệ thống trước khi import danh sách Giảng viên.', 400)
+        }
+
         // 1. SEASON DETECTION: Extract and validate season from filename
         let detectedSeasonInfo
         try {

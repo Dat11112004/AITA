@@ -8,6 +8,7 @@ export function mapUser(u: any) {
     role: primaryRole.toLowerCase(),
     status: u.Status?.toLowerCase() ?? 'active',
     studentCode: u.StudentCode,
+    lecturerCode: u.LecturerCode,
     phone: u.Phone,
     avatar: u.Avatar,
     lastLoginAt: u.LastLoginAt?.toISOString() ?? null,

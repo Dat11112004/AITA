@@ -72,6 +72,7 @@ import { ImportStudentsExcelUseCase } from '../../modules/users/application/use-
 import { PreviewImportStudentsExcelUseCase } from '../../modules/users/application/use-cases/preview-import-students-excel.use-case.js'
 import { ImportLecturersExcelUseCase } from '../../modules/users/application/use-cases/import-lecturers-excel.use-case.js'
 import { PreviewImportLecturersExcelUseCase } from '../../modules/users/application/use-cases/preview-import-lecturers-excel.use-case.js'
+import { ImportTeachingAssignmentsExcelUseCase } from '../../modules/users/application/use-cases/import-teaching-assignments-excel.use-case.js'
 import { GetUserDetailsUseCase } from '../../modules/users/application/use-cases/get-user-details.use-case.js'
 import { UsersController as ModularUsersController } from '../../modules/users/presentation/users.controller.js'
 import { ExternalAiService } from '../../modules/ai/infrastructure/external-ai.service.js'
@@ -358,6 +359,7 @@ export class DIContainer {
       const previewImportStudentsExcelUseCase = new PreviewImportStudentsExcelUseCase()
       const importLecturersExcelUseCase = new ImportLecturersExcelUseCase(emailService)
       const previewImportLecturersExcelUseCase = new PreviewImportLecturersExcelUseCase()
+      const importTeachingAssignmentsExcelUseCase = new ImportTeachingAssignmentsExcelUseCase(emailService)
       const getUserDetailsUseCase = new GetUserDetailsUseCase(logger)
 
       const modularUsersController = new ModularUsersController(
@@ -371,6 +373,7 @@ export class DIContainer {
         previewImportStudentsExcelUseCase,
         importLecturersExcelUseCase,
         previewImportLecturersExcelUseCase,
+        importTeachingAssignmentsExcelUseCase,
         getUserDetailsUseCase,
         logger
       )

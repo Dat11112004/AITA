@@ -159,6 +159,8 @@ export class AuthResponseDto {
     email: string | null
     fullName: string | null
     studentCode: string | null
+    lecturerCode: string | null
+    phone: string | null
     avatar: string | null
     role: string
     status: string | null
@@ -178,6 +180,8 @@ export class AuthResponseDto {
       email: user.email,
       fullName: user.fullName,
       studentCode: user.studentCode,
+      lecturerCode: user.lecturerCode,
+      phone: user.phone,
       avatar: user.avatar,
       role: role.toLowerCase(),
       status: (user.status || 'active').toLowerCase(),

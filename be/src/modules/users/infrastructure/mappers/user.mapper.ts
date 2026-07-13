@@ -11,6 +11,7 @@ type PrismaUserWithRoles = {
   PasswordHash: string | null
   FullName: string | null
   StudentCode: string | null
+  LecturerCode: string | null
   Phone: string | null
   Avatar: string | null
   Status: string | null
@@ -35,6 +36,7 @@ export class UserMapper {
       raw.PasswordHash,
       raw.FullName,
       raw.StudentCode,
+      raw.LecturerCode,
       raw.Phone,
       raw.Avatar,
       raw.Status as any,
@@ -58,6 +60,7 @@ export class UserMapper {
       PasswordHash: user.passwordHash,
       FullName: user.fullName,
       StudentCode: user.studentCode,
+      LecturerCode: user.lecturerCode,
       Phone: user.phone,
       Avatar: user.avatar,
       Status: user.status,
@@ -76,6 +79,7 @@ export class UserMapper {
       PasswordHash: user.passwordHash,
       FullName: user.fullName,
       StudentCode: user.studentCode,
+      LecturerCode: user.lecturerCode,
       Phone: user.phone,
       Avatar: user.avatar,
       Status: user.status,
