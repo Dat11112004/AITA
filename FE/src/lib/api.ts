@@ -242,6 +242,16 @@ export const api = {
   deleteSubject: (id: string) =>
     request<void>(`/subjects/${id}`, { method: 'DELETE' }),
 
+  getSubjectStudents: async (subjectId: string, semesterId?: string, classId?: string, page: number = 1, limit: number = 10) => {
+    const params = new URLSearchParams()
+    if (semesterId) params.append('semesterId', semesterId)
+    if (classId && classId !== 'all') params.append('classId', classId)
+    params.append('page', page.toString())
+    params.append('limit', limit.toString())
+    
+    return request<any>(`/subjects/${subjectId}/students?${params.toString()}`)
+  },
+
   // â”€â”€â”€ Semesters CRUD â”€â”€â”€
   getSemesters: () => request<SemesterRow[]>(`/semesters`),
   createSemester: (body: CreateSemesterBody) =>
@@ -569,6 +579,7 @@ export const gradingApi = {
   getAssignments: () => request<any[]>('/grading/assignments'),
   clearCache: () => request<void>('/grading/cache/clear', { method: 'POST' }),
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
+  updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
   
   uploadAssignment: (file: File) => {
@@ -580,23 +591,28 @@ export const gradingApi = {
     })
   },
   
-  extractText: (file: File) => {
+  extractText: (file: File, semester: string, subject: string, options?: RequestInit) => {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('semester', semester)
+    formData.append('subject', subject)
     return request<{ text: any, documentImageKey: string | null }>('/grading/assignments/extract-text', {
       method: 'POST',
       body: formData,
+      ...options
     })
   },
   
-  generateContent: (prompt: string) => request<{ markdown: string }>('/grading/assignments/generate-content', {
+  generateContent: (prompt: string, semester: string, subject: string, options?: RequestInit) => request<{ markdown: string }>('/grading/assignments/generate-content', {
     method: 'POST',
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, semester, subject }),
+    ...options
   }).then(res => res.markdown),
   
-  parseRubric: (content: string, documentImageKey?: string | null) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
+  parseRubric: (content: string, documentImageKey?: string | null, options?: RequestInit) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
     method: 'POST',
     body: JSON.stringify({ content, documentImageKey }),
+    ...options
   }),
   
   parseRequirements: (content: string, documentImageKey?: string | null) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {

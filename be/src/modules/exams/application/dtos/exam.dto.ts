@@ -57,12 +57,14 @@ export class ExamResponseDto {
     public readonly subjectId: string | null,
     public readonly maxScore: number | null,
     public readonly dueAt: number | null,
+    public readonly due: string | null,
     public readonly createdAt: string,
     public readonly classes: string[] | null,
     public readonly attachments?: { id: string, fileName: string, fileUrl: string, fileType: string }[] | null
   ) {}
 
   static from(exam: any): ExamResponseDto {
+    const dueValue = exam.dueDate || exam.DueDate;
     return new ExamResponseDto(
       exam.Id || exam.id,
       exam.Title || exam.title,
@@ -72,6 +74,7 @@ export class ExamResponseDto {
       exam.SubjectId || exam.subjectId,
       exam.TotalPoints || exam.totalPoints,
       exam.Duration || exam.duration,
+      dueValue ? new Date(dueValue).toISOString() : null,
       exam.Id || exam.id, // using id as fallback for createdAt in legacy
       exam.classes || null,
       exam.ExamAttachment ? exam.ExamAttachment.map((a: any) => ({

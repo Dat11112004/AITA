@@ -93,7 +93,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
                 to={item.path}
               className={`
                 group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium
-                outline-none select-none transition-all duration-150
+                outline-none select-none transition-colors duration-150
                 focus-visible:ring-2 focus-visible:ring-white/30
                 ${isActive
                   ? `${theme.activeBg} text-white`
@@ -103,9 +103,9 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
               `}
             >
               {/* Active bar */}
-              {isActive && (
-                <span className={`absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full ${theme.activeBar}`} />
-              )}
+              <span 
+                className={`absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full ${theme.activeBar} transition-opacity duration-150 ${isActive ? 'opacity-100' : 'opacity-0'}`} 
+              />
 
               <Icon
                 name={item.icon}

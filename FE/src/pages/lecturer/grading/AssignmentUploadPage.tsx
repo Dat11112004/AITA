@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/modules/grading/FileUpload';
-import { gradingApi as api } from '@/lib/api';
-import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, Clock, ArrowLeft } from 'lucide-react';
+import { gradingApi as api, api as mainApi } from '@/lib/api';
+import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, Clock, ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react';
 import classNames from 'classnames';
 import Editor from 'react-simple-wysiwyg';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 
 interface PromptTemplate {
     id: number;
@@ -39,6 +40,52 @@ const RECENT_TEMPLATES = [
     'SQL Midterm Practice'
 ];
 
+const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
+    const selectedOption = normalizedOptions.find(opt => opt.value === value);
+
+    return (
+        <div className={`relative ${className}`}>
+            <div 
+                className={classNames(
+                    "w-full px-4 py-2 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-sm transition-all",
+                    isOpen ? "border-brand-500 ring-2 ring-brand-100" : (hasError ? "border-rose-400 ring-2 ring-rose-100 bg-rose-50/30" : "border-slate-200 hover:border-slate-300")
+                )}
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className={value ? "text-slate-900 font-semibold" : "text-slate-400"}>
+                    {selectedOption ? selectedOption.label : placeholder}
+                </span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </div>
+            
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 py-1.5 max-h-64 overflow-y-auto">
+                        {normalizedOptions.map(opt => (
+                            <div 
+                                key={opt.value}
+                                className={classNames(
+                                    "px-4 py-2.5 mx-1.5 my-0.5 text-sm cursor-pointer transition-all duration-200 rounded-xl flex items-center",
+                                    value === opt.value 
+                                        ? "bg-brand-50 text-brand-700 font-bold" 
+                                        : "text-slate-600 hover:bg-brand-50/60 hover:text-brand-600 font-medium"
+                                )}
+                                onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                            >
+                                {opt.label}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    )
+}
+
 export default function AssignmentUploadPage() {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [inputMethod, setInputMethod] = useState<'file' | 'text'>('text');
@@ -47,7 +94,7 @@ export default function AssignmentUploadPage() {
     const [content, setContent] = useState('');
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
-    const [metadata, setMetadata] = useState({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '' });
+    const [metadata, setMetadata] = useState({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
@@ -62,15 +109,81 @@ export default function AssignmentUploadPage() {
 
     const navigate = useNavigate();
 
+    const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
+    const [allClasses, setAllClasses] = useState<any[]>([]);
+    const [semesters, setSemesters] = useState<any[]>([]);
+    const [selectedSemester, setSelectedSemester] = useState<string>('');
+    const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+    const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, dueDate?: string, classes?: string }>({});
+    
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const handleCancelGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+    };
+
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const [clsData, semsData] = await Promise.all([
+                    mainApi.getClasses(1, 1000),
+                    mainApi.getSemesters()
+                ]);
+                setAllClasses(clsData);
+
+                // Filter semesters to only include those where the lecturer has classes
+                const teacherSemesterIds = new Set(clsData.map((c: any) => c.semester?.id).filter(Boolean));
+                const filteredSems = semsData.filter((s: any) => teacherSemesterIds.has(s.id));
+                setSemesters(filteredSems);
+
+                const activeSem = filteredSems.find((s: any) => s.isActive) || filteredSems[0];
+                if (activeSem) setSelectedSemester(activeSem.id);
+
+                const uniqueSubjects = new Set<string>();
+                clsData.forEach((c: any) => {
+                    const code = c.subject?.code;
+                    if (code) uniqueSubjects.add(code);
+                });
+                const subjectList = Array.from(uniqueSubjects).sort();
+                setTeacherSubjects(subjectList);
+            } catch (err) {
+                console.error("Failed to load classes:", err);
+            }
+        };
+        fetchClasses();
+    }, []);
+
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 3500);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
+
     const handleGenerateContent = async () => {
+        const newErrors: { semester?: string, subjectCode?: string } = {};
+        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
+        if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
+        
+        if (Object.keys(newErrors).length > 0) {
+            setValidationErrors(newErrors);
+            return;
+        }
+        setValidationErrors({});
+        
         if (!textPrompt) return;
         setError(null);
         setIsLoading(true);
+        abortControllerRef.current = new AbortController();
 
         try {
             setLoadingMsg('Gemini is generating the assignment content...');
             const finalPrompt = subjectCode ? `Môn học: ${subjectCode}\n\n${textPrompt}` : textPrompt;
-            const markdown = await api.generateContent(finalPrompt);
+            const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
 
             setLoadingMsg('Analyzing content & extracting grading blueprint...');
             const draftBlueprint = await api.parseRequirements(markdown);
@@ -102,6 +215,7 @@ export default function AssignmentUploadPage() {
             });
             setStep(2);
         } catch (err: any) {
+            if (err.name === 'AbortError') return;
             setError(err.response?.data?.error || err.message || "Failed to generate content");
         } finally {
             setIsLoading(false);
@@ -109,13 +223,24 @@ export default function AssignmentUploadPage() {
     };
 
     const handleFileUpload = async (file: File) => {
+        const newErrors: { semester?: string, subjectCode?: string } = {};
+        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
+        if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
+        
+        if (Object.keys(newErrors).length > 0) {
+            setValidationErrors(newErrors);
+            return;
+        }
+        setValidationErrors({});
+
         setError(null);
         setIsLoading(true);
         setLoadingMsg('Analyzing document and generating rubric...');
+        abortControllerRef.current = new AbortController();
         try {
-            const extractResult = await api.extractText(file);
+            const extractResult = await api.extractText(file, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
             const text = extractResult.text?.rawText || (typeof extractResult.text === 'string' ? extractResult.text : JSON.stringify(extractResult.text));
-            const result = await api.parseRubric(text, extractResult.documentImageKey);
+            const result = await api.parseRubric(text, extractResult.documentImageKey, { signal: abortControllerRef.current.signal });
 
             setRubric(result.rubric);
             setBlueprint(result.blueprint);
@@ -128,6 +253,7 @@ export default function AssignmentUploadPage() {
 
             setStep(3); // Skip step 2 for files
         } catch (err: any) {
+            if (err.name === 'AbortError') return;
             setError(err.response?.data?.error || err.message || "Failed to process file");
         } finally {
             setIsLoading(false);
@@ -143,7 +269,24 @@ export default function AssignmentUploadPage() {
 
     const handlePublish = async () => {
         if (!rubric || !blueprint) return;
+        
+        const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
+        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
+        if (selectedClasses.length === 0) newErrors.classes = "Vui lòng chọn ít nhất 1 lớp để giao bài tập.";
+        if (!metadata.dueDate) {
+            newErrors.dueDate = "Vui lòng chọn Hạn nộp (Due Date).";
+        } else if (new Date(metadata.dueDate) < new Date()) {
+            newErrors.dueDate = "Hạn nộp không được ở trong quá khứ.";
+        }
+        
+        if (Object.keys(newErrors).length > 0) {
+            setValidationErrors(newErrors);
+            setError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
+            return;
+        }
+
         setError(null);
+        setValidationErrors({});
 
         for (const rule of rubric.rules) {
             if (rule.scoringStrategy === 'StdInOutProbe') {
@@ -164,7 +307,8 @@ export default function AssignmentUploadPage() {
         setIsLoading(true);
         setLoadingMsg('Finalizing and publishing assignment...');
         try {
-            const assignment = await api.publishAssignment(metadata, blueprint, rubric);
+            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses };
+            const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || "Failed to publish assignment");
@@ -201,14 +345,23 @@ export default function AssignmentUploadPage() {
         }
     };
 
+    const availableSubjectsForInput = selectedSemester 
+        ? Array.from(new Set(allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code).map((c: any) => c.subject.code))).sort()
+        : teacherSubjects;
+
+    const getSemesterLabel = (s: any) => {
+        const parts = [s.season, s.code].filter(v => v && v !== 'undefined');
+        return parts.length > 0 ? parts.join(' - ') : 'Kỳ học khác';
+    };
+
     return (
-        <div className="bg-gradient-to-br from-indigo-50/50 via-white to-white h-[calc(100vh-64px)] -m-4 sm:-m-6 lg:-m-8 rounded-tl-3xl font-sans relative flex">
+        <div className="bg-gradient-to-br from-indigo-50/50 via-white to-white h-[calc(100vh-64px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-8 rounded-tl-3xl font-sans relative flex">
             <div className={classNames("overflow-y-auto overflow-x-hidden transition-all duration-300 relative flex flex-col", isDrawerOpen ? "w-1/2 shrink-0" : "flex-1")}>
 
                 {/* Clean Background to match mockup */}
 
-                <div className="max-w-6xl mx-auto w-full flex flex-col flex-1 relative z-10 px-6 lg:px-12 pt-8 pb-6 -mt-2 sm:-mt-4">
-                    <div className="mb-6 animate-fade-in">
+                <div className="max-w-6xl mx-auto w-full flex flex-col flex-1 relative z-10 px-6 lg:px-12 pt-5 pb-6">
+                    <div className="mb-3 animate-fade-in">
                         <button onClick={() => navigate(`/lecturer/grading/assignments`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
                             <ArrowLeft size={20} />
                             Back to assignments
@@ -219,7 +372,7 @@ export default function AssignmentUploadPage() {
                     <div className={classNames("flex items-start justify-between shrink-0 relative z-0", isDrawerOpen ? "mb-8" : "mb-0")}>
                         
                         {/* Left side: Title and Steps */}
-                        <div className="flex flex-col gap-10 pt-2">
+                        <div className="flex flex-col gap-8">
                             <div className="flex gap-4">
                                 <Sparkles className="text-brand-600 w-10 h-10 mt-1 shrink-0" />
                                 <div>
@@ -264,7 +417,13 @@ export default function AssignmentUploadPage() {
                         <div className="flex flex-col items-center justify-center p-20 border border-slate-200 rounded-2xl bg-slate-50 text-center">
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-600 mb-6"></div>
                             <h2 className="text-2xl text-slate-800 font-bold mb-2">{loadingMsg}</h2>
-                            <p className="text-slate-500">Vui lòng chờ AI xử lý yêu cầu của bạn...</p>
+                            <p className="text-slate-500 mb-6">Vui lòng chờ AI xử lý yêu cầu của bạn...</p>
+                            <button 
+                                onClick={handleCancelGeneration}
+                                className="px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors shadow-sm"
+                            >
+                                Hủy quá trình
+                            </button>
                         </div>
                     ) : (
                         <div className="flex flex-col flex-1">
@@ -343,15 +502,53 @@ export default function AssignmentUploadPage() {
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
                                                             <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                                                                Học kỳ <span className="text-rose-500">*</span>
+                                                            </div>
+                                                            <div className="relative">
+                                                                <CustomDropdown
+                                                                    value={selectedSemester}
+                                                                    onChange={(val) => {
+                                                                        setSelectedSemester(val);
+                                                                        setSubjectCode('');
+                                                                        setSelectedClasses([]);
+                                                                        setMetadata({ ...metadata, subject: '' });
+                                                                        setValidationErrors(prev => ({ ...prev, semester: undefined }));
+                                                                    }}
+                                                                    options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
+                                                                    placeholder="Chọn học kỳ..."
+                                                                    className="w-56"
+                                                                    hasError={!!validationErrors.semester}
+                                                                />
+                                                                {validationErrors.semester && (
+                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
+                                                                        <Info size={14} className="shrink-0" />
+                                                                        {validationErrors.semester}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
                                                                 Mã môn học <span className="text-rose-500">*</span>
                                                             </div>
-                                                            <input
-                                                                type="text"
-                                                                value={subjectCode}
-                                                                onChange={e => setSubjectCode(e.target.value)}
-                                                                placeholder="Ví dụ: PRM392"
-                                                                className="w-40 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                                                            />
+                                                            <div className="relative">
+                                                                <CustomDropdown 
+                                                                    value={subjectCode} 
+                                                                    onChange={(val) => {
+                                                                        setSubjectCode(val);
+                                                                        setSelectedClasses([]);
+                                                                        setMetadata({ ...metadata, subject: val });
+                                                                        setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                                                    }} 
+                                                                    options={availableSubjectsForInput as string[]} 
+                                                                    placeholder="Chọn môn học..."
+                                                                    hasError={!!validationErrors.subjectCode}
+                                                                />
+                                                                {validationErrors.subjectCode && (
+                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
+                                                                        <Info size={14} className="shrink-0" />
+                                                                        {validationErrors.subjectCode}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <button
                                                             onClick={() => setIsDrawerOpen(true)}
@@ -393,15 +590,53 @@ export default function AssignmentUploadPage() {
                                         <div className="border border-slate-200 rounded-[24px] p-6 bg-white flex flex-col flex-1 min-h-[450px]">
                                             <div className="flex items-center gap-4 mb-6">
                                                 <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                                                    Học kỳ <span className="text-rose-500">*</span>
+                                                </div>
+                                                <div className="relative">
+                                                    <CustomDropdown
+                                                        value={selectedSemester}
+                                                        onChange={(val) => {
+                                                            setSelectedSemester(val);
+                                                            setSubjectCode('');
+                                                            setSelectedClasses([]);
+                                                            setMetadata({ ...metadata, subject: '' });
+                                                            setValidationErrors(prev => ({ ...prev, semester: undefined }));
+                                                        }}
+                                                        options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
+                                                        placeholder="Chọn học kỳ..."
+                                                        className="w-56"
+                                                        hasError={!!validationErrors.semester}
+                                                    />
+                                                    {validationErrors.semester && (
+                                                        <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
+                                                            <Info size={14} className="shrink-0" />
+                                                            {validationErrors.semester}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
                                                     Mã môn học <span className="text-rose-500">*</span>
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    value={subjectCode}
-                                                    onChange={e => setSubjectCode(e.target.value)}
-                                                    placeholder="Ví dụ: PRM392"
-                                                    className="w-40 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                                                />
+                                                <div className="relative">
+                                                    <CustomDropdown 
+                                                        value={subjectCode} 
+                                                        onChange={(val) => {
+                                                            setSubjectCode(val);
+                                                            setSelectedClasses([]);
+                                                            setMetadata({ ...metadata, subject: val });
+                                                            setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                                        }} 
+                                                        options={availableSubjectsForInput as string[]} 
+                                                        placeholder="Chọn môn học..."
+                                                        hasError={!!validationErrors.subjectCode}
+                                                    />
+                                                    {validationErrors.subjectCode && (
+                                                        <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
+                                                            <Info size={14} className="shrink-0" />
+                                                            {validationErrors.subjectCode}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex-1 flex items-center justify-center border border-slate-200 border-dashed rounded-xl bg-slate-50 p-4">
                                                 <div className="w-full max-w-xl">
@@ -451,14 +686,18 @@ export default function AssignmentUploadPage() {
                                             Edit titles, descriptions, and scores. Ensure the total score adds up to <strong className="text-slate-900">10 points</strong>.
                                         </p>
 
-                                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-4">
                                             <div className="col-span-1">
                                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code (Môn học)</label>
-                                                <input
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 text-sm focus:border-brand-500 outline-none shadow-sm"
-                                                    value={metadata.subject || ''}
-                                                    onChange={(e) => setMetadata({ ...metadata, subject: e.target.value.toUpperCase() })}
-                                                    placeholder="e.g. PRM392"
+                                                <CustomDropdown 
+                                                    value={metadata.subject || ''} 
+                                                    onChange={(v) => {
+                                                        setMetadata({ ...metadata, subject: v });
+                                                        setSelectedClasses([]); // Reset classes when subject changes
+                                                    }} 
+                                                    options={teacherSubjects} 
+                                                    className="w-full"
+                                                    placeholder="Chọn môn học..."
                                                 />
                                             </div>
                                             <div className="col-span-1">
@@ -483,6 +722,72 @@ export default function AssignmentUploadPage() {
                                                     <option value="desktop">Desktop</option>
                                                     <option value="algorithm">Algorithm</option>
                                                 </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
+                                            <div className="grid grid-cols-4 gap-6">
+                                                <div className="col-span-1 border-r border-slate-200 pr-6">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Học kỳ (Semester)</label>
+                                                    <CustomDropdown
+                                                        value={selectedSemester}
+                                                        onChange={(val) => setSelectedSemester(val)}
+                                                        options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
+                                                        placeholder="Chọn học kỳ..."
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 border-r border-slate-200 pr-6">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Giao bài tập cho các lớp</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {(() => {
+                                                            const availableClasses = allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code === metadata.subject);
+                                                            if (!metadata.subject) return <div className="text-sm text-slate-500 mt-2 italic">Vui lòng chọn Môn học (Subject code) ở trên trước.</div>;
+                                                            if (availableClasses.length === 0) return <div className="text-sm text-slate-500 mt-2 italic">Không tìm thấy lớp học nào cho môn và kỳ này.</div>;
+                                                            return availableClasses.map((c: any) => (
+                                                                <button
+                                                                    key={c.id}
+                                                                    onClick={() => {
+                                                                        setSelectedClasses(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
+                                                                        if (validationErrors.classes) setValidationErrors({ ...validationErrors, classes: undefined });
+                                                                    }}
+                                                                    className={classNames(
+                                                                        "px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200",
+                                                                        selectedClasses.includes(c.id) 
+                                                                            ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1" 
+                                                                            : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/50"
+                                                                    )}
+                                                                >
+                                                                    {c.code || c.name || 'N/A'}
+                                                                </button>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                                    {validationErrors.classes && (
+                                                        <div className="text-rose-500 text-[11px] font-semibold mt-2 flex items-center gap-1">
+                                                            <AlertCircle size={12} /> {validationErrors.classes}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Hạn nộp (Due Date) <span className="text-rose-500">*</span></label>
+                                                    <DateTimePicker
+                                                        value={metadata.dueDate || ''}
+                                                        onChange={(val) => {
+                                                            setMetadata({ ...metadata, dueDate: val });
+                                                            if (validationErrors.dueDate) {
+                                                                setValidationErrors({ ...validationErrors, dueDate: undefined });
+                                                                setError(null);
+                                                            }
+                                                        }}
+                                                        error={!!validationErrors.dueDate}
+                                                    />
+                                                    {validationErrors.dueDate && (
+                                                        <div className="text-rose-500 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                                                            <AlertCircle size={12} /> {validationErrors.dueDate}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -636,7 +941,7 @@ export default function AssignmentUploadPage() {
                                             onClick={handlePublish}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all"
                                         >
-                                            <CheckCircle size={20} /> Publish assignment
+                                            <CheckCircle size={20} /> Phát hành bài tập
                                         </button>
                                     </div>
                                 </div>
@@ -645,9 +950,22 @@ export default function AssignmentUploadPage() {
                     )}
 
                     {error && (
-                        <div className="mt-8 p-5 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-center shadow-sm">
-                            <p className="font-bold text-lg mb-1">Operation failed</p>
-                            <p className="text-sm font-medium">{error}</p>
+                        <div className="fixed top-24 right-8 z-[100] animate-toast-in">
+                            <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-rose-100 p-4 flex items-start gap-4 min-w-[320px]">
+                                <div className="text-rose-500 shrink-0 mt-0.5 bg-rose-50 p-1.5 rounded-full">
+                                    <Info size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Thiếu thông tin</h4>
+                                    <p className="text-sm text-slate-600 mt-1">{error}</p>
+                                </div>
+                                <button 
+                                    onClick={() => setError(null)}
+                                    className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 p-1 rounded-md hover:bg-slate-50"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

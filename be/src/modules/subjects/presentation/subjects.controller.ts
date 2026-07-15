@@ -8,12 +8,15 @@ import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
 
+import { GetSubjectStudentsUseCase } from '../application/use-cases/get-subject-students.use-case.js'
+
 export class SubjectsController extends BaseController {
   constructor(
     private readonly listSubjectsUseCase: ListSubjectsUseCase,
     private readonly createSubjectUseCase: CreateSubjectUseCase,
     private readonly updateSubjectUseCase: UpdateSubjectUseCase,
     private readonly deleteSubjectUseCase: DeleteSubjectUseCase,
+    private readonly getSubjectStudentsUseCase: GetSubjectStudentsUseCase,
     private readonly logger: ILogger
   ) {
     super()
@@ -45,5 +48,24 @@ export class SubjectsController extends BaseController {
     this.logger.info(`Removing subject: ${id}`)
     await this.deleteSubjectUseCase.execute(id)
     this.ok(res, null, MESSAGES.SUBJECT_DELETE_SUCCESS)
+  }
+
+  async getStudents(req: Request, res: Response): Promise<void> {
+    const subjectId = req.params.id as string
+    const semesterId = req.query.semesterId as string | undefined
+    const classId = req.query.classId as string | undefined
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+
+    this.logger.info(`Fetching students for subject: ${subjectId}`)
+    const result = await this.getSubjectStudentsUseCase.execute({
+      subjectId,
+      semesterId,
+      classId,
+      page,
+      limit
+    })
+    
+    this.ok(res, result, MESSAGES.SUCCESS || 'Lấy danh sách sinh viên thành công')
   }
 }

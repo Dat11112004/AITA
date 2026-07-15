@@ -40,6 +40,7 @@ import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
 import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
+import { SubjectWorkspace } from '@/pages/lecturer/SubjectWorkspace'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
@@ -109,6 +110,7 @@ export function AppRoutes() {
         <Route index element={<LecturerOverview />} />
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="classes/:id" element={<LecturerClassDetail />} />
+        <Route path="subjects/:id/workspace" element={<SubjectWorkspace />} />
         <Route path="assignments" element={<LecturerAssignments />} />
         <Route path="assignments/:id/rubric" element={<LecturerAssignmentRubric />} />
         {/* Nav "Kỳ thi" — chưa có trang riêng, dùng chung trang bài tập (tạo/lọc Đề thi tại đây) */}

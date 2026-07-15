@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Edit2, Save, X, Calendar } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
+import { DateTimePicker } from '@/components/ui/DateTimePicker';
 
 export default function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,13 @@ export default function AssignmentPage() {
   const [hasActiveBatch, setHasActiveBatch] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -143,6 +151,49 @@ export default function AssignmentPage() {
     navigate(`/lecturer/grading/result/${historyId}`);
   };
 
+  const handleEdit = () => {
+      setEditTitle(assignment?.metadata?.title || '');
+      setEditDescription(assignment?.metadata?.description || '');
+      
+      const statsDueDate = (assignment as any)?.stats?.dueDate;
+      if (statsDueDate) {
+          const d = new Date(statsDueDate);
+          const pad = (n: number) => n.toString().padStart(2, '0');
+          const formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          setEditDueDate(formattedDate);
+      } else {
+          setEditDueDate('');
+      }
+      setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+      if (editDueDate) {
+          const startDate = (assignment as any)?.stats?.createdAt;
+          if (startDate && new Date(editDueDate) < new Date(startDate)) {
+              setError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
+              return;
+          }
+      }
+      setError(null);
+
+      try {
+          setSaving(true);
+          await api.updateAssignment(id!, {
+              title: editTitle,
+              description: editDescription,
+              dueDate: editDueDate ? new Date(editDueDate).toISOString() : null
+          });
+          const data = await api.getAssignment(id!);
+          setAssignment(data);
+          setIsEditing(false);
+      } catch (err) {
+          console.error(err);
+      } finally {
+          setSaving(false);
+      }
+  };
+
   if (loading && !assignment) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
   if (!assignment) return <div className="text-center py-20 text-red-400">Assignment not found</div>;
 
@@ -155,44 +206,96 @@ export default function AssignmentPage() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden mb-8">
-        <div className="p-6 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm mb-8 relative z-10">
+        <div className="p-6 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 text-brand-600 dark:text-brand-400 mb-2">
               <BookOpen size={20} />
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-              >
-                <ListChecks size={20} />
-                Review rubric
-              </button>
-              <button
-                onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
-                className={classNames(
-                  "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
-                  hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
-                )}
-              >
-                {hasActiveBatch ? (
-                  <>
-                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
-                    Live grading status
-                  </>
-                ) : (
-                  <>
-                    <Upload size={20} />
-                    Submit submissions
-                  </>
-                )}
-              </button>
+              {!isEditing && (
+                <button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+                >
+                  <Edit2 size={18} />
+                  Edit
+                </button>
+              )}
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
+                  >
+                    <X size={20} />
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
+                  >
+                    {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={20} />}
+                    Lưu
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+                  >
+                    <ListChecks size={20} />
+                    Review rubric
+                  </button>
+                  <button
+                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
+                    className={classNames(
+                      "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
+                      hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
+                    )}
+                  >
+                    {hasActiveBatch ? (
+                      <>
+                        <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                        Live grading status
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={20} />
+                        Submit submissions
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
-          <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
-          {assignment.metadata?.projectType && (
+          {isEditing ? (
+              <div className="mb-4 space-y-4">
+                  {error && (
+                      <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                          <AlertCircle size={18} />
+                          {error}
+                      </div>
+                  )}
+                  <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tiêu đề bài tập</label>
+                      <input 
+                          type="text" 
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                      />
+                  </div>
+              </div>
+          ) : (
+              <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          )}
+          {assignment.metadata?.projectType && !isEditing && (
             <div className="flex items-center mt-3 animate-fade-in">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-sm font-bold rounded-full border border-brand-200 dark:border-brand-500/20 shadow-sm">
                 <Layers size={16} />
@@ -207,65 +310,107 @@ export default function AssignmentPage() {
             <ListChecks size={22} className="text-brand-500" />
             <h2 className="text-xl font-semibold dark:text-white text-slate-800">Details</h2>
           </div>
-          <ul className="space-y-3">
-            {assignment.metadata?.description ? (
-              <li className="dark:text-slate-300 text-slate-600 text-base leading-relaxed">
-                 {assignment.metadata.description}
-              </li>
-            ) : (
-              <li className="dark:text-slate-500 text-slate-400 italic">No description provided.</li>
-            )}
-          </ul>
+          {isEditing ? (
+              <div className="space-y-4">
+                  <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mô tả bài tập</label>
+                      <textarea 
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={4}
+                          className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                      />
+                  </div>
+                  <div className="max-w-xs">
+                      <DateTimePicker 
+                          label="Hạn nộp"
+                          value={editDueDate}
+                          onChange={(val) => setEditDueDate(val)}
+                      />
+                  </div>
+              </div>
+          ) : (
+              <ul className="space-y-3">
+                {assignment.metadata?.description ? (
+                  <li className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
+                     {assignment.metadata.description}
+                  </li>
+                ) : (
+                  <li className="dark:text-slate-500 text-slate-400 italic">No description provided.</li>
+                )}
+                {(assignment as any).stats?.dueDate && (
+                  <li className="dark:text-slate-300 text-slate-600 text-base flex items-center gap-2 mt-4 font-medium">
+                     <Calendar size={18} className="text-brand-500" />
+                     Hạn nộp: <span className="text-brand-600 dark:text-brand-400">{new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} {new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</span>
+                  </li>
+                )}
+              </ul>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
-            <Users size={24} />
+      {(() => {
+        const stats = (assignment as any).stats || {
+            totalStudents: 0,
+            submitted: 0,
+            notSubmitted: 0,
+            grading: 0,
+            averageScore: 0,
+            submittedPercentage: 0,
+            notSubmittedPercentage: 0,
+            gradingPercentage: 0
+        };
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Users size={24} />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.totalStudents}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br/><span className="font-normal opacity-80">Tổng số</span></div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.submitted}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br/><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Clock size={24} />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.notSubmitted}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br/><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 flex items-center justify-center shrink-0">
+                <Hourglass size={24} />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.grading}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br/><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                <Star size={24} />
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.averageScore}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br/><span className="font-normal opacity-80">/10</span></div>
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">44</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br/><span className="font-normal opacity-80">Tổng số</span></div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">28</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br/><span className="font-normal opacity-80">63.6%</span></div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center shrink-0">
-            <Clock size={24} />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">10</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br/><span className="font-normal opacity-80">22.7%</span></div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 flex items-center justify-center shrink-0">
-            <Hourglass size={24} />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">6</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br/><span className="font-normal opacity-80">13.6%</span></div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
-          <div className="w-12 h-12 rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 flex items-center justify-center shrink-0">
-            <Star size={24} />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">9.12</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br/><span className="font-normal opacity-80">/10</span></div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 flex-1">

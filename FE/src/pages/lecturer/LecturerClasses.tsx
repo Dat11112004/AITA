@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Select } from '@/components/ui/Input'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
-import { Loader2, Users, MoreVertical, BookOpen } from 'lucide-react'
-import { ErrorState } from '@/components/common/ErrorState'
+import { 
+  Loader2, Search, Plus, Filter, Sun, CloudRain, Wind, Leaf,
+  Calendar, ChevronDown, ChevronUp, Book, Code, MoreHorizontal,
+  Users, ChevronRight, Info
+} from 'lucide-react'
 
 export function LecturerClasses() {
   const navigate = useNavigate()
@@ -14,15 +14,15 @@ export function LecturerClasses() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   
   const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Filters
-  const [selectedSemesterId, setSelectedSemesterId] = useState('all')
-  const [selectedSubjectId, setSelectedSubjectId] = useState('all')
+  // Expanded state
+  const [expandedSeasons, setExpandedSeasons] = useState<Record<string, boolean>>({})
+  const [expandedSemesters, setExpandedSemesters] = useState<Record<string, boolean>>({})
+  const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({}) // For showing classes
 
   const load = useCallback(async () => {
     setLoading(true)
-    setLoadError('')
     try {
       const [clsData, semData, subData] = await Promise.all([
         api.getClasses(),
@@ -33,8 +33,7 @@ export function LecturerClasses() {
       setSemesters(semData || [])
       setSubjects(subData || [])
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể tải dữ liệu'
-      setLoadError(msg)
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -44,119 +43,332 @@ export function LecturerClasses() {
     load()
   }, [load])
 
-  // Derive allowed semesters and subjects from classes the lecturer teaches
-  const allowedSemesterIds = Array.from(new Set(classes.map(c => (c.semester as any)?.id).filter(Boolean))) as string[]
-  const allowedSemesters = semesters.filter(s => allowedSemesterIds.includes(s.id))
+  // Grouping Logic
+  type SubjectGroup = { subjectId: string; subjectCode: string; subjectName: string; classes: ClassRow[]; avgStudents: number }
+  type SemesterGroup = { semesterId: string; semesterCode: string; startDate?: string; endDate?: string; isActive: boolean; subjects: Record<string, SubjectGroup> }
+  type SeasonGroup = { seasonName: string; isActive: boolean; semesters: Record<string, SemesterGroup> }
 
-  const allowedSubjectIds = Array.from(new Set(classes.map(c => (c.subject as any)?.id).filter(Boolean))) as string[]
-  const allowedSubjects = subjects.filter(s => allowedSubjectIds.includes(s.id))
+  const groupedData: Record<string, SeasonGroup> = {};
 
-  // Filtered classes
   const filteredClasses = classes.filter(c => {
-    if (selectedSemesterId !== 'all' && (c.semester as any)?.id !== selectedSemesterId) return false
-    if (selectedSubjectId !== 'all' && (c.subject as any)?.id !== selectedSubjectId) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q) || (c.subject as any)?.code?.toLowerCase().includes(q)
+    }
     return true
   })
 
-  // Group filtered classes by semester
-  const groupedClasses: Record<string, { semesterName: string, classes: ClassRow[] }> = {}
   filteredClasses.forEach(cls => {
-    const semId = (cls.semester as any)?.id || 'unknown'
-    const semCode = (cls.semester as any)?.code || 'Kỳ khác'
+    const semId = (cls.semester as any)?.id || 'unknown';
+    const semesterRecord = semesters.find(s => s.id === semId);
     
-    if (!groupedClasses[semId]) {
-      groupedClasses[semId] = { semesterName: semCode, classes: [] }
+    const seasonName = semesterRecord?.season || 'Các Học Kỳ Khác';
+    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Kỳ Khác';
+    
+    const subId = (cls.subject as any)?.id || 'unknown';
+    const subjectRecord = subjects.find(s => s.id === subId);
+    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Môn Khác';
+    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || 'Chưa rõ tên môn';
+
+    if (!groupedData[seasonName]) {
+      groupedData[seasonName] = { seasonName, isActive: false, semesters: {} };
     }
-    groupedClasses[semId].classes.push(cls)
-  })
+    const seasonGroup = groupedData[seasonName];
+    if (semesterRecord?.isActive) seasonGroup.isActive = true;
 
-  // Sort groups (you can customize sorting logic if semesters have a specific order)
-  const groupedClassesArray = Object.values(groupedClasses).sort((a, b) => a.semesterName.localeCompare(b.semesterName))
+    if (!seasonGroup.semesters[semId]) {
+      seasonGroup.semesters[semId] = { 
+        semesterId: semId, 
+        semesterCode, 
+        startDate: semesterRecord?.startDate, 
+        endDate: semesterRecord?.endDate,
+        isActive: semesterRecord?.isActive || false,
+        subjects: {} 
+      };
+    }
+    const semesterGroup = seasonGroup.semesters[semId];
 
-  if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
-  if (loadError) return <ErrorState message={loadError} onRetry={load} />
+    if (!semesterGroup.subjects[subId]) {
+      semesterGroup.subjects[subId] = { subjectId: subId, subjectCode, subjectName, classes: [], avgStudents: 0 };
+    }
+    
+    semesterGroup.subjects[subId].classes.push(cls);
+  });
+
+  // Calculate averages & sort
+  const sortedSeasons = Object.values(groupedData).sort((a, b) => {
+    if (a.seasonName === 'Các Học Kỳ Khác') return 1;
+    if (b.seasonName === 'Các Học Kỳ Khác') return -1;
+    return b.seasonName.localeCompare(a.seasonName);
+  });
+
+  sortedSeasons.forEach(season => {
+    Object.values(season.semesters).forEach(semester => {
+      Object.values(semester.subjects).forEach(subject => {
+        const totalStudents = subject.classes.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+        subject.avgStudents = subject.classes.length > 0 ? Math.round(totalStudents / subject.classes.length) : 0;
+      });
+    });
+  });
+
+  // Auto-expand first season and its first semester on load
+  useEffect(() => {
+    if (sortedSeasons.length > 0 && Object.keys(expandedSeasons).length === 0) {
+      const firstSeason = sortedSeasons[0];
+      setExpandedSeasons({ [firstSeason.seasonName]: true });
+      
+      const semestersList = Object.values(firstSeason.semesters);
+      if (semestersList.length > 0) {
+        setExpandedSemesters({ [semestersList[0].semesterId]: true });
+      }
+    }
+  }, [sortedSeasons.length])
+
+  const toggleSeason = (name: string) => setExpandedSeasons(prev => ({ ...prev, [name]: !prev[name] }))
+  const toggleSemester = (id: string) => setExpandedSemesters(prev => ({ ...prev, [id]: !prev[id] }))
+  const toggleSubject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedSubjects(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const getSeasonIcon = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('hè') || lower.includes('summer')) return <Sun className="w-6 h-6 text-indigo-500" />
+    if (lower.includes('xuân') || lower.includes('spring')) return <Leaf className="w-6 h-6 text-pink-500" />
+    if (lower.includes('thu') || lower.includes('fall')) return <Wind className="w-6 h-6 text-orange-500" />
+    if (lower.includes('đông') || lower.includes('winter')) return <CloudRain className="w-6 h-6 text-blue-500" />
+    return <Sun className="w-6 h-6 text-indigo-500" />
+  }
+
+  const getSeasonBg = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('hè') || lower.includes('summer')) return 'bg-indigo-50'
+    if (lower.includes('xuân') || lower.includes('spring')) return 'bg-pink-50'
+    if (lower.includes('thu') || lower.includes('fall')) return 'bg-orange-50'
+    return 'bg-indigo-50'
+  }
+
+  const formatDate = (d?: string) => {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-600" /></div>
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <PageHeader
-          title="Tất Cả Lớp Học"
-          description="Danh sách các lớp học phần bạn đang phụ trách giảng dạy."
-          breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Lớp học' }]}
-        />
+    <div className="max-w-[1200px] mx-auto space-y-6 px-6 lg:px-8">
+      
+      {/* Header matching the design */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Users className="w-7 h-7 text-slate-400" />
+            Tất cả lớp học
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Quản lý hệ thống lớp học theo cấu trúc: Mùa học → Kỳ học → Môn học → Lớp học.
+          </p>
+        </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="min-w-[150px]">
-            <Select
-              label=""
-              options={[{value: 'all', label: 'Tất cả Học kỳ'}, ...allowedSemesters.map(s => ({ value: s.id, label: s.code }))]}
-              value={selectedSemesterId}
-              onChange={(e) => setSelectedSemesterId(e.target.value)}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm lớp học..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 pr-10 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-500 font-sans">⌘</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-500 font-sans">K</kbd>
+            </div>
           </div>
-          <div className="min-w-[150px]">
-            <Select
-              label=""
-              options={[{value: 'all', label: 'Tất cả Môn học'}, ...allowedSubjects.map(s => ({ value: s.id, label: s.code }))]}
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value)}
-            />
-          </div>
+          <button className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+            <Filter className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {filteredClasses.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center p-16 text-center border-dashed bg-slate-50/50 dark:bg-slate-900/50">
-          <BookOpen size={48} className="text-slate-300 mb-4" />
-          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Không tìm thấy lớp học</h3>
-          <p className="text-slate-500 max-w-md mt-2">
-            Không có lớp học nào khớp với bộ lọc của bạn hoặc bạn chưa được phân công lớp nào.
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-10">
-          {groupedClassesArray.map((group) => (
-            <div key={group.semesterName} className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                Học kỳ {group.semesterName}
-                <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full ml-2">
-                  {group.classes.length} lớp
-                </span>
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {group.classes.map((cls) => {
-                  return (
-                    <div 
-                      key={cls.id}
-                      onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
-                      className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all duration-200 cursor-pointer p-5"
-                    >
-                      <div>
-                        <div className="flex justify-between items-start mb-3">
-                          <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
-                            {(cls.subject as any)?.code || 'N/A'}
-                          </span>
-                          <MoreVertical size={16} className="text-slate-400" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                          Lớp {cls.code}
-                        </h3>
-                      </div>
+      <div className="mt-8">
+        <h3 className="text-base font-bold text-slate-800 mb-4">Danh sách theo cấu trúc đào tạo</h3>
+        
+        <div className="space-y-4">
+          {sortedSeasons.map(season => {
+            const isExpanded = expandedSeasons[season.seasonName];
+            const semesterCount = Object.keys(season.semesters).length;
+            const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
 
-                      <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
-                          <Users size={16} className="text-slate-400"/>
-                          {cls.studentCount ?? 0} Sinh viên
-                        </div>
-                      </div>
+            return (
+              <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                
+                {/* Season Header */}
+                <div 
+                  onClick={() => toggleSeason(season.seasonName)}
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getSeasonBg(season.seasonName)}`}>
+                      {getSeasonIcon(season.seasonName)}
                     </div>
-                  )
-                })}
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-bold text-slate-800">{season.seasonName}</h2>
+                      {season.isActive && (
+                        <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                          Đang diễn ra
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-slate-500">
+                    <span className="text-sm font-medium text-indigo-600">{semesterCount} kỳ học</span>
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </div>
+
+                {/* Season Content */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 border-t border-slate-100 space-y-4">
+                    {sortedSemesters.map(semester => {
+                      const isSemExpanded = expandedSemesters[semester.semesterId];
+                      const subjectCount = Object.keys(semester.subjects).length;
+                      const sortedSubjects = Object.values(semester.subjects).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+
+                      return (
+                        <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
+                          
+                          {/* Semester Header */}
+                          <div 
+                            onClick={() => toggleSemester(semester.semesterId)}
+                            className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
+                                <Calendar className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-base font-bold text-slate-800">{semester.semesterCode}</h3>
+                                {(semester.startDate || semester.endDate) && (
+                                  <p className="text-xs text-slate-500 mt-0.5">
+                                    {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-slate-500">
+                              <span className="text-sm font-medium text-indigo-600">{subjectCount} môn học</span>
+                              {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                            </div>
+                          </div>
+
+                          {/* Semester Content (Subject Table) */}
+                          {isSemExpanded && (
+                            <div className="bg-white overflow-x-auto">
+                              <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
+                                  <tr>
+                                    <th className="px-6 py-4 font-medium">Môn học</th>
+                                    <th className="px-6 py-4 font-medium text-center">Mã môn</th>
+                                    <th className="px-6 py-4 font-medium text-center">Số lớp</th>
+                                    <th className="px-6 py-4 font-medium text-center">Sĩ số trung bình</th>
+                                    <th className="px-6 py-4 font-medium text-center">Thao tác</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {sortedSubjects.map(subject => {
+                                    const isSubjExpanded = expandedSubjects[subject.subjectId];
+                                    
+                                    return (
+                                      <React.Fragment key={subject.subjectId}>
+                                        <tr 
+                                          onClick={(e) => navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)}
+                                          className="hover:bg-slate-50/50 group cursor-pointer"
+                                        >
+                                          <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                                                {subject.subjectCode.includes('PR') ? <Code className="w-4 h-4" /> : <Book className="w-4 h-4" />}
+                                              </div>
+                                              <span className="font-semibold text-slate-700">{subject.subjectName}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
+                                          <td className="px-6 py-4 text-center">
+                                            <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                                              {subject.classes.length} lớp
+                                            </span>
+                                          </td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} sinh viên</td>
+                                          <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-2">
+                                              <button 
+                                                onClick={(e) => toggleSubject(subject.subjectId, e)}
+                                                className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
+                                                title="Xem danh sách lớp"
+                                              >
+                                                {isSubjExpanded ? <ChevronDown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                                              </button>
+                                              <button 
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition-colors"
+                                              >
+                                                <MoreHorizontal className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                        
+                                        {/* Expanded Subject Classes */}
+                                        {isSubjExpanded && subject.classes.length > 1 && (
+                                          <tr className="bg-slate-50/50">
+                                            <td colSpan={5} className="p-0 border-b border-indigo-100">
+                                              <div className="px-8 py-4 flex flex-wrap gap-2.5">
+                                                {subject.classes.map(cls => (
+                                                  <button 
+                                                    key={cls.id} 
+                                                    onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                                                    className="group/btn flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 hover:shadow hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                  >
+                                                    <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
+                                                    <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
+                                                      Lớp {cls.code}
+                                                    </span>
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
-      )}
+      </div>
+
+      {/* Footer Info */}
+      <div className="mt-8 flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+        <div className="flex items-center gap-2 text-sm text-blue-600">
+          <Info className="w-4 h-4" />
+          <span><span className="font-semibold">Mẹo:</span> Nhấn vào kỳ học hoặc biểu tượng nhóm người để xem chi tiết các lớp học bên trong.</span>
+        </div>
+        <a href="#" className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline">
+          Hướng dẫn sử dụng <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        </a>
+      </div>
+
     </div>
   )
 }

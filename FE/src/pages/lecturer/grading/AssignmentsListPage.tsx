@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { gradingApi as api } from '@/lib/api';
+import { gradingApi as api, api as mainApi } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
 import { 
   ListTodo, Plus, Search, Filter, Calendar, Clock, 
@@ -9,36 +9,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 // -- Helpers --
-const getMockStats = (id: string) => {
-  // Use first few chars of ID to generate deterministic pseudo-random numbers
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  hash = Math.abs(hash);
-  
-  const totalStudents = 20 + (hash % 40); // 20 to 60
-  const submitted = Math.floor(totalStudents * (0.4 + ((hash % 60) / 100))); // 40% to 100%
-  const percentage = Math.round((submitted / totalStudents) * 100);
-  
-  const daysOffsetCreated = hash % 30;
-  const daysOffsetDeadline = (hash % 15) + 2;
-  
-  const createdDate = new Date();
-  createdDate.setDate(createdDate.getDate() - daysOffsetCreated);
-  
-  const deadlineDate = new Date();
-  deadlineDate.setDate(createdDate.getDate() + daysOffsetDeadline);
-  
-  return {
-    totalStudents,
-    submitted,
-    percentage,
-    createdStr: createdDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-    deadlineStr: deadlineDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' 23:59'
-  };
-};
-
 const getProjectTypeInfo = (type: string = '') => {
   const t = type.toLowerCase();
   if (t.includes('mobile')) return { icon: Code, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-600', lightBg: 'bg-indigo-50 dark:bg-indigo-900/30', border: 'border-indigo-200 dark:border-indigo-800', tag: 'MOBILE' };
@@ -83,6 +53,7 @@ const CircularProgress = ({ value }: { value: number }) => {
 
 export default function AssignmentsListPage() {
   const [assignments, setAssignments] = useState<PublishedAssignment[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -96,12 +67,24 @@ export default function AssignmentsListPage() {
 
   const navigate = useNavigate();
 
-  const loadAssignments = async () => {
+  const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getAssignments();
-      setAssignments(data || []);
+      const [assignmentsData, classesData] = await Promise.all([
+        api.getAssignments(),
+        mainApi.getClasses(1, 1000)
+      ]);
+      setAssignments(assignmentsData || []);
+
+      const uniqueSubjects = new Set<string>();
+      if (classesData) {
+        classesData.forEach((c: any) => {
+          const code = c.subject?.code;
+          if (code) uniqueSubjects.add(code);
+        });
+      }
+      setSubjects(Array.from(uniqueSubjects).sort());
     } catch (err: any) {
       setError(err.message || 'Failed to load assignments');
     } finally {
@@ -110,7 +93,7 @@ export default function AssignmentsListPage() {
   };
 
   useEffect(() => {
-    loadAssignments();
+    loadData();
   }, []);
 
   const confirmDelete = async () => {
@@ -124,19 +107,28 @@ export default function AssignmentsListPage() {
     }
   };
 
-  // Derive Tabs from projectTypes or subjects
+  // Derive Tabs from subjects
   const tabs = useMemo(() => {
     const counts: Record<string, number> = { 'Tất cả': assignments.length };
+    
+    // Initialize all lecturer's subjects to 0
+    subjects.forEach(sub => {
+      counts[sub] = 0;
+    });
+
+    // Count assignments per subject
     assignments.forEach(a => {
-      let t = a.metadata?.projectType?.toLowerCase() || 'khác';
-      // Grouping map
-      if (t.includes('mobile')) t = 'Mobile Development';
-      else if (t.includes('web') || t.includes('frontend')) t = 'Web Programming';
-      else if (t.includes('ai') || t.includes('algorithm')) t = 'AI & Data';
-      else if (t.includes('backend') || t.includes('fullstack')) t = 'Backend / Fullstack';
-      else t = 'Khác';
-      
-      counts[t] = (counts[t] || 0) + 1;
+      const sub = a.metadata?.subject;
+      if (sub) {
+        if (counts[sub] !== undefined) {
+          counts[sub]++;
+        } else {
+          counts[sub] = 1;
+        }
+      } else {
+        const fallback = 'Khác';
+        counts[fallback] = (counts[fallback] || 0) + 1;
+      }
     });
     
     // Sort logic to ensure 'Tất cả' is first, 'Khác' is last
@@ -145,22 +137,17 @@ export default function AssignmentsListPage() {
       if (b[0] === 'Tất cả') return 1;
       if (a[0] === 'Khác') return 1;
       if (b[0] === 'Khác') return -1;
-      return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
     });
-  }, [assignments]);
+  }, [assignments, subjects]);
 
   // Filtering
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
       // Tab filter
-      let t = a.metadata?.projectType?.toLowerCase() || 'khác';
-      let tabName = 'Khác';
-      if (t.includes('mobile')) tabName = 'Mobile Development';
-      else if (t.includes('web') || t.includes('frontend')) tabName = 'Web Programming';
-      else if (t.includes('ai') || t.includes('algorithm')) tabName = 'AI & Data';
-      else if (t.includes('backend') || t.includes('fullstack')) tabName = 'Backend / Fullstack';
+      const sub = a.metadata?.subject || 'Khác';
 
-      if (activeTab !== 'Tất cả' && tabName !== activeTab) return false;
+      if (activeTab !== 'Tất cả' && sub !== activeTab) return false;
       
       // Search filter
       if (searchQuery) {
@@ -283,7 +270,18 @@ export default function AssignmentsListPage() {
         {paginatedAssignments.map(assignment => {
           const typeInfo = getProjectTypeInfo(assignment.metadata?.projectType);
           const Icon = typeInfo.icon;
-          const stats = getMockStats(assignment.id);
+          const stats = (assignment as any).stats || {
+              totalStudents: 0,
+              submitted: 0,
+              percentage: 0,
+              createdAt: assignment.createdAt || new Date(),
+              dueDate: null
+          };
+
+          const createdStr = new Date(stats.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const deadlineStr = stats.dueDate 
+              ? new Date(stats.dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : 'Chưa thiết lập';
 
           return (
             <div 
@@ -314,11 +312,11 @@ export default function AssignmentsListPage() {
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-slate-500 dark:text-slate-400 font-medium">
                   <div className="flex items-center gap-1.5">
                     <Calendar size={14} className="text-slate-400" />
-                    <span>Tạo: {stats.createdStr}</span>
+                    <span>Tạo: {createdStr}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock size={14} className="text-slate-400" />
-                    <span>Hạn nộp: {stats.deadlineStr}</span>
+                    <span>Hạn nộp: {deadlineStr}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Users size={14} className="text-slate-400" />

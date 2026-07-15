@@ -26,7 +26,7 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
       />
       <div className={`flex flex-col min-h-screen transition-[margin] duration-300 ease-in-out ${collapsed ? 'ml-[68px]' : 'ml-64'}`}>
         <DashboardTopbar title={portalTitle} sidebarCollapsed={collapsed} />
-        <main className="flex-1 min-h-[calc(100vh-130px)] p-4 sm:p-6 lg:p-8 animate-fade-in-up">
+        <main className="flex-1 min-h-[calc(100vh-130px)] px-4 sm:px-6 lg:px-8 pt-6 pb-8 animate-fade-in-up">
           <Outlet />
         </main>
         <DashboardFooter />

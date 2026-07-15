@@ -723,3 +723,16 @@ model PendingEnrollment {
   UpdatedAt    DateTime? @updatedAt @db.DateTime2
   User         User      @relation(fields: [UserId], references: [Id], onDelete: Cascade)
 }
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model PublishedAssignment {
+  Id          String   @id @db.UniqueIdentifier
+  Version     String?
+  Title       String?
+  Description String?  @db.NVarChar(Max)
+  ProjectType String?
+  BlueprintId String?
+  Data        String?  @db.NVarChar(Max)
+  CreatedAt   DateTime @default(now()) @db.DateTime2
+  UpdatedAt   DateTime @updatedAt @db.DateTime2
+}

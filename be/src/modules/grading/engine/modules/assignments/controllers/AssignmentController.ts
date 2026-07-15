@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
+import { prisma } from '../../../../../../database/prisma.js';
 
 // ─── Server-Side Image Cache ─────────────────────────────────────────
 // Stores extracted document images in-memory so they never need to
@@ -59,7 +60,9 @@ export class AssignmentController extends BaseController {
   extractText = async (req: Request, res: Response): Promise<void> => {
       try {
           const { file } = req;
+          const { semester, subject } = req.body;
           if (!file) throw new BadRequestError('No file');
+          if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
           const docExt = new DocumentExtractor();
           const extractedDoc = await docExt.extractAsync(file.buffer, file.mimetype);
 
@@ -100,7 +103,8 @@ export class AssignmentController extends BaseController {
 
   generateContent = async (req: Request, res: Response): Promise<void> => {
       try {
-          const { prompt } = req.body;
+          const { prompt, semester, subject } = req.body;
+          if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
           const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt);
           this.ok(res, { markdown }, 'Content generated');
       } catch (error) {
@@ -182,8 +186,9 @@ export class AssignmentController extends BaseController {
           const testSuiteGen = new TestSuiteGeneratorService();
           const testSuites = await testSuiteGen.generateTestSuitesAsync(blueprint);
 
+          const publishedAssignmentId = uuidv4();
           const publishedAssignment: PublishedAssignment = {
-              id: uuidv4(),
+              id: publishedAssignmentId,
               version: '1.0.0',
               metadata,
               blueprintId: blueprint.id,
@@ -192,8 +197,58 @@ export class AssignmentController extends BaseController {
           };
 
           await this.assignmentRepository.saveAsync(publishedAssignment);
+
+          // INTEGRATION WITH AITA CORE
+          const { title, description, subject, semesterId, classIds, dueDate } = metadata;
+          
+          if (classIds && classIds.length > 0) {
+              // 1. Resolve subject code to SubjectId
+              const subjectRecord = await prisma.subject.findUnique({
+                  where: { SubjectCode: subject }
+              });
+
+              if (subjectRecord) {
+                  // 2. Create Core Exam Record
+                  const examId = publishedAssignmentId; // Keep 1:1 mapping
+                  
+                  // Calculate total points from rubric
+                  const totalPoints = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
+
+                  let parsedDueDate: Date | undefined;
+                  if (dueDate) {
+                      parsedDueDate = new Date(dueDate);
+                      if (parsedDueDate < new Date()) {
+                          throw new BadRequestError('Due date cannot be in the past');
+                      }
+                  }
+
+                  await prisma.exam.create({
+                      data: {
+                          Id: examId,
+                          Title: title || 'AI Assignment',
+                          Description: description || '',
+                          SubjectId: subjectRecord.Id,
+                          ExamType: 'Assignment',
+                          Status: 'Published',
+                          TotalPoints: totalPoints,
+                          CreatedBy: req.user?.id || null,
+                          StartDate: new Date(),
+                          DueDate: parsedDueDate,
+                          AiGeneratedContent: JSON.stringify({ blueprintId: blueprint.id }),
+                          ExamClass: {
+                              create: classIds.map((cId: string) => ({
+                                  ClassId: cId,
+                                  DueDate: parsedDueDate
+                              }))
+                          }
+                      }
+                  });
+              }
+          }
+
           this.created(res, publishedAssignment, 'Assignment published successfully');
       } catch (error) {
+          console.error("Publish Error:", error);
           throw new Error('Error publishing');
       }
   };
@@ -201,8 +256,79 @@ export class AssignmentController extends BaseController {
   getAll = async (_req: Request, res: Response): Promise<void> => {
       try {
           const assignments = await this.assignmentRepository.getAllAsync();
-          this.ok(res, assignments, 'Assignments fetched');
+          
+          if (!assignments || assignments.length === 0) {
+              this.ok(res, [], 'Assignments fetched');
+              return;
+          }
+
+          const examIds = assignments.map(a => a.id);
+          
+          // Get Exam dates and related class/submission data
+          const exams = await prisma.exam.findMany({
+              where: { Id: { in: examIds } },
+              select: {
+                  Id: true,
+                  StartDate: true,
+                  DueDate: true,
+                  _count: {
+                      select: { Submission: true }
+                  },
+                  ExamClass: {
+                      select: {
+                          Class: {
+                              select: {
+                                  _count: {
+                                      select: { StudentClass: true }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          });
+
+          // Build a map for quick lookup
+          const statsMap = new Map();
+          exams.forEach(exam => {
+              let totalStudents = 0;
+              exam.ExamClass.forEach(ec => {
+                  totalStudents += ec.Class?._count?.StudentClass || 0;
+              });
+
+              statsMap.set(exam.Id, {
+                  createdAt: exam.StartDate,
+                  dueDate: exam.DueDate,
+                  submitted: exam._count.Submission || 0,
+                  totalStudents: totalStudents
+              });
+          });
+
+          // Attach stats to assignment response
+          const enhancedAssignments = assignments.map(a => {
+              const stats = statsMap.get(a.id) || {
+                  createdAt: new Date(),
+                  dueDate: null,
+                  submitted: 0,
+                  totalStudents: 0
+              };
+              
+              const percentage = stats.totalStudents > 0 
+                  ? Math.round((stats.submitted / stats.totalStudents) * 100) 
+                  : 0;
+
+              return {
+                  ...a,
+                  stats: {
+                      ...stats,
+                      percentage
+                  }
+              };
+          });
+
+          this.ok(res, enhancedAssignments, 'Assignments fetched');
       } catch (error) {
+          console.error("GetAll Error:", error);
           throw new Error('Error fetching assignments');
       }
   };
@@ -212,12 +338,151 @@ export class AssignmentController extends BaseController {
           const id = req.params.id;
           const assignment = await this.assignmentRepository.getAsync(id);
           if (assignment) {
-              this.ok(res, assignment, 'Assignment fetched');
+              // Fetch detailed stats for this single assignment
+              const exam = await prisma.exam.findUnique({
+                  where: { Id: id },
+                  select: {
+                      StartDate: true,
+                      DueDate: true,
+                      ExamClass: {
+                          select: {
+                              Class: {
+                                  select: {
+                                      _count: { select: { StudentClass: true } }
+                                  }
+                              }
+                          }
+                      },
+                      Submission: {
+                          select: {
+                              TotalScore: true,
+                              GradingStatus: true
+                          }
+                      }
+                  }
+              });
+
+              let stats = {
+                  totalStudents: 0,
+                  submitted: 0,
+                  notSubmitted: 0,
+                  grading: 0,
+                  averageScore: 0,
+                  submittedPercentage: 0,
+                  notSubmittedPercentage: 0,
+                  gradingPercentage: 0,
+                  createdAt: new Date(),
+                  dueDate: null as any
+              };
+
+              if (exam) {
+                  let totalStudents = 0;
+                  exam.ExamClass.forEach(ec => {
+                      totalStudents += ec.Class?._count?.StudentClass || 0;
+                  });
+                  
+                  const submittedCount = exam.Submission.length;
+                  const notSubmittedCount = Math.max(0, totalStudents - submittedCount);
+                  
+                  // Pending / Processing / Error => Grading
+                  // For AITA system, GradingStatus could be 'Pending', 'Processing', 'Graded', 'Failed'
+                  // Usually 'Pending' and 'Processing' are considered "Đang chấm" (grading)
+                  const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Pending' || s.GradingStatus === 'Processing').length;
+                  
+                  // Average score is calculated for 'Graded' submissions
+                  const gradedSubmissions = exam.Submission.filter(s => s.GradingStatus === 'Graded' && s.TotalScore !== null);
+                  let averageScore = 0;
+                  if (gradedSubmissions.length > 0) {
+                      const totalScore = gradedSubmissions.reduce((sum, s) => sum + Number(s.TotalScore || 0), 0);
+                      averageScore = totalScore / gradedSubmissions.length;
+                  }
+
+                  stats = {
+                      totalStudents,
+                      submitted: submittedCount,
+                      notSubmitted: notSubmittedCount,
+                      grading: gradingCount,
+                      averageScore: Number(averageScore.toFixed(2)),
+                      submittedPercentage: totalStudents > 0 ? Number(((submittedCount / totalStudents) * 100).toFixed(1)) : 0,
+                      notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmittedCount / totalStudents) * 100).toFixed(1)) : 0,
+                      gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0, // Grading percentage usually relative to submitted
+                      createdAt: exam.StartDate as any,
+                      dueDate: exam.DueDate as any
+                  };
+              }
+
+              const enhancedAssignment = {
+                  ...assignment,
+                  stats
+              };
+
+              this.ok(res, enhancedAssignment, 'Assignment fetched');
           } else {
               throw new BadRequestError('Not found');
           }
       } catch (error) {
           throw new Error('Error fetching assignment');
+      }
+  };
+
+  update = async (req: Request, res: Response): Promise<void> => {
+      try {
+          const id = req.params.id;
+          const { title, description, dueDate } = req.body;
+
+          const assignment = await this.assignmentRepository.getAsync(id);
+          if (!assignment) {
+              throw new BadRequestError('Assignment not found');
+          }
+
+          // 1. Update Prisma Exam Record
+          const examRecord = await prisma.exam.findUnique({ where: { Id: id } });
+          if (!examRecord) {
+              throw new BadRequestError('Exam record not found in database');
+          }
+
+          let parsedDueDate: Date | undefined;
+          if (dueDate) {
+              parsedDueDate = new Date(dueDate);
+              if (parsedDueDate < examRecord.StartDate) {
+                  throw new BadRequestError('Due date cannot be earlier than the assignment start date');
+              }
+          }
+
+          await prisma.exam.update({
+              where: { Id: id },
+              data: {
+                  Title: title,
+                  Description: description,
+                  DueDate: parsedDueDate
+              }
+          });
+
+          // 2. Update Prisma ExamClass Records
+          await prisma.examClass.updateMany({
+              where: { ExamId: id },
+              data: {
+                  DueDate: parsedDueDate
+              }
+          });
+
+          // 3. Update Document Store Metadata
+          const updatedAssignment = {
+              ...assignment,
+              metadata: {
+                  ...assignment.metadata,
+                  title,
+                  description,
+                  dueDate
+              }
+          };
+          
+          await this.assignmentRepository.saveAsync(updatedAssignment);
+
+          this.ok(res, updatedAssignment, 'Assignment updated successfully');
+      } catch (error) {
+          console.error("Update Error:", error);
+          throw new Error('Error updating assignment');
       }
   };
 

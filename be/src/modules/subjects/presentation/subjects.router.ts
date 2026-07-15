@@ -18,6 +18,7 @@ export class SubjectsRouter {
 
     this.router.get('/', authenticate, asyncHandler((req, res) => controller.list(req, res)))
     this.router.post('/', authenticate, asyncHandler((req, res) => controller.create(req, res)))
+    this.router.get('/:id/students', authenticate, asyncHandler((req, res) => controller.getStudents(req, res)))
     this.router.put('/:id', authenticate, asyncHandler((req, res) => controller.update(req, res)))
     this.router.delete('/:id', authenticate, asyncHandler((req, res) => controller.remove(req, res)))
   }

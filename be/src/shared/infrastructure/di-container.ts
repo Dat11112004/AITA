@@ -43,6 +43,7 @@ import { UpdateSubjectUseCase } from '../../modules/subjects/application/use-cas
 import { DeleteSubjectUseCase } from '../../modules/subjects/application/use-cases/delete-subject.use-case.js'
 import { PrismaSubjectRepository } from '../../modules/subjects/infrastructure/repositories/prisma-subject-repository.js'
 import { SubjectsController } from '../../modules/subjects/presentation/subjects.controller.js'
+import { GetSubjectStudentsUseCase } from '../../modules/subjects/application/use-cases/get-subject-students.use-case.js'
 import { SemesterRepository } from '../../modules/semesters/infrastructure/repositories/semester.repository.js'
 import { ListSemestersUseCase } from '../../modules/semesters/application/use-cases/list-semesters.use-case.js'
 import { CreateSemesterUseCase } from '../../modules/semesters/application/use-cases/create-semester.use-case.js'
@@ -247,12 +248,14 @@ export class DIContainer {
       const createSubjectUseCase = new CreateSubjectUseCase(subjectRepo)
       const updateSubjectUseCase = new UpdateSubjectUseCase(subjectRepo)
       const deleteSubjectUseCase = new DeleteSubjectUseCase(subjectRepo)
+      const getSubjectStudentsUseCase = new GetSubjectStudentsUseCase(uow)
 
       const subjectController = new SubjectsController(
         listSubjectsUseCase,
         createSubjectUseCase,
         updateSubjectUseCase,
         deleteSubjectUseCase,
+        getSubjectStudentsUseCase,
         logger
       )
       this.services.set('SubjectController', subjectController)
