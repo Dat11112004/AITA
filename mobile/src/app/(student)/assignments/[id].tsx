@@ -1,14 +1,20 @@
+import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { AuroraBackground } from '@/components/AuroraBackground'
 import { ErrorView } from '@/components/ErrorView'
+import { GlassCard } from '@/components/GlassCard'
 import { Loading } from '@/components/Loading'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Brand, Colors } from '@/constants/theme'
+import { SubjectChip } from '@/components/SubjectChip'
+import { Aurora, Colors, Glow, HeroAurora, Layout, Radius, Type } from '@/constants/theme'
 import { api, ApiError, type AssignmentRow } from '@/lib/api'
+import { countdownTo, formatDue } from '@/lib/countdown'
 import { DEV_PREVIEW, getMockAssignment } from '@/lib/devPreview'
 
 export default function AssignmentDetailScreen() {
@@ -16,6 +22,7 @@ export default function AssignmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
+  const a = Aurora[scheme]
 
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,58 +53,96 @@ export default function AssignmentDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.fill, { backgroundColor: c.background }]}>
+      <AuroraBackground>
         <Loading />
-      </View>
+      </AuroraBackground>
     )
   }
   if (error || !assignment) {
     return (
-      <View style={[styles.fill, { backgroundColor: c.background }]}>
+      <AuroraBackground>
         <ErrorView message={error ?? t('common.notFound')} onRetry={load} />
-      </View>
+      </AuroraBackground>
     )
   }
 
-  const a = assignment
+  const item = assignment
+  const cd = countdownTo(item.due)
+
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.title, { color: c.text }]}>{a.title}</Text>
-        <View style={styles.metaRow}>
-          <StatusBadge status={a.status} />
-          {a.class ? <Text style={[styles.metaText, { color: c.textSecondary }]}>{a.class}</Text> : null}
-        </View>
+    <AuroraBackground>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.fill}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.headSpacer} />
 
-        <Text style={[styles.label, { color: c.textSecondary }]}>{t('assignment.due')}</Text>
-        <Text style={[styles.value, { color: c.text }]}>{a.due ?? t('assignment.noDue')}</Text>
+          <Text style={[styles.title, { color: a.onGlass }]}>{item.title}</Text>
+          <View style={styles.metaRow}>
+            <StatusBadge status={item.status} />
+            {item.class ? <SubjectChip subject={item.class} /> : null}
+          </View>
 
-        <Text style={[styles.label, { color: c.textSecondary }]}>{t('assignment.description')}</Text>
-        <Text style={[styles.body, { color: c.text }]}>{a.description ?? t('assignment.noDescription')}</Text>
+          {/* due */}
+          <GlassCard style={styles.block}>
+            <View style={styles.blockHead}>
+              <Ionicons name="calendar-outline" size={16} color={c.primary} />
+              <Text style={[styles.label, { color: a.onGlassSoft }]}>{t('assignment.due')}</Text>
+            </View>
+            <View style={styles.dueRow}>
+              <Text style={[styles.value, { color: a.onGlass }]}>{item.due ? formatDue(item.due) : t('assignment.noDue')}</Text>
+              {cd ? (
+                <View style={[styles.cd, cd.urgent && { backgroundColor: c.dangerBg }]}>
+                  <Ionicons name="time-outline" size={13} color={cd.urgent ? c.danger : a.onGlassSoft} />
+                  <Text style={[styles.cdText, { color: cd.urgent ? c.danger : a.onGlassSoft }]}>{cd.label}</Text>
+                </View>
+              ) : null}
+            </View>
+          </GlassCard>
 
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => setSubmitNote(true)}
-          style={[styles.submit, { backgroundColor: Brand[600] }]}
-        >
-          <Text style={styles.submitText}>{t('assignment.submit')}</Text>
-        </TouchableOpacity>
-        {submitNote ? <Text style={[styles.note, { color: c.textSecondary }]}>{t('assignment.submitSoon')}</Text> : null}
-      </ScrollView>
-    </SafeAreaView>
+          {/* description */}
+          <GlassCard style={styles.block} strong>
+            <View style={styles.blockHead}>
+              <Ionicons name="document-text-outline" size={16} color={c.primary} />
+              <Text style={[styles.label, { color: a.onGlassSoft }]}>{t('assignment.description')}</Text>
+            </View>
+            <Text style={[styles.body, { color: a.onGlass }]}>{item.description ?? t('assignment.noDescription')}</Text>
+          </GlassCard>
+
+          <TouchableOpacity activeOpacity={0.88} onPress={() => setSubmitNote(true)} style={[styles.submitWrap, Glow.primary]}>
+            <LinearGradient colors={HeroAurora[scheme]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.submit}>
+              <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.submitText}>{t('assignment.submit')}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          {submitNote ? <Text style={[styles.note, { color: a.onGlassSoft }]}>{t('assignment.submitSoon')}</Text> : null}
+        </ScrollView>
+      </SafeAreaView>
+    </AuroraBackground>
   )
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: { padding: 16, paddingBottom: 32, gap: 4 },
-  title: { fontSize: 22, fontWeight: '800' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 6 },
-  metaText: { fontSize: 13, fontWeight: '600' },
-  label: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginTop: 14, letterSpacing: 0.5 },
-  value: { fontSize: 15, marginTop: 2 },
-  body: { fontSize: 15, lineHeight: 22, marginTop: 2 },
-  submit: { marginTop: 24, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  submitText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  note: { fontSize: 13, textAlign: 'center', marginTop: 10 },
+  content: { padding: Layout.screenPad, paddingBottom: 130 },
+  headSpacer: { height: 40 }, // clears the floating transparent back button
+  title: { ...Type.greeting, fontWeight: '800', letterSpacing: 0.2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 6, flexWrap: 'wrap' },
+  block: { marginTop: 12, gap: 10 },
+  blockHead: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  label: { ...Type.chip, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  value: { ...Type.title, fontWeight: '700' },
+  dueRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  cd: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  cdText: { ...Type.body, fontWeight: '600' },
+  body: { ...Type.bodyLg, lineHeight: 24, fontWeight: '400' },
+  submitWrap: { marginTop: 26, borderRadius: Radius.card },
+  submit: {
+    height: 58,
+    borderRadius: Radius.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  submitText: { ...Type.bodyLg, color: '#FFFFFF', fontWeight: '700' },
+  note: { ...Type.body, textAlign: 'center', marginTop: 12 },
 })

@@ -1,11 +1,12 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, useColorScheme, View } from 'react-native'
 
-import { BrandTint } from '@/constants/theme'
+import { Colors } from '@/constants/theme'
 
 export function Loading() {
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" color={BrandTint} />
+      <ActivityIndicator size="large" color={Colors[scheme].primary} />
     </View>
   )
 }

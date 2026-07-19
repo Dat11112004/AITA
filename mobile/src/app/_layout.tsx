@@ -6,21 +6,24 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AuthProvider, useAuth } from '@/store/AuthContext'
 
-// Role-based gating (Student v1): redirect to /login when guest, to the student area when authed.
+// Role-based gating: guests go to /login; authed users land in their own area —
+// lecturers in (lecturer), everyone else (student; admin has no mobile UI) in (student).
 function RootNavigator() {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
   const segments = useSegments()
   const router = useRouter()
 
   useEffect(() => {
     if (status === 'loading') return
-    const inStudent = segments[0] === '(student)'
-    if (status === 'authed' && !inStudent) {
-      router.replace('/(student)/dashboard' as any)
-    } else if (status === 'guest' && segments[0] !== 'login') {
+    const group = segments[0]
+    if (status === 'authed') {
+      const target = user?.role === 'lecturer' ? '(lecturer)' : '(student)'
+      // `profile` is a shared authed screen outside the role groups — don't bounce it.
+      if (group !== target && group !== 'profile') router.replace(`/${target}/dashboard` as any)
+    } else if (status === 'guest' && group !== 'login') {
       router.replace('/login' as any)
     }
-  }, [status, segments, router])
+  }, [status, user, segments, router])
 
   return <Stack screenOptions={{ headerShown: false }} />
 }
