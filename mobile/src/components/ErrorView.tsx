@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native'
 
-import { Brand, Colors } from '@/constants/theme'
+import { Colors, Layout, Radius, Type } from '@/constants/theme'
 
 // Mobile counterpart of the web's ErrorState/APIError — message + retry, never a silent failure.
 export function ErrorView({ message, onRetry }: { message?: string; onRetry?: () => void }) {
@@ -12,8 +12,8 @@ export function ErrorView({ message, onRetry }: { message?: string; onRetry?: ()
     <View style={styles.wrap}>
       <Text style={[styles.msg, { color: c.text }]}>{message ?? t('common.error')}</Text>
       {onRetry ? (
-        <TouchableOpacity onPress={onRetry} activeOpacity={0.8} style={[styles.btn, { borderColor: Brand[600] }]}>
-          <Text style={[styles.btnText, { color: Brand[600] }]}>{t('common.retry')}</Text>
+        <TouchableOpacity onPress={onRetry} activeOpacity={0.8} style={[styles.btn, { borderColor: c.primary }]}>
+          <Text style={[styles.btnText, { color: c.primary }]}>{t('common.retry')}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -22,7 +22,7 @@ export function ErrorView({ message, onRetry }: { message?: string; onRetry?: ()
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
-  msg: { fontSize: 15, textAlign: 'center' },
-  btn: { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
-  btnText: { fontSize: 15, fontWeight: '700' },
+  msg: { ...Type.bodyLg, textAlign: 'center' },
+  btn: { borderWidth: 1, borderRadius: Radius.card, paddingHorizontal: Layout.cardPad, paddingVertical: 12 },
+  btnText: { ...Type.bodyLg, fontWeight: '500' },
 })

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
-import { api, type AuthUser } from '@/lib/api'
+import { api, ApiError, type AuthUser } from '@/lib/api'
 import { DEV_AUTOLOGIN, DEV_LOGIN_EMAIL, DEV_LOGIN_PASSWORD, DEV_PREVIEW, mockUser } from '@/lib/devPreview'
 import { secureStore } from '@/lib/secureStore'
 
@@ -24,10 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true
     ;(async () => {
+      // Preview mode has no BE. DEV_AUTOLOGIN skips straight to the dashboard; without it we
+      // start as a guest so the login screen is actually reachable and reviewable — it used
+      // to authenticate here unconditionally, which made login unreachable in mock mode.
       if (DEV_PREVIEW) {
         if (alive) {
-          setUser(mockUser)
-          setStatus('authed')
+          if (DEV_AUTOLOGIN) {
+            setUser(mockUser)
+            setStatus('authed')
+          } else {
+            setStatus('guest')
+          }
         }
         return
       }
@@ -73,6 +80,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
+    // Preview mode: no BE to call. Check against the seeded credentials so the screen's real
+    // states — loading, success, and the error card — can all be exercised without a backend.
+    // Wrong credentials fail here exactly as they would against the API.
+    if (DEV_PREVIEW) {
+      await new Promise((r) => setTimeout(r, 600)) // let the loading state actually show
+      if (email.toLowerCase() !== DEV_LOGIN_EMAIL.toLowerCase() || password !== DEV_LOGIN_PASSWORD) {
+        throw new ApiError('Email hoặc mật khẩu không đúng.', 401)
+      }
+      setUser(mockUser)
+      setStatus('authed')
+      return
+    }
+
     const res = await api.login(email, password)
     await secureStore.setToken(res.token)
     if (res.refreshToken) await secureStore.setRefresh(res.refreshToken)
@@ -82,6 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
+    // Preview mode: nothing was ever stored, and there is no BE to revoke against.
+    if (DEV_PREVIEW) {
+      setUser(null)
+      setStatus('guest')
+      return
+    }
+
     const rt = await secureStore.getRefresh()
     if (rt) {
       try {

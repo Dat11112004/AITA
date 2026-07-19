@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -5,23 +6,23 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useColo
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AssignmentCard } from '@/components/AssignmentCard'
-import { Card } from '@/components/Card'
+import { AuroraBackground } from '@/components/AuroraBackground'
 import { ErrorView } from '@/components/ErrorView'
+import { HeroCard } from '@/components/HeroCard'
 import { Loading } from '@/components/Loading'
-import { StatCard } from '@/components/StatCard'
-import { Brand, BrandTint, Colors } from '@/constants/theme'
+import { SubjectTile } from '@/components/SubjectTile'
+import { Aurora, Colors, Layout, Radius, Type } from '@/constants/theme'
 import { api, ApiError, type AssignmentRow, type ClassRow } from '@/lib/api'
 import { DEV_PREVIEW, mockAssignments, mockClasses, mockOverview } from '@/lib/devPreview'
 import { useAuth } from '@/store/AuthContext'
 
-const STAT_KEYS = ['classes', 'assignments', 'submissions', 'averageScore'] as const
-
 export default function DashboardScreen() {
   const { t } = useTranslation()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
+  const a = Aurora[scheme]
 
   const [overview, setOverview] = useState<Record<string, string | number>>({})
   const [classes, setClasses] = useState<ClassRow[]>([])
@@ -41,7 +42,6 @@ export default function DashboardScreen() {
           setClasses(mockClasses)
           setAssignments(mockAssignments)
         } else {
-          // Aggregate; tolerate a single failing endpoint, but surface a total failure.
           const [ov, cls, asg] = await Promise.allSettled([
             api.getStatsOverview(),
             api.getClasses(),
@@ -71,113 +71,139 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.fill, { backgroundColor: c.background }]}>
+      <AuroraBackground>
         <Loading />
-      </View>
+      </AuroraBackground>
     )
   }
   if (error) {
     return (
-      <View style={[styles.fill, { backgroundColor: c.background }]}>
+      <AuroraBackground>
         <ErrorView message={error} onRetry={() => load('initial')} />
-      </View>
+      </AuroraBackground>
     )
   }
 
-  const statEntries = STAT_KEYS.filter((k) => overview[k] !== undefined).map((k) => ({
-    key: k,
-    label: t(`dashboard.stat.${k}`),
-    value: overview[k],
-  }))
-  const upcoming = assignments.slice(0, 3)
+  const pending = assignments.filter((x) => (x.status ?? '').toUpperCase() === 'PUBLISHED')
+  const pendingCount = pending.length
+  const upcoming = pending.slice(0, 4)
+  const avgScore = overview.averageScore
+  const submissions = Number(overview.submissions ?? 0)
+  const name = user?.fullName ?? user?.email ?? ''
+  const initial = (name.trim()[0] ?? '?').toUpperCase()
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.fill, { backgroundColor: c.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} tintColor={BrandTint} colors={[BrandTint]} />
-        }
-      >
-        {DEV_PREVIEW ? (
-          <View style={styles.previewBadge}>
-            <Text style={styles.previewText}>{t('common.preview')}</Text>
+    <AuroraBackground>
+      <SafeAreaView edges={['top']} style={styles.fill}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} tintColor={c.primary} colors={[c.primary]} />
+          }
+        >
+          {/* header: greeting + avatar */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={[styles.hello, { color: a.onGlassSoft }]}>{t('login.welcomeBack')}</Text>
+              <Text style={[styles.name, { color: a.onGlass }]} numberOfLines={1}>
+                {name}
+              </Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/profile' as any)} style={[styles.avatar, { backgroundColor: a.glassStrong, borderColor: a.glassBorder }]}>
+              <Text style={[styles.avatarText, { color: c.primary }]}>{initial}</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
 
-        <Text style={[styles.greeting, { color: c.text }]}>
-          {t('dashboard.greeting', { name: user?.fullName ?? user?.email ?? '' })}
-        </Text>
-        <Text style={[styles.role, { color: c.textSecondary }]}>{t('dashboard.role', { role: user?.role ?? '' })}</Text>
+          {pendingCount > 0 ? (
+            <Text style={[styles.lead, { color: a.onGlass }]}>
+              {t('dashboard.pendingLead')}{' '}
+              <Text style={{ color: c.danger, fontWeight: '800' }}>{t('dashboard.pendingCount', { count: pendingCount })}</Text>{' '}
+              {t('dashboard.pendingTail')}
+            </Text>
+          ) : (
+            <Text style={[styles.lead, { color: a.onGlass }]}>{t('dashboard.allCaughtUp')}</Text>
+          )}
 
-        {statEntries.length > 0 ? (
-          <View style={styles.statsRow}>
-            {statEntries.map((s) => (
-              <StatCard key={s.key} label={s.label} value={s.value} />
-            ))}
-          </View>
-        ) : null}
+          <HeroCard
+            value={avgScore ?? '—'}
+            unit={t('dashboard.heroUnit')}
+            caption={submissions > 0 ? t('dashboard.heroCaption', { count: submissions }) : t('dashboard.heroCaptionEmpty')}
+            actionLabel={t('dashboard.heroAction')}
+            onAction={() => router.push('/(student)/assignments' as any)}
+          />
 
-        <Text style={[styles.section, { color: c.text }]}>{t('dashboard.myClasses')}</Text>
-        {classes.length === 0 ? (
-          <Text style={[styles.empty, { color: c.textSecondary }]}>{t('dashboard.noClasses')}</Text>
-        ) : (
-          classes.map((cl) => (
-            <Card key={cl.id} style={styles.row}>
-              <View style={[styles.badge, { backgroundColor: Brand[600] }]}>
-                <Text style={styles.badgeText}>{cl.code}</Text>
+          {upcoming.length > 0 ? (
+            <>
+              <Text style={[styles.section, { color: a.onGlass }]}>{t('dashboard.pendingSection', { count: pendingCount })}</Text>
+              <View style={styles.gridRow}>
+                {upcoming.map((x) => (
+                  <AssignmentCard
+                    key={x.id}
+                    assignment={x}
+                    variant="grid"
+                    onPress={() => router.push(`/(student)/assignments/${x.id}` as any)}
+                  />
+                ))}
               </View>
-              <View style={styles.rowBody}>
-                <Text style={[styles.rowTitle, { color: c.text }]} numberOfLines={1}>
-                  {cl.name}
-                </Text>
-                {cl.studentCount != null ? (
-                  <Text style={[styles.rowSub, { color: c.textSecondary }]}>
-                    {t('dashboard.students', { count: cl.studentCount })}
-                  </Text>
-                ) : null}
-              </View>
-            </Card>
-          ))
-        )}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.section, { color: a.onGlass }]}>{t('dashboard.upcoming')}</Text>
+              <Text style={[styles.empty, { color: a.onGlassSoft }]}>{t('dashboard.noUpcoming')}</Text>
+            </>
+          )}
 
-        <Text style={[styles.section, { color: c.text }]}>{t('dashboard.upcoming')}</Text>
-        {upcoming.length === 0 ? (
-          <Text style={[styles.empty, { color: c.textSecondary }]}>{t('dashboard.noUpcoming')}</Text>
-        ) : (
-          upcoming.map((a) => (
-            <AssignmentCard
-              key={a.id}
-              assignment={a}
-              onPress={() => router.push(`/(student)/assignments/${a.id}` as any)}
-            />
-          ))
-        )}
-
-        <TouchableOpacity onPress={logout} activeOpacity={0.8} style={[styles.logout, { borderColor: Brand[600] }]}>
-          <Text style={[styles.logoutText, { color: Brand[600] }]}>{t('dashboard.logout')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+          <Text style={[styles.section, { color: a.onGlass }]}>{t('dashboard.myClasses')}</Text>
+          {classes.length === 0 ? (
+            <Text style={[styles.empty, { color: a.onGlassSoft }]}>{t('dashboard.noClasses')}</Text>
+          ) : (
+            <View style={styles.gridRow}>
+              {classes.map((cl) => (
+                <SubjectTile key={cl.id} subject={cl.code} caption={cl.name} onPress={() => router.push('/(student)/assignments' as any)} />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </AuroraBackground>
   )
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: { padding: 16, gap: 10, paddingBottom: 32 },
-  previewBadge: { alignSelf: 'flex-start', backgroundColor: '#fde68a', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  previewText: { color: '#92400e', fontSize: 11, fontWeight: '800' },
-  greeting: { fontSize: 24, fontWeight: '800' },
-  role: { fontSize: 13, textTransform: 'capitalize', marginBottom: 2 },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  section: { fontSize: 17, fontWeight: '800', marginTop: 14 },
-  empty: { fontSize: 14 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
-  badgeText: { color: '#ffffff', fontWeight: '800', fontSize: 12 },
-  rowBody: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '700' },
-  rowSub: { fontSize: 12, marginTop: 2 },
-  logout: { marginTop: 18, height: 48, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  logoutText: { fontSize: 16, fontWeight: '700' },
+  content: { padding: Layout.screenPad, gap: 14, paddingBottom: 130 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  headerLeft: { flex: 1, gap: 2 },
+  hello: { ...Type.body, fontWeight: '500' },
+  name: { ...Type.greeting, fontWeight: '800', letterSpacing: 0.2 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4B3F86',
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  avatarText: { fontSize: 20, fontWeight: '800' },
+  lead: { ...Type.bodyLg, fontWeight: '500', letterSpacing: 0.2, marginTop: 2 },
+  section: { ...Type.title, fontWeight: '800', marginTop: 12 },
+  empty: { ...Type.body, marginTop: 2 },
+  gridRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Layout.gridGap, marginTop: 2 },
+  logout: {
+    marginTop: 22,
+    height: 50,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  logoutText: { ...Type.bodyLg, fontWeight: '700' },
 })

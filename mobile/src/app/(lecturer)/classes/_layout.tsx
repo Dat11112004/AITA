@@ -3,10 +3,8 @@ import { useColorScheme } from 'react-native'
 
 import { Aurora } from '@/constants/theme'
 
-// Assignments stack (inside the "Bài tập" tab): list (index) → detail ([id]).
-// Aurora Glass: the list renders its own header; the detail floats a transparent
-// header (just the back chevron) over the aurora ground.
-export default function AssignmentsLayout() {
+// Lecturer classes stack: list (index) → class detail ([id]).
+export default function LecturerClassesLayout() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const a = Aurora[scheme]
 

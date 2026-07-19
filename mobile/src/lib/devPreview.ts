@@ -33,11 +33,16 @@ export const mockClasses: ClassRow[] = [
   { id: 'c3', code: 'SWD392', name: 'Thiết kế hệ thống phần mềm', studentCount: 35 },
 ]
 
+// Due dates are anchored to "now" rather than hard-coded. Fixed dates rot: the previous
+// literals (2026-07-02…) had all fallen into the past, so every card in the preview rendered
+// "Quá hạn" in red and the deadline styling could never be reviewed.
+const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString()
+
 export const mockAssignments: AssignmentRow[] = [
-  { id: 'a1', title: 'Bài tập 3 — REST API', status: 'PUBLISHED', due: '2026-07-02', classId: 'c1', class: 'SE1702', description: 'Xây dựng REST API cho hệ thống quản lý thư viện bằng Express: CRUD sách, xác thực JWT, phân trang. Nộp mã nguồn dưới dạng .zip.' },
-  { id: 'a2', title: 'Đồ án nhóm — Màn hình đăng nhập', status: 'PUBLISHED', due: '2026-07-05', classId: 'c2', class: 'PRM392', description: 'Thiết kế và lập trình màn hình đăng nhập đa nền tảng (React Native). Làm việc theo nhóm 3–4 sinh viên; nộp link Git của nhóm.' },
-  { id: 'a3', title: 'Quiz 2 — State management', status: 'PUBLISHED', due: '2026-07-07', classId: 'c1', class: 'SE1702', description: 'Trắc nghiệm về quản lý state: Context, Redux và các pattern phổ biến. 20 câu, 30 phút.' },
-  { id: 'a4', title: 'Bài tập 2 — Component cơ bản', status: 'CLOSED', due: '2026-06-20', classId: 'c1', class: 'SE1702', description: 'Xây dựng các component cơ bản và styling theo design. (Bài tập đã hết hạn nộp.)' },
+  { id: 'a1', title: 'Bài tập 3 — REST API', status: 'PUBLISHED', due: inHours(34), classId: 'c1', class: 'SE1702', description: 'Xây dựng REST API cho hệ thống quản lý thư viện bằng Express: CRUD sách, xác thực JWT, phân trang. Nộp mã nguồn dưới dạng .zip.' },
+  { id: 'a2', title: 'Đồ án nhóm — Màn hình đăng nhập', status: 'PUBLISHED', due: inHours(5 * 24), classId: 'c2', class: 'PRM392', description: 'Thiết kế và lập trình màn hình đăng nhập đa nền tảng (React Native). Làm việc theo nhóm 3–4 sinh viên; nộp link Git của nhóm.' },
+  { id: 'a3', title: 'Quiz 2 — State management', status: 'PUBLISHED', due: inHours(11 * 24), classId: 'c1', class: 'SE1702', description: 'Trắc nghiệm về quản lý state: Context, Redux và các pattern phổ biến. 20 câu, 30 phút.' },
+  { id: 'a4', title: 'Bài tập 2 — Component cơ bản', status: 'CLOSED', due: inHours(-27 * 24), classId: 'c1', class: 'SE1702', description: 'Xây dựng các component cơ bản và styling theo design. (Bài tập đã hết hạn nộp.)' },
 ]
 
 export const getMockAssignment = (id: string): AssignmentRow | undefined => mockAssignments.find((a) => a.id === id)

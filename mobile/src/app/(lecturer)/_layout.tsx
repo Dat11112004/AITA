@@ -5,9 +5,9 @@ import { Platform, useColorScheme } from 'react-native'
 
 import { Aurora, Colors, Layout } from '@/constants/theme'
 
-// Student area (v1) — bottom tabs. "Trang chủ" = dashboard; "Bài tập" = assignments stack.
-// Add more tabs (AI feedback, notifications) in later phases.
-export default function StudentLayout() {
+// Lecturer area — bottom tabs: Home (dashboard), Classes, Grading.
+// Same Aurora Glass floating tab bar as the student area.
+export default function LecturerLayout() {
   const { t } = useTranslation()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
@@ -16,9 +16,9 @@ export default function StudentLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: a.onGlassSoft,
-        // Aurora Glass: a floating frosted pill with a soft coloured glow.
         tabBarStyle: {
           position: 'absolute',
           left: Layout.screenPad,
@@ -38,36 +38,30 @@ export default function StudentLayout() {
           shadowOffset: { width: 0, height: 12 },
           elevation: 16,
         },
-        // Vertical padding stays small: the item's own 5pt inset plus a 24pt icon already
-        // eat most of the bar. At paddingVertical:12 the label box measured 8px against
-        // ~14px of text and was clipped to nothing.
         tabBarItemStyle: { height: Layout.tabBarHeight, paddingVertical: 8 },
-        // Figma: 12/700 active, 12/400 inactive, 0.03em tracking.
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.36 },
-        // The Figma has no filled header bar — screens open straight onto the ground.
-        headerStyle: { backgroundColor: c.background },
-        headerTintColor: c.text,
-        headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700' },
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
-          headerShown: false, // greeting is the header, per the Figma
-          tabBarLabel: t('tabs.home'),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />
-          ),
+          tabBarLabel: t('lecturer.tabs.home'),
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="assignments"
+        name="classes"
         options={{
-          headerShown: false,
-          tabBarLabel: t('tabs.assignments'),
+          tabBarLabel: t('lecturer.tabs.classes'),
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'school' : 'school-outline'} color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="grading"
+        options={{
+          tabBarLabel: t('lecturer.tabs.grading'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'document-text' : 'document-text-outline'} color={color} size={size} />
+            <Ionicons name={focused ? 'checkmark-done-circle' : 'checkmark-done-circle-outline'} color={color} size={size} />
           ),
         }}
       />
