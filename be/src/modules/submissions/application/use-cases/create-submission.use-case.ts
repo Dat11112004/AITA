@@ -7,16 +7,17 @@ import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '.
 import { CreateSubmissionRequestDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 import { Submission } from '../../domain/entities/submission.entity.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
-import type { AssessSubmissionUseCase } from '../../../ai/application/use-cases/assess-submission.use-case.js'
+import { CloudinaryService } from '../../../../shared/infrastructure/services/cloudinary.service.js'
+import path from 'path'
+import fs from 'fs'
 
-export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmissionRequestDto; user: AuthUser }, ReturnType<typeof SubmissionResponseDto.from>> {
+export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmissionRequestDto; file?: Express.Multer.File; user: AuthUser }, ReturnType<typeof SubmissionResponseDto.from>> {
   constructor(
     private readonly submissionRepo: ISubmissionRepository,
-    private readonly uow: IUnitOfWork,
-    private readonly assessSubmissionUseCase?: AssessSubmissionUseCase
+    private readonly uow: IUnitOfWork
   ) { }
 
-  async execute({ dto, user }: { dto: CreateSubmissionRequestDto; user: AuthUser }) {
+  async execute({ dto, file, user }: { dto: CreateSubmissionRequestDto; file?: Express.Multer.File; user: AuthUser }) {
     const examId = dto.data.examId ?? dto.data.assignmentId
     if (!examId) throw new ValidationError(MESSAGES.SUBMISSION_MISSING_EXAM_ID)
 
@@ -24,8 +25,38 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     const exam = await this.uow.resolve<any>(Symbol.for('ExamRepository')).findById(examId)
     if (!exam) throw new NotFoundError(MESSAGES.EXAM_NOT_FOUND)
 
-    const classId = dto.data.classId || exam.subjectId
-    if (!classId) throw new ValidationError(MESSAGES.SUBMISSION_MISSING_CLASS_ID)
+    let classId = dto.data.classId
+    
+    if (!classId) {
+      // Find the intersection of ExamClasses and Student Enrollments
+      const { prisma } = await import('../../../../database/prisma.js')
+      const examClasses = await prisma.examClass.findMany({
+        where: { ExamId: examId },
+        select: { ClassId: true }
+      });
+      const enrollments = await prisma.studentClass.findMany({
+        where: { UserId: user.id },
+        select: { ClassId: true }
+      });
+      
+      const enrolledClassIds = new Set(enrollments.map(e => e.ClassId));
+      const matchingClass = examClasses.find(ec => enrolledClassIds.has(ec.ClassId));
+      
+      if (matchingClass) {
+        classId = matchingClass.ClassId;
+      }
+    }
+
+    if (!classId) throw new ValidationError("Sinh viên không thuộc bất kỳ lớp học nào được giao bài tập này")
+
+    // Get Class and Subject details for Cloudinary folder structure
+    const classRepo = this.uow.resolve<any>(Symbol.for('ClassRepository'))
+    const classInfo = await classRepo.findById(classId)
+    if (!classInfo) throw new NotFoundError('Không tìm thấy lớp học')
+
+    const subjectRepo = this.uow.resolve<any>(Symbol.for('SubjectRepository'))
+    const subjectInfo = await subjectRepo.findById(classInfo.subjectId)
+    if (!subjectInfo) throw new NotFoundError('Không tìm thấy môn học')
 
     // Verify student is enrolled in the class using legacy repo access
     const enrollmentRepo = this.uow.resolve<any>(Symbol.for('EnrollmentRepository'))
@@ -46,11 +77,6 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       throw new ConflictError(MESSAGES.SUBMISSION_ALREADY_SUBMITTED)
     }
 
-    // Validate file URL format
-    if (dto.data.zipFileUrl && !this.isValidFileUrl(dto.data.zipFileUrl)) {
-      throw new ValidationError(MESSAGES.SUBMISSION_INVALID_URL)
-    }
-
     // Check deadline
     if (exam.dueDate) {
       const now = new Date()
@@ -60,23 +86,83 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       }
     }
 
+    let fileUrl = dto.data.zipFileUrl ?? ''
+    let uploadedPublicId: string | undefined;
+    let localFilePath: string | undefined;
+
+    if (file) {
+      const subjectCode = subjectInfo.Code || 'UnknownSubject'
+      const classCode = classInfo.Code || 'UnknownClass'
+      const studentNameSafe = ((user as any).name || (user as any).email || user.id).replace(/[^a-zA-Z0-9]/g, '_')
+      
+      if (file.size > 10485760) {
+        // Fallback to local storage for files > 10MB
+        const uploadDir = path.join(process.cwd(), 'uploads', 'submissions', subjectCode, classCode);
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        const fileName = `${studentNameSafe}_${Date.now()}${path.extname(file.originalname) || '.zip'}`;
+        localFilePath = path.join(uploadDir, fileName);
+        fs.writeFileSync(localFilePath, file.buffer);
+        
+        // Use relative URL so frontend/API can serve it, or construct full URL if needed
+        fileUrl = `/uploads/submissions/${subjectCode}/${classCode}/${fileName}?filename=${encodeURIComponent(file.originalname)}`;
+      } else {
+        const folderPath = `AITA/${subjectCode}/${classCode}/${exam.title || examId}`
+        try {
+          const uploadResult = await CloudinaryService.uploadStream(file.buffer, {
+            folder: folderPath,
+            public_id: `${studentNameSafe}_${Date.now()}`,
+            resource_type: 'raw', // Use raw for zip/pdf/docx files
+          });
+          fileUrl = uploadResult.secure_url + `?filename=${encodeURIComponent(file.originalname)}`;
+          uploadedPublicId = uploadResult.public_id;
+        } catch (uploadError: any) {
+          throw new ValidationError(`Lỗi khi tải file lên Cloudinary: ${uploadError.message || 'Unknown error'}`);
+        }
+      }
+    } else if (fileUrl && !this.isValidFileUrl(fileUrl)) {
+      throw new ValidationError(MESSAGES.SUBMISSION_INVALID_URL)
+    }
+
     const submission = Submission.create(
       randomUUID(),
       user.id,
       examId,
       classId,
       1, // attemptNumber
-      dto.data.zipFileUrl ?? ''
+      fileUrl
     )
 
-    await this.submissionRepo.create(submission)
+    // Ensure status is pending for batch grading later
+    ;(submission as any)._status = 'Pending' // Internal state bypass, but it defaults to Pending anyway.
+    
+    // Save submission text content if provided
+    if (dto.data.content) {
+        (submission as any).content = dto.data.content;
+    }
 
-    // Trigger AI background grading if it is an assignment
-    if (exam.examType === 'Assignment' && this.assessSubmissionUseCase) {
-      // Run asynchronously without awaiting
-      this.assessSubmissionUseCase.execute(submission.id).catch(err => {
-        console.error(`[Background Grading] Error assessing submission ${submission.id}:`, err);
-      });
+    try {
+      await this.submissionRepo.create(submission)
+    } catch (dbError: any) {
+      if (uploadedPublicId) {
+        try {
+          await CloudinaryService.deleteFile(uploadedPublicId, 'raw')
+        } catch (cleanupError) {
+          console.error('Failed to cleanup Cloudinary file after DB save failure:', cleanupError)
+        }
+      }
+      if (localFilePath) {
+        try {
+          if (fs.existsSync(localFilePath)) {
+            fs.unlinkSync(localFilePath);
+          }
+        } catch (cleanupError) {
+          console.error('Failed to cleanup Local file after DB save failure:', cleanupError)
+        }
+      }
+      throw dbError
     }
 
     return SubmissionResponseDto.from(submission as any)

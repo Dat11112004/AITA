@@ -7,6 +7,8 @@ import { LocalArtifactStore } from '../../../infrastructure/file-system/LocalArt
 import { GeminiAiProvider } from '../../../infrastructure/ai/GeminiAiProvider.js';
 import { uploadMiddleware } from '../../../shared/middleware/uploadMiddleware.js';
 
+export let engineSubmissionController: SubmissionController;
+
 export function createSubmissionRoutes(): Router {
   const router = Router();
   
@@ -16,10 +18,14 @@ export function createSubmissionRoutes(): Router {
   const sandboxService = new ExecutionSandboxService();
   const playwrightExecutor = new PlaywrightExecutor(artifactStore);
 
-  const controller = new SubmissionController(sandboxService, playwrightExecutor, rubricEvaluator);
+  engineSubmissionController = new SubmissionController(sandboxService, playwrightExecutor, rubricEvaluator);
+  const controller = engineSubmissionController;
 
   router.post('/', uploadMiddleware.single('file'), controller.submit);
   router.post('/upload-batch', uploadMiddleware.array('files', 50), controller.submitBatch);
+  router.post('/grade-existing', controller.gradeExisting);
+  router.post('/grade-existing-batch', controller.gradeExistingBatch);
+  router.post('/grade-selected-batch', controller.gradeSelectedBatch);
   router.post('/batch-cancel', controller.cancelBatch);
   router.get('/batch-status', controller.getBatchStatus);
   router.get('/history', controller.getHistory);

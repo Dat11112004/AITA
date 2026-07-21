@@ -332,7 +332,7 @@ export class DIContainer {
 
       // ── Submissions ──────────────────────────────────────────
       const listSubmissionsUseCase = new ListSubmissionsUseCase(submissionRepo)
-      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow, assessSubmissionUseCase)
+      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow)
       const getSubmissionUseCase = new GetSubmissionUseCase(submissionRepo)
       const publishGradeUseCase = new PublishGradeUseCase(submissionRepo)
       const bulkPublishGradesUseCase = new BulkPublishGradesUseCase(submissionRepo)

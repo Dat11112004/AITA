@@ -21,9 +21,9 @@ export class GradingController extends BaseController {
     }
 
     async startGrading(req: Request, res: Response): Promise<void> {
-        const { submissionId } = req.body
-        this.logger.info(`Starting grading session for submission: ${submissionId}`)
-        const result = await this.startGradingSessionUseCase.execute(submissionId)
+        const { assignmentId } = req.body
+        this.logger.info(`Starting grading session for assignment: ${assignmentId}`)
+        const result = await this.startGradingSessionUseCase.execute(assignmentId)
         // 202 Accepted
         this.ok(res, result, MESSAGES.GRADING_START_SUCCESS) 
     }

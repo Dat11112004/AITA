@@ -213,7 +213,7 @@ export function StudentResults() {
                             <div className="text-right">
                               {grade.score !== null ? (
                                 <div className="text-xl font-bold text-brand-600 dark:text-brand-400">
-                                  {grade.score} <span className="text-sm text-slate-400 font-normal">/10</span>
+                                  {Number(grade.score).toLocaleString('vi-VN')}
                                 </div>
                               ) : (
                                 <div className="text-sm font-medium text-slate-400 italic">Chưa có điểm</div>

@@ -81,6 +81,7 @@ export interface AssessmentReport {
     // Review and Feedback
     manualReviewNotes?: string[];
     aiFeedback?: AiFeedback[];
+    overallFeedback?: string;
     error?: string;
 
     // Traceability

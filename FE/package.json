@@ -27,6 +27,7 @@
         "react-dom": "^19.1.0",
         "react-hook-form": "^7.77.0",
         "react-i18next": "^14.0.1",
+        "react-markdown": "^10.1.0",
         "react-router-dom": "^7.6.2",
         "react-simple-wysiwyg": "^3.4.1",
         "shiki": "^4.1.0",

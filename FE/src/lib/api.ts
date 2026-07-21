@@ -285,10 +285,14 @@ export const api = {
   async getSubmission(id: string) {
     return request<SubmissionRow>(`/submissions/${id}`)
   },
-  async submitAssignment(data: { assignmentId: string; content?: string; zipFileUrl?: string }) {
-    return request<SubmissionRow>(`/submissions`, {
+  submitAssignment: (file: File | null, content: string, assignmentId: string) => {
+    const formData = new FormData()
+    if (file) formData.append('file', file)
+    formData.append('content', content)
+    formData.append('assignmentId', assignmentId)
+    return request<{ submissionId: string, zipFileUrl: string, status: string }>('/submissions', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: formData,
     })
   },
   gradeSubmission: (submissionId: string, body: any) =>
@@ -439,15 +443,38 @@ export interface StudentRow {
 export interface AssignmentRow {
   id: string
   title: string
+  description: string
   type: string
   class?: string
   classId: string
+  dueAt: string
   due?: string | null
-  submitted?: number
   status: string
-  description?: string
+  subjectId: string
+  subjectName?: string | null
+  lecturer?: string | null
+  lecturerAvatar?: string | null
+  createdAt?: string | null
+  classes?: string[]
+  maxScore?: number
+  submitted?: number
   content?: unknown
-  attachments?: { id: string; fileName: string; fileUrl: string; fileType: string }[]
+  attachments?: {
+    id: string
+    fileName: string
+    fileUrl: string
+    fileType: string
+  }[]
+  rubrics?: {
+    id: string
+    description: string
+    maxPoints: number
+    criteria: {
+      id: string
+      description: string
+      maxPoints: number
+    }[]
+  }[]
 }
 
 export interface SubmissionRow {
@@ -630,6 +657,17 @@ export const gradingApi = {
     body: JSON.stringify({ metadata, blueprint, rubric }),
   }),
   
+  submitAssignment: (file: File | null, content: string, assignmentId: string) => {
+    const formData = new FormData()
+    if (file) formData.append('file', file)
+    formData.append('content', content)
+    formData.append('assignmentId', assignmentId)
+    return request<{ submissionId: string, zipFileUrl: string, status: string }>('/submissions', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+  
   submitProject: (file: File, assignmentId?: string) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -639,7 +677,6 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
   submitBatchProject: (files: File[], assignmentId?: string) => {
     const formData = new FormData()
     files.forEach(f => formData.append('files', f))
@@ -647,6 +684,27 @@ export const gradingApi = {
     return request<{ jobs: any[] }>('/grading/submissions/upload-batch', {
       method: 'POST',
       body: formData,
+    })
+  },
+  
+  gradeExistingSubmission: (submissionId: string) => {
+    return request<{ submissionId: string, statusUrl: string }>('/grading/submissions/grade-existing', {
+      method: 'POST',
+      body: JSON.stringify({ submissionId }),
+    })
+  },
+  
+  gradeExistingBatch: (assignmentId: string) => {
+    return request<{ jobs: any[] }>('/grading/submissions/grade-existing-batch', {
+      method: 'POST',
+      body: JSON.stringify({ assignmentId }),
+    })
+  },
+  
+  gradeSelectedBatch: (assignmentId: string, submissionIds: string[]) => {
+    return request<{ jobs: any[] }>('/grading/submissions/grade-selected-batch', {
+      method: 'POST',
+      body: JSON.stringify({ assignmentId, submissionIds }),
     })
   },
   
@@ -713,12 +771,15 @@ export const gradingApi = {
   
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
-  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string) => {
+  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string) => {
     const params = new URLSearchParams();
     if (assignmentId) params.append('assignmentId', assignmentId);
     if (page) params.append('page', page.toString());
     if (limit) params.append('limit', limit.toString());
     if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    if (scoreRange) params.append('scoreRange', scoreRange);
+    if (sort) params.append('sort', sort);
     
     return request<{ history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
   },

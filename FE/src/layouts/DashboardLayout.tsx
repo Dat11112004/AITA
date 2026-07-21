@@ -16,7 +16,7 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="min-h-screen bg-bg-light-orange dark:bg-[#0f1117] transition-colors duration-300">
+    <div className="min-h-screen bg-[#fefefe] dark:bg-[#0f1117] transition-colors duration-300">
       <DashboardSidebar
         navItems={navItems}
         role={role}

@@ -153,6 +153,7 @@ export function AppRoutes() {
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
         <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
+        <Route path="grading/result/:id" element={<ResultPage />} />
         <Route path="results" element={<StudentResults />} />
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="profile" element={<Profile />} />

@@ -138,17 +138,28 @@ export class StudentPortalController extends BaseController {
       },
       include: {
         Subject: true,
+        InstructorClass: {
+          include: { User: true }
+        }
       }
     })
 
     const subjectsMap = new Map<string, any>()
     for (const c of enrolledClasses) {
       if (c.Subject && !subjectsMap.has(c.Subject.Id)) {
+        // Collect lecturers from InstructorClass
+        const lecturers = c.InstructorClass.map(ic => ({
+          id: ic.User.Id,
+          name: ic.User.FullName,
+          avatar: ic.User.Avatar || null,
+        }))
+
         subjectsMap.set(c.Subject.Id, {
           id: c.Subject.Id,
           code: c.Subject.SubjectCode,
           name: c.Subject.SubjectName,
           description: c.Subject.Description,
+          lecturers,
         })
       }
     }

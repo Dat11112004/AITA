@@ -280,12 +280,26 @@ export class StdInOutProbeEngine {
     }
     // Check for standalone Java files
     if (files.some(f => f.endsWith('.java'))) {
-      const mainFile = files.find(f => f.endsWith('.java')) || 'Main.java';
+      const javaFiles = files.filter(f => f.endsWith('.java'));
+      let mainFile = javaFiles.find(f => path.basename(f).toLowerCase() === 'main.java' || path.basename(f).toLowerCase() === 'program.java');
+      
+      if (!mainFile) {
+        for (const file of javaFiles) {
+          const content = await fs.readFile(file, 'utf8');
+          if (content.includes('public static void main')) {
+            mainFile = file;
+            break;
+          }
+        }
+      }
+      
+      if (!mainFile) mainFile = javaFiles[0];
+
       const className = path.basename(mainFile, '.java');
       return {
         language: 'java',
         dockerImage: 'eclipse-temurin:21',
-        buildCommand: `javac ${path.basename(mainFile)}`,
+        buildCommand: `find . -name "*.java" > sources.txt && javac @sources.txt`,
         runCommand: `java ${className}`
       };
     }
@@ -328,7 +342,18 @@ export class StdInOutProbeEngine {
 
     // Check for Python
     if (extensions.includes('.py')) {
-      const mainFile = files.find(f => f.endsWith('main.py')) || files.find(f => f.endsWith('.py')) || 'main.py';
+      const pyFiles = files.filter(f => f.endsWith('.py'));
+      let mainFile = pyFiles.find(f => f.endsWith('main.py')) || 'main.py';
+      
+      // Look for if __name__ == "__main__"
+      for (const file of pyFiles) {
+          const content = await fs.readFile(file, 'utf8');
+          if (content.includes('__name__') && content.includes('__main__')) {
+              mainFile = file;
+              break;
+          }
+      }
+
       return {
         language: 'python',
         dockerImage: 'python:3.12-slim',
@@ -361,14 +386,13 @@ export class StdInOutProbeEngine {
 
     // Check for C++ (.cpp, .cc, .cxx)
     if (extensions.some(e => ['.cpp', '.cc', '.cxx', '.c'].includes(e))) {
-      const mainFile = files.find(f => /\.(cpp|cc|cxx|c)$/.test(f)) || 'main.cpp';
-      const isC = path.extname(mainFile) === '.c';
+      const isC = extensions.includes('.c') && !extensions.some(e => ['.cpp', '.cc', '.cxx'].includes(e));
       return {
         language: isC ? 'c' : 'cpp',
         dockerImage: 'gcc:13',
         buildCommand: isC
-          ? `gcc -o solution ${path.basename(mainFile)} -O2 -lm`
-          : `g++ -o solution ${path.basename(mainFile)} -std=c++17 -O2`,
+          ? `gcc -o solution $(find . -name "*.c") -O2 -lm`
+          : `g++ -o solution $(find . -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.c") -std=c++17 -O2`,
         runCommand: './solution'
       };
     }

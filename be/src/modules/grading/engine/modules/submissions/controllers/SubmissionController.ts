@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from 'express';
+import { prisma } from '../../../../../../database/prisma.js';
 import { BadRequestError } from '../../../shared/errors';
 import { ExecutionSandboxService, SandboxHandle } from '../../../application/sandbox/ExecutionSandboxService';
 
@@ -164,6 +165,299 @@ export class SubmissionController extends BaseController {
   };
 
   /**
+   * Helper to download file from URL (Cloudinary or local) and save to temp path
+   */
+  private async downloadFile(url: string, destPath: string): Promise<void> {
+      try {
+          if (url.startsWith('http://') || url.startsWith('https://')) {
+              const fetchUrl = url.split('?')[0]; // Remove query params
+              const response = await fetch(fetchUrl);
+              if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const buffer = await response.arrayBuffer();
+              
+              // Ensure directory exists
+              const dir = path.dirname(destPath);
+              await fs.mkdir(dir, { recursive: true });
+              
+              await fs.writeFile(destPath, Buffer.from(buffer));
+          } else {
+              // Local file path
+              let localPath = url.split('?')[0];
+              if (localPath.startsWith('/')) localPath = localPath.substring(1);
+              const sourcePath = path.join(process.cwd(), localPath);
+              
+              // Ensure directory exists
+              const dir = path.dirname(destPath);
+              await fs.mkdir(dir, { recursive: true });
+              
+              await fs.copyFile(sourcePath, destPath);
+          }
+      } catch (err: any) {
+          throw new Error(`Failed to download file from ${url}: ${err.message}`);
+      }
+  }
+
+  /**
+   * POST /api/grading/submissions/grade-existing
+   * Grades a single submission that has already been uploaded (has ZipFileUrl)
+   */
+  gradeExisting = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      try {
+          const { submissionId } = req.body;
+          if (!submissionId) {
+              throw new BadRequestError('submissionId is required');
+          }
+
+          const submissionRecord = await prisma.submission.findUnique({
+              where: { Id: submissionId },
+              include: { User_Submission_StudentIdToUser: true }
+          });
+
+          if (!submissionRecord) {
+              throw new BadRequestError('Submission not found');
+          }
+
+          if (!submissionRecord.ZipFileUrl) {
+              throw new BadRequestError('Submission does not have an uploaded file (ZipFileUrl is null)');
+          }
+
+          const assignmentId = submissionRecord.ExamId;
+          if (!assignmentId) {
+              throw new BadRequestError('Submission is not linked to an Exam (assignment)');
+          }
+
+          const publishedAssignment = await globalAssignmentRepository.getAsync(assignmentId);
+          if (!publishedAssignment) {
+              throw new BadRequestError('Published assignment not found for this submission');
+          }
+
+          const studentCode = submissionRecord.User_Submission_StudentIdToUser?.StudentCode || 
+                              submissionRecord.User_Submission_StudentIdToUser?.Username || 
+                              submissionRecord.StudentId;
+
+          // 1. Download file to temp directory
+          const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+          await this.downloadFile(submissionRecord.ZipFileUrl, tempZipPath);
+
+          // 2. Unzip file
+          const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
+          await extractZipAsync(tempZipPath, extractDir);
+          await this.extractNestedZips(extractDir);
+
+          // 3. Update status to 'Processing'
+          await prisma.submission.update({
+              where: { Id: submissionId },
+              data: { GradingStatus: 'Processing' }
+          });
+
+          const engineSubmission: Submission = {
+              id: submissionId,
+              assignmentId: assignmentId,
+              studentId: studentCode!,
+              sourceCodeUri: tempZipPath,
+              currentState: SubmissionState.Queued,
+              statusHistory: []
+          };
+
+          globalJobManager.initJob(submissionId);
+          this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+
+          this.ok(res, { submissionId, statusUrl: `/api/grading/submissions/${submissionId}/stream` }, 'Submission accepted for grading');
+
+      } catch (error: any) {
+          next(error);
+      }
+  };
+
+  /**
+   * POST /api/grading/submissions/grade-existing-batch
+   * Grades all 'Pending' submissions for an assignment
+   */
+  gradeExistingBatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      try {
+          const { assignmentId } = req.body;
+          if (!assignmentId) {
+              throw new BadRequestError('assignmentId is required');
+          }
+
+          const publishedAssignment = await globalAssignmentRepository.getAsync(assignmentId);
+          if (!publishedAssignment) {
+              throw new BadRequestError('Published assignment not found');
+          }
+
+          // Snapshot: Get all submissions for this exam that have a ZipFileUrl and are not currently processing or graded
+          const pendingSubmissions = await prisma.submission.findMany({
+              where: {
+                  ExamId: assignmentId,
+                  OR: [
+                      { GradingStatus: { notIn: ['Processing', 'Graded', 'GRADED'] } },
+                      { GradingStatus: null }
+                  ],
+                  IsLatest: true,
+                  ZipFileUrl: { not: null }
+              },
+              include: { User_Submission_StudentIdToUser: true }
+          });
+
+          if (pendingSubmissions.length === 0) {
+              this.ok(res, { jobs: [] }, 'No pending submissions found to grade');
+              return;
+          }
+
+          const results = [];
+
+          for (const record of pendingSubmissions) {
+              const submissionId = record.Id;
+              const studentCode = record.User_Submission_StudentIdToUser?.StudentCode || 
+                                  record.User_Submission_StudentIdToUser?.Username || 
+                                  record.StudentId;
+              
+              // Extract original file name from URL for display
+              let fileName = 'submission.zip';
+              if (record.ZipFileUrl) {
+                  fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+              }
+
+              try {
+                  const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+                  await this.downloadFile(record.ZipFileUrl!, tempZipPath);
+
+                  const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
+                  await extractZipAsync(tempZipPath, extractDir);
+                  await this.extractNestedZips(extractDir);
+
+                  const engineSubmission: Submission = {
+                      id: submissionId,
+                      assignmentId: assignmentId,
+                      studentId: studentCode!,
+                      sourceCodeUri: tempZipPath,
+                      currentState: SubmissionState.Queued,
+                      statusHistory: []
+                  };
+
+                  globalJobManager.initJob(submissionId);
+                  this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+
+                  results.push({
+                      submissionId: submissionId,
+                      studentName: studentCode,
+                      fileName: fileName
+                  });
+              } catch (err: any) {
+                  console.error(`[SubmissionController] Failed to queue batch submission ${submissionId}:`, err);
+                  // Optionally mark as failed in DB here if you want
+              }
+          }
+
+          // Update all successfully queued submissions to 'Processing'
+          if (results.length > 0) {
+              const queuedIds = results.map(r => r.submissionId);
+              await prisma.submission.updateMany({
+                  where: { Id: { in: queuedIds } },
+                  data: { GradingStatus: 'Processing' }
+              });
+          }
+
+          this.ok(res, { jobs: results }, `${results.length} submissions accepted for processing`);
+      } catch (error: any) {
+          next(error);
+      }
+  };
+
+  /**
+   * POST /api/grading/submissions/grade-selected-batch
+   * Grades specific submissions based on their IDs
+   */
+  gradeSelectedBatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      try {
+          const { assignmentId, submissionIds } = req.body;
+          if (!assignmentId) {
+              throw new BadRequestError('assignmentId is required');
+          }
+          if (!submissionIds || !Array.isArray(submissionIds) || submissionIds.length === 0) {
+              throw new BadRequestError('submissionIds array is required');
+          }
+
+          const publishedAssignment = await globalAssignmentRepository.getAsync(assignmentId);
+          if (!publishedAssignment) {
+              throw new BadRequestError('Published assignment not found');
+          }
+
+          // Get submissions by IDs that have a ZipFileUrl
+          const pendingSubmissions = await prisma.submission.findMany({
+              where: {
+                  Id: { in: submissionIds },
+                  ExamId: assignmentId,
+                  ZipFileUrl: { not: null }
+              },
+              include: { User_Submission_StudentIdToUser: true }
+          });
+
+          if (pendingSubmissions.length === 0) {
+              this.ok(res, { jobs: [] }, 'No valid submissions found to grade from the selection');
+              return;
+          }
+
+          const results = [];
+
+          for (const record of pendingSubmissions) {
+              const submissionId = record.Id;
+              const studentCode = record.User_Submission_StudentIdToUser?.StudentCode || 
+                                  record.User_Submission_StudentIdToUser?.Username || 
+                                  record.StudentId;
+              
+              let fileName = 'submission.zip';
+              if (record.ZipFileUrl) {
+                  fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+              }
+
+              try {
+                  const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+                  await this.downloadFile(record.ZipFileUrl!, tempZipPath);
+
+                  const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
+                  await extractZipAsync(tempZipPath, extractDir);
+                  await this.extractNestedZips(extractDir);
+
+                  const engineSubmission: Submission = {
+                      id: submissionId,
+                      assignmentId: assignmentId,
+                      studentId: studentCode!,
+                      sourceCodeUri: tempZipPath,
+                      currentState: SubmissionState.Queued,
+                      statusHistory: []
+                  };
+
+                  globalJobManager.initJob(submissionId);
+                  this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+
+                  results.push({
+                      submissionId: submissionId,
+                      studentName: studentCode,
+                      fileName: fileName
+                  });
+              } catch (err: any) {
+                  console.error(`[SubmissionController] Failed to queue selected submission ${submissionId}:`, err);
+              }
+          }
+
+          if (results.length > 0) {
+              const queuedIds = results.map(r => r.submissionId);
+              await prisma.submission.updateMany({
+                  where: { Id: { in: queuedIds } },
+                  data: { GradingStatus: 'Processing' }
+              });
+          }
+
+          this.ok(res, { jobs: results }, `${results.length} submissions accepted for processing`);
+      } catch (error: any) {
+          next(error);
+      }
+  };
+
+  /**
    * GET /api/submissions/batch-status?ids=uuid1,uuid2
    * Returns current job status for multiple submissions.
    */
@@ -198,7 +492,7 @@ export class SubmissionController extends BaseController {
       }
   };
 
-  private enqueueSubmissionJob(submissionId: string, publishedAssignment: any, submission: Submission, extractDir: string) {
+  public enqueueSubmissionJob(submissionId: string, publishedAssignment: any, submission: Submission, extractDir: string) {
       globalSubmissionQueue.enqueue(async () => {
           let sandboxHandle: SandboxHandle | null = null;
           try {
@@ -271,6 +565,7 @@ export class SubmissionController extends BaseController {
                       evidencePool: [...playwrightEvidence],
                       extractedDocument: extractedDoc,
                       submissionPath: extractDir,
+                      crashLogs: sandboxHandle.isReady === false ? sandboxHandle.crashLogs : undefined,
                   };
 
                   return await this.evaluator.evaluateAsync(
@@ -329,7 +624,15 @@ export class SubmissionController extends BaseController {
                       console.error(`[SubmissionController] Failed to save partial history for ${submissionId}:`, historyErr);
                   }
               }
-
+              try {
+                  await prisma.submission.update({
+                      where: { Id: submissionId },
+                      data: { GradingStatus: null }
+                  });
+              } catch (dbErr) {
+                  console.error(`[SubmissionController] Failed to reset GradingStatus for ${submissionId}:`, dbErr);
+              }
+              
               globalJobManager.failJob(submissionId, err.message || 'Unknown error');
           } finally {
               if (sandboxHandle) {
@@ -380,10 +683,17 @@ export class SubmissionController extends BaseController {
       const job = globalJobManager.getJob(id);
       
       if (!job) {
-          throw new BadRequestError('Job not found or already completed/cleared.');
+          try {
+              await prisma.submission.update({
+                  where: { Id: id },
+                  data: { GradingStatus: null }
+              });
+          } catch (e) {}
+          this.ok(res, { success: true }, 'Job not found in memory. Database state has been force reset.');
+          return;
       }
       
-      if (job.state === 'completed' || job.state === 'failed') {
+      if (job.state === 'completed') {
           throw new BadRequestError(`Cannot cancel job in state: ${job.state}`);
       }
 
@@ -400,7 +710,7 @@ export class SubmissionController extends BaseController {
       let cancelledCount = 0;
       for (const id of ids) {
           const job = globalJobManager.getJob(id);
-          if (job && job.state !== 'completed' && job.state !== 'failed') {
+          if (job && job.state !== 'completed') {
               globalJobManager.cancelJob(id);
               cancelledCount++;
           }
@@ -443,7 +753,7 @@ export class SubmissionController extends BaseController {
           }
       }
 
-      this.ok(res, { submissionId: id, score: report.totalScore || 0, maxScore: report.maxPossibleScore || 0, rules: report.passedRules || [], failedRules: report.failedRules || [], manualReviewNotes: report.manualReviewNotes || [] }, 'Result fetched successfully');
+      this.ok(res, { submissionId: id, score: report.totalScore || 0, maxScore: report.maxPossibleScore || 0, rules: report.passedRules || [], failedRules: report.failedRules || [], manualReviewNotes: report.manualReviewNotes || [], overallFeedback: report.overallFeedback }, 'Result fetched successfully');
   };
 
   getHistory = async (req: Request, res: Response) => {
@@ -452,26 +762,127 @@ export class SubmissionController extends BaseController {
           const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
           const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
           const search = req.query.search as string | undefined;
+          const statusFilter = req.query.status as string | undefined;
+          const scoreRange = req.query.scoreRange as string | undefined;
+          const sortOrder = req.query.sort as string | undefined;
 
-          const result = await this.historyRepo.getAllAsync(assignmentId, { page, limit, search });
-          
+          if (!assignmentId) throw new BadRequestError('Assignment ID is required');
+
+          // Fetch all students enrolled in the classes of this assignment
+          const allStudentClasses = await prisma.studentClass.findMany({
+              where: {
+                  Class: {
+                      ExamClass: {
+                          some: {
+                              ExamId: assignmentId
+                          }
+                      }
+                  },
+                  User: search ? {
+                      OR: [
+                          { FullName: { contains: search } },
+                          { StudentCode: { contains: search } }
+                      ]
+                  } : undefined
+              },
+              include: {
+                  User: true
+              }
+          });
+
+          // Fetch latest submissions for these students
+          const studentIds = allStudentClasses.map(sc => sc.UserId);
+          const submissions = await prisma.submission.findMany({
+              where: {
+                  ExamId: assignmentId,
+                  StudentId: { in: studentIds },
+                  IsLatest: true
+              }
+          });
+
+          const assignment = await prisma.exam.findUnique({
+              where: { Id: assignmentId },
+              select: { Title: true, TotalPoints: true }
+          });
+
+          const maxScore = assignment?.TotalPoints ? Number(assignment.TotalPoints) : 10;
+
+          let history = allStudentClasses.map(sc => {
+              const submission = submissions.find(s => s.StudentId === sc.UserId);
+              
+              let status = 'NotSubmitted';
+              if (submission) {
+                  if (submission.GradingStatus === 'Processing') {
+                      status = 'Grading';
+                  } else if (submission.GradingStatus === 'Graded' || submission.GradingStatus === 'GRADED') {
+                      status = 'Graded';
+                  } else {
+                      status = 'Submitted';
+                  }
+              }
+
+              const score = submission?.FinalScore !== null && submission?.FinalScore !== undefined ? Number(submission.FinalScore) : 0;
+              const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+
+              return {
+                  id: submission?.Id || `${sc.UserId}-${assignmentId}`,
+                  title: assignment?.Title || 'Assignment',
+                  assignmentId,
+                  studentId: sc.User.StudentCode || sc.UserId,
+                  studentName: sc.User.FullName || 'Chưa cập nhật',
+                  studentCode: sc.User.StudentCode || sc.UserId,
+                  studentAvatar: sc.User.Avatar,
+                  score,
+                  maxScore,
+                  percentage,
+                  assessedAt: submission?.SubmittedAt || new Date(0),
+                  status
+              };
+          });
+
+          // Apply Status Filter
+          if (statusFilter && statusFilter !== 'ALL') {
+              history = history.filter(h => h.status === statusFilter);
+          }
+
+          // Apply Score Range Filter
+          if (scoreRange && scoreRange !== 'ALL') {
+              history = history.filter(h => {
+                  if (h.status !== 'Graded') return false;
+                  if (scoreRange === '9-10') return h.percentage >= 90;
+                  if (scoreRange === '8-9') return h.percentage >= 80 && h.percentage < 90;
+                  if (scoreRange === '7-8') return h.percentage >= 70 && h.percentage < 80;
+                  if (scoreRange === '5-7') return h.percentage >= 50 && h.percentage < 70;
+                  if (scoreRange === '<5') return h.percentage < 50;
+                  return true;
+              });
+          }
+
+          // Apply Sorting
+          if (sortOrder === 'score_desc') {
+              history.sort((a, b) => b.score - a.score);
+          } else if (sortOrder === 'score_asc') {
+              history.sort((a, b) => a.score - b.score);
+          } else if (sortOrder === 'name_asc') {
+              history.sort((a, b) => a.studentName.localeCompare(b.studentName));
+          } else {
+              // Default sort: latest submission first
+              history.sort((a, b) => new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime());
+          }
+
+          const total = history.length;
+          const paginatedHistory = history.slice((page - 1) * limit, page * limit);
+
           this.ok(res, { 
-              history: result.data.map(x => ({
-                  id: x.id,
-                  title: x.title,
-                  assignmentId: x.assignmentId,
-                  studentId: x.studentId,
-                  score: x.score,
-                  maxScore: x.maxScore,
-                  assessedAt: x.assessedAt
-              })),
+              history: paginatedHistory,
               meta: {
-                  total: result.total,
+                  total,
                   page,
                   limit,
-                  totalPages: Math.ceil(result.total / limit)
+                  totalPages: Math.ceil(total / limit)
               }
           }, 'History fetched successfully');
+
       } catch (err) {
           res.status(500).json({ success: false, error: 'Failed to fetch history' });
       }

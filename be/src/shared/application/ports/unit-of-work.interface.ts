@@ -20,4 +20,11 @@ export interface IUnitOfWork {
    * @param token - unique symbol identifying the repository
    */
   resolve<T>(token: symbol): T
+
+  /**
+   * Get the underlying database client (e.g. PrismaClient).
+   * Note: This is an implementation detail and should ideally be avoided in domain logic, 
+   * but it's used in some legacy or query-heavy use-cases.
+   */
+  getClient(): any
 }

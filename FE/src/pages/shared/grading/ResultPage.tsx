@@ -3,7 +3,8 @@ import { useLocation, useParams, Link } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { gradingApi as api } from '@/lib/api';
 
 export default function ResultPage() {
@@ -89,6 +90,23 @@ export default function ResultPage() {
           assessedAt={result.assessedAt || new Date().toISOString()}
           gradingTime={gradingTime}
         />
+
+        {result.overallFeedback && (
+          <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
+                <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
+              </div>
+            </div>
+            <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-[15px] text-slate-700 dark:text-slate-300">
+              <ReactMarkdown>{result.overallFeedback}</ReactMarkdown>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="space-y-8 md:col-span-2">

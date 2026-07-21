@@ -50,7 +50,7 @@ export function DashboardTopbar(_props: Props) {
     <header
       className={`
         sticky top-0 z-30 flex h-16 items-center gap-3
-        border-b border-slate-200/80 bg-bg-light-orange/95 backdrop-blur-xl
+        border-b border-slate-200/80 bg-[#fcfcfd]/95 backdrop-blur-xl
         px-4 sm:px-6
         dark:border-slate-800 dark:bg-[#0f1117]/95
         shadow-sm shadow-slate-200/40 dark:shadow-black/20
@@ -144,7 +144,7 @@ export function DashboardTopbar(_props: Props) {
           {menuOpen && (
             <div className="
               absolute right-0 top-full mt-2 z-50 w-52
-              rounded-2xl border border-slate-200 bg-bg-light-orange
+              rounded-2xl border border-slate-200 bg-white
               shadow-xl shadow-slate-200/60
               dark:border-slate-800 dark:bg-[#161b27]
               dark:shadow-black/40

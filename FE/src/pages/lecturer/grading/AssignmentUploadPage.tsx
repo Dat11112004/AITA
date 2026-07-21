@@ -94,7 +94,7 @@ export default function AssignmentUploadPage() {
     const [content, setContent] = useState('');
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
-    const [metadata, setMetadata] = useState({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
+    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
@@ -248,7 +248,10 @@ export default function AssignmentUploadPage() {
                 title: result.blueprint.assignmentTitle || 'AI Generated Assignment',
                 description: result.blueprint.description || '',
                 projectType: result.blueprint.projectType || 'backend',
-                subject: subjectCode || result.blueprint.subject || ''
+                subject: subjectCode || result.blueprint.subject || '',
+                fileUrl: extractResult.uploadedFile?.url,
+                fileName: extractResult.uploadedFile?.fileName,
+                fileType: extractResult.uploadedFile?.fileType
             });
 
             setStep(3); // Skip step 2 for files
@@ -721,6 +724,7 @@ export default function AssignmentUploadPage() {
                                                     <option value="mobile">Mobile</option>
                                                     <option value="desktop">Desktop</option>
                                                     <option value="algorithm">Algorithm</option>
+                                                    <option value="unity">Unity / Game</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -868,7 +872,7 @@ export default function AssignmentUploadPage() {
                                                                         ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                     )}>
-                                                        {rule.scoringStrategy === 'AIVision' ? '👁 Visual check' : rule.scoringStrategy === 'StdInOutProbe' ? '⌨️ I/O test' : rule.scoringStrategy === 'HTTPProbe' ? '🌐 API probe' : rule.scoringStrategy === 'AICodeReview' ? '🤖 AI review' : rule.scoringStrategy === 'AiTextAnalysis' ? '📝 Text analysis' : rule.scoringStrategy === 'Manual' ? '👩‍🏫 Teacher review' : '⚡ Auto test'}
+                                                        {rule.scoringStrategy === 'AIVision' ? '👁 Visual check' : rule.scoringStrategy === 'StdInOutProbe' ? '⌨️ I/O test' : rule.scoringStrategy === 'HTTPProbe' ? '🌐 API probe' : rule.scoringStrategy === 'AICodeReview' ? '🤖 AI review' : rule.scoringStrategy === 'AiTextAnalysis' ? '📝 Text analysis' : rule.scoringStrategy === 'HybridVisionAndCode' ? '⚡ Hybrid AI & UI test' : rule.scoringStrategy === 'Manual' ? '👩‍🏫 Teacher review' : '⚡ Auto test'}
                                                     </span>
                                                 </div>
                                                 {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (

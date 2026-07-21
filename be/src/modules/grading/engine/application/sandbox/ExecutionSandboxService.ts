@@ -3,12 +3,14 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import Docker from 'dockerode';
 import * as net from 'net';
+import { execSync } from 'child_process';
+import * as os from 'os';
 
 /**
  * Teacher-facing project category. This is what the teacher selects when creating an assignment.
  * It determines SCORING STRATEGY, not Docker provisioning.
  */
-export type ProjectType = "algorithm" | "web" | "desktop" | "mobile" | "unity" | "unknown";
+export type ProjectType = "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity" | "unknown";
 
 /**
  * Internal runtime stack auto-detected from the student's submitted code.
@@ -25,6 +27,8 @@ export interface SandboxHandle {
   isReady: boolean;
   /** Warnings emitted during DB injection (e.g., hardcoded connection strings patched) */
   dbWarnings?: string[];
+  /** Crash logs if container exits prematurely */
+  crashLogs?: string;
 }
 
 export class ExecutionSandboxService {
@@ -115,18 +119,43 @@ export class ExecutionSandboxService {
           }
           break;
         case "fullstack_dotnet_node":
+          let dotnetVersion = "8.0";
           if (csprojPath) {
             try {
               const csprojContent = await fs.readFile(csprojPath, 'utf8');
               const match = csprojContent.match(/<TargetFramework>net(\d+\.\d+)<\/TargetFramework>/);
               if (match && match[1]) {
-                dockerImage = `mcr.microsoft.com/dotnet/sdk:${match[1]}`;
+                dotnetVersion = match[1];
               }
             } catch (err) {}
           }
           
-          let fsInitScript = `apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs\n`;
-          let fsRunScript = `(cd "${runDir}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080) &\n`;
+          dockerImage = `aita-fullstack-dotnet-node:${dotnetVersion}`;
+          const baseDotnetImage = `mcr.microsoft.com/dotnet/sdk:${dotnetVersion}`;
+          
+          console.log(`[Sandbox] Checking if custom image ${dockerImage} exists...`);
+          try {
+            await this.docker.getImage(dockerImage).inspect();
+            console.log(`[Sandbox] Custom image ${dockerImage} already exists.`);
+          } catch (err: any) {
+            if (err.statusCode === 404) {
+               console.log(`[Sandbox] Custom image ${dockerImage} not found. Building it dynamically (first time only)...`);
+               const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
+               const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
+               await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
+               try {
+                   execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit' });
+                   console.log(`[Sandbox] Successfully built ${dockerImage}.`);
+               } catch (buildErr) {
+                   console.error(`[Sandbox] Failed to build custom image ${dockerImage}:`, buildErr);
+                   throw buildErr;
+               }
+            } else {
+               throw err;
+            }
+          }
+
+          let fsRunScript = `(cd "${runDir}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080 > /sandbox/backend.log 2>&1) &\n`;
           
           const fsPackageJsons = await this.findAllFiles(submissionPath, 'package.json');
           for (const pkgPath of fsPackageJsons) {
@@ -148,12 +177,12 @@ export class ExecutionSandboxService {
               }
             } catch (e) {}
             
-            frontendJob += `) &\n`;
+            frontendJob += ` > /sandbox/frontend.log 2>&1) &\n`;
             fsRunScript += frontendJob;
           }
           
-          fsRunScript += `wait\n`;
-          cmd = ["sh", "-c", `${fsInitScript}${fsRunScript}`];
+          // Daemonized container: use bash wait -n to exit immediately if ANY background service crashes
+          cmd = ["bash", "-c", `mkdir -p /sandbox && ${fsRunScript} wait -n || exit $?`];
           env = [
               "ASPNETCORE_ENVIRONMENT=Sandbox",
               "DOTNET_ENVIRONMENT=Sandbox",
@@ -421,21 +450,30 @@ export NODE_ENV=development
           break;
       }
 
-      // Pull image if not exists
-      console.log(`[Sandbox] Ensuring image ${dockerImage} exists...`);
-      await new Promise((resolve, reject) => {
-        this.docker.pull(dockerImage, (err: any, stream: any) => {
-          if (err) return reject(err);
-          this.docker.modem.followProgress(stream, onFinished, onProgress);
-          function onFinished(err: any, output: any) {
-            if (err) reject(err);
-            else resolve(output);
-          }
-          function onProgress(event: any) {
-            // Optional: log progress
-          }
-        });
-      });
+      console.log(`[Sandbox] Checking if image ${dockerImage} exists locally...`);
+      try {
+        await this.docker.getImage(dockerImage).inspect();
+        console.log(`[Sandbox] Image ${dockerImage} already exists. Skipping pull.`);
+      } catch (err: any) {
+        if (err.statusCode === 404) {
+          console.log(`[Sandbox] Image ${dockerImage} not found locally. Pulling from registry (this may take a few minutes)...`);
+          await new Promise((resolve, reject) => {
+            this.docker.pull(dockerImage, (pullErr: any, stream: any) => {
+              if (pullErr) return reject(pullErr);
+              this.docker.modem.followProgress(stream, onFinished, onProgress);
+              function onFinished(err: any, output: any) {
+                if (err) reject(err);
+                else resolve(output);
+              }
+              function onProgress(event: any) {
+                // Optional: log progress
+              }
+            });
+          });
+        } else {
+          throw err;
+        }
+      }
 
       console.log(`[Sandbox] Starting container for ${runtimeStack} (${projectType}) on port ${hostPort} in ${runDir} using ${dockerImage}...`);
       
@@ -473,19 +511,37 @@ export NODE_ENV=development
       await container.start();
       const containerId = container.id;
 
-      const baseUrl = `http://127.0.0.1:${hostPort}`;
+      const baseUrl = `http://localhost:${hostPort}`;
       try {
         // Wait for app to be ready (180s timeout for heavy Node.js fullstack builds)
         if (this.isServerRuntime(runtimeStack)) {
-          await this.waitUntilReady(baseUrl, 180000);
+          await this.waitUntilReady(container, baseUrl, 180000);
         }
-      } catch (err) {
-        console.error(`[Sandbox] Timeout waiting for ${baseUrl}. Fetching container logs...`);
+      } catch (err: any) {
+        console.error(`[Sandbox] Timeout/Crash waiting for ${baseUrl}. Fetching container logs...`);
+        let crashLogs = "";
         try {
           const logs = await container.logs({ stdout: true, stderr: true, timestamps: false });
-          console.error(`[Sandbox] Container Logs:\n${logs.toString('utf-8')}`);
+          crashLogs = logs.toString('utf-8');
+          console.error(`[Sandbox] Container Logs:\n${crashLogs}`);
         } catch (logErr) {
           console.error(`[Sandbox] Could not fetch container logs:`, logErr);
+        }
+        if (err.message?.includes("prematurely") || err.message?.includes("Timeout")) {
+          return { 
+            containerId, 
+            baseUrl, 
+            additionalUrls: [
+                `http://localhost:${hostPort3000}`,
+                `http://localhost:${hostPort5000}`,
+                `http://localhost:${hostPort5173}`
+            ],
+            projectType, 
+            runtimeStack,
+            isReady: false, 
+            dbWarnings,
+            crashLogs: err.message + "\n\n" + crashLogs
+          };
         }
         throw err;
       }
@@ -495,9 +551,9 @@ export NODE_ENV=development
         containerId, 
         baseUrl, 
         additionalUrls: [
-            `http://127.0.0.1:${hostPort3000}`,
-            `http://127.0.0.1:${hostPort5000}`,
-            `http://127.0.0.1:${hostPort5173}`
+            `http://localhost:${hostPort3000}`,
+            `http://localhost:${hostPort5000}`,
+            `http://localhost:${hostPort5173}`
         ],
         projectType, 
         runtimeStack,
@@ -718,6 +774,19 @@ try {
       '.UseSqlite'
     );
 
+    // Pattern 3: Patch Database.Migrate() -> Database.EnsureCreated()
+    // When we swap providers (e.g. SqlServer -> SQLite), existing migration files are incompatible
+    // (they contain provider-specific SQL like NVARCHAR, IDENTITY etc.). Migrate() will crash.
+    // EnsureCreated() builds the schema directly from the C# model, bypassing migrations entirely.
+    patched = patched.replace(
+      /\.Database\s*\.\s*Migrate\s*\(\s*\)/g,
+      '.Database.EnsureCreated()'
+    );
+    patched = patched.replace(
+      /\.Database\s*\.\s*MigrateAsync\s*\(\s*\)/g,
+      '.Database.EnsureCreatedAsync()'
+    );
+
     return patched;
   }
 
@@ -726,15 +795,46 @@ try {
    * so that the patched UseSqlite() call compiles successfully.
    */
   private async ensureSqlitePackage(csprojPath: string): Promise<void> {
-    const content = await fs.readFile(csprojPath, 'utf-8');
+    let content = await fs.readFile(csprojPath, 'utf-8');
     
+    // ═══════════════════════════════════════════════════════════
+    // SAFETY NET: Sanitize non-existent NuGet package versions
+    // Students sometimes reference versions like "9.0.10" which
+    // don't exist on NuGet, causing dotnet restore to abort.
+    // We normalize patch versions to ".0" (e.g., 9.0.10 → 9.0.0)
+    // which is guaranteed to exist for all major .NET packages.
+    // ═══════════════════════════════════════════════════════════
+    const versionSanitized = content.replace(
+      /(<PackageReference\s+Include="[^"]*"\s+Version=")(\d+)\.(\d+)\.(\d+)(")/g,
+      (match, prefix, major, minor, patch, suffix) => {
+        const patchNum = parseInt(patch, 10);
+        // If patch version is suspiciously high (likely non-existent), reset to 0
+        if (patchNum > 5) {
+          const sanitized = `${prefix}${major}.${minor}.0${suffix}`;
+          console.log(`[Sandbox] Version sanitizer: ${major}.${minor}.${patch} → ${major}.${minor}.0`);
+          return sanitized;
+        }
+        return match;
+      }
+    );
+    if (versionSanitized !== content) {
+      content = versionSanitized;
+      await fs.writeFile(csprojPath, content, 'utf-8');
+    }
+
     if (content.includes('Microsoft.EntityFrameworkCore.Sqlite')) {
       return; // Already referenced
     }
 
     // Detect EF Core version from existing package references
     const versionMatch = content.match(/Microsoft\.EntityFrameworkCore[^"]*"\s+Version="([^"]+)"/);
-    const version = versionMatch ? versionMatch[1] : '8.0.0';
+    let version = versionMatch ? versionMatch[1] : '8.0.0';
+    
+    // Ensure the detected version itself is safe (e.g., 9.0.0, not 9.0.10)
+    const vParts = version.split('.');
+    if (vParts.length >= 3 && parseInt(vParts[2], 10) > 5) {
+      version = `${vParts[0]}.${vParts[1]}.0`;
+    }
 
     const sqliteRef = `    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="${version}" />`;
     
@@ -754,15 +854,20 @@ try {
   // Utility methods
   // ═══════════════════════════════════════════════════════════════════
 
-  private async waitUntilReady(baseUrl: string, timeoutMs: number): Promise<void> {
+  private async waitUntilReady(container: any, baseUrl: string, timeoutMs: number): Promise<void> {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       try {
+        const inspect = await container.inspect();
+        if (!inspect.State.Running) {
+          throw new Error(`Container exited prematurely. Exit Code: ${inspect.State.ExitCode}. This usually indicates a compilation error or missing dependencies.`);
+        }
         const response = await fetch(baseUrl);
         if (response.ok || response.status === 404) {
           return;
         }
-      } catch (e) {
+      } catch (e: any) {
+        if (e.message.includes('prematurely')) throw e;
         // connection refused, server not up yet
       }
       await new Promise(r => setTimeout(r, 500));
@@ -777,7 +882,9 @@ try {
   private normalizeProjectType(input: any): ProjectType {
     const t = String(input || "").toLowerCase().trim();
     if (["algorithm", "console"].includes(t)) return "algorithm";
-    if (["web", "backend", "frontend", "fullstack", "aspnet", "blazor", "nodejs", "java", "python", "php", "golang", "api"].includes(t)) return "web";
+    if (["backend", "api", "aspnet", "nodejs", "java", "python", "php", "golang"].includes(t)) return "backend";
+    if (["frontend", "react", "angular", "vue", "blazor"].includes(t)) return "frontend";
+    if (["fullstack", "web"].includes(t)) return "fullstack";
     if (["desktop", "wpf", "winforms", "winform"].includes(t)) return "desktop";
     if (["mobile", "maui", "xamarin", "flutter", "react-native"].includes(t)) return "mobile";
     if (["unity", "game"].includes(t)) return "unity";

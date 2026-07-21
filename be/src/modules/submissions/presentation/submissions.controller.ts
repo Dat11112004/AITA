@@ -51,9 +51,80 @@ export class SubmissionsController extends BaseController {
 
     async submit(req: Request, res: Response): Promise<void> {
         this.logger.debug('Received request to create submission')
-        const result = await this.submitUseCase.execute({ dto: { data: req.body } as any, user: req.user! })
+        const data = { ...req.body }
+        
+        // Pass the uploaded file buffer to the usecase
+        const result = await this.submitUseCase.execute({ 
+            dto: { data } as any, 
+            file: req.file,
+            user: req.user! 
+        })
         this.created(res, result, MESSAGES.SUBMISSION_CREATE_SUCCESS)
     }
+
+    async download(req: Request, res: Response): Promise<void> {
+        this.logger.debug(`Received request to download submission: ${req.params.id}`)
+        
+        const submission = await this.getOneUseCase.execute({ id: String(req.params.id), user: req.user! })
+        if (!submission || !submission.zipFileUrl) {
+            res.status(404).json({ success: false, Message: 'Submission or file not found' })
+            return
+        }
+
+        const fileUrl = submission.zipFileUrl
+        
+        let fileName = 'submission.zip'
+        try {
+            const urlObj = new URL(fileUrl, 'http://localhost')
+            if (urlObj.searchParams.has('filename')) {
+                fileName = urlObj.searchParams.get('filename')!
+            } else {
+                fileName = urlObj.pathname.split('/').pop() || 'submission.zip'
+            }
+        } catch {
+            fileName = fileUrl.split('/').pop()?.split('?')[0] || 'submission.zip'
+        }
+
+        if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+            try {
+                const fetchUrl = fileUrl.split('?')[0]
+                
+                const response = await fetch(fetchUrl);
+                if (!response.ok) {
+                    this.logger.error(`Failed to fetch submission from cloud: ${response.status} ${response.statusText}`);
+                    res.status(500).json({ success: false, Message: 'Failed to download file from cloud storage' });
+                    return;
+                }
+
+                res.attachment(fileName);
+                res.setHeader('Content-Type', 'application/octet-stream');
+
+                if (response.body) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    res.end(buffer);
+                } else {
+                    res.status(500).json({ success: false, Message: 'Empty file from cloud storage' });
+                }
+            } catch (err: any) {
+                this.logger.error(`Error streaming submission: ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).json({ success: false, Message: 'Error streaming file' });
+                }
+            }
+            return;
+        }
+
+        const path = require('path')
+        const fs = require('fs')
+        const filePath = path.join(process.cwd(), fileUrl.split('?')[0])
+        if (!fs.existsSync(filePath)) {
+            res.status(404).json({ success: false, Message: 'Local file not found' })
+            return
+        }
+        res.download(filePath, fileName)
+    }
+
 
     async publishGrade(req: Request, res: Response): Promise<void> {
         this.logger.debug(`Received request to publish grade for submission: ${req.params.id}`)

@@ -17,6 +17,7 @@ import * as crypto from 'crypto';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 import { prisma } from '../../../../../../database/prisma.js';
+import { CloudinaryService } from '../../../../../../shared/infrastructure/services/cloudinary.service.js';
 
 // ─── Server-Side Image Cache ─────────────────────────────────────────
 // Stores extracted document images in-memory so they never need to
@@ -95,7 +96,31 @@ export class AssignmentController extends BaseController {
               console.log(`[AssignmentController] Cached ${allImages.length} document images under key: ${documentImageKey}`);
           }
 
-          this.ok(res, { text: extractedDoc, documentImageKey }, 'Text extracted');
+          // Upload file to Cloudinary directly for Lecturer Assignment Attachment
+          let uploadedFileUrl: string | null = null;
+          try {
+              const uploadOptions = {
+                  folder: 'aita/assignments',
+                  resource_type: 'raw' as any,
+                  use_filename: true,
+                  unique_filename: true,
+              };
+              const cloudinaryRes = await CloudinaryService.uploadStream(file.buffer, uploadOptions);
+              uploadedFileUrl = cloudinaryRes.secure_url;
+              console.log(`[AssignmentController] Uploaded assignment document to Cloudinary: ${uploadedFileUrl}`);
+          } catch (uploadError) {
+              console.error(`[AssignmentController] Failed to upload assignment to Cloudinary:`, uploadError);
+          }
+
+          this.ok(res, { 
+              text: extractedDoc, 
+              documentImageKey,
+              uploadedFile: uploadedFileUrl ? {
+                  url: uploadedFileUrl,
+                  fileName: file.originalname,
+                  fileType: file.mimetype
+              } : null
+          }, 'Text extracted');
       } catch (error) {
           throw new Error('Error extracting text');
       }
@@ -199,7 +224,7 @@ export class AssignmentController extends BaseController {
           await this.assignmentRepository.saveAsync(publishedAssignment);
 
           // INTEGRATION WITH AITA CORE
-          const { title, description, subject, semesterId, classIds, dueDate } = metadata;
+          const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType } = metadata;
           
           if (classIds && classIds.length > 0) {
               // 1. Resolve subject code to SubjectId
@@ -243,6 +268,18 @@ export class AssignmentController extends BaseController {
                           }
                       }
                   });
+
+                  // 3. Create ExamAttachment if a file was uploaded
+                  if (fileUrl) {
+                      await prisma.examAttachment.create({
+                          data: {
+                              ExamId: examId,
+                              FileUrl: fileUrl,
+                              FileName: fileName || 'Assignment Document',
+                              FileType: fileType || 'application/octet-stream'
+                          }
+                      });
+                  }
               }
           }
 
@@ -384,10 +421,9 @@ export class AssignmentController extends BaseController {
                   const submittedCount = exam.Submission.length;
                   const notSubmittedCount = Math.max(0, totalStudents - submittedCount);
                   
-                  // Pending / Processing / Error => Grading
-                  // For AITA system, GradingStatus could be 'Pending', 'Processing', 'Graded', 'Failed'
-                  // Usually 'Pending' and 'Processing' are considered "Đang chấm" (grading)
-                  const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Pending' || s.GradingStatus === 'Processing').length;
+                  // Only 'Processing' is considered "Đang chấm" (grading).
+                  // 'Pending' means it was uploaded but hasn't started grading yet (Đã nộp).
+                  const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Processing').length;
                   
                   // Average score is calculated for 'Graded' submissions
                   const gradedSubmissions = exam.Submission.filter(s => s.GradingStatus === 'Graded' && s.TotalScore !== null);
@@ -489,6 +525,18 @@ export class AssignmentController extends BaseController {
   delete = async (req: Request, res: Response): Promise<void> => {
       try {
           const id = req.params.id;
+          
+          // 1. Delete Core SQL records to ensure it's removed from Student view
+          try {
+              await prisma.examClass.deleteMany({ where: { ExamId: id } });
+              await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
+              await prisma.submission.deleteMany({ where: { ExamId: id } });
+              await prisma.exam.delete({ where: { Id: id } });
+          } catch (e) {
+              console.warn(`[AssignmentController] Failed to clean up core exam records for ${id}:`, e);
+          }
+
+          // 2. Delete from Document DB
           await this.assignmentRepository.deleteAsync(id);
           this.ok(res, null, 'Assignment deleted successfully');
       } catch (error) {

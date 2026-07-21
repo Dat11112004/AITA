@@ -6,6 +6,7 @@ import classNames from 'classnames';
 import CodeSnippetViewer from './evidence/CodeSnippetViewer';
 import HttpTimelineViewer from './evidence/HttpTimelineViewer';
 import IoTestCaseViewer from './evidence/IoTestCaseViewer';
+import { FormattedText } from '@/components/ui/FormattedText';
 
 interface RuleListProps {
   title: string;
@@ -49,7 +50,7 @@ export default function RuleList({ title, rules }: RuleListProps) {
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h4 className="text-base font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{rule.name}</h4>
+                    <h4 className="text-base font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{typeof rule.name === 'string' ? rule.name : JSON.stringify(rule.name)}</h4>
                     {(rule.evidence || rule.details) && (
                       <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
                         {expandedRules[idx] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -58,16 +59,16 @@ export default function RuleList({ title, rules }: RuleListProps) {
                     )}
                   </div>
                   {rule.description && (
-                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">{rule.description}</p>
+                    <FormattedText className="text-sm text-slate-500 mt-1 leading-relaxed" text={typeof rule.description === 'string' ? rule.description : JSON.stringify(rule.description)} />
                   )}
                   {rule.category && (
-                    <span className="text-[9px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider mt-2 inline-block border border-slate-200">{rule.category}</span>
+                    <span className="text-[9px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider mt-2 inline-block border border-slate-200">{typeof rule.category === 'string' ? rule.category : JSON.stringify(rule.category)}</span>
                   )}
                 </div>
 
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                   <StatusBadge passed={rule.passed} isPartial={!rule.passed && rule.score > 0} />
-                  <span className="text-sm font-extrabold text-slate-800 dark:text-slate-300">+{rule.score} <span className="text-slate-400 font-medium text-xs">/ {rule.maxScore}</span></span>
+                  <span className="text-sm font-extrabold text-slate-800 dark:text-slate-300">+{rule.score} / {rule.maxScore}</span>
                 </div>
               </div>
 

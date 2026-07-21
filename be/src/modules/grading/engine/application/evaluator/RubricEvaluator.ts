@@ -22,6 +22,7 @@ export interface EvaluationContext {
     submissionPath?: string;
     /** Extracted document for AiTextAnalysis (from Docx/PDF) */
     extractedDocument?: ExtractedDocument;
+    crashLogs?: string;
 }
 
 interface RuleScore {
@@ -300,6 +301,23 @@ export class RubricEvaluator {
 
         const isPass = !requiresManualReview && (totalScore / rubric.totalWeight) >= rubric.passThreshold;
 
+        // Generate final overarching feedback
+        let overallFeedback: string | undefined;
+        try {
+            if (onProgress) {
+                onProgress(totalRules, totalRules, `Đang tổng hợp nhận xét (AI Feedback)...`, null);
+            }
+            overallFeedback = await this.aiProvider.generateOverallFeedbackAsync(
+                rubric.title || "Bài tập rèn luyện",
+                passedRules,
+                failedRules,
+                totalScore,
+                rubric.totalWeight
+            );
+        } catch (fbErr) {
+            console.error(`[RubricEvaluator] Failed to generate overall feedback:`, fbErr);
+        }
+
         return {
             submissionId,
             assignmentId,
@@ -310,8 +328,9 @@ export class RubricEvaluator {
             passedRules,
             failedRules,
             manualReviewNotes: requiresManualReview ? manualReviewNotes : undefined,
+            overallFeedback,
             auditMetadata: {
-                evaluatorVersion: '3.0.0',
+                evaluatorVersion: '3.1.0',
                 timestamp: new Date().toISOString(),
                 auditLogIds: []
             }
@@ -627,7 +646,8 @@ export class RubricEvaluator {
                             return await this.aiCodeReview.evaluateAsync(
                                 context.sourceSnapshot,
                                 rule.description,
-                                rule.title
+                                rule.title,
+                                context.crashLogs
                             );
                         }
                         return null;
@@ -698,7 +718,8 @@ export class RubricEvaluator {
                     const result = await this.aiCodeReview.evaluateAsync(
                         context.sourceSnapshot,
                         spec.semanticDescription || rule.description,
-                        rule.title
+                        rule.title,
+                        context.crashLogs
                     );
                     // Use percentageComplete for proportional scoring
                     const pct = typeof result.percentageComplete === 'number'
@@ -865,7 +886,8 @@ export class RubricEvaluator {
                             return await this.aiCodeReview.evaluateAsync(
                                 context.sourceSnapshot,
                                 `STRICT INSTRUCTION: This is a hybrid Text + Code rule. The student was asked to design or explain an architecture/feature in text, AND implement it in code. Verify that the underlying code implementation matches the requirement. YOU MUST EXTRACT AT LEAST ONE CODE SNIPPET (via relevantSnippets array) AS EVIDENCE TO PROVE YOUR CONCLUSION. \n\nRequirement: ${rule.description}`,
-                                rule.title
+                                rule.title,
+                                context.crashLogs
                             );
                         }
                         return null;
