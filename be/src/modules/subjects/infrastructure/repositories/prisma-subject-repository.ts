@@ -236,4 +236,39 @@ export class PrismaSubjectRepository implements ISubjectRepository {
       await this.client.semesterSubject.createMany({ data: newLinks })
     }
   }
+
+  async getSubjectStudents(
+    subjectId: string,
+    semesterId?: string,
+    classId?: string,
+    skip?: number,
+    take?: number
+  ): Promise<{ total: number, enrollments: any[] }> {
+    const whereClause: any = {
+      Class: {
+        SubjectId: subjectId,
+        ...(semesterId && { SemesterId: semesterId }),
+        ...(classId && classId !== 'all' && { Id: classId })
+      }
+    }
+
+    const [total, enrollments] = await Promise.all([
+      this.client.studentClass.count({ where: whereClause }),
+      this.client.studentClass.findMany({
+        where: whereClause,
+        select: {
+          User: { select: { Id: true, FullName: true, Email: true, StudentCode: true, Avatar: true } },
+          Class: { select: { Id: true, ClassCode: true } }
+        },
+        skip,
+        take,
+        orderBy: [
+          { Class: { ClassCode: 'asc' } },
+          { User: { FullName: 'asc' } }
+        ]
+      })
+    ])
+
+    return { total, enrollments }
+  }
 }

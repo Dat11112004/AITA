@@ -38,6 +38,7 @@ export const TOKENS = {
   StatsRepository: Symbol.for('StatsRepository'),
   SettingsRepository: Symbol.for('SettingsRepository'),
   RefreshTokenRepository: Symbol.for('RefreshTokenRepository'),
+  PromptTemplateRepository: Symbol.for('PromptTemplateRepository'),
 
   // ── Controllers ──────────────────────────────────────────
   AuthController: Symbol.for('AuthController'),
@@ -58,6 +59,7 @@ export const TOKENS = {
   ReportsController: Symbol.for('ReportsController'),
   AuditController: Symbol.for('AuditController'),
   ConfigController: Symbol.for('ConfigController'),
+  PromptsController: Symbol.for('PromptsController'),
   NotificationsController: Symbol.for('NotificationsController'),
   RubricController: Symbol.for('RubricController'),
   GradingController: Symbol.for('GradingController'),

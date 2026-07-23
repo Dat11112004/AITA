@@ -1,16 +1,24 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, type ClassRow, type AssignmentRow } from '@/lib/api'
-import { BookOpen, ArrowRight, Loader2, Users, Bell, Clock, CheckCircle2, MoreVertical, Plus } from 'lucide-react'
+import { api, getStoredItem, AUTH_STORAGE_KEYS, type ClassRow, type AssignmentRow } from '@/lib/api'
+import { BookOpen, ArrowRight, Loader2, Users, Bell, Clock, CheckCircle2, MoreVertical, Plus, BarChart2, Sparkles, TrendingUp } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 import { Button } from '@/components/ui/Button'
+import { BarChart, DonutChart } from '@/components/ui/Charts'
 
 export function LecturerOverview() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
+  const [stats, setStats] = useState<any>(null)
+  const [submissions, setSubmissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+
+  const userStr = getStoredItem(AUTH_STORAGE_KEYS.user)
+  const user = userStr ? JSON.parse(userStr) : null
+  const userName = user?.fullName || user?.email || 'Tiến sĩ'
+  const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(-2).toUpperCase()
 
   const loadData = useCallback(() => {
     let alive = true
@@ -18,12 +26,16 @@ export function LecturerOverview() {
     setError(null)
     Promise.all([
       api.getClasses(),
-      api.getAssignments({ limit: '10' })
+      api.getAssignments({ limit: '10' }),
+      api.getStatsOverview(),
+      api.getSubmissions().catch(() => []) // Fallback in case of error
     ])
-      .then(([classesData, assignmentsData]) => {
+      .then(([classesData, assignmentsData, statsData, submissionsData]) => {
         if (alive) {
           setClasses(classesData || [])
           setAssignments(assignmentsData || [])
+          setStats(statsData || null)
+          setSubmissions(submissionsData || [])
         }
       })
       .catch(err => { if (alive) setError(err) })
@@ -55,162 +67,331 @@ export function LecturerOverview() {
 
   // Top 3 classes for the quick view is no longer used, we show grouped list
   
-  // Mock 'To-Do' list based on assignments (Needs grading)
-  const todoItems = assignments.slice(0, 4).map(a => ({
-    id: a.id,
-    title: a.title,
-    classCode: 'N/A', // In a real app we'd join with class data or get it from API
-    dueDate: a.due,
-    needsGrading: Math.floor(Math.random() * 15) + 1, // Mock data
-  }))
+  // Group submissions by assignment for real "Needs Grading" counts
+  const pendingByAssignment: Record<string, number> = {}
+  submissions.forEach(sub => {
+    if (sub.status === 'Pending' || sub.gradingStatus === 'Pending') {
+      const examId = sub.exam?.id || sub.ExamId || sub.examId
+      if (examId) {
+        pendingByAssignment[examId] = (pendingByAssignment[examId] || 0) + 1
+      }
+    }
+  })
+
+  // Real 'To-Do' list based on assignments (Needs grading)
+  const todoItems = assignments
+    .map(a => ({
+      id: a.id,
+      title: a.title,
+      classCode: 'N/A', 
+      dueDate: a.due,
+      needsGrading: pendingByAssignment[a.id] || 0, 
+    }))
+    .filter(a => a.needsGrading > 0)
+    .sort((a, b) => b.needsGrading - a.needsGrading)
+    .slice(0, 4)
+
+  // Calculate overall graded percentage
+  const totalSubmissions = submissions.length
+  const gradedSubmissions = submissions.filter(s => s.status === 'Graded' || s.gradingStatus === 'Graded').length
+
+  // Prepare chart data for BarChart
+  const barChartData = assignments.slice(0, 5).map((a, i) => {
+    const colors = ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6', '#ec4899']
+    return {
+      label: a.title,
+      value: pendingByAssignment[a.id] || 0,
+      color: colors[i % colors.length]
+    }
+  })
+
+  // 1. Calculate class performance statistics (Thống kê sinh viên và hiệu suất lớp)
+  const classStats = groupedClassesArray.flatMap(g => g.classes).map(c => {
+      const classSubmissions = submissions.filter(s => s.ClassId === c.id || s.classId === c.id || s.Class?.Id === c.id || s.class?.id === c.id);
+      const submittedCount = classSubmissions.length;
+      const studentCount = c.studentCount || 0;
+      const submitPercent = studentCount > 0 ? Math.round((submittedCount / studentCount) * 100) : 0;
+      
+      const gradedSubs = classSubmissions.filter(s => (s.status === 'Graded' || s.gradingStatus === 'Graded' || s.GradingStatus === 'Graded') && (s.totalScore !== undefined || s.finalScore !== undefined || s.TotalScore !== undefined || s.FinalScore !== undefined));
+      const scores = gradedSubs.map(s => Number(s.totalScore ?? s.TotalScore ?? s.finalScore ?? s.FinalScore ?? 0));
+      const gpa = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
+      const numericGpa = parseFloat(gpa as string) || 0;
+      const status = gpa === '—' ? 'Chưa có' : (numericGpa >= 8.0 ? 'Giỏi' : (numericGpa >= 7.0 ? 'Khá' : 'Cần hỗ trợ'));
+      const needsHelpCount = gpa === '—' ? 0 : scores.filter(s => s < 5).length;
+      
+      return {
+          id: c.id,
+          name: c.code,
+          studentCount,
+          submitPercent,
+          gpa,
+          status,
+          needsHelpCount,
+          numericGpa
+      };
+  }).slice(0, 4);
+
+  // 2. Prepare bar chart data for GPA
+  const gpaChartData = classStats.slice(0, 3).map((c, i) => {
+      const colors = ['#3b82f6', '#ef4444', '#10b981'];
+      return {
+          label: c.name,
+          value: parseFloat(c.gpa),
+          color: colors[i % colors.length]
+      }
+  });
 
   return (
-    <div className="space-y-6 animate-fade-in-up pb-10">
-      {/* Simple Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
-            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Năm học 2026 - Học kỳ 1</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            Chào buổi sáng, Tiến sĩ!
-          </h1>
-          <p className="mt-1 text-slate-500 dark:text-slate-400">
-            Bạn có {todoItems.reduce((acc, item) => acc + item.needsGrading, 0)} bài nộp đang chờ chấm điểm.
-          </p>
+    <div className="space-y-8 animate-fade-in-up pb-10 font-sans max-w-7xl mx-auto">
+        {/* Premium Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2">
+            <div>
+                <h1 className="text-[28px] md:text-[32px] font-black text-slate-900 dark:text-white tracking-tight">
+                    Chào buổi sáng, {userName}!
+                </h1>
+                <p className="text-slate-500 font-medium mt-1">Chúc bạn một ngày làm việc hiệu quả.</p>
+            </div>
         </div>
-        <div className="flex gap-3">
-          <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={() => navigate('/lecturer/assignments/ai-generator')}>
-            <Plus size={16} className="mr-2"/> Tạo Bài Tập AI
-          </Button>
+
+        {/* Top 4 KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <BookOpen size={64} className="text-brand-600" />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Tổng số lớp</h3>
+                <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.classes || 0}</p>
+            </div>
+            <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Users size={64} className="text-emerald-600" />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Tổng số sinh viên</h3>
+                <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.students || 0}</p>
+            </div>
+            <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Bell size={64} className="text-amber-500" />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Bài tập cần chấm</h3>
+                <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.pending || 0}</p>
+            </div>
+            <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <CheckCircle2 size={64} className="text-blue-600" />
+                </div>
+                <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Bài tập đã chấm</h3>
+                <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{gradedSubmissions}</p>
+            </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Active Classes (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <BookOpen className="text-brand-600" /> Tổng quan Lớp học
-            </h2>
-            <Link to="/lecturer/classes" className="text-sm font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
-              Quản lý chi tiết <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
-            </Link>
-          </div>
+        {/* Main Grid Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Left Column (Tiến độ chấm bài & Shortcut) */}
+            <div className="lg:col-span-3 flex flex-col gap-8">
+                <div className="bg-white dark:bg-[#151821] p-6 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col items-center justify-center min-h-[320px] relative overflow-hidden h-full">
+                    <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white w-full text-center mb-6 z-10 tracking-tight">Tiến độ chấm bài</h2>
+                    <div className="z-10 bg-white/50 dark:bg-transparent rounded-full p-4 backdrop-blur-sm flex-1 flex items-center justify-center">
+                        {totalSubmissions > 0 ? (
+                            <DonutChart 
+                                value={gradedSubmissions} 
+                                max={totalSubmissions} 
+                                label="" 
+                                color="#4f46e5" 
+                                size={180} 
+                            />
+                        ) : (
+                            <div className="flex h-[180px] items-center justify-center text-slate-400 text-sm font-medium">Chưa có dữ liệu</div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
-          <div className="space-y-8">
-            {groupedClassesArray.length === 0 ? (
-              <div className="p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-500">
-                Chưa có lớp học nào được phân công.
-              </div>
-            ) : (
-              groupedClassesArray.map((group) => (
-                <div key={group.semesterName} className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                    Học kỳ {group.semesterName}
-                    <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-2">
-                      {group.classes.length} lớp
-                    </span>
-                  </h3>
-                  <div className="grid sm:grid-cols-2 gap-5">
-                    {group.classes.map((cls) => {
-                      return (
-                        <div 
-                          key={cls.id}
-                          onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
-                          className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
-                        >
-                          <div>
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
-                                {(cls.subject as any)?.code || 'N/A'}
-                              </span>
-                              <MoreVertical size={16} className="text-slate-400" />
+            {/* Right Columns */}
+            <div className="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* Thống kê sinh viên và hiệu suất lớp */}
+                <div className="bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800">
+                    <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
+                        <TrendingUp size={18} className="text-emerald-500"/> Thống kê sinh viên & hiệu suất
+                    </h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[14px]">
+                            <thead>
+                                <tr className="border-b border-slate-100 dark:border-slate-800">
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Tên lớp</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Tổng sinh viên</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Nộp bài (%)</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">Điểm TB (GPA)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {classStats.map((cls) => (
+                                    <tr key={cls.id} className="border-b border-slate-50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                        <td className="py-4 font-bold text-slate-800 dark:text-slate-200">{cls.name}</td>
+                                        <td className="py-4 text-center font-semibold text-slate-600 dark:text-slate-400">{cls.studentCount}</td>
+                                        <td className="py-4 text-center font-semibold text-slate-600 dark:text-slate-400">{cls.submitPercent}%</td>
+                                        <td className="py-4 text-right font-bold text-brand-600 dark:text-brand-400">{cls.gpa}</td>
+                                    </tr>
+                                ))}
+                                {classStats.length === 0 && (
+                                    <tr><td colSpan={4} className="text-center py-8 text-slate-400 font-medium">Chưa có dữ liệu lớp học</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Thống kê dữ liệu chi tiết - GPA Bar Chart */}
+                <div className="bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col">
+                    <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center gap-2">
+                        <BarChart2 size={18} className="text-brand-500"/> Thống kê dữ liệu chi tiết
+                    </h2>
+                    <p className="text-[13px] text-slate-500 mb-8 font-semibold">Điểm trung bình các lớp (GPA)</p>
+                    <div className="flex-1 min-h-[220px] flex items-end">
+                        {gpaChartData.length > 0 ? (
+                            <div className="w-full pb-4">
+                                <BarChart data={gpaChartData} height={200} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                              Lớp {cls.code}
-                            </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                              Học kỳ: {(cls.semester as any)?.code || 'N/A'}
-                            </p>
-                          </div>
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm font-medium">Chưa đủ dữ liệu biểu đồ</div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
-                          <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
-                              <Users size={16} />
-                              {cls.studentCount ?? 0} Sinh viên
-                            </div>
-                          </div>
+            {/* Bottom Row */}
+            <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Bảng nâng cao: Hiệu suất sinh viên */}
+                <div className="lg:col-span-7 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[14px]">
+                            <thead>
+                                <tr className="border-b border-slate-100 dark:border-slate-800">
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Tên lớp</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Tổng sinh viên</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Nộp bài (%)</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Điểm TB (GPA)</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Phân Loại</th>
+                                    <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">Cần Hỗ trợ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {classStats.map((cls) => (
+                                    <tr key={cls.id} className="border-b border-slate-50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                        <td className="py-4 font-bold text-slate-800 dark:text-slate-200">{cls.name}</td>
+                                        <td className="py-4 text-center font-semibold text-slate-600 dark:text-slate-400">{cls.studentCount}</td>
+                                        <td className="py-4 text-center font-semibold text-slate-600 dark:text-slate-400">{cls.submitPercent}%</td>
+                                        <td className="py-4 text-center font-bold text-slate-700 dark:text-slate-300">{cls.gpa}</td>
+                                        <td className="py-4 text-center">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                cls.status === 'Giỏi' ? 'bg-emerald-100 text-emerald-700' : 
+                                                cls.status === 'Khá' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {cls.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 text-right font-bold text-rose-600">{cls.needsHelpCount}</td>
+                                    </tr>
+                                ))}
+                                {classStats.length === 0 && (
+                                    <tr><td colSpan={6} className="text-center py-8 text-slate-400 font-medium">Chưa có dữ liệu</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Area Chart Mocks */}
+                <div className="lg:col-span-5 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col">
+                    <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
+                        <TrendingUp size={18} className="text-blue-500"/> Xu hướng hiệu suất
+                    </h2>
+                    <div className="flex-1 relative border-l-2 border-b-2 border-slate-100 dark:border-slate-800 min-h-[180px] flex items-end mb-4 ml-6">
+                        <div className="w-full h-full absolute inset-0 flex items-end overflow-hidden rounded-br-lg">
+                            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
+                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.2" />
+                                    </linearGradient>
+                                    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+                                        <stop offset="100%" stopColor="#ef4444" stopOpacity="0.2" />
+                                    </linearGradient>
+                                    <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M0,100 L0,70 L25,50 L50,45 L75,35 L100,25 L100,100 Z" fill="url(#grad1)"/>
+                                <path d="M0,100 L0,80 L25,70 L50,60 L75,45 L100,45 L100,100 Z" fill="url(#grad2)"/>
+                                <path d="M0,100 L0,85 L25,75 L50,75 L75,60 L100,65 L100,100 Z" fill="url(#grad3)"/>
+                            </svg>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-            
-            {/* "Add New" placeholder card - optional on overview, but we can keep it at the very bottom */}
-            <div className="group rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#151821] flex flex-col items-center justify-center p-6 text-slate-500 hover:border-brand-400 hover:text-brand-600 transition-all cursor-pointer min-h-[120px] max-w-sm mt-4">
-              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mb-2 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 transition-all">
-                <Plus size={20} />
-              </div>
-              <p className="font-medium text-sm">Mở lớp học phần mới</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: To-Do / Needs Grading (1/3 width) */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <CheckCircle2 className="text-emerald-500" /> Cần Xử Lý
-          </h2>
-
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Bell size={16} className="text-brand-600" /> Chờ chấm điểm
-              </h3>
-              <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded dark:bg-slate-800 dark:text-slate-300">
-                {todoItems.length} Mục
-              </span>
-            </div>
-            
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {todoItems.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-sm">
-                  Tuyệt vời! Bạn không có bài nào cần chấm.
-                </div>
-              ) : (
-                todoItems.map((item) => (
-                  <div key={item.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/lecturer/assignments/${item.id}/submissions`)}>
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100 line-clamp-2 pr-2">
-                        {item.title}
-                      </h4>
-                      <div className="flex-shrink-0 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-medium text-xs px-2 py-0.5 rounded">
-                        {item.needsGrading} bài
-                      </div>
+                        <div className="absolute -bottom-6 w-full flex justify-between text-[11px] font-bold text-slate-400 px-1">
+                            <span>Thứ 1</span>
+                            <span>Thứ 2</span>
+                            <span>Thứ 3</span>
+                            <span>Time</span>
+                        </div>
+                        <div className="absolute -left-8 h-full flex flex-col justify-between text-[11px] font-bold text-slate-400 py-1 pr-2">
+                            <span>70</span>
+                            <span>50</span>
+                            <span>30</span>
+                            <span>0</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1"><BookOpen size={12}/> Lớp N/A</span>
-                      {item.dueDate && (
-                        <span className="flex items-center gap-1"><Clock size={12}/> Hạn: {item.dueDate.split('T')[0]}</span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800">
-              <Link to="/lecturer/assignments" className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                Xem toàn bộ Bài tập
-              </Link>
-            </div>
-          </div>
-        </div>
+                </div>
 
-      </div>
+            </div>
+
+            {/* To-Do List */}
+            <div className="lg:col-span-12 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800">
+                <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-brand-500"/> Danh sách Cần Xử Lý
+                </h2>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[14px]">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                                <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] rounded-tl-lg">Giảng viên</th>
+                                <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Action</th>
+                                <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Nhiệm vụ</th>
+                                <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right rounded-tr-lg">KPI (Hạn chót)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {todoItems.length > 0 ? todoItems.map(item => (
+                                <tr key={item.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors" onClick={() => navigate(`/lecturer/assignments/${item.id}/submissions`)}>
+                                    <td className="py-4 px-4 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs">{userInitials}</div>
+                                        {userName}
+                                    </td>
+                                    <td className="py-4 px-4 text-center">
+                                        <span className="bg-rose-100 text-rose-600 border border-rose-200 text-xs px-3 py-1 rounded-full font-bold shadow-sm">{item.needsGrading} bài</span>
+                                    </td>
+                                    <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">Chấm điểm: <span className="text-brand-600 dark:text-brand-400 hover:underline">{item.title}</span></td>
+                                    <td className="py-4 px-4 text-right font-medium text-slate-500 dark:text-slate-400">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('vi-VN') : 'Không có'}</td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="py-12 text-center">
+                                        <div className="flex flex-col items-center justify-center text-slate-400">
+                                            <CheckCircle2 size={40} className="text-emerald-200 mb-3"/>
+                                            <p className="font-bold text-slate-600">Tuyệt vời, bạn đã hoàn thành mọi nhiệm vụ!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
     </div>
   )
 }

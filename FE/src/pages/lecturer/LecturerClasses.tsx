@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
 import { 
-  Loader2, Search, Plus, Filter, Sun, CloudRain, Wind, Leaf,
+  Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
   Calendar, ChevronDown, ChevronUp, Book, Code, MoreHorizontal,
-  Users, ChevronRight, Info
+  Users, Info
 } from 'lucide-react'
 
 export function LecturerClasses() {
@@ -282,7 +282,7 @@ export function LecturerClasses() {
                                     return (
                                       <React.Fragment key={subject.subjectId}>
                                         <tr 
-                                          onClick={(e) => navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)}
+                                          onClick={() => navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)}
                                           className="hover:bg-slate-50/50 group cursor-pointer"
                                         >
                                           <td className="px-6 py-4">

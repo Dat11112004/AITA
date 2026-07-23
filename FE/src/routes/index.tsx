@@ -41,6 +41,9 @@ import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
 import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
 import { SubjectWorkspace } from '@/pages/lecturer/SubjectWorkspace'
+import { PromptSubjectsList } from '@/pages/lecturer/prompt/PromptSubjectsList'
+import { PromptListBySubject } from '@/pages/lecturer/prompt/PromptListBySubject'
+import { PromptCreateEdit } from '@/pages/lecturer/prompt/PromptCreateEdit'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
 import { StudentAssignments } from '@/pages/student/StudentAssignments'
@@ -111,6 +114,10 @@ export function AppRoutes() {
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="classes/:id" element={<LecturerClassDetail />} />
         <Route path="subjects/:id/workspace" element={<SubjectWorkspace />} />
+        <Route path="prompts" element={<PromptSubjectsList />} />
+        <Route path="prompts/:subjectId" element={<PromptListBySubject />} />
+        <Route path="prompts/:subjectId/create" element={<PromptCreateEdit />} />
+        <Route path="prompts/:subjectId/edit/:promptId" element={<PromptCreateEdit />} />
         <Route path="assignments" element={<LecturerAssignments />} />
         <Route path="assignments/:id/rubric" element={<LecturerAssignmentRubric />} />
         {/* Nav "Kỳ thi" — chưa có trang riêng, dùng chung trang bài tập (tạo/lọc Đề thi tại đây) */}

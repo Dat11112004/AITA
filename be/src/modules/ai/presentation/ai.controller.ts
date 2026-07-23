@@ -6,6 +6,8 @@ import { AssessSubmissionUseCase } from '../application/use-cases/assess-submiss
 import { GetLearningFeedbackUseCase } from '../application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../application/use-cases/ai-config.use-case.js'
 import { GenerateRubricUseCase } from '../application/use-cases/generate-rubric.use-case.js'
+import { GeneratePromptUseCase } from '../application/use-cases/generate-prompt.use-case.js'
+import { RefinePromptUseCase } from '../application/use-cases/refine-prompt.use-case.js'
 import { ApiResponse } from '../../../shared/presentation/api-response.js'
 import { ForbiddenError } from '../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
@@ -18,7 +20,9 @@ export class AiController {
         private readonly getLearningFeedbackUseCase: GetLearningFeedbackUseCase,
         private readonly getConfigUseCase: GetAiConfigUseCase,
         private readonly updateConfigUseCase: UpdateAiConfigUseCase,
-        private readonly generateRubricUseCase: GenerateRubricUseCase
+        private readonly generateRubricUseCase: GenerateRubricUseCase,
+        private readonly generatePromptUseCase: GeneratePromptUseCase,
+        private readonly refinePromptUseCase: RefinePromptUseCase
     ) { }
 
     async generateExercise(req: Request, res: Response): Promise<void> {
@@ -88,5 +92,34 @@ export class AiController {
     async updateConfig(req: Request, res: Response): Promise<void> {
         const result = await this.updateConfigUseCase.execute(req.body)
         res.status(200).json(ApiResponse.success(MESSAGES.AI_CONFIG_UPDATE_SUCCESS, result))
+    }
+
+    async generatePrompt(req: Request, res: Response): Promise<void> {
+        const input = z.object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            category: z.string().optional(),
+            subjectCode: z.string().optional(),
+            draftContent: z.string().optional(),
+            questionCount: z.coerce.number().optional(),
+            difficulty: z.string().optional(),
+            topic: z.string().optional(),
+            language: z.string().optional(),
+            additionalNotes: z.string().optional()
+        }).parse(req.body)
+
+        const userId = req.user?.id
+        const result = await this.generatePromptUseCase.execute({ ...input, userId })
+        res.status(200).json(ApiResponse.success('Generated prompt template successfully', result))
+    }
+
+    async refinePrompt(req: Request, res: Response): Promise<void> {
+        const input = z.object({
+            content: z.string().min(1)
+        }).parse(req.body)
+
+        const userId = req.user?.id
+        const result = await this.refinePromptUseCase.execute({ ...input, userId })
+        res.status(200).json(ApiResponse.success('Refined prompt template successfully', result))
     }
 }

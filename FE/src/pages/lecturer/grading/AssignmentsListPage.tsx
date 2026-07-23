@@ -118,7 +118,7 @@ export default function AssignmentsListPage() {
 
     // Count assignments per subject
     assignments.forEach(a => {
-      const sub = a.metadata?.subject;
+      const sub = (a.metadata as any)?.subject;
       if (sub) {
         if (counts[sub] !== undefined) {
           counts[sub]++;
@@ -145,7 +145,7 @@ export default function AssignmentsListPage() {
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
       // Tab filter
-      const sub = a.metadata?.subject || 'Khác';
+      const sub = (a.metadata as any)?.subject || 'Khác';
 
       if (activeTab !== 'Tất cả' && sub !== activeTab) return false;
       
@@ -274,7 +274,7 @@ export default function AssignmentsListPage() {
               totalStudents: 0,
               submitted: 0,
               percentage: 0,
-              createdAt: assignment.createdAt || new Date(),
+              createdAt: (assignment as any).createdAt || new Date(),
               dueDate: null
           };
 

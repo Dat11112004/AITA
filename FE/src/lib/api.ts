@@ -131,7 +131,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!res.ok || json.success === false || json.statusCode >= 400) {
     throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lá»—i API', json.statusCode || res.status, json.error?.code)
   }
-  return (json.Data !== undefined ? json.Data : json.data) as T
+  if (json.Data !== undefined) return json.Data as T;
+  if (json.data !== undefined) return json.data as T;
+  return json as T;
 }
 
 export const api = {
@@ -268,6 +270,15 @@ export const api = {
   removeSemesterSubject: (semesterId: string, subjectId: string) => request<void>(`/semesters/${semesterId}/subjects/${subjectId}`, { method: 'DELETE' }),
   deleteSeason: (season: string) => request<void>(`/semesters/season/${encodeURIComponent(season)}`, { method: 'DELETE' }),
   getClassesBySubject: (semesterId: string, subjectId: string) => request<any[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
+
+  // ── Prompts ───────────────────────────────────────────────────
+  getPromptTemplates: (subjectId: string) => request<any[]>(`/prompts/subject/${subjectId}`, { cache: 'no-store' }),
+  createPromptTemplate: (data: any) => request<any>('/prompts', { method: 'POST', body: JSON.stringify(data) }),
+  updatePromptTemplate: (id: string, data: any) => request<any>(`/prompts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePromptTemplate: (id: string) => request<void>(`/prompts/${id}`, { method: 'DELETE' }),
+  incrementPromptUsage: (id: string) => request<void>(`/prompts/${id}/increment-usage`, { method: 'POST' }),
+
+
 
   // â”€â”€â”€ Exams CRUD â”€â”€â”€
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
@@ -785,6 +796,35 @@ export const gradingApi = {
   },
   
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
+
 }
 
-
+export const aiApi = {
+  generatePrompt: (data: {
+    name: string,
+    description?: string,
+    category?: string,
+    subjectCode?: string,
+    draftContent?: string,
+    questionCount?: number,
+    difficulty?: string,
+    topic?: string,
+    language?: string,
+    additionalNotes?: string
+  }) => 
+    request<{ prompt: string }>('/ai/prompts/generate', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  refinePrompt: (data: { content: string }) => 
+    request<{ prompt: string }>('/ai/prompts/refine', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).catch(() => {
+      // Fallback in case endpoint is not ready yet
+      return request<{ prompt: string }>('/ai/prompts/generate', {
+        method: 'POST',
+        body: JSON.stringify({ name: "Refine", description: data.content })
+      })
+    }),
+}

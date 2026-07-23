@@ -23,6 +23,8 @@ export class AiRouter {
         this.router.post('/save-assignment', authenticate, asyncHandler((req, res) => ctrl.saveAssignmentFromAI(req, res)))
         this.router.post('/assess/:submissionId', authenticate, asyncHandler((req, res) => ctrl.assessSubmission(req, res)))
         this.router.get('/feedback/:studentId', authenticate, asyncHandler((req, res) => ctrl.learningFeedback(req, res)))
+        this.router.post('/prompts/generate', authenticate, asyncHandler((req, res) => ctrl.generatePrompt(req, res)))
+        this.router.post('/prompts/refine', authenticate, asyncHandler((req, res) => ctrl.refinePrompt(req, res)))
 
         // Config routes
         this.router.get('/config', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => ctrl.getConfig(req, res)))

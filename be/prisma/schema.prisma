@@ -238,8 +238,8 @@ model Exam {
   TotalPoints           Decimal?                @db.Decimal(18, 2)
   Status                String?
   SubmissionFormat      String?
-  AiGeneratedContent    String?
-  OriginalPrompt        String?
+  AiGeneratedContent    String?                 @db.NVarChar(Max)
+  OriginalPrompt        String?                 @db.NVarChar(Max)
   PromptTemplateId      String?                 @db.UniqueIdentifier
   CreatedBy             String?                 @db.UniqueIdentifier
   AiUsageLog            AiUsageLog[]
@@ -274,8 +274,8 @@ model ExamGenerationHistory {
   Id               String  @id @default(uuid()) @db.UniqueIdentifier
   ExamId           String? @db.UniqueIdentifier
   Version          Int?
-  Prompt           String?
-  GeneratedContent String?
+  Prompt           String? @db.NVarChar(Max)
+  GeneratedContent String? @db.NVarChar(Max)
   GeneratedBy      String? @db.UniqueIdentifier
   Exam             Exam?   @relation(fields: [ExamId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   User             User?   @relation(fields: [GeneratedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
@@ -459,8 +459,8 @@ model PromptTemplate {
   SubjectId         String?      @db.UniqueIdentifier
   ProjectTypeId     String?      @db.UniqueIdentifier
   Category          String?
-  TemplateContent   String?
-  PlaceholderSchema String?
+  TemplateContent   String?      @db.NVarChar(Max)
+  PlaceholderSchema String?      @db.NVarChar(Max)
   IsDefault         Boolean?
   IsActive          Boolean?
   UsageCount        Int?
