@@ -85,6 +85,7 @@ import { GetLearningFeedbackUseCase } from '../../modules/ai/application/use-cas
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../../modules/ai/application/use-cases/ai-config.use-case.js'
 import { GenerateRubricUseCase } from '../../modules/ai/application/use-cases/generate-rubric.use-case.js'
 import { GeneratePromptUseCase } from '../../modules/ai/application/use-cases/generate-prompt.use-case.js'
+import { RefinePromptUseCase } from '../../modules/ai/application/use-cases/refine-prompt.use-case.js'
 import { AiController as ModularAiController } from '../../modules/ai/presentation/ai.controller.js'
 import { PrismaAuditRepository } from '../../modules/audit/infrastructure/repositories/prisma-audit-repository.js'
 import { GetAuditLogsUseCase } from '../../modules/audit/application/use-cases/get-audit-logs.use-case.js'

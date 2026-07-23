@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api, getStoredItem, AUTH_STORAGE_KEYS, type ClassRow, type AssignmentRow } from '@/lib/api'
-import { BookOpen, ArrowRight, Loader2, Users, Bell, Clock, CheckCircle2, MoreVertical, Plus, BarChart2, Sparkles, TrendingUp } from 'lucide-react'
+import { BookOpen, Loader2, Users, Bell, CheckCircle2, BarChart2, TrendingUp } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
-import { Button } from '@/components/ui/Button'
 import { BarChart, DonutChart } from '@/components/ui/Charts'
 
 export function LecturerOverview() {
@@ -95,15 +94,6 @@ export function LecturerOverview() {
   const totalSubmissions = submissions.length
   const gradedSubmissions = submissions.filter(s => s.status === 'Graded' || s.gradingStatus === 'Graded').length
 
-  // Prepare chart data for BarChart
-  const barChartData = assignments.slice(0, 5).map((a, i) => {
-    const colors = ['#4f46e5', '#10b981', '#f59e0b', '#3b82f6', '#ec4899']
-    return {
-      label: a.title,
-      value: pendingByAssignment[a.id] || 0,
-      color: colors[i % colors.length]
-    }
-  })
 
   // 1. Calculate class performance statistics (Thống kê sinh viên và hiệu suất lớp)
   const classStats = groupedClassesArray.flatMap(g => g.classes).map(c => {

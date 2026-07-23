@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
-import { FileText, ArrowLeft, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Circle, Minus, Paperclip, Award, Sparkles } from 'lucide-react'
+import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -15,7 +15,7 @@ export function StudentAssignmentDetail() {
   const [submission, setSubmission] = useState<SubmissionRow | null>(null)
   
   const [file, setFile] = useState<File | null>(null)
-  const [content, setContent] = useState('')
+  const [content] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null)
@@ -27,8 +27,6 @@ export function StudentAssignmentDetail() {
     }
   }, [toast])
 
-  // AI Feedback Mock state
-  const [aiFeedback] = useState('Bài làm khá tốt. Tuy nhiên cần chú ý tối ưu các vòng lặp để tránh time limit exceeded. Cấu trúc code sạch sẽ, rõ ràng.')
   const [appealText, setAppealText] = useState('')
   const [showAppeal, setShowAppeal] = useState(false)
 
@@ -236,7 +234,7 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="px-5 py-2">
                 <div className="space-y-4">
-                  {assignment.rubrics.map((rule, index) => (
+                  {assignment.rubrics.map((rule: any, index) => (
                     <div key={rule.id} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
                       <div className="p-4 flex justify-between items-start gap-4">
                         <div className="flex gap-3 flex-1">

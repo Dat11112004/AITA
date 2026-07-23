@@ -260,7 +260,7 @@ export default function AssignmentUploadPage() {
             setContent(finalMarkdown);
             setRubric(generatedRubric);
             setBlueprint(draftBlueprint);
-            setMetadata(prev => ({
+            setMetadata((prev: any) => ({
                 ...prev,
                 title: draftBlueprint.assignmentTitle || 'AI Generated Assignment',
                 description: draftBlueprint.description || '',
@@ -292,13 +292,13 @@ export default function AssignmentUploadPage() {
         setLoadingMsg('Analyzing document and generating rubric...');
         abortControllerRef.current = new AbortController();
         try {
-            const extractResult = await api.extractText(file, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
+            const extractResult: any = await api.extractText(file, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
             const text = extractResult.text?.rawText || (typeof extractResult.text === 'string' ? extractResult.text : JSON.stringify(extractResult.text));
             const result = await api.parseRubric(text, extractResult.documentImageKey, { signal: abortControllerRef.current.signal });
 
             setRubric(result.rubric);
             setBlueprint(result.blueprint);
-            setMetadata(prev => ({
+            setMetadata((prev: any) => ({
                 ...prev,
                 title: result.blueprint.assignmentTitle || 'AI Generated Assignment',
                 description: result.blueprint.description || '',
@@ -1086,8 +1086,8 @@ export default function AssignmentUploadPage() {
                                             onClick={() => {
                                                 setDrawerSubjectCode(subj);
                                                 setSubjectCode(subj);
-                                                setMetadata(prev => ({ ...prev, subject: subj }));
-                                                setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                                setMetadata((prev: any) => ({ ...prev, subject: subj }));
+                                                setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
                                             }}
                                             className={classNames(
                                                 "w-full text-left px-4 py-2 rounded-full transition-all flex items-center justify-between border",
@@ -1172,12 +1172,12 @@ export default function AssignmentUploadPage() {
                                                                 setTextPrompt(prompt.templateContent);
                                                                 if (drawerSubjectCode !== subjectCode) {
                                                                     setSubjectCode(drawerSubjectCode);
-                                                                    setMetadata(prev => ({ ...prev, subject: drawerSubjectCode }));
-                                                                    setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                                                    setMetadata((prev: any) => ({ ...prev, subject: drawerSubjectCode }));
+                                                                    setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
                                                                 }
                                                                 mainApi.incrementPromptUsage(prompt.id).catch(console.error);
                                                                 if (prompt.projectTypeId) {
-                                                                    setMetadata(prev => ({ ...prev, projectType: prompt.projectTypeId! }));
+                                                                    setMetadata((prev: any) => ({ ...prev, projectType: prompt.projectTypeId! }));
                                                                 }
                                                                 setIsDrawerOpen(false);
                                                             }}
@@ -1250,12 +1250,12 @@ export default function AssignmentUploadPage() {
                                         setTextPrompt(previewContent);
                                         if (drawerSubjectCode !== subjectCode) {
                                             setSubjectCode(drawerSubjectCode);
-                                            setMetadata(prev => ({ ...prev, subject: drawerSubjectCode }));
-                                            setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                            setMetadata((prev: any) => ({ ...prev, subject: drawerSubjectCode }));
+                                            setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
                                         }
                                         mainApi.incrementPromptUsage(t.id).catch(console.error);
                                         if (t.projectTypeId) {
-                                            setMetadata(prev => ({ ...prev, projectType: t.projectTypeId! }));
+                                            setMetadata((prev: any) => ({ ...prev, projectType: t.projectTypeId! }));
                                         }
                                         setPreviewTemplateId(null);
                                         setIsDrawerOpen(false);
