@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { api, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
+import { api, gradingApi, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
 import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
@@ -36,14 +36,14 @@ export function StudentAssignmentDetail() {
     setLoading(true)
     
     Promise.all([
-      api.getAssignment(id),
+      gradingApi.getAssignment(id).catch(() => api.getAssignment(id)),
       api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null) // Mock: assume first is current user's
     ])
     .then(([a, s]) => {
       if (alive) {
         console.log('API getAssignment result:', a)
         console.log('API getSubmissions result:', s)
-        setAssignment(a as AssignmentRow)
+        setAssignment(a as any)
         setSubmission(s as SubmissionRow)
       }
     })
@@ -105,7 +105,8 @@ export function StudentAssignmentDetail() {
   if (loading) return <div className="flex p-20 justify-center text-brand-600">Đang tải dữ liệu...</div>
   if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Không tìm thấy bài tập</div>
 
-  const timeRemaining = assignment.due ? new Date(assignment.due).getTime() - new Date().getTime() : 0;
+  const dueDate = assignment.due || (assignment as any).stats?.dueDate || (assignment as any).metadata?.dueDate
+  const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
   const isSubmitted = !!submission;
@@ -113,6 +114,8 @@ export function StudentAssignmentDetail() {
   const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || displayScore != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
   const isLocked = isPastDue && !isSubmitted;
+  const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
+  const rubricsList = assignment.rubrics || (assignment as any).rubric?.rules || [];
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto animate-in fade-in duration-500 relative">
@@ -180,15 +183,24 @@ export function StudentAssignmentDetail() {
               </div>
             </div>
           </div>
-          {/* Card: Đề bài */}
-          <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className="px-5 py-2 flex justify-between items-center">
+          {/* Card: Chi tiết bài tập (Đề bài chi tiết) */}
+          <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <FileText size={18} className="text-blue-600" /> Đề bài
+                <FileText size={18} className="text-blue-600" /> Chi tiết bài tập
               </h2>
             </div>
-            <div className="px-5 py-2 text-[15px] text-slate-700 dark:text-slate-300">
-              <p className="whitespace-pre-wrap leading-relaxed">{assignment.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}</p>
+            <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
+              {fullContent ? (
+                <div 
+                  className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: fullContent }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {assignment.description || (assignment as any)?.metadata?.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}
+                </p>
+              )}
             </div>
           </Card>
               
@@ -225,7 +237,7 @@ export function StudentAssignmentDetail() {
           )}
 
           {/* Card: Rubric Section */}
-          {assignment.rubrics && assignment.rubrics.length > 0 && (
+          {rubricsList && rubricsList.length > 0 && (
             <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm">
               <div className="px-5 py-2 flex justify-between items-center">
                 <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -234,7 +246,7 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="px-5 py-2">
                 <div className="space-y-4">
-                  {assignment.rubrics.map((rule: any, index) => (
+                  {rubricsList.map((rule: any, index: number) => (
                     <div key={rule.id} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
                       <div className="p-4 flex justify-between items-start gap-4">
                         <div className="flex gap-3 flex-1">

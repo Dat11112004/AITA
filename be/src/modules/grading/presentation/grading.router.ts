@@ -24,6 +24,6 @@ export class GradingRouter {
 
         // ── Engine adapter routes (submissions & assignments) ──
         this.router.use('/submissions', authenticate, createSubmissionRoutes())
-        this.router.use('/assignments', authenticate, requireRoles('ADMIN', 'LECTURER'), createAssignmentRoutes())
+        this.router.use('/assignments', authenticate, createAssignmentRoutes())
     }
 }
