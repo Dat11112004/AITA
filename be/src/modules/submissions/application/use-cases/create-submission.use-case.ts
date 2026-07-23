@@ -3,7 +3,7 @@ import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { ISubmissionRepository } from '../../domain/repositories/submission-repository.interface.js'
 import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
 import type { AuthUser } from '../../../../types/express.js'
-import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../../../../shared/application/app.error.js'
+import { NotFoundError, ValidationError, ForbiddenError } from '../../../../shared/application/app.error.js'
 import { CreateSubmissionRequestDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 import { Submission } from '../../domain/entities/submission.entity.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
@@ -68,21 +68,19 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       throw new ForbiddenError(MESSAGES.SUBMISSION_NOT_ENROLLED)
     }
 
-    // Check for duplicate submission using new domain filter
-    const existingSubmission = await this.submissionRepo.findMany({
+    // Check for existing submission for this student & exam
+    const existingSubmissionList = await this.submissionRepo.findMany({
       examId,
       studentId: user.id,
     })
-    if (existingSubmission && existingSubmission.length > 0) {
-      throw new ConflictError(MESSAGES.SUBMISSION_ALREADY_SUBMITTED)
-    }
+    const existingSubmission = existingSubmissionList && existingSubmissionList.length > 0 ? existingSubmissionList[0] : null
 
-    // Check deadline
+    // Check deadline (applies to both new submission and resubmission)
     if (exam.dueDate) {
       const now = new Date()
       const dueDate = new Date(exam.dueDate)
       if (now > dueDate) {
-        throw new ValidationError('Hạn nộp bài đã hết')
+        throw new ValidationError('Hạn nộp bài đã hết, không thể nộp bài (hoặc nộp bài lại).')
       }
     }
 
@@ -106,7 +104,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
         localFilePath = path.join(uploadDir, fileName);
         fs.writeFileSync(localFilePath, file.buffer);
         
-        // Use relative URL so frontend/API can serve it, or construct full URL if needed
+        // Use relative URL so frontend/API can serve it
         fileUrl = `/uploads/submissions/${subjectCode}/${classCode}/${fileName}?filename=${encodeURIComponent(file.originalname)}`;
       } else {
         const folderPath = `AITA/${subjectCode}/${classCode}/${exam.title || examId}`
@@ -126,25 +124,30 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       throw new ValidationError(MESSAGES.SUBMISSION_INVALID_URL)
     }
 
-    const submission = Submission.create(
-      randomUUID(),
-      user.id,
-      examId,
-      classId,
-      1, // attemptNumber
-      fileUrl
-    )
+    let targetSubmission: Submission
 
-    // Ensure status is pending for batch grading later
-    ;(submission as any)._status = 'Pending' // Internal state bypass, but it defaults to Pending anyway.
-    
-    // Save submission text content if provided
-    if (dto.data.content) {
-        (submission as any).content = dto.data.content;
+    if (existingSubmission) {
+      // RESUBMISSION LOGIC:
+      // Reset scores, feedback, and grading status to 'Pending' so the teacher MUST regrade it.
+      existingSubmission.resubmit(fileUrl, dto.data.content)
+      targetSubmission = existingSubmission
+    } else {
+      // NEW SUBMISSION LOGIC:
+      targetSubmission = Submission.create(
+        randomUUID(),
+        user.id,
+        examId,
+        classId,
+        1, // attemptNumber
+        fileUrl
+      )
+      if (dto.data.content) {
+        (targetSubmission as any).content = dto.data.content;
+      }
     }
 
     try {
-      await this.submissionRepo.create(submission)
+      await this.submissionRepo.save(targetSubmission)
     } catch (dbError: any) {
       if (uploadedPublicId) {
         try {
@@ -165,7 +168,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       throw dbError
     }
 
-    return SubmissionResponseDto.from(submission as any)
+    return SubmissionResponseDto.from(targetSubmission as any)
   }
 
   private isValidFileUrl(url: string): boolean {

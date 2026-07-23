@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, gradingApi, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
-import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles } from 'lucide-react'
+import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -17,6 +17,7 @@ export function StudentAssignmentDetail() {
   const [file, setFile] = useState<File | null>(null)
   const [content] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResubmitting, setIsResubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null)
 
@@ -59,25 +60,18 @@ export function StudentAssignmentDetail() {
 
   const handleSubmit = async () => {
     if (!id || (!file && !content)) return
+    const wasAlreadySubmitted = !!submission
     setIsSubmitting(true)
     try {
-      const res = await api.submitAssignment(file, content, id)
-      // Update state with newly submitted data
-      setSubmission({
-        id: res.submissionId,
-        assignmentId: id,
-        studentId: 'user', // We might not have full user context here, but reloading data works too
-        student: 'Sinh viên',
-        content: content || file?.name || '',
-        score: null,
-        aiScore: null,
-        status: res.status || 'Pending',
-        aiFeedback: null,
-        submittedAt: new Date().toISOString()
-      } as unknown as SubmissionRow)
-      
-      setToast({ message: 'Nộp bài thành công!', type: 'success' })
-      // Optionally reload from server to get accurate info
+      await api.submitAssignment(file, content, id)
+      setToast({ 
+        message: wasAlreadySubmitted 
+          ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.' 
+          : 'Nộp bài thành công!', 
+        type: 'success' 
+      })
+      setFile(null)
+      setIsResubmitting(false)
       loadData()
     } catch (e: any) {
       setToast({ message: e.message || 'Lỗi nộp bài', type: 'error' })
@@ -371,30 +365,98 @@ export function StudentAssignmentDetail() {
             </div>
             <div className="px-5 py-2 space-y-4">
               {isSubmitted ? (
-                <div className="border-2 border-dashed border-emerald-200 rounded-xl p-5 text-center dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10">
-                  <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
-                  <p className="font-bold text-emerald-800 dark:text-emerald-500">Đã nộp thành công</p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-600/80 mt-1 mb-3">
-                    Lúc: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
-                  </p>
-
-                  {submission?.zipFileUrl && (
-                    <a 
-                      href={`${(import.meta as any).env.VITE_API_URL || '/api'}/submissions/${submission.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white hover:bg-emerald-50 dark:bg-emerald-900/40 dark:hover:bg-emerald-800/50 transition-colors group text-left"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-800 dark:group-hover:text-emerald-200 truncate">
-                          {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || 'File bài nộp')}
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-emerald-200 rounded-xl p-5 text-center dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10">
+                    <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
+                    <p className="font-bold text-emerald-800 dark:text-emerald-500">Đã nộp thành công</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-600/80 mt-1 mb-3">
+                      Lúc: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                      {(submission as any).attemptNumber && (submission as any).attemptNumber > 1 && (
+                        <span className="ml-2 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded font-semibold text-[11px]">
+                          Lần #{ (submission as any).attemptNumber }
                         </span>
+                      )}
+                    </p>
+
+                    {submission?.zipFileUrl && (
+                      <a 
+                        href={`${(import.meta as any).env.VITE_API_URL || '/api'}/submissions/${submission.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white hover:bg-emerald-50 dark:bg-emerald-900/40 dark:hover:bg-emerald-800/50 transition-colors group text-left"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <FileText size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-800 dark:group-hover:text-emerald-200 truncate">
+                            {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || 'File bài nộp')}
+                          </span>
+                        </div>
+                        <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-300 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-700 transition-all shrink-0 ml-2">
+                          <Download size={14} />
+                        </div>
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Resubmission Section */}
+                  {!isPastDue ? (
+                    !isResubmitting ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsResubmitting(true)}
+                        className="w-full border-2 border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/80 dark:bg-blue-950/30 dark:hover:bg-blue-900/50 font-bold py-2.5 h-auto rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+                      >
+                        <RotateCcw size={16} className="text-blue-600 dark:text-blue-400" />
+                        <span>Nộp lại bài làm</span>
+                      </Button>
+                    ) : (
+                      <div className="border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 bg-blue-50/50 dark:bg-slate-900/50 space-y-3 animate-in fade-in duration-300">
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                          <strong>⚠️ Chú ý:</strong> Nộp lại bài làm sẽ cập nhật file bài tập mới nhất và chuyển trạng thái bài về <strong>Chờ chấm lại</strong> để Giảng viên chấm lại.
+                        </div>
+
+                        <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-white dark:bg-slate-900 relative cursor-pointer group">
+                          <input 
+                            type="file" 
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            onChange={(e) => setFile(e.target.files?.[0] || null)}
+                          />
+                          <UploadCloud size={24} className="mb-1 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Chọn file bài làm mới</p>
+                          <p className="text-[11px] text-slate-400">PDF, DOCX, ZIP (Tối đa 10MB)</p>
+                        </div>
+
+                        {file && (
+                          <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <span className="text-xs font-medium truncate pr-2 text-slate-700 dark:text-slate-300">{file.name}</span>
+                            <button onClick={() => setFile(null)} className="text-red-500 text-xs font-bold hover:underline shrink-0">Xóa</button>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 pt-1">
+                          <Button 
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs py-2 h-auto rounded-lg"
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || !file}
+                          >
+                            {isSubmitting ? <Loader2 className="animate-spin w-3.5 h-3.5 mr-1" /> : <Send size={14} className="mr-1" />}
+                            Xác nhận nộp lại
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="text-xs py-2 h-auto rounded-lg text-slate-600 dark:text-slate-400"
+                            onClick={() => { setIsResubmitting(false); setFile(null); }}
+                            disabled={isSubmitting}
+                          >
+                            Hủy
+                          </Button>
+                        </div>
                       </div>
-                      <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-300 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-700 transition-all shrink-0 ml-2">
-                        <Download size={14} />
-                      </div>
-                    </a>
+                    )
+                  ) : (
+                    <div className="p-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-lg text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      🔒 Đã hết hạn nộp bài — Không thể nộp lại.
+                    </div>
                   )}
                 </div>
               ) : isLocked ? (
