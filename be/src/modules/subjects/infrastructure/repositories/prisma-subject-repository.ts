@@ -19,10 +19,15 @@ export class PrismaSubjectRepository implements ISubjectRepository {
 
   async findMany(filter?: SubjectFilter): Promise<Subject[]> {
     const rawList = await this.client.subject.findMany({
-      where: this.mapFilterToWhere(filter),
-      orderBy: { SubjectCode: 'asc' }
+      where: this.mapFilterToWhere(filter)
     })
-    return rawList.map(SubjectMapper.toDomain)
+    const sorted = rawList.sort((a: any, b: any) => {
+      const semA = a.Semester != null ? Number(a.Semester) : 999
+      const semB = b.Semester != null ? Number(b.Semester) : 999
+      if (semA !== semB) return semA - semB
+      return (a.SubjectCode || '').localeCompare(b.SubjectCode || '', undefined, { numeric: true, sensitivity: 'base' })
+    })
+    return sorted.map(SubjectMapper.toDomain)
   }
 
   async findById(id: string): Promise<Subject | null> {
