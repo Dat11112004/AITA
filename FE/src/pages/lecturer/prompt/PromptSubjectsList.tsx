@@ -13,8 +13,65 @@ export function PromptSubjectsList() {
     const fetchSubjects = async () => {
       try {
         setIsLoading(true);
-        const data = await api.getSubjects(1, 100);
-        setSubjects(Array.isArray(data) ? data : (data as any)?.data || []);
+        const [me, classesData, allSubjectsData] = await Promise.all([
+          api.me().catch(() => null),
+          api.getClasses(1, 1000).catch(() => []),
+          api.getSubjects(1, 1000).catch(() => [])
+        ]);
+
+        const allSubjects = Array.isArray(allSubjectsData) ? allSubjectsData : (allSubjectsData as any)?.data || [];
+        const classes = Array.isArray(classesData) ? classesData : (classesData as any)?.data || [];
+
+        let resultSubjects: any[] = [];
+
+        if (me && me.role?.toLowerCase() === 'lecturer') {
+          // Collect assigned subject IDs/codes from the lecturer's classes
+          const assignedSubjectKeys = new Set<string>();
+          classes.forEach((c: any) => {
+            if (c.subjectId) assignedSubjectKeys.add(c.subjectId);
+            if (c.subjectCode) assignedSubjectKeys.add(c.subjectCode);
+            if (c.subject?.id) assignedSubjectKeys.add(c.subject.id);
+            if (c.subject?.code) assignedSubjectKeys.add(c.subject.code);
+          });
+
+          if (assignedSubjectKeys.size > 0) {
+            resultSubjects = allSubjects.filter((s: any) => 
+              assignedSubjectKeys.has(s.id) || assignedSubjectKeys.has(s.code)
+            );
+
+            // Append any subject objects directly attached to classes if missing in allSubjects
+            classes.forEach((c: any) => {
+              const sub = c.subject;
+              if (sub && (sub.id || sub.code)) {
+                const exists = resultSubjects.some(rs => rs.id === sub.id || rs.code === sub.code);
+                if (!exists) {
+                  resultSubjects.push({
+                    id: sub.id || sub.code,
+                    code: sub.code,
+                    name: sub.name || sub.code,
+                    description: sub.description || 'Chưa có mô tả môn học.',
+                    semester: sub.semester
+                  });
+                }
+              }
+            });
+          } else {
+            resultSubjects = [];
+          }
+        } else {
+          // ADMIN or fallback
+          resultSubjects = allSubjects;
+        }
+
+        // Sort by Semester asc -> Code asc
+        resultSubjects.sort((a, b) => {
+          const semA = a.semester != null ? Number(String(a.semester).replace(/\D/g, '')) || 999 : 999;
+          const semB = b.semester != null ? Number(String(b.semester).replace(/\D/g, '')) || 999 : 999;
+          if (semA !== semB) return semA - semB;
+          return (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        setSubjects(resultSubjects);
       } catch (err) {
         console.error('Failed to load subjects:', err);
       } finally {
@@ -63,7 +120,9 @@ export function PromptSubjectsList() {
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200 text-center">
           <Folder size={48} className="text-slate-300 mb-3" />
           <h3 className="text-lg font-bold text-slate-800">Không tìm thấy môn học nào</h3>
-          <p className="text-slate-500 text-sm max-w-md mt-1">Chưa có môn học nào được hệ thống ghi nhận hoặc không phù hợp với từ khóa tìm kiếm.</p>
+          <p className="text-slate-500 text-sm max-w-md mt-1">
+            {searchQuery ? 'Không có môn học nào phù hợp với từ khóa tìm kiếm.' : 'Bạn chưa được phân công giảng dạy môn học nào hoặc không tìm thấy môn học tương ứng.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

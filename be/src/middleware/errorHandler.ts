@@ -29,6 +29,14 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   }
 
   // Handle Prisma Errors
+  if (err.name === 'PrismaClientInitializationError' || (err as any).code === 'P1001' || err.message?.includes("Can't reach database server")) {
+    const apiResponse = new ApiResponse(
+      503,
+      'Không thể kết nối đến cơ sở dữ liệu (SQL Server tại localhost:1433). Vui lòng kiểm tra lại dịch vụ SQL Server.'
+    )
+    return res.status(503).json(apiResponse)
+  }
+
   if (err.name === 'PrismaClientKnownRequestError') {
     const prismaError = err as any
     if (prismaError.code === 'P2002') {
