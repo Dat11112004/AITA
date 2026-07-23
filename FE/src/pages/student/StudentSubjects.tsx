@@ -276,7 +276,6 @@ export function StudentSubjects() {
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
                                     {displayAssignments.filter(a => a.type !== 'Exam').map(a => {
-                                      const isPastDue = a.due && new Date(a.due) < new Date()
                                       const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
                                       const score = (a as any).score || (a as any).aiScore
                                       return (

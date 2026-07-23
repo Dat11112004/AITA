@@ -1,8 +1,7 @@
-import type { PrismaClient } from '@prisma/client'
 import type { IPromptTemplateRepository, PromptTemplateEntity } from '../../domain/repositories/prompt-template-repository.interface.js'
 
 export class PrismaPromptTemplateRepository implements IPromptTemplateRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: any) {}
 
   private mapToEntity(row: any): PromptTemplateEntity {
     return {
@@ -30,7 +29,7 @@ export class PrismaPromptTemplateRepository implements IPromptTemplateRepository
       },
       orderBy: { Name: 'asc' }
     })
-    return rows.map(r => this.mapToEntity(r))
+    return rows.map((r: any) => this.mapToEntity(r))
   }
 
   async findById(id: string): Promise<PromptTemplateEntity | null> {

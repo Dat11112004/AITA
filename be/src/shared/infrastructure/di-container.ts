@@ -133,7 +133,6 @@ import { SettingsController } from '../../modules/settings/presentation/settings
 // import * as settingsController from '../../controllers/settings.controller.js' // REMOVED
 // import * as optionsController from '../../controllers/options.controller.js' // REMOVED
 
-import { RefinePromptUseCase } from '../../modules/ai/application/use-cases/refine-prompt.use-case.js'
 
 /**
  * DI Container — wraps legacy services/controllers for backward compatibility.
