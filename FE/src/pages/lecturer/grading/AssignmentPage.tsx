@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Edit2, Save, X, Calendar, ChevronDown } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Edit2, Save, X, Calendar, ChevronDown } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
@@ -72,7 +72,6 @@ export default function AssignmentPage() {
   const [assignment, setAssignment] = useState<PublishedAssignment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [hasActiveBatch, setHasActiveBatch] = useState(false);
@@ -104,11 +103,7 @@ export default function AssignmentPage() {
       return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
+
 
   useEffect(() => {
     async function loadAssignment() {
@@ -167,6 +162,29 @@ export default function AssignmentPage() {
         window.removeEventListener('storage', checkBatch);
     };
   }, [id]);
+
+  const confirmDelete = async () => {
+    if (!deleteModalId) return;
+    try {
+      if (deleteModalId === 'BULK') {
+        const ids = Array.from(selectedIds);
+        await Promise.all(ids.map(subId => api.deleteHistory(subId)));
+        setSelectedIds(new Set());
+      } else {
+        await api.deleteHistory(deleteModalId);
+      }
+      setDeleteModalId(null);
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      setHistory(res.history || []);
+      if (res.meta) {
+        setTotalPages(res.meta.totalPages || 1);
+        setTotalItems(res.meta.total || 0);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete history', err);
+      setError('Lỗi khi xóa kết quả chấm điểm');
+    }
+  };
 
   const handleGradeSubmission = async (e: React.MouseEvent, submissionId: string) => {
     e.stopPropagation();
@@ -699,19 +717,16 @@ export default function AssignmentPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {history.map((item) => {
                 const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
-                let colorClass = 'text-slate-600 bg-slate-200';
                 let textClass = 'text-slate-600';
                 let rank = 'D';
                 let rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400';
                 
-                if (percentage >= 90) { colorClass = 'bg-emerald-500'; textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 80) { colorClass = 'bg-emerald-400'; textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 70) { colorClass = 'bg-blue-500'; textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
-                else if (percentage >= 60) { colorClass = 'bg-indigo-400'; textClass = 'text-indigo-600 dark:text-indigo-400'; rank = 'B'; rankBg = 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'; }
-                else if (percentage >= 50) { colorClass = 'bg-amber-500'; textClass = 'text-amber-600 dark:text-amber-400'; rank = 'C+'; rankBg = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800'; }
-                else { colorClass = 'bg-red-500'; textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
-
-                const displayId = item.studentId || item.id.split('-')[0];
+                if (percentage >= 90) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
+                else if (percentage >= 80) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
+                else if (percentage >= 70) { textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
+                else if (percentage >= 60) { textClass = 'text-indigo-600 dark:text-indigo-400'; rank = 'B'; rankBg = 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'; }
+                else if (percentage >= 50) { textClass = 'text-amber-600 dark:text-amber-400'; rank = 'C+'; rankBg = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800'; }
+                else { textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
 
                 return (
                   <tr 
@@ -834,19 +849,7 @@ export default function AssignmentPage() {
             </div>
           )}
           {history.map((item) => {
-            const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
-            let barColor = 'bg-red-500';
-            let textColor = 'text-red-500';
-            if (percentage >= 80) {
-                barColor = 'bg-emerald-500'; textColor = 'text-emerald-500';
-            } else if (percentage >= 70) {
-                barColor = 'bg-blue-500'; textColor = 'text-blue-500';
-            } else if (percentage >= 50) {
-                barColor = 'bg-orange-500'; textColor = 'text-orange-500';
-            }
-
             const displayName = item.studentName || item.studentId || item.id.split('-')[0];
-            const initials = displayName.substring(0, 2).toUpperCase();
             
             const avatarColors = ['bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400', 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400', 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'];
             const avatarColor = avatarColors[displayName.charCodeAt(displayName.length - 1) % avatarColors.length] || avatarColors[0];
