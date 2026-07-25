@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/modules/grading/FileUpload';
 import { gradingApi as api, api as mainApi } from '@/lib/api';
+import { aiGenerationStore } from '@/services/aiGenerationStore';
 import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react';
 import classNames from 'classnames';
 import Editor from 'react-simple-wysiwyg';
@@ -104,15 +105,29 @@ export default function AssignmentUploadPage() {
     const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
     const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, dueDate?: string, classes?: string }>({});
 
-    const abortControllerRef = useRef<AbortController | null>(null);
-
     const handleCancelGeneration = () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
+        aiGenerationStore.cancelGeneration();
         setIsLoading(false);
     };
+
+    useEffect(() => {
+        const unsubscribe = aiGenerationStore.subscribe((storeState) => {
+            setIsLoading(storeState.isGenerating);
+            if (storeState.loadingMsg) setLoadingMsg(storeState.loadingMsg);
+            if (storeState.error) setError(storeState.error);
+            if (storeState.result) {
+                setContent(storeState.result.content);
+                setRubric(storeState.result.rubric);
+                setBlueprint(storeState.result.blueprint);
+                setMetadata(storeState.result.metadata);
+                setStep(storeState.result.step);
+            }
+            if (storeState.selectedSemester) setSelectedSemester(storeState.selectedSemester);
+            if (storeState.subjectCode) setSubjectCode(storeState.subjectCode);
+            if (storeState.textPrompt) setTextPrompt(storeState.textPrompt);
+        });
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -230,50 +245,7 @@ export default function AssignmentUploadPage() {
 
         if (!textPrompt) return;
         setError(null);
-        setIsLoading(true);
-        abortControllerRef.current = new AbortController();
-
-        try {
-            setLoadingMsg('Gemini is generating the assignment content...');
-            const finalPrompt = subjectCode ? `Môn học: ${subjectCode}\n\n${textPrompt}` : textPrompt;
-            const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
-
-            setLoadingMsg('Analyzing content & extracting grading blueprint...');
-            const draftBlueprint = await api.parseRequirements(markdown);
-
-            setLoadingMsg('Running background execution to compute Test Cases...');
-            const generatedRubric = await api.generateRubric(draftBlueprint);
-
-            let finalMarkdown = markdown;
-            if (draftBlueprint.projectType === 'algorithm') {
-                const ioRule = generatedRubric.rules.find((r: any) => r.scoringStrategy === 'StdInOutProbe');
-                const testCases = ioRule?.requiredEvidence?.[0]?.stdInOutProbe?.testCases;
-                if (testCases && testCases.length > 0) {
-                    finalMarkdown += `<br/><h3>Expected Behavior (Test Cases)</h3><ul>`;
-                    testCases.forEach((tc: any, idx: number) => {
-                        finalMarkdown += `<li><strong>Test Case ${idx + 1}:</strong><br/>Input:<pre>${tc.input}</pre>Output:<pre>${tc.expectedOutput}</pre></li><br/>`;
-                    });
-                    finalMarkdown += `</ul>`;
-                }
-            }
-
-            setContent(finalMarkdown);
-            setRubric(generatedRubric);
-            setBlueprint(draftBlueprint);
-            setMetadata((prev: any) => ({
-                ...prev,
-                title: draftBlueprint.assignmentTitle || 'AI Generated Assignment',
-                description: draftBlueprint.description || '',
-                projectType: draftBlueprint.projectType || 'backend',
-                subject: subjectCode || draftBlueprint.subject || ''
-            }));
-            setStep(2);
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
-            setError(err.response?.data?.error || err.message || "Failed to generate content");
-        } finally {
-            setIsLoading(false);
-        }
+        aiGenerationStore.startGeneration(textPrompt, selectedSemester, subjectCode);
     };
 
     const handleFileUpload = async (file: File) => {
@@ -288,34 +260,7 @@ export default function AssignmentUploadPage() {
         setValidationErrors({});
 
         setError(null);
-        setIsLoading(true);
-        setLoadingMsg('Analyzing document and generating rubric...');
-        abortControllerRef.current = new AbortController();
-        try {
-            const extractResult: any = await api.extractText(file, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
-            const text = extractResult.text?.rawText || (typeof extractResult.text === 'string' ? extractResult.text : JSON.stringify(extractResult.text));
-            const result = await api.parseRubric(text, extractResult.documentImageKey, { signal: abortControllerRef.current.signal });
-
-            setRubric(result.rubric);
-            setBlueprint(result.blueprint);
-            setMetadata((prev: any) => ({
-                ...prev,
-                title: result.blueprint.assignmentTitle || 'AI Generated Assignment',
-                description: result.blueprint.description || '',
-                projectType: result.blueprint.projectType || 'backend',
-                subject: subjectCode || result.blueprint.subject || '',
-                fileUrl: extractResult.uploadedFile?.url,
-                fileName: extractResult.uploadedFile?.fileName,
-                fileType: extractResult.uploadedFile?.fileType
-            }));
-
-            setStep(3); // Skip step 2 for files
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
-            setError(err.response?.data?.error || err.message || "Failed to process file");
-        } finally {
-            setIsLoading(false);
-        }
+        aiGenerationStore.startFileGeneration(file, selectedSemester, subjectCode);
     };
 
     const handleParseRubric = async () => {
@@ -367,6 +312,7 @@ export default function AssignmentUploadPage() {
         try {
             const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content };
             const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);
+            aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || "Failed to publish assignment");
@@ -423,7 +369,7 @@ export default function AssignmentUploadPage() {
 
                 <div className="max-w-6xl mx-auto w-full flex flex-col flex-1 relative z-10 px-6 lg:px-12 pt-5 pb-6">
                     <div className="mb-3 animate-fade-in">
-                        <button onClick={() => navigate(`/lecturer/grading/assignments`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
+                        <button onClick={() => { aiGenerationStore.reset(); navigate(`/lecturer/grading/assignments`); }} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
                             <ArrowLeft size={20} />
                             Back to assignments
                         </button>
@@ -727,7 +673,7 @@ export default function AssignmentUploadPage() {
                                         </div>
                                     </div>
                                     <div className="mt-6 flex justify-between">
-                                        <button onClick={() => setStep(1)} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Quay lại</button>
+                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Quay lại</button>
                                         <button
                                             onClick={handleParseRubric}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all"

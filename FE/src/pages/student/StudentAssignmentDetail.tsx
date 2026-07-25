@@ -129,7 +129,7 @@ export function StudentAssignmentDetail() {
     window.addEventListener('storage', handleStorage)
     window.addEventListener('aita_assignment_updated', handleCustomEvent)
 
-    // 4. Smart background polling (every 5 seconds) to ensure real-time status without manual reload
+    // 4. Smart background polling (every 3 seconds) for real-time score publishing & deadline updates
     const pollInterval = setInterval(() => {
       gradingApi.getAssignment(id!).catch(() => api.getAssignment(id!)).then(newAssignment => {
         if (newAssignment) {
@@ -146,7 +146,15 @@ export function StudentAssignmentDetail() {
           }
         }
       })
-    }, 5000)
+
+      // Real-time submission polling for Lecturer Publish event
+      api.getSubmissions({ assignmentId: id! }).then(res => {
+        const s = res?.[0]
+        if (s) {
+          setSubmission(s as SubmissionRow)
+        }
+      }).catch(() => {})
+    }, 3000)
 
     return () => {
       if (cleanup) cleanup()
@@ -163,6 +171,11 @@ export function StudentAssignmentDetail() {
     setIsSubmitting(true)
     try {
       await api.submitAssignment(file, content, id)
+      try {
+        const evtChannel = new BroadcastChannel('aita_submission_events');
+        evtChannel.postMessage({ type: 'SUBMISSION_CREATED', assignmentId: id });
+        evtChannel.close();
+      } catch (e) {}
       setToast({
         message: wasAlreadySubmitted
           ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.'
@@ -202,8 +215,9 @@ export function StudentAssignmentDetail() {
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
   const isSubmitted = !!submission;
-  const displayScore = submission ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
-  const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || displayScore != null);
+  const isPublished = submission && ((submission as any).reviewStatus === 'PUBLISHED' || (submission as any).isPublished === true);
+  const displayScore = (submission && isPublished) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
+  const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
   const isLocked = isPastDue && !isSubmitted;
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
@@ -458,6 +472,7 @@ export function StudentAssignmentDetail() {
                   </div>
                 )}
 
+
                 {assignment.due && (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-sm border ${isPastDue || isNearDeadline
                       ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800'
@@ -472,43 +487,70 @@ export function StudentAssignmentDetail() {
           </div>
           {/* Deadline & Live Countdown Banner */}
           {dueDate && (
-            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
-              isPastDue 
-                ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
-                : isNearDeadline
-                  ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
-                  : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
-                  isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
-                }`}>
-                  <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
-                      isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
-                    </span>
-                    <span className="text-xs font-semibold">
-                      Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </span>
+            isSubmitted ? (
+              <div className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-emerald-500/10 border-emerald-300 dark:border-emerald-700/50 text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm bg-emerald-600 text-white">
+                    <CheckCircle2 size={20} />
                   </div>
-                  <p className="text-xs mt-1 font-bold">
-                    {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : `Thời gian còn lại: ${countdownText}`}
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-600 text-white">
+                        BÀI LÀM ĐÃ NỘP
+                      </span>
+                      <span className="text-xs font-semibold">
+                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 font-bold">
+                      Bạn đã hoàn thành nộp bài{submission?.submittedAt ? ` lúc ${new Date(submission.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString('vi-VN')}` : ''}. Có thể nộp lại nếu cần chỉnh sửa.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 flex items-center gap-2 text-xs font-bold">
+                  <Check size={16} />
+                  <span>Hoàn thành nộp bài</span>
                 </div>
               </div>
-
-              {!isPastDue && (
-                <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  {countdownText || 'Đang tính...'}
+            ) : (
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
+                isPastDue 
+                  ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
+                  : isNearDeadline
+                    ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
+                    : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
+                    isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                  }`}>
+                    <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
+                        isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
+                      }`}>
+                        {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
+                      </span>
+                      <span className="text-xs font-semibold">
+                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 font-bold">
+                      {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : `Thời gian còn lại: ${countdownText}`}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {!isPastDue && (
+                  <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    {countdownText || 'Đang tính...'}
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           {/* Card: Chi tiết bài tập (Đề bài chi tiết) */}
@@ -636,61 +678,78 @@ export function StudentAssignmentDetail() {
 
           {/* Grading & Feedback Result */}
           {isGraded && displayScore != null && (
-            <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm animate-in slide-in-from-bottom-4 duration-500">
-              <div className="px-5 py-2 flex justify-between items-center">
-                <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
-                </h2>
-              </div>
-
-              <div className="px-5 py-2">
-                {submission.aiFeedback ? (
-                  <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
-                        <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
-                      </div>
-                    </div>
-                    <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
-                      <ReactMarkdown>{submission.aiFeedback as string}</ReactMarkdown>
-                    </div>
+            <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+              {!((submission as any)?.reviewStatus === 'PUBLISHED' || (submission as any)?.isPublished) ? (
+                <div className="p-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 text-amber-900 dark:text-amber-200 flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                    <Clock size={24} className="animate-pulse" />
                   </div>
-                ) : (
-                  <div className="mb-6">
-                    <p className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-center italic">
-                      Không có nhận xét tự động.
+                  <div>
+                    <h3 className="font-bold text-base text-amber-900 dark:text-amber-100 mb-1">
+                      ⌛ Bài làm đang được Giảng viên chấm & xét duyệt điểm
+                    </h3>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                      Bài làm của bạn đã được hệ thống AI phân tích và lưu kết quả. 
+                      Giảng viên đang tiến hành xem xét điểm số và đánh giá chi tiết. Kết quả và điểm số chính thức sẽ hiển thị ngay khi Giảng viên duyệt & bấm <strong>Công bố kết quả</strong>.
                     </p>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="p-5 space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
+                    </h2>
+                  </div>
 
-                <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
-                  {!showAppeal ? (
-                    <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
-                      Bạn có thắc mắc về điểm số?
-                    </button>
-                  ) : (
-                    <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
-                      <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Nhập nội dung thắc mắc..."
-                            value={appealText}
-                            onChange={(e) => setAppealText(e.target.value)}
-                          />
+                  {submission.aiFeedback ? (
+                    <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
+                          <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
                         </div>
-                        <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
-                          <Send size={16} className="mr-2" /> Gửi
-                        </Button>
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
+                        </div>
+                      </div>
+                      <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
+                        <ReactMarkdown>{submission.aiFeedback as string}</ReactMarkdown>
                       </div>
                     </div>
+                  ) : (
+                    <div className="mb-6">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-center italic">
+                        Không có nhận xét tự động.
+                      </p>
+                    </div>
                   )}
+
+                  <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+                    {!showAppeal ? (
+                      <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
+                        Bạn có thắc mắc về điểm số?
+                      </button>
+                    ) : (
+                      <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
+                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <Input
+                              placeholder="Nhập nội dung thắc mắc..."
+                              value={appealText}
+                              onChange={(e) => setAppealText(e.target.value)}
+                            />
+                          </div>
+                          <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
+                            <Send size={16} className="mr-2" /> Gửi
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           )}
 

@@ -61,6 +61,12 @@ export class SubmissionResponseDto {
       // Ignore parse errors
     }
 
+    const revStatus = submission.reviewStatus || submission.ReviewStatus || 'DRAFT';
+    const isPublished = revStatus === 'PUBLISHED' || submission.isPublished === true;
+
+    let rawTotalScore = submission.totalScore !== undefined && submission.totalScore !== null ? Number(submission.totalScore) : (submission.TotalScore !== undefined && submission.TotalScore !== null ? Number(submission.TotalScore) : null);
+    let rawFinalScore = submission.finalScore !== undefined && submission.finalScore !== null ? Number(submission.finalScore) : (submission.FinalScore !== undefined && submission.FinalScore !== null ? Number(submission.FinalScore) : null);
+
     return {
       id: submission.id || submission.Id,
       examId: submission.examId || submission.ExamId,
@@ -72,15 +78,17 @@ export class SubmissionResponseDto {
       submittedAt: submission.submittedAt || submission.SubmittedAt,
       zipFileUrl: submission.zipFileUrl || submission.ZipFileUrl,
       gradingStatus: submission.gradingStatus || submission.GradingStatus,
-      reviewStatus: submission.reviewStatus || submission.ReviewStatus,
-      totalScore: submission.totalScore !== undefined && submission.totalScore !== null ? Number(submission.totalScore) : (submission.TotalScore !== undefined && submission.TotalScore !== null ? Number(submission.TotalScore) : null),
-      finalScore: submission.finalScore !== undefined && submission.finalScore !== null ? Number(submission.finalScore) : (submission.FinalScore !== undefined && submission.FinalScore !== null ? Number(submission.FinalScore) : null),
-      instructorFeedback: submission.instructorFeedback || submission.InstructorFeedback,
+      reviewStatus: revStatus,
+      isPublished: isPublished,
+      totalScore: isPublished ? rawTotalScore : null,
+      finalScore: isPublished ? rawFinalScore : null,
+      score: isPublished ? (rawFinalScore ?? rawTotalScore) : null,
+      instructorFeedback: isPublished ? (submission.instructorFeedback || submission.InstructorFeedback) : null,
       studentFeedback: submission.studentFeedback || submission.StudentFeedback,
       reviewedBy: submission.reviewedBy || submission.ReviewedBy,
       reviewedAt: submission.reviewedAt || submission.ReviewedAt,
       gradedAt: submission.gradedAt || submission.GradedAt,
-      aiFeedback: aiFeedback,
+      aiFeedback: isPublished ? aiFeedback : null,
       student: submission.User_Submission_StudentIdToUser ? {
         id: submission.User_Submission_StudentIdToUser.Id,
         name: submission.User_Submission_StudentIdToUser.FullName,

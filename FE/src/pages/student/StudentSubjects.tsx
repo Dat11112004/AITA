@@ -45,10 +45,12 @@ export function StudentSubjects() {
         const mergedAssignments = (assignmentsRes || []).map(a => {
           const sub = submissionsMap.get(a.id)
           if (sub) {
+            const isPublished = sub.reviewStatus === 'PUBLISHED' || sub.isPublished === true
+            const validScore = isPublished ? (sub.finalScore ?? sub.totalScore ?? sub.score ?? sub.Score) : undefined
             return { 
               ...a, 
-              status: sub.status === 'GRADED' || sub.score !== null ? 'Graded' : 'Submitted',
-              score: sub.finalScore ?? sub.totalScore ?? sub.score
+              status: (isPublished && validScore !== undefined && validScore !== null) ? 'Graded' : 'Submitted',
+              score: validScore !== null ? validScore : undefined
             }
           }
           return a

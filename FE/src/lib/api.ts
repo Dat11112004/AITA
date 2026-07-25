@@ -621,6 +621,8 @@ export const gradingApi = {
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
+  publishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/publish', { method: 'POST' }),
+  unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
 
   uploadAssignment: (file: File) => {
     const formData = new FormData()
@@ -798,7 +800,6 @@ export const gradingApi = {
   },
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
-
 }
 
 export const aiApi = {

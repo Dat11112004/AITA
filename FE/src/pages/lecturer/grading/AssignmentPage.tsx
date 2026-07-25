@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
@@ -83,6 +83,10 @@ export default function AssignmentPage() {
   const [deadlineModalError, setDeadlineModalError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [isGradingSettingsModalOpen, setIsGradingSettingsModalOpen] = useState(false);
+  const [selectedGradingStrategy, setSelectedGradingStrategy] = useState<'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE'>('CONTINUOUS_QUEUE');
+  const [savingStrategy, setSavingStrategy] = useState(false);
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -103,36 +107,63 @@ export default function AssignmentPage() {
 
 
 
-  useEffect(() => {
-    async function loadAssignment() {
-        try {
-            const data = await api.getAssignment(id || 'student-management-system');
-            setAssignment(data);
-        } catch (err) {
-            console.error(err);
-        }
+  const fetchAssignmentData = React.useCallback(async () => {
+    try {
+      const data = await api.getAssignment(id || 'student-management-system');
+      setAssignment(data);
+    } catch (err) {
+      console.error(err);
     }
-    loadAssignment();
   }, [id]);
 
-  useEffect(() => {
-    async function loadHistory() {
-      setLoading(true);
-      try {
-        const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
-        setHistory(res.history || []);
-        if (res.meta) {
-            setTotalPages(res.meta.totalPages || 1);
-            setTotalItems(res.meta.total || 0);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchHistoryData = React.useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    try {
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      setHistory(res.history || []);
+      if (res.meta) {
+          setTotalPages(res.meta.totalPages || 1);
+          setTotalItems(res.meta.total || 0);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (showLoader) setLoading(false);
     }
-    loadHistory();
   }, [id, page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder]);
+
+  useEffect(() => {
+    fetchAssignmentData();
+  }, [fetchAssignmentData]);
+
+  useEffect(() => {
+    fetchHistoryData(true);
+  }, [fetchHistoryData]);
+
+  // Real-time listener & polling for student submissions
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('aita_submission_events');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'SUBMISSION_CREATED' || event.data?.assignmentId === id) {
+          console.log('[AssignmentPage] Real-time submission event received, updating counts...');
+          fetchAssignmentData();
+          fetchHistoryData(false);
+        }
+      };
+    } catch (e) {}
+
+    const pollTimer = setInterval(() => {
+      fetchAssignmentData();
+      fetchHistoryData(false);
+    }, 3000);
+
+    return () => {
+      if (channel) channel.close();
+      clearInterval(pollTimer);
+    };
+  }, [id, fetchAssignmentData, fetchHistoryData]);
 
   useEffect(() => {
     const checkBatch = () => {
@@ -397,6 +428,33 @@ export default function AssignmentPage() {
     }
   };
 
+  useEffect(() => {
+    if (assignment) {
+      const strat = (assignment as any)?.metadata?.gradingStrategy || (assignment as any)?.stats?.gradingStrategy || 'CONTINUOUS_QUEUE';
+      setSelectedGradingStrategy(strat);
+    }
+  }, [assignment]);
+
+  const handleSaveGradingStrategy = async (strategy: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
+    try {
+      setSavingStrategy(true);
+      await api.updateAssignment(id!, {
+        title: assignment?.metadata?.title,
+        description: assignment?.metadata?.description,
+        dueDate: (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate,
+        gradingStrategy: strategy
+      });
+      setSelectedGradingStrategy(strategy);
+      const data = await api.getAssignment(id!);
+      setAssignment(data);
+      setIsGradingSettingsModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setSavingStrategy(false);
+    }
+  };
+
   // Calendar helpers for embedded modal calendar
   const selectedDateObj = newDueDate ? new Date(newDueDate) : null;
   const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
@@ -447,6 +505,14 @@ export default function AssignmentPage() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setIsGradingSettingsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+                title="Cấu hình phương thức chấm ngầm / dồn bài chấm"
+              >
+                <Settings size={20} className="text-slate-500 dark:text-slate-400" />
+                <span>Cài đặt chấm</span>
+              </button>
+              <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
               >
@@ -481,9 +547,12 @@ export default function AssignmentPage() {
               </button>
             </div>
           </div>
-          <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          </div>
+
           {assignment.metadata?.projectType && (
-            <div className="flex items-center mt-3 animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2.5 mt-3 animate-fade-in">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-sm font-bold rounded-full border border-brand-200 dark:border-brand-500/20 shadow-sm">
                 <Layers size={16} />
                 <span className="uppercase tracking-wider">{assignment.metadata.projectType}</span>
@@ -816,10 +885,17 @@ export default function AssignmentPage() {
                           </button>
                         )}
                         {item.status === 'Grading' && (
-                          <div className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-slate-50 text-slate-400 dark:bg-slate-800/50 dark:text-slate-500 rounded-lg text-sm font-semibold cursor-not-allowed">
-                            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                            Đang chấm
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+                            }}
+                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
+                            title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                          >
+                            <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                            Đang chấm...
+                          </button>
                         )}
                         {item.status === 'Submitted' && (
                           <button
@@ -921,10 +997,17 @@ export default function AssignmentPage() {
                       </button>
                     )}
                     {item.status === 'Grading' && (
-                      <div className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-50 text-slate-400 dark:bg-slate-800/50 dark:text-slate-500 border border-transparent rounded-lg text-sm font-semibold cursor-not-allowed">
-                          <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                          Đang chấm...
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
+                        title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                      >
+                        <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                        Đang chấm...
+                      </button>
                     )}
                     {item.status === 'Submitted' && (
                       <button 
@@ -1200,6 +1283,148 @@ export default function AssignmentPage() {
                   <Save size={16} />
                 )}
                 <span>Cập nhật hạn nộp</span>
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Grading Strategy Settings Modal */}
+      {isGradingSettingsModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20">
+                  <Settings size={22} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Cấu hình phương thức chấm bài
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px] font-medium">
+                    {assignment?.metadata?.title || 'Bài tập'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsGradingSettingsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/80 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+              
+              {/* Option 1: Continuous Queue (Chấm ngầm) */}
+              <div
+                onClick={() => !savingStrategy && handleSaveGradingStrategy('CONTINUOUS_QUEUE')}
+                className={classNames(
+                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  selectedGradingStrategy === 'CONTINUOUS_QUEUE'
+                    ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/10"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={classNames(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                    selectedGradingStrategy === 'CONTINUOUS_QUEUE'
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  )}>
+                    <Zap size={24} className="stroke-[2.5]" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        ⚡ Chấm ngầm theo hàng đợi
+                      </h4>
+                      {selectedGradingStrategy === 'CONTINUOUS_QUEUE' && (
+                        <span className="px-2.5 py-0.5 bg-emerald-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
+                          Đang dùng
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Học sinh nộp bài đến đâu, hệ thống tự động đưa vào hàng đợi FIFO và kích hoạt AI/Autograder chấm ngầm ngay lập tức.
+                    </p>
+                    <div className="pt-2 flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg border border-emerald-200/60 dark:border-emerald-500/20">
+                        🚀 Nộp trước chấm trước
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
+                        Tự động hóa 100%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 2: Batch Post-Deadline (Dồn bài chấm 1 lần) */}
+              <div
+                onClick={() => !savingStrategy && handleSaveGradingStrategy('BATCH_POST_DEADLINE')}
+                className={classNames(
+                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  selectedGradingStrategy === 'BATCH_POST_DEADLINE'
+                    ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-500/50"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={classNames(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                    selectedGradingStrategy === 'BATCH_POST_DEADLINE'
+                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/30"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  )}>
+                    <Clock size={24} className="stroke-[2.5]" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        📦 Dồn bài chấm 1 lần
+                      </h4>
+                      {selectedGradingStrategy === 'BATCH_POST_DEADLINE' && (
+                        <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
+                          Đang dùng
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bài nộp của học sinh sẽ ở trạng thái chờ. Hệ thống chỉ bắt đầu dồn lại chấm hàng loạt khi Giảng viên bấm nút Chấm tất cả.
+                    </p>
+                    <div className="pt-2 flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold rounded-lg border border-amber-200/60 dark:border-amber-500/20">
+                        ⚖️ Chủ động kích hoạt
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
+                        Chấm hàng loạt khi Giảng viên bấm Chấm tất cả
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-400 font-medium">
+                {savingStrategy ? 'Đang lưu cấu hình...' : 'Nhấp vào chế độ để áp dụng ngay'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsGradingSettingsModalOpen(false)}
+                className="px-5 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Đóng
               </button>
             </div>
 

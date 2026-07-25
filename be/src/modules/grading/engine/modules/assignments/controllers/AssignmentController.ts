@@ -465,12 +465,17 @@ export class AssignmentController extends BaseController {
                         notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmittedCount / totalStudents) * 100).toFixed(1)) : 0,
                         gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0, // Grading percentage usually relative to submitted
                         createdAt: exam.StartDate as any,
-                        dueDate: exam.DueDate as any
+                        dueDate: exam.DueDate as any,
+                        gradingStrategy: (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE'
                     };
                 }
 
                 const enhancedAssignment = {
                     ...assignment,
+                    metadata: {
+                        ...assignment.metadata,
+                        gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE'
+                    },
                     stats
                 };
 
@@ -486,7 +491,7 @@ export class AssignmentController extends BaseController {
     update = async (req: Request, res: Response): Promise<void> => {
         try {
             const id = req.params.id;
-            const { title, description, dueDate } = req.body;
+            const { title, description, dueDate, gradingStrategy } = req.body;
 
             const assignment = await this.assignmentRepository.getAsync(id);
             if (!assignment) {
@@ -512,7 +517,8 @@ export class AssignmentController extends BaseController {
                 data: {
                     Title: title,
                     Description: description,
-                    DueDate: parsedDueDate
+                    DueDate: parsedDueDate,
+                    GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
                 }
             });
 
@@ -531,7 +537,8 @@ export class AssignmentController extends BaseController {
                     ...assignment.metadata,
                     title,
                     description,
-                    dueDate
+                    dueDate,
+                    gradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
                 }
             };
 

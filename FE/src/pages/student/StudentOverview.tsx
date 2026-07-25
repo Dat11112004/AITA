@@ -38,7 +38,7 @@ export function StudentOverview() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  const upcomingTasks = dashboardData?.upcomingAssignments || []
+  const upcomingTasks = (dashboardData?.upcomingAssignments || []).filter((a: any) => !a.isSubmitted && a.status !== 'Submitted' && a.status !== 'Graded' && !a.submitted)
   const subjects = dashboardData?.enrolledClasses?.map((c: any) => ({
     id: c.subject?.id || c.id,
     code: c.subject?.code || c.classCode,
