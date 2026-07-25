@@ -21,13 +21,13 @@ export interface PromptTemplate {
 
 const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
     const selectedOption = normalizedOptions.find(opt => opt.value === value);
 
     return (
         <div className={`relative ${className}`}>
-            <div 
+            <div
                 className={classNames(
                     "w-full px-4 py-2 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-sm transition-all",
                     isOpen ? "border-brand-500 ring-2 ring-brand-100" : (hasError ? "border-rose-400 ring-2 ring-rose-100 bg-rose-50/30" : "border-slate-200 hover:border-slate-300")
@@ -39,18 +39,18 @@ const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", c
                 </span>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </div>
-            
+
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 py-1.5 max-h-64 overflow-y-auto">
                         {normalizedOptions.map(opt => (
-                            <div 
+                            <div
                                 key={opt.value}
                                 className={classNames(
                                     "px-4 py-2.5 mx-1.5 my-0.5 text-sm cursor-pointer transition-all duration-200 rounded-xl flex items-center",
-                                    value === opt.value 
-                                        ? "bg-brand-50 text-brand-700 font-bold" 
+                                    value === opt.value
+                                        ? "bg-brand-50 text-brand-700 font-bold"
                                         : "text-slate-600 hover:bg-brand-50/60 hover:text-brand-600 font-medium"
                                 )}
                                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
@@ -103,7 +103,7 @@ export default function AssignmentUploadPage() {
     const [selectedSemester, setSelectedSemester] = useState<string>('');
     const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
     const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, dueDate?: string, classes?: string }>({});
-    
+
     const abortControllerRef = useRef<AbortController | null>(null);
 
     const handleCancelGeneration = () => {
@@ -221,13 +221,13 @@ export default function AssignmentUploadPage() {
         const newErrors: { semester?: string, subjectCode?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             return;
         }
         setValidationErrors({});
-        
+
         if (!textPrompt) return;
         setError(null);
         setIsLoading(true);
@@ -280,7 +280,7 @@ export default function AssignmentUploadPage() {
         const newErrors: { semester?: string, subjectCode?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             return;
@@ -327,7 +327,7 @@ export default function AssignmentUploadPage() {
 
     const handlePublish = async () => {
         if (!rubric || !blueprint) return;
-        
+
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (selectedClasses.length === 0) newErrors.classes = "Vui lòng chọn ít nhất 1 lớp để giao bài tập.";
@@ -336,7 +336,7 @@ export default function AssignmentUploadPage() {
         } else if (new Date(metadata.dueDate) < new Date()) {
             newErrors.dueDate = "Hạn nộp không được ở trong quá khứ.";
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             setError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
@@ -403,7 +403,7 @@ export default function AssignmentUploadPage() {
         }
     };
 
-    const availableSubjectsForInput = selectedSemester 
+    const availableSubjectsForInput = selectedSemester
         ? Array.from(new Set(allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code).map((c: any) => c.subject.code))).sort()
         : teacherSubjects;
 
@@ -414,7 +414,7 @@ export default function AssignmentUploadPage() {
 
     return (
         <div ref={containerRef} className={classNames("bg-gradient-to-br from-indigo-50/50 via-white to-white h-[calc(100vh-64px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-8 rounded-tl-3xl font-sans relative flex", isDragging && "select-none")}>
-            <div 
+            <div
                 className={classNames("overflow-y-auto overflow-x-hidden transition-all relative flex flex-col h-full", isDrawerOpen ? "shrink-0" : "flex-1 w-full")}
                 style={{ width: isDrawerOpen ? `${100 - drawerWidth}%` : '100%', transitionDuration: isDragging ? '0ms' : '300ms' }}
             >
@@ -431,7 +431,7 @@ export default function AssignmentUploadPage() {
 
                     {/* Top Section: Title + Steps + Image */}
                     <div className={classNames("flex items-start justify-between shrink-0 relative z-0", isDrawerOpen ? "mb-8" : "mb-0")}>
-                        
+
                         {/* Left side: Title and Steps */}
                         <div className="flex flex-col gap-8">
                             <div className="flex gap-4">
@@ -479,7 +479,7 @@ export default function AssignmentUploadPage() {
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-600 mb-6"></div>
                             <h2 className="text-2xl text-slate-800 font-bold mb-2">{loadingMsg}</h2>
                             <p className="text-slate-500 mb-6">Vui lòng chờ AI xử lý yêu cầu của bạn...</p>
-                            <button 
+                            <button
                                 onClick={handleCancelGeneration}
                                 className="px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors shadow-sm"
                             >
@@ -591,15 +591,15 @@ export default function AssignmentUploadPage() {
                                                                 Mã môn học <span className="text-rose-500">*</span>
                                                             </div>
                                                             <div className="relative">
-                                                                <CustomDropdown 
-                                                                    value={subjectCode} 
+                                                                <CustomDropdown
+                                                                    value={subjectCode}
                                                                     onChange={(val) => {
                                                                         setSubjectCode(val);
                                                                         setSelectedClasses([]);
                                                                         setMetadata({ ...metadata, subject: val });
                                                                         setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
-                                                                    }} 
-                                                                    options={availableSubjectsForInput as string[]} 
+                                                                    }}
+                                                                    options={availableSubjectsForInput as string[]}
                                                                     placeholder="Chọn môn học..."
                                                                     hasError={!!validationErrors.subjectCode}
                                                                 />
@@ -679,15 +679,15 @@ export default function AssignmentUploadPage() {
                                                     Mã môn học <span className="text-rose-500">*</span>
                                                 </div>
                                                 <div className="relative">
-                                                    <CustomDropdown 
-                                                        value={subjectCode} 
+                                                    <CustomDropdown
+                                                        value={subjectCode}
                                                         onChange={(val) => {
                                                             setSubjectCode(val);
                                                             setSelectedClasses([]);
                                                             setMetadata({ ...metadata, subject: val });
                                                             setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
-                                                        }} 
-                                                        options={availableSubjectsForInput as string[]} 
+                                                        }}
+                                                        options={availableSubjectsForInput as string[]}
                                                         placeholder="Chọn môn học..."
                                                         hasError={!!validationErrors.subjectCode}
                                                     />
@@ -750,13 +750,13 @@ export default function AssignmentUploadPage() {
                                         <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-4">
                                             <div className="col-span-1">
                                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code (Môn học)</label>
-                                                <CustomDropdown 
-                                                    value={metadata.subject || ''} 
+                                                <CustomDropdown
+                                                    value={metadata.subject || ''}
                                                     onChange={(v) => {
                                                         setMetadata({ ...metadata, subject: v });
                                                         setSelectedClasses([]); // Reset classes when subject changes
-                                                    }} 
-                                                    options={teacherSubjects} 
+                                                    }}
+                                                    options={teacherSubjects}
                                                     className="w-full"
                                                     placeholder="Chọn môn học..."
                                                 />
@@ -815,8 +815,8 @@ export default function AssignmentUploadPage() {
                                                                     }}
                                                                     className={classNames(
                                                                         "px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200",
-                                                                        selectedClasses.includes(c.id) 
-                                                                            ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1" 
+                                                                        selectedClasses.includes(c.id)
+                                                                            ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1"
                                                                             : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/50"
                                                                     )}
                                                                 >
@@ -1021,7 +1021,7 @@ export default function AssignmentUploadPage() {
                                     <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Thiếu thông tin</h4>
                                     <p className="text-sm text-slate-600 mt-1">{error}</p>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setError(null)}
                                     className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 p-1 rounded-md hover:bg-slate-50"
                                 >
@@ -1035,12 +1035,12 @@ export default function AssignmentUploadPage() {
 
             {/* Context Panel */}
             {isDrawerOpen && (
-                <div 
+                <div
                     className="bg-white border-l border-slate-200 shadow-[-4px_0_24px_-10px_rgba(0,0,0,0.1)] flex flex-col z-20 h-full animate-in slide-in-from-right font-sans shrink-0 relative"
                     style={{ width: `${drawerWidth}%`, transitionDuration: isDragging ? '0ms' : '300ms' }}
                 >
                     {/* Resizer Handle */}
-                    <div 
+                    <div
                         className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-brand-500/50 active:bg-brand-500/80 z-30 transition-colors"
                         onMouseDown={(e) => {
                             e.preventDefault();
@@ -1091,8 +1091,8 @@ export default function AssignmentUploadPage() {
                                             }}
                                             className={classNames(
                                                 "w-full text-left px-4 py-2 rounded-full transition-all flex items-center justify-between border",
-                                                isSelected 
-                                                    ? "bg-[#5CD289] border-[#5CD289] text-slate-900 font-bold shadow-sm" 
+                                                isSelected
+                                                    ? "bg-[#5CD289] border-[#5CD289] text-slate-900 font-bold shadow-sm"
                                                     : "bg-white border-slate-200 text-slate-700 hover:border-brand-300 font-medium"
                                             )}
                                         >
@@ -1143,9 +1143,9 @@ export default function AssignmentUploadPage() {
                                                         {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}
                                                     </span>
                                                 </div>
-                                                
+
                                                 <h4 className="font-bold text-slate-900 text-[18px] mb-3 leading-snug">{prompt.name}</h4>
-                                                
+
                                                 <div className="flex-1 text-slate-600 text-[14px] leading-relaxed mb-4">
                                                     <div className="line-clamp-3">
                                                         {prompt.templateContent}

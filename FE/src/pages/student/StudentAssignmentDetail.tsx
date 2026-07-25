@@ -13,13 +13,13 @@ export function StudentAssignmentDetail() {
   const navigate = useNavigate()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [submission, setSubmission] = useState<SubmissionRow | null>(null)
-  
+
   const [file, setFile] = useState<File | null>(null)
   const [content] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResubmitting, setIsResubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null)
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (toast) {
@@ -30,25 +30,59 @@ export function StudentAssignmentDetail() {
 
   const [appealText, setAppealText] = useState('')
   const [showAppeal, setShowAppeal] = useState(false)
+  const [countdownText, setCountdownText] = useState<string>('')
+
+  const dueDate = assignment?.due || (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate || (assignment as any)?.dueDate || (assignment as any)?.DueDate || (assignment as any)?.ExamClass?.[0]?.DueDate
+
+  useEffect(() => {
+    if (!dueDate) return
+    const updateCountdown = () => {
+      const now = new Date().getTime()
+      const dueTime = new Date(dueDate).getTime()
+      const diff = dueTime - now
+
+      if (diff <= 0) {
+        setCountdownText('Đã hết hạn nộp bài')
+        return
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      const parts = []
+      if (days > 0) parts.push(`${days} ngày`)
+      parts.push(`${hours.toString().padStart(2, '0')} giờ`)
+      parts.push(`${minutes.toString().padStart(2, '0')} phút`)
+      parts.push(`${seconds.toString().padStart(2, '0')} giây`)
+
+      setCountdownText(parts.join(' '))
+    }
+
+    updateCountdown()
+    const timer = setInterval(updateCountdown, 1000)
+    return () => clearInterval(timer)
+  }, [dueDate])
 
   const loadData = useCallback(() => {
     if (!id) return
     let alive = true
     setLoading(true)
-    
+
     Promise.all([
       gradingApi.getAssignment(id).catch(() => api.getAssignment(id)),
       api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null) // Mock: assume first is current user's
     ])
-    .then(([a, s]) => {
-      if (alive) {
-        console.log('API getAssignment result:', a)
-        console.log('API getSubmissions result:', s)
-        setAssignment(a as any)
-        setSubmission(s as SubmissionRow)
-      }
-    })
-    .finally(() => { if (alive) setLoading(false) })
+      .then(([a, s]) => {
+        if (alive) {
+          console.log('API getAssignment result:', a)
+          console.log('API getSubmissions result:', s)
+          setAssignment(a as any)
+          setSubmission(s as SubmissionRow)
+        }
+      })
+      .finally(() => { if (alive) setLoading(false) })
 
     return () => { alive = false }
   }, [id])
@@ -64,11 +98,11 @@ export function StudentAssignmentDetail() {
     setIsSubmitting(true)
     try {
       await api.submitAssignment(file, content, id)
-      setToast({ 
-        message: wasAlreadySubmitted 
-          ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.' 
-          : 'Nộp bài thành công!', 
-        type: 'success' 
+      setToast({
+        message: wasAlreadySubmitted
+          ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.'
+          : 'Nộp bài thành công!',
+        type: 'success'
       })
       setFile(null)
       setIsResubmitting(false)
@@ -99,7 +133,6 @@ export function StudentAssignmentDetail() {
   if (loading) return <div className="flex p-20 justify-center text-brand-600">Đang tải dữ liệu...</div>
   if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Không tìm thấy bài tập</div>
 
-  const dueDate = assignment.due || (assignment as any).stats?.dueDate || (assignment as any).metadata?.dueDate
   const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
@@ -109,7 +142,203 @@ export function StudentAssignmentDetail() {
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
   const isLocked = isPastDue && !isSubmitted;
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
-  const rubricsList = assignment.rubrics || (assignment as any).rubric?.rules || [];
+  const rubricsList = assignment?.rubrics || (assignment as any)?.rubric?.rules || [];
+
+  const handleDownloadFormattedDoc = () => {
+    if (!assignment) return
+    const title = assignment.title || (assignment as any)?.metadata?.title || 'Bai_Tap'
+    const subjectName = assignment.subjectName || (assignment as any)?.subjectCode || (assignment as any)?.class || 'AITA LMS'
+    const dueStr = dueDate ? new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Không có hạn nộp'
+    const lecturerName = assignment.lecturer || 'Giảng viên môn học'
+
+    let formattedBodyHtml = ''
+    if (fullContent) {
+      formattedBodyHtml = fullContent
+    } else {
+      const rawText = assignment.description || (assignment as any)?.metadata?.description || ''
+      formattedBodyHtml = rawText
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter(Boolean)
+        .map((line: string) => {
+          if (line.toLowerCase().startsWith('assignment:') || line.toLowerCase().startsWith('project description') || line.toLowerCase().startsWith('technical requirements') || line.toLowerCase().startsWith('constraints:') || line.toLowerCase().startsWith('expected behavior')) {
+            return `<h3 style="color:#1e3a8a; border-bottom:1px solid #cbd5e1; padding-bottom:4px; margin-top:18px; margin-bottom:8px; font-size:12pt; text-transform:uppercase;">${line}</h3>`
+          }
+          if (line.toLowerCase().startsWith('test case')) {
+            return `<div style="background-color:#f1f5f9; border-left:4px solid #2563eb; padding:8px 12px; margin-top:12px; margin-bottom:6px; font-weight:bold; font-size:10.5pt;">${line}</div>`
+          }
+          return `<p style="margin-bottom:8px; line-height:1.6; font-size:11pt;">${line}</p>`
+        })
+        .join('')
+    }
+
+    const docHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${title}</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
+        <style>
+          @page {
+            size: 21cm 29.7cm;
+            margin: 2.5cm 2cm 2.5cm 2cm;
+          }
+          body {
+            font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            color: #0f172a;
+            line-height: 1.6;
+          }
+          .header-banner {
+            border-bottom: 3px double #2563eb;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+          }
+          .brand-title {
+            font-size: 9.5pt;
+            font-weight: bold;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .doc-main-title {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-top: 6px;
+            margin-bottom: 4px;
+          }
+          .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+          }
+          .meta-table td {
+            padding: 10px 14px;
+            font-size: 10pt;
+            border: 1px solid #e2e8f0;
+          }
+          .section-heading {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #1e3a8a;
+            border-bottom: 1.5pt solid #2563eb;
+            padding-bottom: 4px;
+            margin-top: 22px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+          }
+          .content-box {
+            font-size: 11pt;
+            line-height: 1.75;
+          }
+          table.rubric-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            margin-bottom: 20px;
+          }
+          table.rubric-grid th {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: bold;
+            text-align: left;
+            padding: 9px 12px;
+            font-size: 10pt;
+            border: 1px solid #1e3a8a;
+          }
+          table.rubric-grid td {
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            font-size: 10pt;
+          }
+          table.rubric-grid tr:nth-child(even) {
+            background-color: #f8fafc;
+          }
+          .footer-sign {
+            margin-top: 40px;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 12px;
+            font-size: 9pt;
+            color: #64748b;
+            text-align: center;
+            font-style: italic;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-banner">
+          <div class="brand-title">HỆ THỐNG QUẢN LÝ HỌC TẬP AITA LMS</div>
+          <div class="doc-main-title">${title}</div>
+          <div style="font-size: 10.5pt; color: #475569;">Môn học: <strong>${subjectName}</strong></div>
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td width="50%"><strong>👤 Giảng viên:</strong> ${lecturerName}</td>
+            <td width="50%"><strong>⏰ Hạn nộp bài:</strong> <span style="color: #dc2626; font-weight: bold;">${dueStr}</span></td>
+          </tr>
+        </table>
+
+        <div class="section-heading">I. NỘI DUNG & YÊU CẦU ĐỀ BÀI</div>
+        <div class="content-box">
+          ${formattedBodyHtml}
+        </div>
+
+        ${rubricsList && rubricsList.length > 0 ? `
+          <div class="section-heading">II. BẢNG TIÊU CHÍ CHẤM ĐIỂM (RUBRIC)</div>
+          <table class="rubric-grid">
+            <thead>
+              <tr>
+                <th width="8%" align="center">STT</th>
+                <th width="72%">Tiêu chí đánh giá</th>
+                <th width="20%" align="center">Điểm tối đa</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rubricsList.map((r: any, idx: number) => `
+                <tr>
+                  <td align="center"><strong>${idx + 1}</strong></td>
+                  <td>${r.description || 'Tiêu chí'}</td>
+                  <td align="center"><strong style="color:#2563eb;">${r.maxPoints} đ</strong></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <div class="footer-sign">
+          Đề bài được trích xuất tự động từ hệ thống AITA LMS &bull; Ngày tải về: ${new Date().toLocaleDateString('vi-VN')}
+        </div>
+      </body>
+      </html>
+    `
+
+    const blob = new Blob(['\ufeff', docHtml], {
+      type: 'application/msword;charset=utf-8'
+    })
+
+    const safeTitle = title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')
+    const fileName = `De_Bai_${safeTitle}.doc`
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto animate-in fade-in duration-500 relative">
@@ -128,10 +357,10 @@ export function StudentAssignmentDetail() {
         </div>
       )}
       <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 max-w-[1600px] mx-auto">
-        
+
         {/* Left Column: Assignment Context (Like EduNext) */}
         <div className="lg:col-span-2 space-y-4">
-          
+
           <div className="mb-6">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-slate-400 mb-3">
@@ -149,14 +378,14 @@ export function StudentAssignmentDetail() {
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{assignment.title}</h1>
               </div>
-              
+
               {/* Badges */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md font-medium text-sm border border-blue-100 dark:border-blue-800">
                   <FileText size={14} />
                   {assignment.type === 'Exam' ? 'Đề thi' : 'Bài tập'}
                 </div>
-                
+
                 {assignment.due && isNearDeadline && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 rounded-md font-medium text-sm border border-amber-100 dark:border-amber-800">
                     <Clock size={14} />
@@ -165,11 +394,10 @@ export function StudentAssignmentDetail() {
                 )}
 
                 {assignment.due && (
-                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-sm border ${
-                    isPastDue || isNearDeadline
-                      ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800' 
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-sm border ${isPastDue || isNearDeadline
+                      ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800'
                       : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
-                  }`}>
+                    }`}>
                     <Calendar size={14} />
                     Hạn nộp: {new Date(assignment.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </div>
@@ -177,16 +405,64 @@ export function StudentAssignmentDetail() {
               </div>
             </div>
           </div>
+          {/* Deadline & Live Countdown Banner */}
+          {dueDate && (
+            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
+              isPastDue 
+                ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
+                : isNearDeadline
+                  ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
+                  : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
+                  isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                }`}>
+                  <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
+                      isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
+                    }`}>
+                      {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
+                    </span>
+                    <span className="text-xs font-semibold">
+                      Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1 font-bold">
+                    {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : `Thời gian còn lại: ${countdownText}`}
+                  </p>
+                </div>
+              </div>
+
+              {!isPastDue && (
+                <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  {countdownText || 'Đang tính...'}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Card: Chi tiết bài tập (Đề bài chi tiết) */}
           <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <FileText size={18} className="text-blue-600" /> Chi tiết bài tập
               </h2>
+              <button
+                onClick={handleDownloadFormattedDoc}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 text-xs font-bold rounded-lg transition-all border border-blue-200 dark:border-blue-800/60 shadow-sm"
+                title="Tải về đề bài dạng file Word (.docx) được định dạng sẵn"
+              >
+                <Download size={14} /> Tải đề bài (.docx)
+              </button>
             </div>
             <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
               {fullContent ? (
-                <div 
+                <div
                   className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
                   dangerouslySetInnerHTML={{ __html: fullContent }}
                 />
@@ -197,7 +473,7 @@ export function StudentAssignmentDetail() {
               )}
             </div>
           </Card>
-              
+
           {/* Card: File đính kèm */}
           {assignment.attachments && assignment.attachments.length > 0 && (
             <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -209,10 +485,10 @@ export function StudentAssignmentDetail() {
               <div className="px-5 py-2">
                 <div className="flex flex-col gap-2">
                   {assignment.attachments.map(att => (
-                    <a 
+                    <a
                       key={att.id}
-                      href={`${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`} 
-                      target="_blank" 
+                      href={`${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`}
+                      target="_blank"
                       rel="noreferrer"
                       className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-colors group"
                     >
@@ -255,7 +531,7 @@ export function StudentAssignmentDetail() {
                           {rule.maxPoints}đ
                         </span>
                       </div>
-                      
+
                       {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
                         <div className="px-4 pb-4">
                           <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
@@ -301,7 +577,7 @@ export function StudentAssignmentDetail() {
                   <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
                 </h2>
               </div>
-              
+
               <div className="px-5 py-2">
                 {submission.aiFeedback ? (
                   <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
@@ -336,14 +612,14 @@ export function StudentAssignmentDetail() {
                       <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
-                          <Input 
-                            placeholder="Nhập nội dung thắc mắc..." 
+                          <Input
+                            placeholder="Nhập nội dung thắc mắc..."
                             value={appealText}
                             onChange={(e) => setAppealText(e.target.value)}
                           />
                         </div>
                         <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
-                          <Send size={16} className="mr-2"/> Gửi
+                          <Send size={16} className="mr-2" /> Gửi
                         </Button>
                       </div>
                     </div>
@@ -373,13 +649,13 @@ export function StudentAssignmentDetail() {
                       Lúc: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
                       {(submission as any).attemptNumber && (submission as any).attemptNumber > 1 && (
                         <span className="ml-2 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded font-semibold text-[11px]">
-                          Lần #{ (submission as any).attemptNumber }
+                          Lần #{(submission as any).attemptNumber}
                         </span>
                       )}
                     </p>
 
                     {submission?.zipFileUrl && (
-                      <a 
+                      <a
                         href={`${(import.meta as any).env.VITE_API_URL || '/api'}/submissions/${submission.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`}
                         target="_blank"
                         rel="noreferrer"
@@ -416,8 +692,8 @@ export function StudentAssignmentDetail() {
                         </div>
 
                         <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-white dark:bg-slate-900 relative cursor-pointer group">
-                          <input 
-                            type="file" 
+                          <input
+                            type="file"
                             className="absolute inset-0 opacity-0 cursor-pointer"
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
                           />
@@ -434,7 +710,7 @@ export function StudentAssignmentDetail() {
                         )}
 
                         <div className="flex gap-2 pt-1">
-                          <Button 
+                          <Button
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs py-2 h-auto rounded-lg"
                             onClick={handleSubmit}
                             disabled={isSubmitting || !file}
@@ -468,8 +744,8 @@ export function StudentAssignmentDetail() {
               ) : (
                 <>
                   <div className="border-2 border-dashed border-blue-200 dark:border-blue-800/50 rounded-xl p-5 flex flex-col items-center justify-center text-slate-500 bg-white hover:bg-blue-50/50 dark:bg-slate-900/50 transition-colors relative cursor-pointer group">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       className="absolute inset-0 opacity-0 cursor-pointer"
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
@@ -478,7 +754,7 @@ export function StudentAssignmentDetail() {
                     <p className="text-xs text-slate-400 mt-0.5 mb-3">hoặc chọn file từ máy</p>
                     <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Hỗ trợ: PDF, DOCX, ZIP (Tối đa 10MB)</p>
                   </div>
-                  
+
                   {file && (
                     <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg flex items-center justify-between mb-4 mt-4">
                       <span className="text-sm font-medium truncate pr-4 text-slate-700 dark:text-slate-300">{file.name}</span>
@@ -486,7 +762,7 @@ export function StudentAssignmentDetail() {
                     </div>
                   )}
 
-                  <Button 
+                  <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-medium mt-2 rounded-lg py-2.5 h-auto"
                     onClick={handleSubmit}
                     disabled={isSubmitting || !file}
@@ -507,37 +783,37 @@ export function StudentAssignmentDetail() {
               </h3>
             </div>
             <div className="px-5 py-2 space-y-4 text-sm">
-               <div className="flex justify-between items-start gap-4">
-                 <span className="text-slate-500 shrink-0 mt-0.5">Môn học</span>
-                 <span className="font-medium text-slate-700 dark:text-slate-300 text-right">{assignment.subjectName || 'CSD201 - Mobile Application Dev'}</span>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-slate-500">Giảng viên</span>
-                 <div className="flex items-center gap-2">
-                   <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                     <img src={assignment.lecturerAvatar || "https://i.pravatar.cc/100?img=5"} alt="Lecturer" className="w-full h-full object-cover" />
-                   </div>
-                   <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Giảng viên'}</span>
-                 </div>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-slate-500">Hạn nộp</span>
-                 <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-slate-500">Trạng thái</span>
-                 <span className={`font-medium ${isSubmitted ? 'text-emerald-500' : 'text-amber-500'}`}>{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-slate-500">Điểm</span>
-                 {displayScore != null ? (
-                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${Number(displayScore) >= 8 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : Number(displayScore) >= 5 ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-                     {Number(displayScore).toLocaleString('vi-VN')}
-                   </span>
-                 ) : (
-                   <span className="font-medium text-slate-700 dark:text-slate-300">—</span>
-                 )}
-               </div>
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-slate-500 shrink-0 mt-0.5">Môn học</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300 text-right">{assignment.subjectName || 'CSD201 - Mobile Application Dev'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Giảng viên</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden shrink-0">
+                    <img src={assignment.lecturerAvatar || "https://i.pravatar.cc/100?img=5"} alt="Lecturer" className="w-full h-full object-cover" />
+                  </div>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Giảng viên'}</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Hạn nộp</span>
+                <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Trạng thái</span>
+                <span className={`font-medium ${isSubmitted ? 'text-emerald-500' : 'text-amber-500'}`}>{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Điểm</span>
+                {displayScore != null ? (
+                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${Number(displayScore) >= 8 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : Number(displayScore) >= 5 ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+                    {Number(displayScore).toLocaleString('vi-VN')}
+                  </span>
+                ) : (
+                  <span className="font-medium text-slate-700 dark:text-slate-300">—</span>
+                )}
+              </div>
             </div>
           </Card>
 
@@ -549,37 +825,37 @@ export function StudentAssignmentDetail() {
               </h3>
             </div>
             <div className="px-5 py-2 relative">
-               <div className="absolute left-[30px] top-8 bottom-8 w-0.5 bg-slate-200 dark:bg-slate-700 -ml-px z-0"></div>
-               
-               <div className="space-y-6 relative z-10">
-                 <div className="flex items-start gap-4">
-                   <div className="w-5 h-5 rounded-full bg-emerald-500 border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5">
-                     <Check size={12} className="text-white" />
-                   </div>
-                   <div className="flex-1 flex justify-between">
-                     <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Đã giao</span>
-                     <span className="text-xs text-slate-400">{assignment.createdAt ? new Date(assignment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
-                   </div>
-                 </div>
+              <div className="absolute left-[30px] top-8 bottom-8 w-0.5 bg-slate-200 dark:bg-slate-700 -ml-px z-0"></div>
 
-                 <div className="flex items-start gap-4">
-                   <div className={`w-5 h-5 rounded-full border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5 ${isSubmitted ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                     {isSubmitted ? <Check size={12} className="text-white" /> : <Minus size={12} className="text-white" />}
-                   </div>
-                   <div className="flex-1 flex justify-between">
-                     <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
-                     <span className="text-xs text-slate-400">{isSubmitted && submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
-                   </div>
-                 </div>
+              <div className="space-y-6 relative z-10">
+                <div className="flex items-start gap-4">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5">
+                    <Check size={12} className="text-white" />
+                  </div>
+                  <div className="flex-1 flex justify-between">
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Đã giao</span>
+                    <span className="text-xs text-slate-400">{assignment.createdAt ? new Date(assignment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                  </div>
+                </div>
 
-                 <div className="flex items-start gap-4">
-                   <div className={`w-5 h-5 rounded-full border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5 ${isGraded ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                      {isGraded && <Check size={12} className="text-white" />}
-                   </div>
-                   <div className="flex-1 flex justify-between">
-                     <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isGraded ? 'Đã chấm' : 'Chưa chấm'}</span>
-                     <span className="text-xs text-slate-400">{isGraded && gradedDate ? new Date(gradedDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
-                   </div>
+                <div className="flex items-start gap-4">
+                  <div className={`w-5 h-5 rounded-full border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5 ${isSubmitted ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                    {isSubmitted ? <Check size={12} className="text-white" /> : <Minus size={12} className="text-white" />}
+                  </div>
+                  <div className="flex-1 flex justify-between">
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
+                    <span className="text-xs text-slate-400">{isSubmitted && submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className={`w-5 h-5 rounded-full border-[3px] border-white dark:border-[#151821] flex items-center justify-center shrink-0 mt-0.5 ${isGraded ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                    {isGraded && <Check size={12} className="text-white" />}
+                  </div>
+                  <div className="flex-1 flex justify-between">
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isGraded ? 'Đã chấm' : 'Chưa chấm'}</span>
+                    <span className="text-xs text-slate-400">{isGraded && gradedDate ? new Date(gradedDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                  </div>
                 </div>
               </div>
             </div>

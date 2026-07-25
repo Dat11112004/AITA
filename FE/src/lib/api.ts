@@ -51,7 +51,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let token = getStoredItem(AUTH_STORAGE_KEYS.token)
-  
+
   const headers: HeadersInit = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -68,7 +68,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (refreshTokenStr) {
       if (isRefreshing) {
         return new Promise<T>((resolve, reject) => {
-          failedQueue.push({ 
+          failedQueue.push({
             resolve: (newToken) => {
               // Retry with new token
               const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
@@ -79,8 +79,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
                   else resolve(j.Data !== undefined ? j.Data : j.data)
                 })
                 .catch(reject)
-            }, 
-            reject 
+            },
+            reject
           });
         });
       }
@@ -99,9 +99,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         }
 
         const data = refreshData.Data !== undefined ? refreshData.Data : refreshData.data;
-        
+
         const remember = !!localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
-        
+
         setStoredItem(AUTH_STORAGE_KEYS.token, data.token, remember);
         setStoredItem(AUTH_STORAGE_KEYS.refreshToken, data.refreshToken, remember);
         if (data.user) {
@@ -201,7 +201,7 @@ export const api = {
     const q = new URLSearchParams(params).toString()
     return request<AssignmentRow[]>(`/assignments${q ? `?${q}` : ''}`)
   },
-  
+
   // Student Portal
   getStudentDashboard: () => request<any>('/student-portal/dashboard'),
   getStudentSubjects: () => request<any[]>('/student-portal/subjects'),
@@ -250,7 +250,7 @@ export const api = {
     if (classId && classId !== 'all') params.append('classId', classId)
     params.append('page', page.toString())
     params.append('limit', limit.toString())
-    
+
     return request<any>(`/subjects/${subjectId}/students?${params.toString()}`)
   },
 
@@ -350,10 +350,12 @@ export const api = {
   getSettingsConfig: () => request<any>('/settings'),
   updateSettingsConfig: (body: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ðŸ’¡ Notifications ðŸ’¡
+  // Notifications
   getNotifications: (page = 1, limit = 20) => request<any>(`/notifications?page=${page}&limit=${limit}`),
   markNotificationAsRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsAsRead: () => request<void>('/notifications/read-all', { method: 'PUT' }),
+  deleteNotification: (id: string) => request<void>(`/notifications/${id}`, { method: 'DELETE' }),
+  deleteAllNotifications: () => request<void>('/notifications/all', { method: 'DELETE' }),
   broadcastNotification: (body: any) => request<any>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
 
   // â”€â”€â”€ Audit Logs â”€â”€â”€
@@ -619,7 +621,7 @@ export const gradingApi = {
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
-  
+
   uploadAssignment: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -628,7 +630,7 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
+
   extractText: (file: File, semester: string, subject: string, options?: RequestInit) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -640,34 +642,34 @@ export const gradingApi = {
       ...options
     })
   },
-  
+
   generateContent: (prompt: string, semester: string, subject: string, options?: RequestInit) => request<{ markdown: string }>('/grading/assignments/generate-content', {
     method: 'POST',
     body: JSON.stringify({ prompt, semester, subject }),
     ...options
   }).then(res => res.markdown),
-  
+
   parseRubric: (content: string, documentImageKey?: string | null, options?: RequestInit) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
     method: 'POST',
     body: JSON.stringify({ content, documentImageKey }),
     ...options
   }),
-  
+
   parseRequirements: (content: string, documentImageKey?: string | null) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {
     method: 'POST',
     body: JSON.stringify({ content, documentImageKey }),
   }).then(res => res.blueprint),
-  
+
   generateRubric: (blueprint: any) => request<{ rubric: any }>('/grading/assignments/generate-rubric', {
     method: 'POST',
     body: JSON.stringify({ blueprint }),
   }).then(res => res.rubric),
-  
+
   publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<any>('/grading/assignments/publish', {
     method: 'POST',
     body: JSON.stringify({ metadata, blueprint, rubric }),
   }),
-  
+
   submitAssignment: (file: File | null, content: string, assignmentId: string) => {
     const formData = new FormData()
     if (file) formData.append('file', file)
@@ -678,7 +680,7 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
+
   submitProject: (file: File, assignmentId?: string) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -697,33 +699,33 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
+
   gradeExistingSubmission: (submissionId: string) => {
     return request<{ submissionId: string, statusUrl: string }>('/grading/submissions/grade-existing', {
       method: 'POST',
       body: JSON.stringify({ submissionId }),
     })
   },
-  
+
   gradeExistingBatch: (assignmentId: string) => {
     return request<{ jobs: any[] }>('/grading/submissions/grade-existing-batch', {
       method: 'POST',
       body: JSON.stringify({ assignmentId }),
     })
   },
-  
+
   gradeSelectedBatch: (assignmentId: string, submissionIds: string[]) => {
     return request<{ jobs: any[] }>('/grading/submissions/grade-selected-batch', {
       method: 'POST',
       body: JSON.stringify({ assignmentId, submissionIds }),
     })
   },
-  
+
   getBatchStatus: (ids: string[]) => {
     if (!ids || ids.length === 0) return Promise.resolve({ statuses: {} as Record<string, any> })
     return request<{ statuses: Record<string, any> }>('/grading/submissions/batch-status?ids=' + ids.join(','))
   },
-  
+
   cancelBatch: (ids: string[]) => {
     if (!ids || ids.length === 0) return Promise.resolve({ success: true, cancelledCount: 0 })
     return request<{ success: boolean, cancelledCount: number }>('/grading/submissions/batch-cancel', {
@@ -731,9 +733,9 @@ export const gradingApi = {
       body: JSON.stringify({ ids }),
     })
   },
-  
+
   subscribeToProgress: (
-    submissionId: string, 
+    submissionId: string,
     onProgress: (job: any) => void,
     onComplete: () => void,
     onError: (err: any) => void
@@ -777,9 +779,9 @@ export const gradingApi = {
       eventSource.close()
     }
   },
-  
+
   getSubmissionResult: (submissionId: string) => request<any>('/grading/submissions/' + submissionId + '/result'),
-  
+
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
   getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string) => {
@@ -791,10 +793,10 @@ export const gradingApi = {
     if (status) params.append('status', status);
     if (scoreRange) params.append('scoreRange', scoreRange);
     if (sort) params.append('sort', sort);
-    
+
     return request<{ history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
   },
-  
+
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
 
 }
@@ -811,12 +813,12 @@ export const aiApi = {
     topic?: string,
     language?: string,
     additionalNotes?: string
-  }) => 
+  }) =>
     request<{ prompt: string }>('/ai/prompts/generate', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-  refinePrompt: (data: { content: string }) => 
+  refinePrompt: (data: { content: string }) =>
     request<{ prompt: string }>('/ai/prompts/refine', {
       method: 'POST',
       body: JSON.stringify(data)

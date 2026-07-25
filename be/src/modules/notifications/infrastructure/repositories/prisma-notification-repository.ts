@@ -5,23 +5,37 @@ export class PrismaNotificationRepository implements INotificationRepository {
     constructor(private readonly prisma: any) { }
 
     async findForUser(userId: string, params: { limit?: number; offset?: number; read?: boolean }): Promise<Notification[]> {
+        const recipientWhere: any = { UserId: userId }
+        if (typeof params.read === 'boolean') {
+            recipientWhere.IsRead = params.read
+        }
+
         const list = await (this.prisma as any).notification.findMany({
             where: {
-                NotificationRecipients: {
-                    some: {
-                        UserId: userId,
-                        IsRead: params.read
-                    }
+                NotificationRecipient: {
+                    some: recipientWhere
                 }
             },
             take: params.limit ?? 20,
             skip: params.offset ?? 0,
-            orderBy: { CreatedAt: 'desc' }
+            orderBy: { CreatedAt: 'desc' },
+            include: {
+                NotificationRecipient: {
+                    where: { UserId: userId },
+                    select: { IsRead: true, ReadAt: true }
+                }
+            }
         })
 
-        return list.map((l: any) => Notification.restore(
-            l.Id, l.Title, l.Message, l.Type, l.ReferenceId, l.ReferenceType, l.CreatedBy, l.CreatedAt
-        ))
+        return list.map((l: any) => {
+            const notif = Notification.restore(
+                l.Id, l.Title, l.Message, l.Type, l.ReferenceId, l.ReferenceType, l.CreatedBy, l.CreatedAt
+            )
+            const recipient = l.NotificationRecipient?.[0]
+            ;(notif as any).isRead = recipient?.IsRead ?? false
+            ;(notif as any).read = recipient?.IsRead ?? false
+            return notif
+        })
     }
 
     async getById(id: string): Promise<Notification | null> {
@@ -61,6 +75,18 @@ export class PrismaNotificationRepository implements INotificationRepository {
         await (this.prisma as any).notificationRecipient.updateMany({
             where: { UserId: userId, IsRead: false },
             data: { IsRead: true, ReadAt: new Date() }
+        })
+    }
+
+    async deleteForUser(userId: string, notificationId: string): Promise<void> {
+        await (this.prisma as any).notificationRecipient.deleteMany({
+            where: { UserId: userId, NotificationId: notificationId }
+        })
+    }
+
+    async deleteAllForUser(userId: string): Promise<void> {
+        await (this.prisma as any).notificationRecipient.deleteMany({
+            where: { UserId: userId }
         })
     }
 }

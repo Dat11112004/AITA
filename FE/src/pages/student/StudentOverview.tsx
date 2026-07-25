@@ -46,19 +46,45 @@ export function StudentOverview() {
     teacher: c.lecturers?.[0]?.name || 'Chưa phân công',
   })) || []
 
-  const handleMarkAsRead = async (id: string) => {
+  // Find most urgent assignment due in next 48 hours
+  const urgentAssignment = upcomingTasks.find((a: any) => {
+    if (!a.due) return false
+    const diff = new Date(a.due).getTime() - new Date().getTime()
+    return diff > 0 && diff <= 48 * 3600 * 1000
+  })
+
+  let timeRemainingText = ''
+  if (urgentAssignment?.due) {
+    const diffMs = new Date(urgentAssignment.due).getTime() - new Date().getTime()
+    const hours = Math.floor(diffMs / (1000 * 3600))
+    const minutes = Math.floor((diffMs % (1000 * 3600)) / (1000 * 60))
+    timeRemainingText = hours > 0 ? `Còn ${hours} giờ ${minutes} phút` : `Còn ${minutes} phút`
+  }
+
+  const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
     try {
       await api.markNotificationAsRead(id)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleNotificationClick = async (item: any) => {
+    if (!item.read && !item.isRead) {
+      handleMarkAsRead(item.id)
+    }
+    const targetId = item.referenceId || item.ReferenceId
+    if (targetId) {
+      navigate(`/student/assignments/${targetId}`)
     }
   }
 
   const handleMarkAllAsRead = async () => {
     try {
       await api.markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
     } catch (e) {
       console.error(e)
     }
@@ -81,8 +107,34 @@ export function StudentOverview() {
         </div>
       </div>
 
+      {/* Urgent Deadline Alert Banner */}
+      {urgentAssignment && (
+        <div 
+          onClick={() => navigate(`/student/assignments/${urgentAssignment.id}`)}
+          className="p-4 bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border-2 border-red-500/40 rounded-2xl flex items-center justify-between gap-4 cursor-pointer hover:border-red-500/70 transition-all shadow-lg shadow-red-500/10 animate-pulse"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 bg-red-500 text-white rounded-xl font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-500/30">
+              <Clock size={20} className="animate-spin" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">CẢNH BÁO SẮP HẾT HẠN</span>
+                <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">{urgentAssignment.title}</h4>
+              </div>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-semibold">
+                Hạn nộp: {new Date(urgentAssignment.due).toLocaleString('vi-VN')} ({timeRemainingText})
+              </p>
+            </div>
+          </div>
+          <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-red-600/30">
+            Làm bài ngay <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left Column: Enrolled Subjects */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
@@ -90,13 +142,13 @@ export function StudentOverview() {
               <BookOpen className="text-brand-600" size={20} /> Các môn học hiện tại
             </h2>
             <Link to="/student/classes" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
-              Xem bảng điểm <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+              Xem bảng điểm <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             {subjects.map((sub: any, idx: number) => (
-              <div 
+              <div
                 key={idx}
                 onClick={() => navigate(`/student/classes/${sub.id}`)}
                 className="group flex flex-col justify-between rounded-xl bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md transition-all cursor-pointer p-5"
@@ -132,7 +184,7 @@ export function StudentOverview() {
                 {upcomingTasks.length}
               </span>
             </div>
-            
+
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {upcomingTasks.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm flex flex-col items-center">
@@ -183,7 +235,7 @@ export function StudentOverview() {
                 Mới nhất
               </h3>
               {notifications.some(n => !n.read) && (
-                <button 
+                <button
                   onClick={handleMarkAllAsRead}
                   className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
                 >
@@ -191,7 +243,7 @@ export function StudentOverview() {
                 </button>
               )}
             </div>
-            
+
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm">
@@ -199,7 +251,11 @@ export function StudentOverview() {
                 </div>
               ) : (
                 notifications.map((item) => (
-                  <div key={item.id} className={`p-4 transition-colors ${!item.read ? 'bg-brand-50/50 dark:bg-brand-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                  <div
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item)}
+                    className={`p-4 transition-colors cursor-pointer group ${!item.read ? 'bg-brand-50/50 dark:bg-brand-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                  >
                     <div className="flex gap-3">
                       <div className="flex-1 min-w-0">
                         <h4 className={`text-sm ${!item.read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-200'}`}>
@@ -213,8 +269,8 @@ export function StudentOverview() {
                         </p>
                       </div>
                       {!item.read && (
-                        <button 
-                          onClick={() => handleMarkAsRead(item.id)}
+                        <button
+                          onClick={(e) => handleMarkAsRead(item.id, e)}
                           className="shrink-0 p-1.5 h-fit rounded-full bg-white border border-slate-200 text-brand-600 shadow-sm hover:bg-brand-50 dark:bg-slate-800 dark:border-slate-700 dark:text-brand-400 dark:hover:bg-brand-900/50"
                           title="Đánh dấu đã đọc"
                         >

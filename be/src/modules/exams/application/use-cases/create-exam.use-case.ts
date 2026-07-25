@@ -46,7 +46,9 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
           title: data.title,
           type: examType,
           classIds: specificClassIds,
-          createdBy: input.userId || 'system' // ideally passed from auth context
+          subjectId: data.subjectId,
+          dueDate: due,
+          createdBy: input.userId || 'system'
         }).catch(console.error)
       }
     }

@@ -1,3 +1,4 @@
+import fs from 'fs'
 import type { IUserRepository, UserFilter, Pagination, RoleInfo } from '../../domain/repositories/user-repository.interface.js'
 import { User } from '../../../auth/domain/entities/user.entity.js'
 import { UserMapper } from '../mappers/user.mapper.js'
@@ -114,7 +115,7 @@ export class PrismaUserRepository implements IUserRepository {
         this.client.user.delete({ where: { Id: id } })
       ])
     } catch (e: any) {
-      require('fs').writeFileSync('delete_error.txt', e.stack || e.message)
+      fs.writeFileSync('delete_error.txt', e.stack || e.message)
       throw e
     }
   }

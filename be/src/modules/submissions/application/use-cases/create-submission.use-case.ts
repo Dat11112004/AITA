@@ -89,8 +89,8 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     let localFilePath: string | undefined;
 
     if (file) {
-      const subjectCode = subjectInfo.Code || 'UnknownSubject'
-      const classCode = classInfo.Code || 'UnknownClass'
+      const subjectCode = subjectInfo.subjectCode || subjectInfo.Code || 'UnknownSubject'
+      const classCode = classInfo.classCode || classInfo.Code || 'UnknownClass'
       const studentNameSafe = ((user as any).name || (user as any).email || user.id).replace(/[^a-zA-Z0-9]/g, '_')
       
       if (file.size > 10485760) {

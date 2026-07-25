@@ -1,3 +1,5 @@
+import path from 'path'
+import fs from 'fs'
 import { MESSAGES } from '../../../shared/constants/messages.js'
 import type { Request, Response } from 'express'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
@@ -115,8 +117,6 @@ export class SubmissionsController extends BaseController {
             return;
         }
 
-        const path = require('path')
-        const fs = require('fs')
         const filePath = path.join(process.cwd(), fileUrl.split('?')[0])
         if (!fs.existsSync(filePath)) {
             res.status(404).json({ success: false, Message: 'Local file not found' })

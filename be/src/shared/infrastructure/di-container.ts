@@ -95,7 +95,7 @@ import { PrismaConfigRepository } from '../../modules/config/infrastructure/repo
 import { ListProjectTypesUseCase, GetProjectTypeUseCase, UpdateProjectTypeUseCase } from '../../modules/config/application/use-cases/config.use-case.js'
 import { ConfigController } from '../../modules/config/presentation/config.controller.js'
 import { PrismaNotificationRepository } from '../../modules/notifications/infrastructure/repositories/prisma-notification-repository.js'
-import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
+import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase, DeleteNotificationUseCase, DeleteAllNotificationsUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
 import { BroadcastNotificationUseCase } from '../../modules/notifications/application/use-cases/broadcast-notification.use-case.js'
 import { SendAssignmentNotificationUseCase } from '../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js'
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
@@ -306,7 +306,7 @@ export class DIContainer {
       // ── Exams (Replaces Assignments) ─────────────────────────
       const listExamsUseCase = new ListExamsUseCase(examRepo, uow)
       const createExamUseCase = new CreateExamUseCase(examRepo, sendAssignmentNotificationUseCase)
-      const updateExamUseCase = new UpdateExamUseCase(examRepo)
+      const updateExamUseCase = new UpdateExamUseCase(examRepo, sendAssignmentNotificationUseCase)
       const getExamUseCase = new GetExamUseCase(examRepo)
 
       const examsController = new ExamsController(
@@ -458,12 +458,16 @@ export class DIContainer {
       const markNotificationAsReadUseCase = new MarkNotificationAsReadUseCase(notificationRepo)
       const markAllNotificationsAsReadUseCase = new MarkAllNotificationsAsReadUseCase(notificationRepo)
       const broadcastNotificationUseCase = new BroadcastNotificationUseCase(notificationRepo)
+      const deleteNotificationUseCase = new DeleteNotificationUseCase(notificationRepo)
+      const deleteAllNotificationsUseCase = new DeleteAllNotificationsUseCase(notificationRepo)
 
       const notificationsController = new NotificationsController(
         listUserNotificationsUseCase,
         markNotificationAsReadUseCase,
         markAllNotificationsAsReadUseCase,
         broadcastNotificationUseCase,
+        deleteNotificationUseCase,
+        deleteAllNotificationsUseCase,
         logger
       )
       this.services.set('NotificationsController', notificationsController)

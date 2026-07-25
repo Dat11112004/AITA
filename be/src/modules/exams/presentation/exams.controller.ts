@@ -60,7 +60,7 @@ export class ExamsController extends BaseController {
   async downloadAttachment(req: Request, res: Response): Promise<void> {
     const attachmentId = req.params.attachmentId as string
     this.logger.debug(`Received request to download attachment: ${attachmentId}`)
-    
+
     const attachment = await this.examRepo.getAttachment(attachmentId)
     if (!attachment) {
       res.status(404).json({ success: false, Message: 'Attachment not found' })

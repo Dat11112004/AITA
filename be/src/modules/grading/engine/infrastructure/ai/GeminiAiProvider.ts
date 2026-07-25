@@ -651,7 +651,7 @@ RULES:
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
         const passedTitles = passedRules.map(r => `- ${r.title} (+${r.earnedScore})`).join('\n');
         const failedTitles = failedRules.map(r => `- ${r.title} (0)`).join('\n');
-        
+
         const systemPrompt = `Bạn là một Tech Lead (Mentor) đang review bài tập của sinh viên.
 Nhiệm vụ của bạn là tổng hợp Feedback dựa trên kết quả chấm điểm từ hệ thống.
 
@@ -686,7 +686,7 @@ Hãy viết feedback cuối cùng cho sinh viên này.`;
                 temperature: 0.2 // Low temperature for consistent, professional tone
             });
         });
-        
+
         return response.choices[0].message.content || "Hệ thống không thể tạo feedback vào lúc này.";
     }
 
