@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Edit2, Save, X, Calendar, ChevronDown } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
-import { DateTimePicker } from '@/components/ui/DateTimePicker';
 
 function CustomSelect({ value, onChange, options, className, label }: { value: string, onChange: (v: string) => void, options: {value: string, label: string}[], className?: string, label?: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -78,11 +77,10 @@ export default function AssignmentPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editDueDate, setEditDueDate] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false);
+  const [newDueDate, setNewDueDate] = useState('');
+  const [savingDeadline, setSavingDeadline] = useState(false);
+  const [deadlineModalError, setDeadlineModalError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
@@ -324,47 +322,101 @@ export default function AssignmentPage() {
     navigate(`/lecturer/grading/result/${historyId}`);
   };
 
-  const handleEdit = () => {
-      setEditTitle(assignment?.metadata?.title || '');
-      setEditDescription(assignment?.metadata?.description || '');
-      
-      const statsDueDate = (assignment as any)?.stats?.dueDate;
-      if (statsDueDate) {
-          const d = new Date(statsDueDate);
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          const formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-          setEditDueDate(formattedDate);
-      } else {
-          setEditDueDate('');
-      }
-      setIsEditing(true);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+
+  const handleOpenDeadlineModal = () => {
+    setDeadlineModalError(null);
+    const statsDueDate = (assignment as any)?.stats?.dueDate;
+    let initialDate = new Date();
+    if (statsDueDate) {
+      initialDate = new Date(statsDueDate);
+    } else {
+      initialDate.setDate(initialDate.getDate() + 7);
+    }
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${initialDate.getFullYear()}-${pad(initialDate.getMonth() + 1)}-${pad(initialDate.getDate())}T${pad(initialDate.getHours())}:${pad(initialDate.getMinutes())}`);
+    setCalendarMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+    setIsDeadlineModalOpen(true);
   };
 
-  const handleSave = async () => {
-      if (editDueDate) {
-          const startDate = (assignment as any)?.stats?.createdAt;
-          if (startDate && new Date(editDueDate) < new Date(startDate)) {
-              setError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
-              return;
-          }
+  const handleApplyPreset = (daysToAdd: number) => {
+    const baseDate = (assignment as any)?.stats?.dueDate ? new Date((assignment as any).stats.dueDate) : new Date();
+    const targetDate = new Date(baseDate);
+    targetDate.setDate(targetDate.getDate() + daysToAdd);
+    targetDate.setHours(23, 59, 0, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetDate.getHours())}:${pad(targetDate.getMinutes())}`);
+    setCalendarMonth(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+  };
+
+  const handleSaveDeadline = async () => {
+    if (newDueDate) {
+      const startDate = (assignment as any)?.stats?.createdAt;
+      if (startDate && new Date(newDueDate) < new Date(startDate)) {
+        setDeadlineModalError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
+        return;
       }
-      setError(null);
+    }
+    setDeadlineModalError(null);
+
+    try {
+      setSavingDeadline(true);
+      const updatedIso = newDueDate ? new Date(newDueDate).toISOString() : null;
+      await api.updateAssignment(id!, {
+        title: assignment?.metadata?.title,
+        description: assignment?.metadata?.description,
+        dueDate: updatedIso
+      });
+      const data = await api.getAssignment(id!);
+      setAssignment(data);
+      setIsDeadlineModalOpen(false);
+
+      // Real-time broadcast to student pages
+      try {
+        const channel = new BroadcastChannel('aita_assignment_updates');
+        channel.postMessage({ type: 'ASSIGNMENT_DEADLINE_UPDATED', id: id!, dueDate: updatedIso, timestamp: Date.now() });
+        channel.close();
+      } catch (e) {}
 
       try {
-          setSaving(true);
-          await api.updateAssignment(id!, {
-              title: editTitle,
-              description: editDescription,
-              dueDate: editDueDate ? new Date(editDueDate).toISOString() : null
-          });
-          const data = await api.getAssignment(id!);
-          setAssignment(data);
-          setIsEditing(false);
-      } catch (err) {
-          console.error(err);
-      } finally {
-          setSaving(false);
-      }
+        localStorage.setItem('aita_last_assignment_update', JSON.stringify({
+          id: id!,
+          dueDate: updatedIso,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+
+      window.dispatchEvent(new CustomEvent('aita_assignment_updated', {
+        detail: { id: id!, dueDate: updatedIso }
+      }));
+    } catch (err: any) {
+      console.error(err);
+      setDeadlineModalError(err.message || "Lỗi khi cập nhật hạn nộp.");
+    } finally {
+      setSavingDeadline(false);
+    }
+  };
+
+  // Calendar helpers for embedded modal calendar
+  const selectedDateObj = newDueDate ? new Date(newDueDate) : null;
+  const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+
+  const handlePrevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  const handleNextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+
+  const daysInMonthCalc = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+  const firstDayCalc = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
+  const totalSlotsCalc = Math.ceil((firstDayCalc + daysInMonthCalc) / 7) * 7;
+  const daysList = Array.from({ length: totalSlotsCalc }, (_, i) => {
+    const day = i - firstDayCalc + 1;
+    if (day <= 0 || day > daysInMonthCalc) return null;
+    return day;
+  });
+
+  const handleCalendarDaySelect = (day: number) => {
+    const target = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day, 23, 59, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
   };
 
   if (loading && !assignment) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
@@ -394,90 +446,43 @@ export default function AssignmentPage() {
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                >
-                  <Edit2 size={18} />
-                  Edit
-                </button>
-              )}
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
-                  >
-                    <X size={20} />
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
-                  >
-                    {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={20} />}
-                    Lưu
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                  >
-                    <ListChecks size={20} />
-                    Review rubric
-                  </button>
-                  <button
-                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                  >
-                    <Upload size={20} />
-                    Upload file (Manual)
-                  </button>
-                  <button
-                    onClick={hasActiveBatch ? () => navigate(`/lecturer/grading/assignments/${id}/submit`) : handleGradeAll}
-                    className={classNames(
-                      "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
-                      hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
-                    )}
-                  >
-                    {hasActiveBatch ? (
-                      <>
-                        <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
-                        Live grading status
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        Chấm tất cả
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <ListChecks size={20} />
+                Review rubric
+              </button>
+              <button
+                onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <Upload size={20} />
+                Upload file (Manual)
+              </button>
+              <button
+                onClick={hasActiveBatch ? () => navigate(`/lecturer/grading/assignments/${id}/submit`) : handleGradeAll}
+                className={classNames(
+                  "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
+                  hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
+                )}
+              >
+                {hasActiveBatch ? (
+                  <>
+                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                    Live grading status
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Chấm tất cả
+                  </>
+                )}
+              </button>
             </div>
           </div>
-          {isEditing ? (
-              <div className="mb-4 space-y-4">
-
-                  <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tiêu đề bài tập</label>
-                      <input 
-                          type="text" 
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      />
-                  </div>
-              </div>
-          ) : (
-              <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
-          )}
-          {assignment.metadata?.projectType && !isEditing && (
+          <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          {assignment.metadata?.projectType && (
             <div className="flex items-center mt-3 animate-fade-in">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-sm font-bold rounded-full border border-brand-200 dark:border-brand-500/20 shadow-sm">
                 <Layers size={16} />
@@ -486,48 +491,44 @@ export default function AssignmentPage() {
             </div>
           )}
         </div>
-        
+
         <div className="p-6">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-3">
             <ListChecks size={22} className="text-brand-500" />
             <h2 className="text-xl font-semibold dark:text-white text-slate-800">Details</h2>
           </div>
-          {isEditing ? (
-              <div className="space-y-4">
-                  <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mô tả bài tập</label>
-                      <textarea 
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          rows={4}
-                          className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      />
-                  </div>
-                  <div className="max-w-xs">
-                      <DateTimePicker 
-                          label="Hạn nộp"
-                          value={editDueDate}
-                          onChange={(val) => setEditDueDate(val)}
-                      />
-                  </div>
+          <div className="space-y-4">
+            {assignment.metadata?.description ? (
+              <p className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
+                 {assignment.metadata.description}
+              </p>
+            ) : (
+              <p className="dark:text-slate-500 text-slate-400 italic">No description provided.</p>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/80 mt-4">
+              <div className="flex items-center gap-2.5 text-base font-medium text-slate-700 dark:text-slate-300">
+                <div className="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
+                  <Calendar size={18} />
+                </div>
+                <span>
+                  Hạn nộp:{' '}
+                  <strong className="text-brand-600 dark:text-brand-400 font-bold ml-1">
+                    {(assignment as any)?.stats?.dueDate
+                      ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                      : 'Chưa thiết lập'}
+                  </strong>
+                </span>
               </div>
-          ) : (
-              <ul className="space-y-3">
-                {assignment.metadata?.description ? (
-                  <li className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
-                     {assignment.metadata.description}
-                  </li>
-                ) : (
-                  <li className="dark:text-slate-500 text-slate-400 italic">No description provided.</li>
-                )}
-                {(assignment as any).stats?.dueDate && (
-                  <li className="dark:text-slate-300 text-slate-600 text-base flex items-center gap-2 mt-4 font-medium">
-                     <Calendar size={18} className="text-brand-500" />
-                     Hạn nộp: <span className="text-brand-600 dark:text-brand-400">{new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} {new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</span>
-                  </li>
-                )}
-              </ul>
-          )}
+
+              <button
+                onClick={handleOpenDeadlineModal}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-sm font-semibold transition-all border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-600 shadow-sm whitespace-nowrap"
+              >
+                <Clock size={16} className="text-brand-500" />
+                <span>Điều chỉnh hạn nộp</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1020,6 +1021,188 @@ export default function AssignmentPage() {
                 Xóa ngay
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Deadline Adjustment Modal */}
+      {isDeadlineModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20">
+                  <Clock size={20} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Điều chỉnh hạn nộp bài
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] font-medium">
+                    {assignment?.metadata?.title || 'Bài tập'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDeadlineModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/80 rounded-xl transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 overflow-y-auto max-h-[80vh]">
+              {deadlineModalError && (
+                <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs font-semibold">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{deadlineModalError}</span>
+                </div>
+              )}
+
+              {/* Current Deadline Banner */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+                  <Calendar size={15} className="text-slate-400" />
+                  <span>Hạn nộp hiện tại:</span>
+                </div>
+                <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                  {(assignment as any)?.stats?.dueDate
+                    ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                    : 'Chưa thiết lập'}
+                </span>
+              </div>
+
+              {/* Quick Extension Chips */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                  Gia hạn nhanh
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '+1 ngày', days: 1 },
+                    { label: '+3 ngày', days: 3 },
+                    { label: '+7 ngày', days: 7 },
+                    { label: '+14 ngày', days: 14 }
+                  ].map(preset => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset.days)}
+                      className="py-2 px-1 bg-slate-50 dark:bg-slate-700/40 hover:bg-brand-50 dark:hover:bg-brand-500/15 text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-xs font-bold transition-all border border-slate-200/60 dark:border-slate-700/60 hover:border-brand-300 dark:hover:border-brand-500/40 text-center"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Integrated Calendar Box */}
+              <div className="border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-3.5 bg-white dark:bg-slate-800/90 shadow-2xs">
+                
+                {/* Month Header */}
+                <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-700/50">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">
+                    {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+                {/* Day of Week Labels */}
+                <div className="grid grid-cols-7 gap-1 mb-1 text-center">
+                  {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(day => (
+                    <div key={day} className="text-[11px] font-bold text-slate-400 dark:text-slate-500 py-1">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {daysList.map((day, idx) => {
+                    if (day === null) return <div key={`empty-${idx}`} className="w-8 h-8"></div>;
+                    const isSelected = selectedDateObj?.getDate() === day && selectedDateObj?.getMonth() === calendarMonth.getMonth() && selectedDateObj?.getFullYear() === calendarMonth.getFullYear();
+                    const isToday = new Date().getDate() === day && new Date().getMonth() === calendarMonth.getMonth() && new Date().getFullYear() === calendarMonth.getFullYear();
+
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleCalendarDaySelect(day)}
+                        className={classNames(
+                          "w-full aspect-square rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-150 relative",
+                          isSelected
+                            ? "bg-brand-600 text-white shadow-md shadow-brand-600/30 scale-105"
+                            : isToday
+                              ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400 hover:bg-brand-100"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80"
+                        )}
+                      >
+                        {day}
+                        {isToday && !isSelected && (
+                          <span className="absolute bottom-1 w-1 h-1 rounded-full bg-brand-500"></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Result Preview Banner */}
+              <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Hạn nộp mới:</span>
+                <span className="font-bold text-brand-600 dark:text-brand-400">
+                  {selectedDateObj ? (
+                    `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} 23:59`
+                  ) : (
+                    'Chưa chọn ngày'
+                  )}
+                </span>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsDeadlineModalOpen(false)}
+                disabled={savingDeadline}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDeadline}
+                disabled={savingDeadline}
+                className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-600/25 transition-all disabled:opacity-50"
+              >
+                {savingDeadline ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Save size={16} />
+                )}
+                <span>Cập nhật hạn nộp</span>
+              </button>
+            </div>
+
           </div>
         </div>,
         document.body

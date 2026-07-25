@@ -89,8 +89,73 @@ export function StudentAssignmentDetail() {
 
   useEffect(() => {
     const cleanup = loadData()
-    return cleanup
-  }, [loadData])
+
+    // 1. BroadcastChannel Listener (Cross-tab/window instant real-time sync)
+    let channel: BroadcastChannel | null = null
+    try {
+      channel = new BroadcastChannel('aita_assignment_updates')
+      channel.onmessage = (event) => {
+        if (event.data?.id === id && event.data?.dueDate) {
+          console.log('[StudentAssignmentDetail] Real-time deadline update received:', event.data.dueDate)
+          setAssignment(prev => prev ? { ...prev, due: event.data.dueDate, stats: { ...(prev as any).stats, dueDate: event.data.dueDate } } as any : prev)
+          loadData()
+        }
+      }
+    } catch (e) {}
+
+    // 2. Storage event listener (cross-tab fallback)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'aita_last_assignment_update' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          if (parsed.id === id && parsed.dueDate) {
+            console.log('[StudentAssignmentDetail] Storage deadline update received:', parsed.dueDate)
+            setAssignment(prev => prev ? { ...prev, due: parsed.dueDate, stats: { ...(prev as any).stats, dueDate: parsed.dueDate } } as any : prev)
+            loadData()
+          }
+        } catch (err) {}
+      }
+    }
+
+    // 3. Custom window event listener
+    const handleCustomEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.id === id && detail?.dueDate) {
+        setAssignment(prev => prev ? { ...prev, due: detail.dueDate, stats: { ...(prev as any).stats, dueDate: detail.dueDate } } as any : prev)
+        loadData()
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('aita_assignment_updated', handleCustomEvent)
+
+    // 4. Smart background polling (every 5 seconds) to ensure real-time status without manual reload
+    const pollInterval = setInterval(() => {
+      gradingApi.getAssignment(id!).catch(() => api.getAssignment(id!)).then(newAssignment => {
+        if (newAssignment) {
+          const newDue = (newAssignment as any).due || (newAssignment as any)?.stats?.dueDate || (newAssignment as any)?.metadata?.dueDate
+          if (newDue) {
+            setAssignment(prev => {
+              const currentDue = prev?.due || (prev as any)?.stats?.dueDate
+              if (currentDue !== newDue) {
+                console.log('[StudentAssignmentDetail] Background poll detected updated deadline:', newDue)
+                return { ...prev, ...newAssignment, due: newDue } as any
+              }
+              return prev
+            })
+          }
+        }
+      })
+    }, 5000)
+
+    return () => {
+      if (cleanup) cleanup()
+      if (channel) channel.close()
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('aita_assignment_updated', handleCustomEvent)
+      clearInterval(pollInterval)
+    }
+  }, [id, loadData])
 
   const handleSubmit = async () => {
     if (!id || (!file && !content)) return

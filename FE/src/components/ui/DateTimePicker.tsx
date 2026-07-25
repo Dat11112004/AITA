@@ -7,9 +7,10 @@ interface DateTimePickerProps {
   onChange: (date: string) => void;
   label?: string;
   error?: boolean;
+  popoverPosition?: 'top' | 'bottom';
 }
 
-export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange, label, error }) => {
+export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange, label, error, popoverPosition = 'bottom' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -104,7 +105,12 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 bottom-full mb-2 right-0 w-[290px] bg-white dark:bg-slate-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-100 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 origin-bottom-right">
+        <div className={classNames(
+          "absolute z-[110] w-[300px] bg-white dark:bg-slate-800 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)] border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-150",
+          popoverPosition === 'top'
+            ? "bottom-full mb-2 right-0 origin-bottom-right"
+            : "top-full mt-2 left-0 sm:left-auto right-0 origin-top-right"
+        )}>
           <div className="p-3.5 border-b border-slate-100 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <button onClick={handlePrevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">

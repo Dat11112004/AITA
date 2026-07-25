@@ -3,8 +3,8 @@ import { gradingApi as api, api as mainApi } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
 import {
   ListTodo, Plus, Search, Filter, Calendar, Clock,
-  Users, MoreVertical, Code, Globe, Cpu, FileText,
-  ChevronRight, ChevronLeft, LayoutGrid, Trash2, AlertCircle
+  Users, Code, Globe, Cpu, FileText,
+  ChevronRight, ChevronLeft, LayoutGrid
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -62,13 +62,6 @@ export default function AssignmentsListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  const [dropdownOpenId, setDropdownOpenId] = useState<string | null>(null);
-  const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
-
-  // Selection & Batch Delete State
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
-
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -99,39 +92,6 @@ export default function AssignmentsListPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const confirmDelete = async () => {
-    if (!deleteModalId) return;
-    try {
-      await api.deleteAssignment(deleteModalId);
-      setAssignments(assignments.filter(a => a.id !== deleteModalId));
-      setSelectedIds(prev => prev.filter(id => id !== deleteModalId));
-      setDeleteModalId(null);
-    } catch (err: any) {
-      alert('Lỗi khi xóa bài tập: ' + (err.message || 'Lỗi không xác định'));
-    }
-  };
-
-  const handleToggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const confirmBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
-    try {
-      setLoading(true);
-      await Promise.all(selectedIds.map(id => api.deleteAssignment(id)));
-      setAssignments(prev => prev.filter(a => !selectedIds.includes(a.id)));
-      setSelectedIds([]);
-      setBatchDeleteModalOpen(false);
-    } catch (err: any) {
-      alert('Lỗi khi xóa danh sách bài tập: ' + (err.message || 'Lỗi không xác định'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Derive Tabs from subjects
   const tabs = useMemo(() => {
@@ -191,18 +151,6 @@ export default function AssignmentsListPage() {
   const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage);
   const paginatedAssignments = filteredAssignments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const isAllSelected = paginatedAssignments.length > 0 && paginatedAssignments.every(a => selectedIds.includes(a.id));
-
-  const handleSelectAll = () => {
-    if (isAllSelected) {
-      const currentPageIds = new Set(paginatedAssignments.map(a => a.id));
-      setSelectedIds(prev => prev.filter(id => !currentPageIds.has(id)));
-    } else {
-      const currentPageIds = paginatedAssignments.map(a => a.id);
-      setSelectedIds(prev => Array.from(new Set([...prev, ...currentPageIds])));
-    }
-  };
-
   // Reset page if filtered results are fewer than current page
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
@@ -210,11 +158,6 @@ export default function AssignmentsListPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto pt-2 pb-8 px-6 lg:px-8 bg-transparent relative">
-
-      {/* Invisible overlay to close dropdowns */}
-      {dropdownOpenId && (
-        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setDropdownOpenId(null); }}></div>
-      )}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-5 gap-4">
@@ -241,7 +184,6 @@ export default function AssignmentsListPage() {
         <div className="relative w-full md:w-64">
           <select className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-10 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all font-medium text-sm">
             <option>Tất cả môn học</option>
-            {/* Real subject list could be mapped here */}
           </select>
           <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -286,40 +228,6 @@ export default function AssignmentsListPage() {
         })}
       </div>
 
-      {/* Batch Action Toolbar */}
-      {!loading && filteredAssignments.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 mb-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2.5 text-sm font-bold text-slate-800 dark:text-slate-200 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                onChange={handleSelectAll}
-                className="w-5 h-5 rounded-md border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-600 transition-all"
-              />
-              <span>Chọn tất cả bài ở trang này ({paginatedAssignments.length})</span>
-            </label>
-            {selectedIds.length > 0 && (
-              <span className="px-3 py-1 text-xs font-extrabold bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300 rounded-full">
-                Đã chọn {selectedIds.length} bài
-              </span>
-            )}
-          </div>
-
-          {selectedIds.length > 0 ? (
-            <button
-              onClick={() => setBatchDeleteModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-rose-600/20"
-            >
-              <Trash2 size={16} />
-              Xoá {selectedIds.length} bài tập đã chọn
-            </button>
-          ) : (
-            <span className="text-xs text-slate-400 font-medium">Tích chọn các bài tập để xoá hàng loạt</span>
-          )}
-        </div>
-      )}
-
       {/* Error / Empty State */}
       {error && (
         <div className="p-4 mb-6 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-500">
@@ -357,25 +265,8 @@ export default function AssignmentsListPage() {
             <div
               key={assignment.id}
               onClick={() => navigate(`/lecturer/grading/assignments/${assignment.id}`)}
-              className={`group bg-white dark:bg-slate-800 border ${
-                selectedIds.includes(assignment.id)
-                  ? 'border-brand-500 ring-2 ring-brand-500/20 dark:border-brand-500'
-                  : 'border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700'
-              } rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center gap-5 relative cursor-pointer`}
+              className="group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center gap-5 relative cursor-pointer"
             >
-              {/* Checkbox Selector */}
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0 flex items-center justify-center"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(assignment.id)}
-                  onChange={() => handleToggleSelect(assignment.id)}
-                  className="w-5 h-5 rounded-md border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-600 transition-all"
-                />
-              </div>
-
               {/* Left: Icon Block */}
               <div className={`w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 ${typeInfo.bg} text-white shadow-sm`}>
                 <Icon size={28} strokeWidth={2} />
@@ -412,11 +303,9 @@ export default function AssignmentsListPage() {
                 </div>
               </div>
 
-              {/* Right: Stats & Actions */}
+              {/* Right: Stats */}
               <div className="flex items-center gap-6 mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700/50 justify-between md:justify-end md:ml-4">
-
-                {/* Stats Block */}
-                <div className="flex items-center gap-6 mr-2">
+                <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className="text-[15px] font-bold text-slate-800 dark:text-white">
                       {stats.submitted}/{stats.totalStudents}
@@ -431,31 +320,6 @@ export default function AssignmentsListPage() {
                     <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-1">
                       Hoàn thành
                     </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-3 relative z-50">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDropdownOpenId(dropdownOpenId === assignment.id ? null : assignment.id); }}
-                      className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
-                      title="Thêm tùy chọn"
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-
-                    {dropdownOpenId === assignment.id && (
-                      <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg rounded-xl overflow-hidden py-1 z-50">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDropdownOpenId(null); setDeleteModalId(assignment.id); }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors text-left font-medium"
-                        >
-                          <Trash2 size={16} />
-                          Xóa bài tập
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -500,71 +364,6 @@ export default function AssignmentsListPage() {
             >
               <ChevronRight size={16} />
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deleteModalId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6">
-              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
-                <AlertCircle size={24} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Xác nhận xóa</h3>
-              <p className="text-center text-slate-500 dark:text-slate-400 text-sm">
-                Bạn có chắc chắn muốn xóa bài tập này không? Thao tác này không thể hoàn tác và tất cả dữ liệu liên quan sẽ bị mất.
-              </p>
-            </div>
-            <div className="flex border-t border-slate-100 dark:border-slate-700/50">
-              <button
-                onClick={() => setDeleteModalId(null)}
-                className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-              >
-                Hủy bỏ
-              </button>
-              <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-              >
-                Xóa ngay
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Delete Confirmation Modal */}
-      {batchDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6">
-              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
-                <AlertCircle size={24} strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Xác nhận xoá hàng loạt</h3>
-              <p className="text-center text-slate-500 dark:text-slate-400 text-sm">
-                Bạn có chắc chắn muốn xóa <strong className="text-rose-600 font-bold">{selectedIds.length}</strong> bài tập đã chọn không? Thao tác này không thể hoàn tác và tất cả dữ liệu liên quan sẽ bị mất.
-              </p>
-            </div>
-            <div className="flex border-t border-slate-100 dark:border-slate-700/50">
-              <button
-                onClick={() => setBatchDeleteModalOpen(false)}
-                className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-              >
-                Hủy bỏ
-              </button>
-              <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
-              <button
-                onClick={confirmBatchDelete}
-                className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Trash2 size={16} />
-                Đồng ý xoá ({selectedIds.length})
-              </button>
-            </div>
           </div>
         </div>
       )}
