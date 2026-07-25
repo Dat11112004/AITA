@@ -92,7 +92,7 @@ export class SendAssignmentNotificationUseCase {
                 const allStudents = await prisma.user.findMany({
                     where: {
                         OR: [
-                            { UserRole: { some: { Role: { Name: { in: ['Student', 'STUDENT'] } } } } },
+                            { UserRole: { some: { Role: { RoleName: { in: ['Student', 'STUDENT'] } } } } },
                             { StudentCode: { not: null } }
                         ]
                     }
