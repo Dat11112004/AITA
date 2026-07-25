@@ -800,6 +800,7 @@ export const gradingApi = {
   },
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
+  getSemesters: () => request<any[]>('/semesters').catch(() => []),
 }
 
 export const aiApi = {

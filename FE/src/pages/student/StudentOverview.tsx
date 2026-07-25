@@ -4,12 +4,15 @@ import { api } from '@/lib/api'
 import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar, Bell, Check } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 
+import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+
 export function StudentOverview() {
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
 
   const loadData = useCallback(() => {
     let alive = true
@@ -96,15 +99,20 @@ export function StudentOverview() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
-            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên - Học kỳ 1 (2026)</span>
+            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên • Mùa học {selectedSemester}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
             Chào bạn, chúc một ngày tốt lành!
           </h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">
-            Bạn có {upcomingTasks.length} bài tập sắp đến hạn. Hãy hoàn thành sớm nhé.
+            Bạn có {upcomingTasks.length} bài tập sắp đến hạn trong mùa học này. Hãy hoàn thành sớm nhé.
           </p>
         </div>
+        <SemesterSelector
+          selectedSemester={selectedSemester}
+          onChange={setSelectedSemester}
+          className="self-start md:self-auto shrink-0"
+        />
       </div>
 
       {/* Urgent Deadline Alert Banner */}

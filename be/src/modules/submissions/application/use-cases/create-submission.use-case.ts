@@ -149,6 +149,26 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     try {
       await this.submissionRepo.save(targetSubmission)
 
+      // Clean up any deadline warning notifications for this student and assignment
+      try {
+        const { prisma } = await import('../../../../database/prisma.js');
+        await prisma.notificationRecipient.deleteMany({
+          where: {
+            UserId: user.id,
+            Notification: {
+              OR: [
+                { ReferenceId: examId },
+                { Message: { contains: (exam as any).title || examId } },
+                { Title: { contains: (exam as any).title || examId } }
+              ],
+              Type: { in: ['Reminder', 'DEADLINE_WARNING'] }
+            }
+          }
+        });
+      } catch (notifErr) {
+        console.error('Failed to cleanup deadline notifications on submission:', notifErr);
+      }
+
       // If continuous queue (Chấm ngầm) is enabled, auto-enqueue grading job immediately
       const isContinuousQueue = (exam as any).gradingStrategy !== 'BATCH_POST_DEADLINE' && (exam as any).GradingStrategy !== 'BATCH_POST_DEADLINE';
       if (isContinuousQueue) {

@@ -65,40 +65,47 @@ export function StudentAssignmentDetail() {
     return () => clearInterval(timer)
   }, [dueDate])
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((showLoader = false) => {
     if (!id) return
     let alive = true
-    setLoading(true)
+    if (showLoader) setLoading(true)
 
     Promise.all([
       gradingApi.getAssignment(id).catch(() => api.getAssignment(id)),
-      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null) // Mock: assume first is current user's
+      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null)
     ])
       .then(([a, s]) => {
         if (alive) {
-          console.log('API getAssignment result:', a)
-          console.log('API getSubmissions result:', s)
           setAssignment(a as any)
           setSubmission(s as SubmissionRow)
         }
       })
-      .finally(() => { if (alive) setLoading(false) })
+      .finally(() => { if (alive && showLoader) setLoading(false) })
 
     return () => { alive = false }
   }, [id])
 
   useEffect(() => {
-    const cleanup = loadData()
+    const cleanup = loadData(true)
 
     // 1. BroadcastChannel Listener (Cross-tab/window instant real-time sync)
     let channel: BroadcastChannel | null = null
+    let submissionChannel: BroadcastChannel | null = null
     try {
       channel = new BroadcastChannel('aita_assignment_updates')
       channel.onmessage = (event) => {
         if (event.data?.id === id && event.data?.dueDate) {
           console.log('[StudentAssignmentDetail] Real-time deadline update received:', event.data.dueDate)
           setAssignment(prev => prev ? { ...prev, due: event.data.dueDate, stats: { ...(prev as any).stats, dueDate: event.data.dueDate } } as any : prev)
-          loadData()
+          loadData(false)
+        }
+      }
+
+      submissionChannel = new BroadcastChannel('aita_submission_events')
+      submissionChannel.onmessage = (event) => {
+        if (event.data?.type === 'SUBMISSION_PUBLISHED') {
+          console.log('[StudentAssignmentDetail] Real-time publish event received!')
+          loadData(false)
         }
       }
     } catch (e) {}
@@ -111,9 +118,13 @@ export function StudentAssignmentDetail() {
           if (parsed.id === id && parsed.dueDate) {
             console.log('[StudentAssignmentDetail] Storage deadline update received:', parsed.dueDate)
             setAssignment(prev => prev ? { ...prev, due: parsed.dueDate, stats: { ...(prev as any).stats, dueDate: parsed.dueDate } } as any : prev)
-            loadData()
+            loadData(false)
           }
         } catch (err) {}
+      }
+      if (e.key === 'aita_last_publish_event' && e.newValue) {
+        console.log('[StudentAssignmentDetail] Storage publish event received!')
+        loadData(false)
       }
     }
 
@@ -122,36 +133,24 @@ export function StudentAssignmentDetail() {
       const detail = (e as CustomEvent).detail
       if (detail?.id === id && detail?.dueDate) {
         setAssignment(prev => prev ? { ...prev, due: detail.dueDate, stats: { ...(prev as any).stats, dueDate: detail.dueDate } } as any : prev)
-        loadData()
+        loadData(false)
       }
     }
 
     window.addEventListener('storage', handleStorage)
     window.addEventListener('aita_assignment_updated', handleCustomEvent)
 
-    // 4. Smart background polling (every 3 seconds) for real-time score publishing & deadline updates
+    // 4. Silent background polling for submission publish event
     const pollInterval = setInterval(() => {
-      gradingApi.getAssignment(id!).catch(() => api.getAssignment(id!)).then(newAssignment => {
-        if (newAssignment) {
-          const newDue = (newAssignment as any).due || (newAssignment as any)?.stats?.dueDate || (newAssignment as any)?.metadata?.dueDate
-          if (newDue) {
-            setAssignment(prev => {
-              const currentDue = prev?.due || (prev as any)?.stats?.dueDate
-              if (currentDue !== newDue) {
-                console.log('[StudentAssignmentDetail] Background poll detected updated deadline:', newDue)
-                return { ...prev, ...newAssignment, due: newDue } as any
-              }
-              return prev
-            })
-          }
-        }
-      })
-
-      // Real-time submission polling for Lecturer Publish event
       api.getSubmissions({ assignmentId: id! }).then(res => {
         const s = res?.[0]
         if (s) {
-          setSubmission(s as SubmissionRow)
+          setSubmission(prev => {
+            if (!prev || prev.reviewStatus !== s.reviewStatus || (prev as any).isPublished !== (s as any).isPublished || prev.score !== s.score) {
+              return s as SubmissionRow
+            }
+            return prev
+          })
         }
       }).catch(() => {})
     }, 3000)
@@ -159,6 +158,7 @@ export function StudentAssignmentDetail() {
     return () => {
       if (cleanup) cleanup()
       if (channel) channel.close()
+      if (submissionChannel) submissionChannel.close()
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('aita_assignment_updated', handleCustomEvent)
       clearInterval(pollInterval)

@@ -30,6 +30,14 @@ export default function ResultPage() {
         await api.publishSubmission(id);
         setResult(prev => prev ? { ...prev, isPublished: true } as any : prev);
       }
+
+      // Broadcast real-time publish event to all open student tabs/windows
+      try {
+        const pubChannel = new BroadcastChannel('aita_submission_events');
+        pubChannel.postMessage({ type: 'SUBMISSION_PUBLISHED', submissionId: id, isPublished: !isCurrentlyPublished });
+        pubChannel.close();
+      } catch (e) {}
+      localStorage.setItem('aita_last_publish_event', JSON.stringify({ type: 'SUBMISSION_PUBLISHED', submissionId: id, isPublished: !isCurrentlyPublished, timestamp: Date.now() }));
     } catch (e: any) {
       alert(e.message || 'Lỗi khi công bố điểm');
     } finally {
