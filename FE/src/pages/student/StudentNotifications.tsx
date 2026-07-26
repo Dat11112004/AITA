@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Bell, Check, Clock, Info, AlertTriangle, Loader2, ExternalLink, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
 type Notification = {
   id: string
@@ -33,17 +34,16 @@ export function StudentNotifications() {
 
   useEffect(() => {
     loadData(true)
-    const interval = setInterval(() => {
-      loadData(false)
-    }, 10000)
-    return () => clearInterval(interval)
+    const unsubscribe = subscribeNotificationEvents(() => loadData(false))
+    return unsubscribe
   }, [loadData])
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
     try {
       await api.markNotificationAsRead(id)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -51,9 +51,10 @@ export function StudentNotifications() {
 
   const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    setNotifications(prev => prev.filter(n => n.id !== id))
     try {
       await api.deleteNotification(id)
-      setNotifications(prev => prev.filter(n => n.id !== id))
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -61,9 +62,10 @@ export function StudentNotifications() {
 
   const handleDeleteAll = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn xoá tất cả thông báo không?')) return
+    setNotifications([])
     try {
       await api.deleteAllNotifications()
-      setNotifications([])
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -71,7 +73,9 @@ export function StudentNotifications() {
 
   const handleNotificationClick = async (n: any) => {
     if (!n.read) {
-      handleMarkAsRead(n.id)
+      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item))
+      api.markNotificationAsRead(n.id).catch(console.error)
+      emitNotificationEvent()
     }
     const targetId = n.referenceId || n.ReferenceId
     if (targetId) {
@@ -80,9 +84,10 @@ export function StudentNotifications() {
   }
 
   const handleMarkAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     try {
       await api.markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }

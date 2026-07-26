@@ -1239,3 +1239,4 @@ function StepIndicator({ current, step, title }: { current: number, step: number
         </div>
     );
 }
+

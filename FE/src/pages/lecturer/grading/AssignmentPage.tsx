@@ -6,10 +6,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 
-function CustomSelect({ value, onChange, options, className, label }: { value: string, onChange: (v: string) => void, options: {value: string, label: string}[], className?: string, label?: string }) {
+function CustomSelect({ value, onChange, options, className, label }: { value: string, onChange: (v: string) => void, options: { value: string, label: string }[], className?: string, label?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -91,18 +91,18 @@ export default function AssignmentPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10;
-  
+
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('score_desc');
-  
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
-      const handler = setTimeout(() => {
-          setDebouncedSearch(searchQuery);
-          setPage(1);
-      }, 500);
-      return () => clearTimeout(handler);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
   }, [searchQuery]);
 
 
@@ -122,8 +122,8 @@ export default function AssignmentPage() {
       const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
       setHistory(res.history || []);
       if (res.meta) {
-          setTotalPages(res.meta.totalPages || 1);
-          setTotalItems(res.meta.total || 0);
+        setTotalPages(res.meta.totalPages || 1);
+        setTotalItems(res.meta.total || 0);
       }
     } catch (err) {
       console.error(err);
@@ -140,30 +140,34 @@ export default function AssignmentPage() {
     fetchHistoryData(true);
   }, [fetchHistoryData]);
 
-  // Real-time listener & polling for student submissions
+  // Pure real-time listener for student submissions (Zero idle polling)
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel('aita_submission_events');
       channel.onmessage = (event) => {
-        if (event.data?.type === 'SUBMISSION_CREATED' || event.data?.assignmentId === id) {
-          console.log('[AssignmentPage] Real-time submission event received, updating counts...');
+        if (event.data?.type === 'SUBMISSION_CREATED' || event.data?.type === 'SUBMISSION_PUBLISHED' || event.data?.assignmentId === id) {
+          console.log('[AssignmentPage] Instant real-time submission event received!');
           fetchAssignmentData();
           fetchHistoryData(false);
         }
       };
-    } catch (e) {}
+    } catch (e) { }
 
-    const pollTimer = setInterval(() => {
-      fetchAssignmentData();
-      fetchHistoryData(false);
-    }, 3000);
+    // Only poll while an automated batch grading job is actively processing
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    if (hasActiveBatch) {
+      pollTimer = setInterval(() => {
+        fetchAssignmentData();
+        fetchHistoryData(false);
+      }, 5000);
+    }
 
     return () => {
       if (channel) channel.close();
-      clearInterval(pollTimer);
+      if (pollTimer) clearInterval(pollTimer);
     };
-  }, [id, fetchAssignmentData, fetchHistoryData]);
+  }, [id, fetchAssignmentData, fetchHistoryData, hasActiveBatch]);
 
   useEffect(() => {
     const checkBatch = () => {
@@ -182,13 +186,10 @@ export default function AssignmentPage() {
     };
 
     checkBatch();
-    // Use interval to catch any same-tab localStorage changes immediately
-    const intervalId = setInterval(checkBatch, 1000);
     window.addEventListener('storage', checkBatch);
 
     return () => {
-        clearInterval(intervalId);
-        window.removeEventListener('storage', checkBatch);
+      window.removeEventListener('storage', checkBatch);
     };
   }, [id]);
 
@@ -236,31 +237,31 @@ export default function AssignmentPage() {
       if (res.jobs && res.jobs.length > 0) {
         // Format jobs and save to localStorage for BatchDashboard
         const newJobs = res.jobs.map((job: any) => ({
-            id: job.submissionId,
-            studentName: job.studentName,
-            fileName: job.fileName,
-            state: 'queued' as const,
-            progressPercent: 0,
-            currentTask: 'Waiting in queue...'
+          id: job.submissionId,
+          studentName: job.studentName,
+          fileName: job.fileName,
+          state: 'queued' as const,
+          progressPercent: 0,
+          currentTask: 'Waiting in queue...'
         }));
-        
+
         const jobsKey = `batchJobs_${id}`;
         const startKey = `batchStartTime_${id}`;
-        
+
         // Append to existing jobs or create new
         const existingJobsStr = localStorage.getItem(jobsKey);
         let existingJobs = [];
         if (existingJobsStr) {
-            try { existingJobs = JSON.parse(existingJobsStr); } catch (e) {}
+          try { existingJobs = JSON.parse(existingJobsStr); } catch (e) { }
         }
-        
+
         const combinedJobs = [...existingJobs, ...newJobs];
         localStorage.setItem(jobsKey, JSON.stringify(combinedJobs));
-        
+
         if (!localStorage.getItem(startKey)) {
-            localStorage.setItem(startKey, Date.now().toString());
+          localStorage.setItem(startKey, Date.now().toString());
         }
-        
+
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
         setError("Không có bài tập nào hợp lệ để chấm (chưa nộp hoặc đã chấm xong).");
@@ -283,31 +284,31 @@ export default function AssignmentPage() {
       if (res.jobs && res.jobs.length > 0) {
         // Format jobs and save to localStorage for BatchDashboard
         const newJobs = res.jobs.map((job: any) => ({
-            id: job.submissionId,
-            studentName: job.studentName,
-            fileName: job.fileName,
-            state: 'queued' as const,
-            progressPercent: 0,
-            currentTask: 'Waiting in queue...'
+          id: job.submissionId,
+          studentName: job.studentName,
+          fileName: job.fileName,
+          state: 'queued' as const,
+          progressPercent: 0,
+          currentTask: 'Waiting in queue...'
         }));
-        
+
         const jobsKey = `batchJobs_${id}`;
         const startKey = `batchStartTime_${id}`;
-        
+
         // Append to existing jobs or create new
         const existingJobsStr = localStorage.getItem(jobsKey);
         let existingJobs = [];
         if (existingJobsStr) {
-            try { existingJobs = JSON.parse(existingJobsStr); } catch (e) {}
+          try { existingJobs = JSON.parse(existingJobsStr); } catch (e) { }
         }
-        
+
         const combinedJobs = [...existingJobs, ...newJobs];
         localStorage.setItem(jobsKey, JSON.stringify(combinedJobs));
-        
+
         if (!localStorage.getItem(startKey)) {
-            localStorage.setItem(startKey, Date.now().toString());
+          localStorage.setItem(startKey, Date.now().toString());
         }
-        
+
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
         setError("Trong các sinh viên được chọn, không có bài tập nào hợp lệ để chấm.");
@@ -407,7 +408,7 @@ export default function AssignmentPage() {
         const channel = new BroadcastChannel('aita_assignment_updates');
         channel.postMessage({ type: 'ASSIGNMENT_DEADLINE_UPDATED', id: id!, dueDate: updatedIso, timestamp: Date.now() });
         channel.close();
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         localStorage.setItem('aita_last_assignment_update', JSON.stringify({
@@ -415,7 +416,7 @@ export default function AssignmentPage() {
           dueDate: updatedIso,
           timestamp: Date.now()
         }));
-      } catch (e) {}
+      } catch (e) { }
 
       window.dispatchEvent(new CustomEvent('aita_assignment_updated', {
         detail: { id: id!, dueDate: updatedIso }
@@ -490,10 +491,10 @@ export default function AssignmentPage() {
       </div>
 
       {error && (
-          <div className="mb-6 flex items-center gap-2 p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 shadow-sm">
-              <AlertCircle size={18} />
-              {error}
-          </div>
+        <div className="mb-6 flex items-center gap-2 p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 shadow-sm">
+          <AlertCircle size={18} />
+          {error}
+        </div>
       )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm mb-8 relative z-10">
@@ -569,7 +570,7 @@ export default function AssignmentPage() {
           <div className="space-y-4">
             {assignment.metadata?.description ? (
               <p className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
-                 {assignment.metadata.description}
+                {assignment.metadata.description}
               </p>
             ) : (
               <p className="dark:text-slate-500 text-slate-400 italic">No description provided.</p>
@@ -603,14 +604,14 @@ export default function AssignmentPage() {
 
       {(() => {
         const stats = (assignment as any).stats || {
-            totalStudents: 0,
-            submitted: 0,
-            notSubmitted: 0,
-            grading: 0,
-            averageScore: 0,
-            submittedPercentage: 0,
-            notSubmittedPercentage: 0,
-            gradingPercentage: 0
+          totalStudents: 0,
+          submitted: 0,
+          notSubmitted: 0,
+          grading: 0,
+          averageScore: 0,
+          submittedPercentage: 0,
+          notSubmittedPercentage: 0,
+          gradingPercentage: 0
         };
 
         return (
@@ -621,7 +622,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.totalStudents}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br/><span className="font-normal opacity-80">Tổng số</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br /><span className="font-normal opacity-80">Tổng số</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -630,7 +631,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.submitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br/><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br /><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -639,7 +640,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.notSubmitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br/><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br /><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -648,7 +649,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.grading}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br/><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br /><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -657,7 +658,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.averageScore}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br/><span className="font-normal opacity-80">/10</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br /><span className="font-normal opacity-80">/10</span></div>
               </div>
             </div>
           </div>
@@ -742,7 +743,7 @@ export default function AssignmentPage() {
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 rounded-lg p-3 mb-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
           <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">Đã chọn {selectedIds.size} sinh viên</span>
-          <button 
+          <button
             onClick={() => handleGradeSelected()}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
@@ -761,18 +762,18 @@ export default function AssignmentPage() {
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto mb-12 relative">
           {loading && (
             <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
-               <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+              <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
             </div>
           )}
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400">
                 <th className="py-4 px-4 w-10 text-center">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={history.length > 0 && selectedIds.size === history.length}
                     onChange={handleSelectAll}
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                   />
                 </th>
                 <th className="py-4 px-4">Sinh viên</th>
@@ -790,7 +791,7 @@ export default function AssignmentPage() {
                 let textClass = 'text-slate-600';
                 let rank = 'D';
                 let rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400';
-                
+
                 if (percentage >= 90) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
                 else if (percentage >= 80) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
                 else if (percentage >= 70) { textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
@@ -799,17 +800,17 @@ export default function AssignmentPage() {
                 else { textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
 
                 return (
-                  <tr 
-                    key={item.id} 
+                  <tr
+                    key={item.id}
                     onClick={() => handleRowClick(item)}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
                   >
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedIds.has(item.id)}
                         onChange={(e) => handleSelectOne(item.id, e.target.checked)}
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer" 
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                       />
                     </td>
                     <td className="py-4 px-4">
@@ -826,7 +827,7 @@ export default function AssignmentPage() {
                         <div className="text-slate-400 font-medium">-</div>
                       ) : (
                         <>
-                          <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
                           <div className="text-xs text-emerald-600 dark:text-emerald-400">(Đúng hạn)</div>
                         </>
                       )}
@@ -837,7 +838,7 @@ export default function AssignmentPage() {
                           {Number(item.score).toLocaleString('vi-VN')}
                         </div>
                       ) : (
-                         <div className="text-slate-400 font-medium">-</div>
+                        <div className="text-slate-400 font-medium">-</div>
                       )}
                     </td>
                     <td className="py-4 px-4 text-center">
@@ -876,41 +877,41 @@ export default function AssignmentPage() {
                       )}
                     </td>
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                        {item.status === 'Graded' && (
-                          <button
-                            onClick={() => handleViewHistory(item.id)}
-                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors"
-                          >
-                            <Eye size={16} /> Xem
-                          </button>
-                        )}
-                        {item.status === 'Grading' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
-                            }}
-                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
-                            title="Bấm vào để xem tiến trình chấm ngầm realtime"
-                          >
-                            <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                            Đang chấm...
-                          </button>
-                        )}
-                        {item.status === 'Submitted' && (
-                          <button
-                            onClick={(e) => handleGradeSubmission(e, item.id)}
-                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 rounded-lg text-sm font-semibold transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            Chấm
-                          </button>
-                        )}
-                        {item.status === 'NotSubmitted' && (
-                          <button disabled className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 rounded-lg text-sm font-semibold cursor-not-allowed">
-                            -
-                          </button>
-                        )}
+                      {item.status === 'Graded' && (
+                        <button
+                          onClick={() => handleViewHistory(item.id)}
+                          className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <Eye size={16} /> Xem
+                        </button>
+                      )}
+                      {item.status === 'Grading' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+                          }}
+                          className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
+                          title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                        >
+                          <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                          Đang chấm...
+                        </button>
+                      )}
+                      {item.status === 'Submitted' && (
+                        <button
+                          onClick={(e) => handleGradeSubmission(e, item.id)}
+                          className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                          Chấm
+                        </button>
+                      )}
+                      {item.status === 'NotSubmitted' && (
+                        <button disabled className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 rounded-lg text-sm font-semibold cursor-not-allowed">
+                          -
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -922,18 +923,18 @@ export default function AssignmentPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
           {loading && (
             <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
-                <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+              <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
             </div>
           )}
           {history.map((item) => {
             const displayName = item.studentName || item.studentId || item.id.split('-')[0];
-            
+
             const avatarColors = ['bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400', 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400', 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'];
             const avatarColor = avatarColors[displayName.charCodeAt(displayName.length - 1) % avatarColors.length] || avatarColors[0];
 
             return (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 onClick={() => handleRowClick(item)}
                 className="group bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 transition-all cursor-pointer relative overflow-hidden hover:border-brand-300 flex flex-col"
               >
@@ -950,7 +951,7 @@ export default function AssignmentPage() {
                         <p className="text-xs text-slate-500 font-medium mb-1">{item.studentCode || item.studentId}</p>
                         {item.status !== 'NotSubmitted' ? (
                           <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                            Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         ) : (
                           <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5">
@@ -973,56 +974,56 @@ export default function AssignmentPage() {
                     </div>
                     {item.status === 'Graded' ? (
                       <div className="flex justify-between items-end mb-2 h-[30px]">
-                          <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
-                              {Number(item.score).toLocaleString('vi-VN')}
-                          </div>
+                        <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
+                          {Number(item.score).toLocaleString('vi-VN')}
+                        </div>
                       </div>
                     ) : (
                       <div className="flex justify-between items-end mb-2 h-[30px]">
-                          <div className="text-[26px] font-bold text-slate-300 dark:text-slate-600 leading-none">
-                              -
-                          </div>
+                        <div className="text-[26px] font-bold text-slate-300 dark:text-slate-600 leading-none">
+                          -
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="p-4 pt-0 mt-auto flex items-center gap-2">
-                    {item.status === 'Graded' && (
-                      <button 
-                        onClick={() => handleViewHistory(item.id)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
-                      >
-                          <Eye size={16} /> Xem kết quả
-                      </button>
-                    )}
-                    {item.status === 'Grading' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
-                        title="Bấm vào để xem tiến trình chấm ngầm realtime"
-                      >
-                        <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                        Đang chấm...
-                      </button>
-                    )}
-                    {item.status === 'Submitted' && (
-                      <button 
-                        onClick={(e) => handleGradeSubmission(e, item.id)}
-                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
-                      >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                          Chấm điểm
-                      </button>
-                    )}
-                    {item.status === 'NotSubmitted' && (
-                      <button disabled className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 border border-transparent rounded-lg text-sm font-semibold cursor-not-allowed">
-                          -
-                      </button>
-                    )}
+                  {item.status === 'Graded' && (
+                    <button
+                      onClick={() => handleViewHistory(item.id)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      <Eye size={16} /> Xem kết quả
+                    </button>
+                  )}
+                  {item.status === 'Grading' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
+                      title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                    >
+                      <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                      Đang chấm...
+                    </button>
+                  )}
+                  {item.status === 'Submitted' && (
+                    <button
+                      onClick={(e) => handleGradeSubmission(e, item.id)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      Chấm điểm
+                    </button>
+                  )}
+                  {item.status === 'NotSubmitted' && (
+                    <button disabled className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 border border-transparent rounded-lg text-sm font-semibold cursor-not-allowed">
+                      -
+                    </button>
+                  )}
 
                 </div>
               </div>
@@ -1090,14 +1091,14 @@ export default function AssignmentPage() {
               </p>
             </div>
             <div className="flex border-t border-slate-100 dark:border-slate-700/50">
-              <button 
+              <button
                 onClick={() => setDeleteModalId(null)}
                 className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               >
                 Hủy bỏ
               </button>
               <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
-              <button 
+              <button
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               >
@@ -1113,7 +1114,7 @@ export default function AssignmentPage() {
       {isDeadlineModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -1185,7 +1186,7 @@ export default function AssignmentPage() {
 
               {/* Integrated Calendar Box */}
               <div className="border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-3.5 bg-white dark:bg-slate-800/90 shadow-2xs">
-                
+
                 {/* Month Header */}
                 <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-700/50">
                   <button
@@ -1295,7 +1296,7 @@ export default function AssignmentPage() {
       {isGradingSettingsModalOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3.5">
@@ -1321,7 +1322,7 @@ export default function AssignmentPage() {
 
             {/* Modal Body */}
             <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
-              
+
               {/* Option 1: Continuous Queue (Chấm ngầm) */}
               <div
                 onClick={() => !savingStrategy && handleSaveGradingStrategy('CONTINUOUS_QUEUE')}

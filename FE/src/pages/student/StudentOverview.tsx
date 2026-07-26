@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar, Bell, Check } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
-
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
 export function StudentOverview() {
   const navigate = useNavigate()
@@ -13,6 +13,13 @@ export function StudentOverview() {
   const [error, setError] = useState<Error | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+
+  const fetchNotifs = useCallback(async () => {
+    try {
+      const notifData = await api.getNotifications(1, 5)
+      setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
+    } catch (e) {}
+  }, [])
 
   const loadData = useCallback(() => {
     let alive = true
@@ -35,8 +42,12 @@ export function StudentOverview() {
 
   useEffect(() => {
     const cleanup = loadData()
-    return cleanup
-  }, [loadData])
+    const unsubscribeNotifs = subscribeNotificationEvents(() => fetchNotifs())
+    return () => {
+      cleanup()
+      unsubscribeNotifs()
+    }
+  }, [loadData, fetchNotifs])
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
@@ -66,9 +77,10 @@ export function StudentOverview() {
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
     try {
       await api.markNotificationAsRead(id)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }
@@ -76,7 +88,9 @@ export function StudentOverview() {
 
   const handleNotificationClick = async (item: any) => {
     if (!item.read && !item.isRead) {
-      handleMarkAsRead(item.id)
+      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true, isRead: true } : n))
+      api.markNotificationAsRead(item.id).catch(console.error)
+      emitNotificationEvent()
     }
     const targetId = item.referenceId || item.ReferenceId
     if (targetId) {
@@ -85,9 +99,10 @@ export function StudentOverview() {
   }
 
   const handleMarkAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
     try {
       await api.markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }

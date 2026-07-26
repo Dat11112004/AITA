@@ -92,7 +92,7 @@ export class DeadlineReminderJob {
         })
       }
     }
-    
+
     logger.info(`Deadline reminder job completed. Sent reminders for ${upcomingExams2Days.length} exams.`)
   }
 }

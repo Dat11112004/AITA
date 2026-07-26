@@ -1,12 +1,252 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, gradingApi, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
-import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw } from 'lucide-react'
+import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw, Copy, Terminal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { FormattedText } from '@/components/ui/FormattedText'
+
+const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code', onCopy, isCopied }: { code: string; language?: string; onCopy: () => void; isCopied: boolean }) {
+  const codeLines = code.split('\n');
+
+  return (
+    <div className="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-[#0d1117] shadow-xl">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161b22] border-b border-slate-800 text-xs font-mono text-slate-400">
+        <span className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider">
+          <Terminal size={14} /> {language}
+        </span>
+        <button
+          onClick={onCopy}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-[11px] font-semibold border border-slate-700 shadow-sm"
+        >
+          {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+          <span>{isCopied ? 'Đã sao chép' : 'Sao chép code'}</span>
+        </button>
+      </div>
+
+      <div className="p-4 max-h-[420px] overflow-y-auto overflow-x-auto text-xs sm:text-sm font-mono text-slate-100 leading-relaxed scrollbar-thin scrollbar-thumb-slate-700">
+        <table className="w-full border-collapse">
+          <tbody>
+            {codeLines.map((line, lIdx) => (
+              <tr key={lIdx} className="hover:bg-slate-800/40 transition-colors">
+                <td className="select-none text-slate-600 text-right pr-4 py-0.5 w-10 text-[11px] font-mono border-r border-slate-800/80 shrink-0">
+                  {lIdx + 1}
+                </td>
+                <td className="pl-4 py-0.5 whitespace-pre font-mono text-slate-200">
+                  {line}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+});
+
+const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }: { content: string }) {
+  const [copiedIdx, setCopiedIdx] = useState<string | number | null>(null);
+
+  if (!content || !content.trim()) {
+    return (
+      <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+        <FileText className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.</p>
+      </div>
+    );
+  }
+
+  const handleCopy = (codeText: string, id: string | number) => {
+    navigator.clipboard.writeText(codeText);
+    setCopiedIdx(id);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  if (isHtml) {
+    return (
+      <div
+        className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words overflow-hidden [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+
+  if (content.includes('```')) {
+    return (
+      <div className="prose prose-slate dark:prose-invert max-w-none break-words text-sm leading-relaxed">
+        <ReactMarkdown
+          components={{
+            code({ node, inline, className, children, ...props }: any) {
+              const match = /language-(\w+)/.exec(className || '');
+              const codeString = String(children).replace(/\n$/, '');
+              const codeId = Math.random().toString();
+              const lang = match ? match[1] : 'code';
+              if (!inline) {
+                return (
+                  <CodeBlockViewer
+                    code={codeString}
+                    language={lang}
+                    onCopy={() => handleCopy(codeString, codeId)}
+                    isCopied={copiedIdx === codeId}
+                  />
+                );
+              }
+              return (
+                <code className="bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-mono text-xs font-bold border border-slate-200 dark:border-slate-700" {...props}>
+                  {children}
+                </code>
+              );
+            },
+            h1: ({ children }) => <h1 className="text-xl font-extrabold text-slate-900 dark:text-white mt-6 mb-3 border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2">{children}</h1>,
+            h2: ({ children }) => <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-5 mb-2 flex items-center gap-2">{children}</h2>,
+            h3: ({ children }) => <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mt-4 mb-2">{children}</h3>,
+            p: ({ children }) => <p className="mb-3 leading-relaxed text-slate-700 dark:text-slate-300">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside space-y-1.5 mb-4 text-slate-700 dark:text-slate-300">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1.5 mb-4 text-slate-700 dark:text-slate-300">{children}</ol>,
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  const lines = content.split('\n');
+  const blocks: { type: 'text' | 'code' | 'heading'; content: string }[] = [];
+
+  let currentCodeLines: string[] = [];
+  let currentTextLines: string[] = [];
+
+  const flushText = () => {
+    if (currentTextLines.length > 0) {
+      const text = currentTextLines.join('\n').trim();
+      if (text) blocks.push({ type: 'text', content: text });
+      currentTextLines = [];
+    }
+  };
+
+  const flushCode = () => {
+    if (currentCodeLines.length > 0) {
+      const code = currentCodeLines.join('\n').trim();
+      if (code) blocks.push({ type: 'code', content: code });
+      currentCodeLines = [];
+    }
+  };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+
+    const isHeadingLine =
+      /^(Expected Behavior|Test Cases|Example usage|Test Case \d+|Constraints|Problem Statement|Input:|Output:)/i.test(trimmed);
+
+    const isCodeLine =
+      !isHeadingLine &&
+      (trimmed.startsWith('//') ||
+      trimmed.startsWith('#include') ||
+      trimmed.startsWith('using namespace') ||
+      trimmed.startsWith('class ') ||
+      trimmed.startsWith('struct ') ||
+      trimmed.startsWith('public:') ||
+      trimmed.startsWith('private:') ||
+      trimmed.startsWith('TreeNode*') ||
+      trimmed.startsWith('ListNode*') ||
+      trimmed.startsWith('int main()') ||
+      trimmed.startsWith('return ') ||
+      trimmed.startsWith('std::') ||
+      trimmed.includes('->') ||
+      trimmed.startsWith('import ') ||
+      trimmed.startsWith('def ') ||
+      (currentCodeLines.length > 0 && (trimmed.startsWith('}') || trimmed.startsWith('{') || trimmed.endsWith(';') || trimmed === '')));
+
+    if (isHeadingLine) {
+      flushText();
+      flushCode();
+      blocks.push({ type: 'heading', content: trimmed });
+    } else if (isCodeLine) {
+      flushText();
+      currentCodeLines.push(line);
+    } else {
+      flushCode();
+      currentTextLines.push(line);
+    }
+  });
+
+  flushText();
+  flushCode();
+
+  return (
+    <div className="space-y-4 text-slate-800 dark:text-slate-200">
+      {blocks.map((block, idx) => {
+        if (block.type === 'heading') {
+          return (
+            <div key={idx} className="mt-6 mb-2 pt-2 flex items-center gap-2 text-base font-extrabold text-blue-600 dark:text-blue-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <Sparkles size={16} className="text-blue-500 shrink-0" />
+              <span>{block.content}</span>
+            </div>
+          );
+        }
+
+        if (block.type === 'code') {
+          return (
+            <CodeBlockViewer
+              key={idx}
+              code={block.content}
+              language="Sample Code / Harness"
+              onCopy={() => handleCopy(block.content, idx)}
+              isCopied={copiedIdx === idx}
+            />
+          );
+        }
+
+        return (
+          <div key={idx} className="whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-300 text-sm">
+            {block.content}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: string | Date }) {
+  const [countdownText, setCountdownText] = useState<string>('');
+
+  useEffect(() => {
+    if (!dueDate) return;
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const dueTime = new Date(dueDate).getTime();
+      const diff = dueTime - now;
+
+      if (diff <= 0) {
+        setCountdownText('Đã hết hạn nộp bài');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days} ngày`);
+      parts.push(`${hours.toString().padStart(2, '0')} giờ`);
+      parts.push(`${minutes.toString().padStart(2, '0')} phút`);
+      parts.push(`${seconds.toString().padStart(2, '0')} giây`);
+
+      setCountdownText(parts.join(' '));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [dueDate]);
+
+  return <span>{countdownText || 'Đang tính...'}</span>;
+});
 
 export function StudentAssignmentDetail() {
   const { id } = useParams()
@@ -30,40 +270,8 @@ export function StudentAssignmentDetail() {
 
   const [appealText, setAppealText] = useState('')
   const [showAppeal, setShowAppeal] = useState(false)
-  const [countdownText, setCountdownText] = useState<string>('')
 
   const dueDate = assignment?.due || (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate || (assignment as any)?.dueDate || (assignment as any)?.DueDate || (assignment as any)?.ExamClass?.[0]?.DueDate
-
-  useEffect(() => {
-    if (!dueDate) return
-    const updateCountdown = () => {
-      const now = new Date().getTime()
-      const dueTime = new Date(dueDate).getTime()
-      const diff = dueTime - now
-
-      if (diff <= 0) {
-        setCountdownText('Đã hết hạn nộp bài')
-        return
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-      const parts = []
-      if (days > 0) parts.push(`${days} ngày`)
-      parts.push(`${hours.toString().padStart(2, '0')} giờ`)
-      parts.push(`${minutes.toString().padStart(2, '0')} phút`)
-      parts.push(`${seconds.toString().padStart(2, '0')} giây`)
-
-      setCountdownText(parts.join(' '))
-    }
-
-    updateCountdown()
-    const timer = setInterval(updateCountdown, 1000)
-    return () => clearInterval(timer)
-  }, [dueDate])
 
   const loadData = useCallback((showLoader = false) => {
     if (!id) return
@@ -140,20 +348,26 @@ export function StudentAssignmentDetail() {
     window.addEventListener('storage', handleStorage)
     window.addEventListener('aita_assignment_updated', handleCustomEvent)
 
-    // 4. Silent background polling for submission publish event
-    const pollInterval = setInterval(() => {
-      api.getSubmissions({ assignmentId: id! }).then(res => {
-        const s = res?.[0]
-        if (s) {
-          setSubmission(prev => {
-            if (!prev || prev.reviewStatus !== s.reviewStatus || (prev as any).isPublished !== (s as any).isPublished || prev.score !== s.score) {
-              return s as SubmissionRow
+    // 4. Pure Real-Time Evaluation Listener (Zero idle polling)
+    let pollInterval: ReturnType<typeof setInterval> | null = null
+    const isEvaluating = submission?.reviewStatus === 'pending' || submission?.reviewStatus === 'processing'
+    if (isEvaluating) {
+      pollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          api.getSubmissions({ assignmentId: id! }).then(res => {
+            const s = res?.[0]
+            if (s) {
+              setSubmission(prev => {
+                if (!prev || prev.reviewStatus !== s.reviewStatus || (prev as any).isPublished !== (s as any).isPublished || prev.score !== s.score) {
+                  return s as SubmissionRow
+                }
+                return prev
+              })
             }
-            return prev
-          })
+          }).catch(() => {})
         }
-      }).catch(() => {})
-    }, 3000)
+      }, 5000)
+    }
 
     return () => {
       if (cleanup) cleanup()
@@ -161,9 +375,9 @@ export function StudentAssignmentDetail() {
       if (submissionChannel) submissionChannel.close()
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('aita_assignment_updated', handleCustomEvent)
-      clearInterval(pollInterval)
+      if (pollInterval) clearInterval(pollInterval)
     }
-  }, [id, loadData])
+  }, [id, loadData, submission?.reviewStatus])
 
   const handleSubmit = async () => {
     if (!id || (!file && !content)) return
@@ -385,13 +599,15 @@ export function StudentAssignmentDetail() {
               </tr>
             </thead>
             <tbody>
-              ${rubricsList.map((r: any, idx: number) => `
+              ${rubricsList.map((r: any, idx: number) => {
+                const rPoints = r.weight ?? r.maxPoints ?? r.maxScore ?? r.points ?? r.score ?? 0;
+                return `
                 <tr>
                   <td align="center"><strong>${idx + 1}</strong></td>
-                  <td>${r.description || 'Tiêu chí'}</td>
-                  <td align="center"><strong style="color:#2563eb;">${r.maxPoints} đ</strong></td>
+                  <td>${r.description || r.title || 'Tiêu chí'}</td>
+                  <td align="center"><strong style="color:#2563eb;">${rPoints} điểm</strong></td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>
         ` : ''}
@@ -537,8 +753,8 @@ export function StudentAssignmentDetail() {
                         Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-xs mt-1 font-bold">
-                      {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : `Thời gian còn lại: ${countdownText}`}
+                    <p className="text-xs mt-1 font-bold flex items-center gap-1">
+                      {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : <>Thời gian còn lại: <CountdownDisplay dueDate={dueDate} /></>}
                     </p>
                   </div>
                 </div>
@@ -546,7 +762,7 @@ export function StudentAssignmentDetail() {
                 {!isPastDue && (
                   <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    {countdownText || 'Đang tính...'}
+                    <CountdownDisplay dueDate={dueDate} />
                   </div>
                 )}
               </div>
@@ -568,16 +784,7 @@ export function StudentAssignmentDetail() {
               </button>
             </div>
             <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
-              {fullContent ? (
-                <div
-                  className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: fullContent }}
-                />
-              ) : (
-                <p className="whitespace-pre-wrap leading-relaxed">
-                  {assignment.description || (assignment as any)?.metadata?.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}
-                </p>
-              )}
+              <SmartAssignmentContent content={fullContent || assignment.description || (assignment as any)?.metadata?.description || ''} />
             </div>
           </Card>
 
@@ -623,54 +830,71 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="px-5 py-2">
                 <div className="space-y-4">
-                  {rubricsList.map((rule: any, index: number) => (
-                    <div key={rule.id} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
-                      <div className="p-4 flex justify-between items-start gap-4">
-                        <div className="flex gap-3 flex-1">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm border border-blue-200 dark:border-blue-800">
-                            {index + 1}
+                  {rubricsList.map((rule: any, index: number) => {
+                    const rulePoints = rule.weight ?? rule.maxPoints ?? rule.maxScore ?? rule.points ?? rule.score;
+                    const hasValidPoints = rulePoints != null && !isNaN(Number(rulePoints)) && Number(rulePoints) > 0;
+                    const displayPoints = hasValidPoints
+                      ? `${Number(rulePoints)} điểm`
+                      : (rule.criteria?.length ? `${rule.criteria.reduce((s: number, c: any) => s + (Number(c.weight ?? c.maxPoints ?? c.maxScore ?? 0) || 0), 0)} điểm` : 'Tiêu chí');
+
+                    return (
+                      <div key={rule.id || index} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
+                        <div className="p-4 flex justify-between items-start gap-4">
+                          <div className="flex gap-3 flex-1">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm border border-blue-200 dark:border-blue-800">
+                              {index + 1}
+                            </div>
+                            <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1">
+                              {rule.title && (
+                                <span className="font-bold text-slate-900 dark:text-white block mb-1">{rule.title}</span>
+                              )}
+                              <FormattedText text={rule.description || rule.title || 'Tiêu chí'} />
+                            </div>
                           </div>
-                          <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1">
-                            <FormattedText text={rule.description || 'Tiêu chí'} />
-                          </div>
+                          <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/60 px-3 py-1.5 rounded-lg shrink-0 mt-0.5 border border-blue-200 dark:border-blue-700 shadow-sm whitespace-nowrap">
+                            {displayPoints}
+                          </span>
                         </div>
-                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/30 px-2.5 py-1 rounded-md shrink-0 mt-0.5 border border-blue-100 dark:border-blue-800">
-                          {rule.maxPoints}đ
-                        </span>
+
+                        {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
+                            <div className="flex flex-col gap-2">
+                              {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, i: number) => (
+                                <div key={i} className="bg-white dark:bg-[#151821] rounded border border-blue-100 dark:border-blue-800/50 p-3 text-xs font-mono grid grid-cols-2 gap-4 shadow-sm">
+                                  <div>
+                                    <span className="text-slate-400 font-semibold mb-1 block">In:</span>
+                                    <span className="dark:text-slate-300 text-slate-700 whitespace-pre-wrap">{tc.input}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400 font-semibold mb-1 block">Out:</span>
+                                    <span className="dark:text-emerald-400/80 text-emerald-600 whitespace-pre-wrap">{tc.expectedOutput}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.criteria && rule.criteria.length > 0 && (
+                          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {rule.criteria.map((c: any, cIdx: number) => {
+                              const cPoints = c.weight ?? c.maxPoints ?? c.maxScore ?? c.points ?? c.score;
+                              const cDisplay = cPoints != null && !isNaN(Number(cPoints)) && Number(cPoints) > 0 ? `${Number(cPoints)} điểm` : '';
+                              return (
+                                <li key={c.id || cIdx} className="p-3 flex justify-between items-start gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                  <FormattedText className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" text={typeof c.description === 'string' ? c.description : JSON.stringify(c.description)} />
+                                  {cDisplay && (
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap pt-0.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">{cDisplay}</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </div>
-
-                      {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
-                        <div className="px-4 pb-4">
-                          <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
-                          <div className="flex flex-col gap-2">
-                            {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, i: number) => (
-                              <div key={i} className="bg-white dark:bg-[#151821] rounded border border-blue-100 dark:border-blue-800/50 p-3 text-xs font-mono grid grid-cols-2 gap-4 shadow-sm">
-                                <div>
-                                  <span className="text-slate-400 font-semibold mb-1 block">In:</span>
-                                  <span className="dark:text-slate-300 text-slate-700 whitespace-pre-wrap">{tc.input}</span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-400 font-semibold mb-1 block">Out:</span>
-                                  <span className="dark:text-emerald-400/80 text-emerald-600 whitespace-pre-wrap">{tc.expectedOutput}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {rule.criteria && rule.criteria.length > 0 && (
-                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {rule.criteria.map((c: any) => (
-                            <li key={c.id} className="p-3 flex justify-between items-start gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                              <FormattedText className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" text={typeof c.description === 'string' ? c.description : JSON.stringify(c.description)} />
-                              <span className="text-xs font-medium text-slate-500 dark:text-slate-500 whitespace-nowrap pt-0.5">{c.maxPoints}đ</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </Card>

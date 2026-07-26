@@ -374,7 +374,6 @@ export const api = {
       method: 'POST',
       body: formData,
     })
-    return normalizeSubmissionRow(row)
   },
   gradeSubmission: async (submissionId: string, body: any) => {
     const row = await request<any>(`/submissions/${submissionId}/grade`, { method: 'PATCH', body: JSON.stringify(body) })
@@ -900,4 +899,25 @@ export const gradingApi = {
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
   getSemesters: () => request<any[]>('/semesters').catch(() => []),
+}
+
+export const aiApi = {
+  generatePrompt: (data: {
+    name?: string
+    topic?: string
+    category?: string
+    difficulty?: string
+    subjectCode?: string
+    additionalNotes?: string
+  }) =>
+    request<{ prompt: string }>('/ai/prompts/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  refinePrompt: (data: { content: string }) =>
+    request<{ prompt: string }>('/ai/prompts/refine', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }
