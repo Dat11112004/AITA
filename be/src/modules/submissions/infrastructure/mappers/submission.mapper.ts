@@ -42,6 +42,9 @@ export class SubmissionMapper {
     if (raw.StudentFeedback) {
       (submission as any).studentFeedback = raw.StudentFeedback
     }
+    if (raw.SubmissionArtifact) {
+      (submission as any).submissionArtifacts = raw.SubmissionArtifact
+    }
     if (raw.ReportData) {
       (submission as any).reportData = raw.ReportData
     }
