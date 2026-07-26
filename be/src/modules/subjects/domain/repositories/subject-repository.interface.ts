@@ -14,4 +14,11 @@ export interface ISubjectRepository {
   delete(id: string): Promise<void>
   save(subject: Subject): Promise<void>
   autoLinkSemestersByNumber(subjectId: string, semesterNumber: number): Promise<void>
+  getSubjectStudents(
+    subjectId: string,
+    semesterId?: string,
+    classId?: string,
+    skip?: number,
+    take?: number
+  ): Promise<{ total: number, enrollments: any[] }>
 }

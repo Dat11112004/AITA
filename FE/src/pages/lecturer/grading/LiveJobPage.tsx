@@ -89,6 +89,7 @@ export default function LiveJobPage() {
       setIsCancelling(true);
       try {
           await api.cancelSubmission(id!);
+          navigate(-1);
       } catch (err: any) {
           setError(err.response?.data?.error || err.message || "Failed to cancel job");
       } finally {
@@ -112,7 +113,7 @@ export default function LiveJobPage() {
           
           <button 
               onClick={handleCancelClick}
-              disabled={isCancelling || progressData?.percent === 100 || error !== null}
+              disabled={isCancelling || progressData?.percent === 100}
               className="flex items-center gap-2 px-4 py-2 border border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-red-600 dark:text-red-400 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
               {isCancelling ? <Loader2 className="animate-spin" size={18} /> : "Cancel grading"}

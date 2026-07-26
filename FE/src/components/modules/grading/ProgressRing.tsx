@@ -42,8 +42,7 @@ export default function ProgressRing({ score, maxScore, size = 160, strokeWidth 
         />
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
-        <span className={`font-bold text-slate-800 dark:text-slate-100 tracking-tight ${size < 120 ? 'text-3xl' : 'text-4xl'}`}>{score}</span>
-        <span className={`text-slate-500 dark:text-slate-400 font-medium ${size < 120 ? 'text-xs' : 'text-sm'}`}>/ {maxScore}</span>
+        <span className={`font-bold text-slate-800 dark:text-slate-100 tracking-tight ${size < 120 ? 'text-4xl' : 'text-5xl'}`}>{score}</span>
       </div>
     </div>
   );

@@ -207,30 +207,30 @@ export function LiveClock() {
     .filter(n => n.status === 'pending')
     .sort((a, b) => `${a.dateStr} ${a.timeStr}`.localeCompare(`${b.dateStr} ${b.timeStr}`))
 
-  // Compute fill color stops based on urgency
+  // Compute fill color stops based on urgency (Vibrant Orange Theme)
   const fillColor = urgencyLevel === 'critical'
-    ? 'rgba(239,68,68,0.82)'
+    ? 'rgba(239,68,68,0.85)'
     : urgencyLevel === 'imminent'
-      ? 'rgba(249,115,22,0.78)'
+      ? 'rgba(249,115,22,0.85)'
       : urgencyLevel === 'warning'
-        ? 'rgba(234,179,8,0.70)'
-        : 'rgba(34,197,94,0.72)'
+        ? 'rgba(245,158,11,0.85)'
+        : 'rgba(249,115,22,0.82)'
 
   const borderColor = urgencyLevel === 'critical'
     ? 'rgba(239,68,68,0.60)'
     : urgencyLevel === 'imminent'
-      ? 'rgba(249,115,22,0.55)'
+      ? 'rgba(249,115,22,0.60)'
       : urgencyLevel === 'warning'
-        ? 'rgba(234,179,8,0.50)'
+        ? 'rgba(245,158,11,0.60)'
         : isOpen
-          ? 'rgba(249,115,22,0.60)'
-          : 'rgba(203,213,225,0.60)'
+          ? 'rgba(249,115,22,0.80)'
+          : 'rgba(249,115,22,0.50)'
 
   const glowStyle = urgencyLevel === 'critical'
     ? '0 0 16px -2px rgba(239,68,68,0.40)'
     : urgencyLevel === 'imminent'
-      ? '0 0 12px -2px rgba(249,115,22,0.35)'
-      : '0 2px 10px -4px rgba(0,0,0,0.10)'
+      ? '0 0 14px -2px rgba(249,115,22,0.40)'
+      : '0 4px 14px -3px rgba(249,115,22,0.30)'
 
   return (
     <div className="relative flex items-center gap-2" ref={wrapperRef}>
@@ -308,17 +308,17 @@ export function LiveClock() {
         {/* ── Content (z above fill) ── */}
         <div className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm border transition-colors ${
           isOpen 
-            ? 'bg-brand-500 text-white border-brand-600 dark:bg-brand-500/80 dark:border-brand-500' 
-            : 'bg-white/80 text-brand-600 border-white/60 dark:bg-slate-800/80 dark:border-slate-700 dark:text-brand-400'
+            ? 'bg-orange-600 text-white border-orange-700 dark:bg-orange-600 dark:border-orange-500' 
+            : 'bg-white/90 text-orange-600 border-white/80 dark:bg-slate-900/90 dark:border-slate-700 dark:text-orange-400'
         }`}>
           <CalendarIcon size={14} />
         </div>
 
         <div className="relative z-10 flex flex-col items-start justify-center">
-          <span className="text-[13px] font-bold font-mono tracking-wide tabular-nums leading-none text-slate-800 dark:text-slate-100 drop-shadow-[0_1px_2px_rgba(255,255,255,0.6)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+          <span className="text-[13px] font-extrabold font-mono tracking-wide tabular-nums leading-none text-slate-900 dark:text-white drop-shadow-[0_1px_2px_rgba(255,255,255,0.7)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             {formatterTime.format(time)}
           </span>
-          <span className="text-[9px] font-bold uppercase mt-1 leading-none tracking-wider text-slate-600 dark:text-slate-300 drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
+          <span className="text-[9px] font-black uppercase mt-1 leading-none tracking-wider text-slate-800 dark:text-slate-200 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
             {dateStr}
           </span>
         </div>

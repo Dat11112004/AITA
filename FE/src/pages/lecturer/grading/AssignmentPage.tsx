@@ -1,11 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Trash2, Clock, MoreVertical, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Edit2, Save, X, Calendar } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
-import { DateTimePicker } from '@/components/ui/DateTimePicker';
+
+function CustomSelect({ value, onChange, options, className, label }: { value: string, onChange: (v: string) => void, options: {value: string, label: string}[], className?: string, label?: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div className="flex items-center gap-2">
+      {label && <span className="text-sm font-medium text-slate-500 dark:text-slate-400 shrink-0">{label}</span>}
+      <div className="relative inline-block" ref={ref}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={classNames(
+            "flex items-center justify-between gap-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-white dark:bg-slate-800 dark:text-slate-200 focus:outline-none hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors shadow-sm min-w-[140px]",
+            className
+          )}
+        >
+          <span className="truncate">{selectedOption?.label}</span>
+          <ChevronDown size={16} className={classNames("text-slate-400 transition-transform duration-200", isOpen && "rotate-180")} />
+        </button>
+
+        {isOpen && (
+          <div className="absolute top-full mt-1 left-0 w-full min-w-max bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-[0_4px_20px_rgb(0,0,0,0.1)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            <div className="py-1 max-h-60 overflow-y-auto">
+              {options.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={classNames(
+                    "w-full text-left px-3 py-2 text-sm transition-colors block whitespace-nowrap",
+                    value === opt.value
+                      ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400 font-medium"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,24 +71,30 @@ export default function AssignmentPage() {
   const [assignment, setAssignment] = useState<PublishedAssignment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [hasActiveBatch, setHasActiveBatch] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editDueDate, setEditDueDate] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false);
+  const [newDueDate, setNewDueDate] = useState('');
+  const [savingDeadline, setSavingDeadline] = useState(false);
+  const [deadlineModalError, setDeadlineModalError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [isGradingSettingsModalOpen, setIsGradingSettingsModalOpen] = useState(false);
+  const [selectedGradingStrategy, setSelectedGradingStrategy] = useState<'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE'>('CONTINUOUS_QUEUE');
+  const [savingStrategy, setSavingStrategy] = useState(false);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10;
+  
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('score_desc');
   
   const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
@@ -41,42 +105,65 @@ export default function AssignmentPage() {
       return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
 
-  useEffect(() => {
-    async function loadAssignment() {
-        try {
-            const data = await api.getAssignment(id || 'student-management-system');
-            setAssignment(data);
-        } catch (err) {
-            console.error(err);
-        }
+
+  const fetchAssignmentData = React.useCallback(async () => {
+    try {
+      const data = await api.getAssignment(id || 'student-management-system');
+      setAssignment(data);
+    } catch (err) {
+      console.error(err);
     }
-    loadAssignment();
   }, [id]);
 
-  useEffect(() => {
-    async function loadHistory() {
-      setLoading(true);
-      try {
-        const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch);
-        setHistory(res.history || []);
-        if (res.meta) {
-            setTotalPages(res.meta.totalPages || 1);
-            setTotalItems(res.meta.total || 0);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchHistoryData = React.useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    try {
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      setHistory(res.history || []);
+      if (res.meta) {
+          setTotalPages(res.meta.totalPages || 1);
+          setTotalItems(res.meta.total || 0);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (showLoader) setLoading(false);
     }
-    loadHistory();
-  }, [id, page, limit, debouncedSearch]);
+  }, [id, page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder]);
+
+  useEffect(() => {
+    fetchAssignmentData();
+  }, [fetchAssignmentData]);
+
+  useEffect(() => {
+    fetchHistoryData(true);
+  }, [fetchHistoryData]);
+
+  // Real-time listener & polling for student submissions
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('aita_submission_events');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'SUBMISSION_CREATED' || event.data?.assignmentId === id) {
+          console.log('[AssignmentPage] Real-time submission event received, updating counts...');
+          fetchAssignmentData();
+          fetchHistoryData(false);
+        }
+      };
+    } catch (e) {}
+
+    const pollTimer = setInterval(() => {
+      fetchAssignmentData();
+      fetchHistoryData(false);
+    }, 3000);
+
+    return () => {
+      if (channel) channel.close();
+      clearInterval(pollTimer);
+    };
+  }, [id, fetchAssignmentData, fetchHistoryData]);
 
   useEffect(() => {
     const checkBatch = () => {
@@ -105,30 +192,131 @@ export default function AssignmentPage() {
     };
   }, [id]);
 
-  const handleDeleteHistory = (e: React.MouseEvent, historyId: string) => {
-    e.stopPropagation();
-    setDeleteModalId(historyId);
-    setOpenMenuId(null);
-  };
-
   const confirmDelete = async () => {
     if (!deleteModalId) return;
     try {
       if (deleteModalId === 'BULK') {
         const ids = Array.from(selectedIds);
-        await Promise.all(ids.map(id => api.deleteHistory(id)));
-        setHistory(history.filter(x => !selectedIds.has(x.id)));
+        await Promise.all(ids.map(subId => api.deleteHistory(subId)));
         setSelectedIds(new Set());
       } else {
         await api.deleteHistory(deleteModalId);
-        setHistory(history.filter(x => x.id !== deleteModalId));
-        const newSelected = new Set(selectedIds);
-        newSelected.delete(deleteModalId);
-        setSelectedIds(newSelected);
       }
       setDeleteModalId(null);
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      setHistory(res.history || []);
+      if (res.meta) {
+        setTotalPages(res.meta.totalPages || 1);
+        setTotalItems(res.meta.total || 0);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete history', err);
+      setError('Lỗi khi xóa kết quả chấm điểm');
+    }
+  };
+
+  const handleGradeSubmission = async (e: React.MouseEvent, submissionId: string) => {
+    e.stopPropagation();
+    try {
+      const res = await api.gradeExistingSubmission(submissionId);
+      // Immediately navigate to live grading page
+      navigate(`/lecturer/grading/live/${res.submissionId}?assignmentId=${id || ''}`);
     } catch (err) {
-      console.error("Failed to delete", err);
+      console.error("Failed to grade submission", err);
+      setError("Failed to start grading process.");
+    }
+  };
+
+  const handleGradeAll = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.gradeExistingBatch(id);
+      if (res.jobs && res.jobs.length > 0) {
+        // Format jobs and save to localStorage for BatchDashboard
+        const newJobs = res.jobs.map((job: any) => ({
+            id: job.submissionId,
+            studentName: job.studentName,
+            fileName: job.fileName,
+            state: 'queued' as const,
+            progressPercent: 0,
+            currentTask: 'Waiting in queue...'
+        }));
+        
+        const jobsKey = `batchJobs_${id}`;
+        const startKey = `batchStartTime_${id}`;
+        
+        // Append to existing jobs or create new
+        const existingJobsStr = localStorage.getItem(jobsKey);
+        let existingJobs = [];
+        if (existingJobsStr) {
+            try { existingJobs = JSON.parse(existingJobsStr); } catch (e) {}
+        }
+        
+        const combinedJobs = [...existingJobs, ...newJobs];
+        localStorage.setItem(jobsKey, JSON.stringify(combinedJobs));
+        
+        if (!localStorage.getItem(startKey)) {
+            localStorage.setItem(startKey, Date.now().toString());
+        }
+        
+        navigate(`/lecturer/grading/assignments/${id}/submit`);
+      } else {
+        setError("Không có bài tập nào hợp lệ để chấm (chưa nộp hoặc đã chấm xong).");
+      }
+    } catch (err) {
+      console.error("Failed to batch grade", err);
+      setError("Failed to start batch grading process.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGradeSelected = async () => {
+    if (!id || selectedIds.size === 0) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const submissionIds = Array.from(selectedIds);
+      const res = await api.gradeSelectedBatch(id, submissionIds);
+      if (res.jobs && res.jobs.length > 0) {
+        // Format jobs and save to localStorage for BatchDashboard
+        const newJobs = res.jobs.map((job: any) => ({
+            id: job.submissionId,
+            studentName: job.studentName,
+            fileName: job.fileName,
+            state: 'queued' as const,
+            progressPercent: 0,
+            currentTask: 'Waiting in queue...'
+        }));
+        
+        const jobsKey = `batchJobs_${id}`;
+        const startKey = `batchStartTime_${id}`;
+        
+        // Append to existing jobs or create new
+        const existingJobsStr = localStorage.getItem(jobsKey);
+        let existingJobs = [];
+        if (existingJobsStr) {
+            try { existingJobs = JSON.parse(existingJobsStr); } catch (e) {}
+        }
+        
+        const combinedJobs = [...existingJobs, ...newJobs];
+        localStorage.setItem(jobsKey, JSON.stringify(combinedJobs));
+        
+        if (!localStorage.getItem(startKey)) {
+            localStorage.setItem(startKey, Date.now().toString());
+        }
+        
+        navigate(`/lecturer/grading/assignments/${id}/submit`);
+      } else {
+        setError("Trong các sinh viên được chọn, không có bài tập nào hợp lệ để chấm.");
+      }
+    } catch (err) {
+      console.error("Failed to grade selected", err);
+      setError("Failed to start grading process for selected students.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -147,51 +335,146 @@ export default function AssignmentPage() {
     setSelectedIds(newSet);
   };
 
+  const handleRowClick = (item: any) => {
+    if (item.status === 'Graded') {
+      navigate(`/lecturer/grading/result/${item.id}`);
+    } else if (item.status === 'Submitted') {
+      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} đã nộp bài nhưng chưa có kết quả chấm điểm. Vui lòng nhấn "Chấm".`);
+      setTimeout(() => setError(null), 4000);
+    } else if (item.status === 'Grading') {
+      navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+    } else {
+      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} chưa nộp bài, không có dữ liệu để hiển thị.`);
+      setTimeout(() => setError(null), 4000);
+    }
+  };
+
   const handleViewHistory = (historyId: string) => {
     navigate(`/lecturer/grading/result/${historyId}`);
   };
 
-  const handleEdit = () => {
-      setEditTitle(assignment?.metadata?.title || '');
-      setEditDescription(assignment?.metadata?.description || '');
-      
-      const statsDueDate = (assignment as any)?.stats?.dueDate;
-      if (statsDueDate) {
-          const d = new Date(statsDueDate);
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          const formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-          setEditDueDate(formattedDate);
-      } else {
-          setEditDueDate('');
-      }
-      setIsEditing(true);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+
+  const handleOpenDeadlineModal = () => {
+    setDeadlineModalError(null);
+    const statsDueDate = (assignment as any)?.stats?.dueDate;
+    let initialDate = new Date();
+    if (statsDueDate) {
+      initialDate = new Date(statsDueDate);
+    } else {
+      initialDate.setDate(initialDate.getDate() + 7);
+    }
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${initialDate.getFullYear()}-${pad(initialDate.getMonth() + 1)}-${pad(initialDate.getDate())}T${pad(initialDate.getHours())}:${pad(initialDate.getMinutes())}`);
+    setCalendarMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+    setIsDeadlineModalOpen(true);
   };
 
-  const handleSave = async () => {
-      if (editDueDate) {
-          const startDate = (assignment as any)?.stats?.createdAt;
-          if (startDate && new Date(editDueDate) < new Date(startDate)) {
-              setError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
-              return;
-          }
+  const handleApplyPreset = (daysToAdd: number) => {
+    const baseDate = (assignment as any)?.stats?.dueDate ? new Date((assignment as any).stats.dueDate) : new Date();
+    const targetDate = new Date(baseDate);
+    targetDate.setDate(targetDate.getDate() + daysToAdd);
+    targetDate.setHours(23, 59, 0, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetDate.getHours())}:${pad(targetDate.getMinutes())}`);
+    setCalendarMonth(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+  };
+
+  const handleSaveDeadline = async () => {
+    if (newDueDate) {
+      const startDate = (assignment as any)?.stats?.createdAt;
+      if (startDate && new Date(newDueDate) < new Date(startDate)) {
+        setDeadlineModalError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
+        return;
       }
-      setError(null);
+    }
+    setDeadlineModalError(null);
+
+    try {
+      setSavingDeadline(true);
+      const updatedIso = newDueDate ? new Date(newDueDate).toISOString() : null;
+      await api.updateAssignment(id!, {
+        title: assignment?.metadata?.title,
+        description: assignment?.metadata?.description,
+        dueDate: updatedIso
+      });
+      const data = await api.getAssignment(id!);
+      setAssignment(data);
+      setIsDeadlineModalOpen(false);
+
+      // Real-time broadcast to student pages
+      try {
+        const channel = new BroadcastChannel('aita_assignment_updates');
+        channel.postMessage({ type: 'ASSIGNMENT_DEADLINE_UPDATED', id: id!, dueDate: updatedIso, timestamp: Date.now() });
+        channel.close();
+      } catch (e) {}
 
       try {
-          setSaving(true);
-          await api.updateAssignment(id!, {
-              title: editTitle,
-              description: editDescription,
-              dueDate: editDueDate ? new Date(editDueDate).toISOString() : null
-          });
-          const data = await api.getAssignment(id!);
-          setAssignment(data);
-          setIsEditing(false);
-      } catch (err) {
-          console.error(err);
-      } finally {
-          setSaving(false);
-      }
+        localStorage.setItem('aita_last_assignment_update', JSON.stringify({
+          id: id!,
+          dueDate: updatedIso,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+
+      window.dispatchEvent(new CustomEvent('aita_assignment_updated', {
+        detail: { id: id!, dueDate: updatedIso }
+      }));
+    } catch (err: any) {
+      console.error(err);
+      setDeadlineModalError(err.message || "Lỗi khi cập nhật hạn nộp.");
+    } finally {
+      setSavingDeadline(false);
+    }
+  };
+
+  useEffect(() => {
+    if (assignment) {
+      const strat = (assignment as any)?.metadata?.gradingStrategy || (assignment as any)?.stats?.gradingStrategy || 'CONTINUOUS_QUEUE';
+      setSelectedGradingStrategy(strat);
+    }
+  }, [assignment]);
+
+  const handleSaveGradingStrategy = async (strategy: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
+    try {
+      setSavingStrategy(true);
+      await api.updateAssignment(id!, {
+        title: assignment?.metadata?.title,
+        description: assignment?.metadata?.description,
+        dueDate: (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate,
+        gradingStrategy: strategy
+      });
+      setSelectedGradingStrategy(strategy);
+      const data = await api.getAssignment(id!);
+      setAssignment(data);
+      setIsGradingSettingsModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setSavingStrategy(false);
+    }
+  };
+
+  // Calendar helpers for embedded modal calendar
+  const selectedDateObj = newDueDate ? new Date(newDueDate) : null;
+  const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+
+  const handlePrevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+  const handleNextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+
+  const daysInMonthCalc = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+  const firstDayCalc = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
+  const totalSlotsCalc = Math.ceil((firstDayCalc + daysInMonthCalc) / 7) * 7;
+  const daysList = Array.from({ length: totalSlotsCalc }, (_, i) => {
+    const day = i - firstDayCalc + 1;
+    if (day <= 0 || day > daysInMonthCalc) return null;
+    return day;
+  });
+
+  const handleCalendarDaySelect = (day: number) => {
+    const target = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day, 23, 59, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
   };
 
   if (loading && !assignment) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
@@ -206,6 +489,13 @@ export default function AssignmentPage() {
         </button>
       </div>
 
+      {error && (
+          <div className="mb-6 flex items-center gap-2 p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 shadow-sm">
+              <AlertCircle size={18} />
+              {error}
+          </div>
+      )}
+
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm mb-8 relative z-10">
         <div className="p-6 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
           <div className="flex items-center justify-between mb-4">
@@ -214,89 +504,55 @@ export default function AssignmentPage() {
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                >
-                  <Edit2 size={18} />
-                  Edit
-                </button>
-              )}
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
-                  >
-                    <X size={20} />
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50"
-                  >
-                    {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={20} />}
-                    Lưu
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                  >
-                    <ListChecks size={20} />
-                    Review rubric
-                  </button>
-                  <button
-                    onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
-                    className={classNames(
-                      "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
-                      hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
-                    )}
-                  >
-                    {hasActiveBatch ? (
-                      <>
-                        <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
-                        Live grading status
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={20} />
-                        Submit submissions
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => setIsGradingSettingsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+                title="Cấu hình phương thức chấm ngầm / dồn bài chấm"
+              >
+                <Settings size={20} className="text-slate-500 dark:text-slate-400" />
+                <span>Cài đặt chấm</span>
+              </button>
+              <button
+                onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <ListChecks size={20} />
+                Review rubric
+              </button>
+              <button
+                onClick={() => navigate(`/lecturer/grading/assignments/${id}/submit`)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <Upload size={20} />
+                Upload file (Manual)
+              </button>
+              <button
+                onClick={hasActiveBatch ? () => navigate(`/lecturer/grading/assignments/${id}/submit`) : handleGradeAll}
+                className={classNames(
+                  "flex items-center gap-2 px-7 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-white text-base",
+                  hasActiveBatch ? "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20" : "bg-brand-600 hover:bg-brand-700"
+                )}
+              >
+                {hasActiveBatch ? (
+                  <>
+                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                    Live grading status
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Chấm tất cả
+                  </>
+                )}
+              </button>
             </div>
           </div>
-          {isEditing ? (
-              <div className="mb-4 space-y-4">
-                  {error && (
-                      <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2">
-                          <AlertCircle size={18} />
-                          {error}
-                      </div>
-                  )}
-                  <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tiêu đề bài tập</label>
-                      <input 
-                          type="text" 
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-lg font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      />
-                  </div>
-              </div>
-          ) : (
-              <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
-          )}
-          {assignment.metadata?.projectType && !isEditing && (
-            <div className="flex items-center mt-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+          </div>
+
+          {assignment.metadata?.projectType && (
+            <div className="flex flex-wrap items-center gap-2.5 mt-3 animate-fade-in">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-sm font-bold rounded-full border border-brand-200 dark:border-brand-500/20 shadow-sm">
                 <Layers size={16} />
                 <span className="uppercase tracking-wider">{assignment.metadata.projectType}</span>
@@ -304,48 +560,44 @@ export default function AssignmentPage() {
             </div>
           )}
         </div>
-        
+
         <div className="p-6">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-3">
             <ListChecks size={22} className="text-brand-500" />
             <h2 className="text-xl font-semibold dark:text-white text-slate-800">Details</h2>
           </div>
-          {isEditing ? (
-              <div className="space-y-4">
-                  <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mô tả bài tập</label>
-                      <textarea 
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          rows={4}
-                          className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      />
-                  </div>
-                  <div className="max-w-xs">
-                      <DateTimePicker 
-                          label="Hạn nộp"
-                          value={editDueDate}
-                          onChange={(val) => setEditDueDate(val)}
-                      />
-                  </div>
+          <div className="space-y-4">
+            {assignment.metadata?.description ? (
+              <p className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
+                 {assignment.metadata.description}
+              </p>
+            ) : (
+              <p className="dark:text-slate-500 text-slate-400 italic">No description provided.</p>
+            )}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/80 mt-4">
+              <div className="flex items-center gap-2.5 text-base font-medium text-slate-700 dark:text-slate-300">
+                <div className="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
+                  <Calendar size={18} />
+                </div>
+                <span>
+                  Hạn nộp:{' '}
+                  <strong className="text-brand-600 dark:text-brand-400 font-bold ml-1">
+                    {(assignment as any)?.stats?.dueDate
+                      ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                      : 'Chưa thiết lập'}
+                  </strong>
+                </span>
               </div>
-          ) : (
-              <ul className="space-y-3">
-                {assignment.metadata?.description ? (
-                  <li className="dark:text-slate-300 text-slate-600 text-base leading-relaxed whitespace-pre-wrap">
-                     {assignment.metadata.description}
-                  </li>
-                ) : (
-                  <li className="dark:text-slate-500 text-slate-400 italic">No description provided.</li>
-                )}
-                {(assignment as any).stats?.dueDate && (
-                  <li className="dark:text-slate-300 text-slate-600 text-base flex items-center gap-2 mt-4 font-medium">
-                     <Calendar size={18} className="text-brand-500" />
-                     Hạn nộp: <span className="text-brand-600 dark:text-brand-400">{new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} {new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</span>
-                  </li>
-                )}
-              </ul>
-          )}
+
+              <button
+                onClick={handleOpenDeadlineModal}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-sm font-semibold transition-all border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-600 shadow-sm whitespace-nowrap"
+              >
+                <Clock size={16} className="text-brand-500" />
+                <span>Điều chỉnh hạn nộp</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -429,16 +681,43 @@ export default function AssignmentPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <select className="border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/50 dark:text-slate-200 focus:outline-none">
-              <option>Trạng thái: Tất cả</option>
-            </select>
-            <select className="border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/50 dark:text-slate-200 focus:outline-none">
-              <option>Khoảng điểm: Tất cả</option>
-            </select>
-            <select className="border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/50 dark:text-slate-200 focus:outline-none">
-              <option>Sắp xếp: Điểm cao → thấp</option>
-            </select>
+          <div className="flex items-center gap-4">
+            <CustomSelect
+              label="Trạng thái:"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'ALL', label: 'Tất cả' },
+                { value: 'NotSubmitted', label: 'Chưa nộp' },
+                { value: 'Submitted', label: 'Đã nộp' },
+                { value: 'Grading', label: 'Đang chấm' },
+                { value: 'Graded', label: 'Đã chấm' }
+              ]}
+            />
+            <CustomSelect
+              label="Khoảng điểm:"
+              value={scoreRangeFilter}
+              onChange={setScoreRangeFilter}
+              options={[
+                { value: 'ALL', label: 'Tất cả' },
+                { value: '9-10', label: '9 - 10 điểm' },
+                { value: '8-9', label: '8 - 8.9 điểm' },
+                { value: '7-8', label: '7 - 7.9 điểm' },
+                { value: '5-7', label: '5 - 6.9 điểm' },
+                { value: '<5', label: 'Dưới 5 điểm' }
+              ]}
+            />
+            <CustomSelect
+              label="Sắp xếp:"
+              value={sortOrder}
+              onChange={setSortOrder}
+              options={[
+                { value: 'score_desc', label: 'Điểm cao → thấp' },
+                { value: 'score_asc', label: 'Điểm thấp → cao' },
+                { value: 'name_asc', label: 'Tên A → Z' },
+                { value: 'time_desc', label: 'Nộp gần đây' }
+              ]}
+            />
           </div>
         </div>
 
@@ -464,10 +743,10 @@ export default function AssignmentPage() {
         <div className="bg-brand-50 border border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 rounded-lg p-3 mb-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
           <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">Đã chọn {selectedIds.size} sinh viên</span>
           <button 
-            onClick={() => setDeleteModalId('BULK')}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors"
+            onClick={() => handleGradeSelected()}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <Trash2 size={16} /> Xóa {selectedIds.size} kết quả
+            <Hourglass size={16} /> Chấm {selectedIds.size} bài
           </button>
         </div>
       )}
@@ -479,7 +758,12 @@ export default function AssignmentPage() {
           <p className="text-slate-500 dark:text-slate-400">You haven't graded any submissions for this assignment yet.</p>
         </div>
       ) : viewMode === 'table' ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto mb-12">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto mb-12 relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
+               <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+            </div>
+          )}
           <table className="w-full text-left whitespace-nowrap">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400">
@@ -500,32 +784,24 @@ export default function AssignmentPage() {
                 <th className="py-4 px-4 text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 relative">
-              {loading && (
-                <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-[1px] flex justify-center pt-20 z-10">
-                   <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
-                </div>
-              )}
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {history.map((item) => {
                 const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
-                let colorClass = 'text-slate-600 bg-slate-200';
                 let textClass = 'text-slate-600';
                 let rank = 'D';
                 let rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400';
                 
-                if (percentage >= 90) { colorClass = 'bg-emerald-500'; textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 80) { colorClass = 'bg-emerald-400'; textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 70) { colorClass = 'bg-blue-500'; textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
-                else if (percentage >= 60) { colorClass = 'bg-indigo-400'; textClass = 'text-indigo-600 dark:text-indigo-400'; rank = 'B'; rankBg = 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'; }
-                else if (percentage >= 50) { colorClass = 'bg-amber-500'; textClass = 'text-amber-600 dark:text-amber-400'; rank = 'C+'; rankBg = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800'; }
-                else { colorClass = 'bg-red-500'; textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
-
-                const displayId = item.studentId || item.id.split('-')[0];
+                if (percentage >= 90) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
+                else if (percentage >= 80) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
+                else if (percentage >= 70) { textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
+                else if (percentage >= 60) { textClass = 'text-indigo-600 dark:text-indigo-400'; rank = 'B'; rankBg = 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'; }
+                else if (percentage >= 50) { textClass = 'text-amber-600 dark:text-amber-400'; rank = 'C+'; rankBg = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800'; }
+                else { textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
 
                 return (
                   <tr 
                     key={item.id} 
-                    onClick={() => handleViewHistory(item.id)}
+                    onClick={() => handleRowClick(item)}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
                   >
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
@@ -539,53 +815,101 @@ export default function AssignmentPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-xs shrink-0 overflow-hidden">
-                          <img src={`https://ui-avatars.com/api/?name=${displayId}&background=random&color=fff`} alt={displayId} className="w-full h-full object-cover" />
+                          <img src={item.studentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.studentName || item.studentId || '')}&background=random&color=fff`} alt={item.studentName || item.studentId} className="w-full h-full object-cover" />
                         </div>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{displayId}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{item.studentName || item.studentId}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">{displayId}</td>
+                    <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">{item.studentCode || item.studentId}</td>
                     <td className="py-4 px-4">
-                      <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
-                      <div className="text-xs text-emerald-600 dark:text-emerald-400">(Đúng hạn)</div>
+                      {item.status === 'NotSubmitted' ? (
+                        <div className="text-slate-400 font-medium">-</div>
+                      ) : (
+                        <>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
+                          <div className="text-xs text-emerald-600 dark:text-emerald-400">(Đúng hạn)</div>
+                        </>
+                      )}
                     </td>
                     <td className="py-4 px-4">
-                      <div className="flex items-baseline gap-1 mb-1.5">
-                        <span className={classNames("text-lg font-bold", textClass)}>{item.score}</span>
-                        <span className="text-sm text-slate-400">/ {item.maxScore}</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className={classNames("h-full rounded-full", colorClass)} style={{ width: `${percentage}%` }}></div>
-                      </div>
+                      {item.status === 'Graded' ? (
+                        <div className={classNames("text-lg font-bold", textClass)}>
+                          {Number(item.score).toLocaleString('vi-VN')}
+                        </div>
+                      ) : (
+                         <div className="text-slate-400 font-medium">-</div>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className={classNames("px-3 py-1 rounded-full text-xs font-bold", rankBg)}>
-                        {rank}
-                      </span>
+                      {item.status === 'Graded' ? (
+                        <span className={classNames("px-3 py-1 rounded-full text-xs font-bold", rankBg)}>
+                          {rank}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-medium">-</span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <div className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Đã chấm
-                      </div>
+                      {item.status === 'Graded' && (
+                        <div className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Đã chấm
+                        </div>
+                      )}
+                      {item.status === 'Grading' && (
+                        <div className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-medium">
+                          <Hourglass size={16} className="animate-pulse" />
+                          Đang chấm
+                        </div>
+                      )}
+                      {item.status === 'Submitted' && (
+                        <div className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 text-sm font-medium">
+                          <CheckCircle2 size={16} />
+                          Đã nộp
+                        </div>
+                      )}
+                      {item.status === 'NotSubmitted' && (
+                        <div className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-sm font-medium">
+                          <Clock size={16} />
+                          Chưa nộp
+                        </div>
+                      )}
                     </td>
-                    <td className="py-4 px-4 text-center relative" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors inline-block"
-                        >
-                          <MoreVertical size={18} />
-                        </button>
-                        {openMenuId === item.id && (
-                          <div className="absolute right-8 top-10 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden animate-fade-in-up origin-top-right">
-                            <button
-                              onClick={(e) => handleDeleteHistory(e, item.id)}
-                              className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                              Xóa
-                            </button>
-                          </div>
+                    <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                        {item.status === 'Graded' && (
+                          <button
+                            onClick={() => handleViewHistory(item.id)}
+                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors"
+                          >
+                            <Eye size={16} /> Xem
+                          </button>
+                        )}
+                        {item.status === 'Grading' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
+                            }}
+                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
+                            title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                          >
+                            <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                            Đang chấm...
+                          </button>
+                        )}
+                        {item.status === 'Submitted' && (
+                          <button
+                            onClick={(e) => handleGradeSubmission(e, item.id)}
+                            className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 rounded-lg text-sm font-semibold transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            Chấm
+                          </button>
+                        )}
+                        {item.status === 'NotSubmitted' && (
+                          <button disabled className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 rounded-lg text-sm font-semibold cursor-not-allowed">
+                            -
+                          </button>
                         )}
                     </td>
                   </tr>
@@ -602,90 +926,104 @@ export default function AssignmentPage() {
             </div>
           )}
           {history.map((item) => {
-            const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
-            let barColor = 'bg-red-500';
-            let textColor = 'text-red-500';
-            if (percentage >= 80) {
-                barColor = 'bg-emerald-500'; textColor = 'text-emerald-500';
-            } else if (percentage >= 70) {
-                barColor = 'bg-blue-500'; textColor = 'text-blue-500';
-            } else if (percentage >= 50) {
-                barColor = 'bg-orange-500'; textColor = 'text-orange-500';
-            }
-
-            const displayId = item.studentId || item.id.split('-')[0];
-            const initials = displayId.substring(0, 2).toUpperCase();
+            const displayName = item.studentName || item.studentId || item.id.split('-')[0];
             
             const avatarColors = ['bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400', 'bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400', 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'];
-            const avatarColor = avatarColors[displayId.charCodeAt(displayId.length - 1) % avatarColors.length];
+            const avatarColor = avatarColors[displayName.charCodeAt(displayName.length - 1) % avatarColors.length] || avatarColors[0];
 
             return (
               <div 
                 key={item.id} 
-                onClick={() => handleViewHistory(item.id)}
+                onClick={() => handleRowClick(item)}
                 className="group bg-white dark:bg-slate-900 rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 transition-all cursor-pointer relative overflow-hidden hover:border-brand-300 flex flex-col"
               >
                 <div className="p-5 flex-1">
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-3">
-                      <div className={classNames("w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0", avatarColor)}>
-                        {initials}
+                      <div className={classNames("w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden", avatarColor)}>
+                        <img src={item.studentAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff`} alt={displayName} className="w-full h-full object-cover" />
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[15px] leading-snug">
-                          {displayId}
+                          {displayName}
                         </h3>
-                        <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
-                        </p>
+                        <p className="text-xs text-slate-500 font-medium mb-1">{item.studentCode || item.studentId}</p>
+                        {item.status !== 'NotSubmitted' ? (
+                          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        ) : (
+                          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            Chưa nộp bài
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                      ĐIỂM CUỐI CÙNG
+                    <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex justify-between">
+                      <span>ĐIỂM CUỐI CÙNG</span>
+                      <span className="normal-case tracking-normal">
+                        {item.status === 'Graded' && <span className="text-emerald-500">Đã chấm</span>}
+                        {item.status === 'Grading' && <span className="text-amber-500">Đang chấm</span>}
+                        {item.status === 'Submitted' && <span className="text-blue-500">Đã nộp</span>}
+                        {item.status === 'NotSubmitted' && <span className="text-slate-400">Chưa nộp</span>}
+                      </span>
                     </div>
-                    <div className="flex justify-between items-end mb-2">
-                        <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
-                            {item.score} <span className="text-[15px] font-medium text-slate-400">/ {item.maxScore || 10}</span>
-                        </div>
-                        <div className={classNames("text-sm font-bold", textColor)}>
-                            {percentage % 1 === 0 ? percentage : percentage.toFixed(1)}%
-                        </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className={classNames("h-full rounded-full transition-all duration-300", barColor)} style={{ width: `${percentage}%` }}></div>
-                    </div>
+                    {item.status === 'Graded' ? (
+                      <div className="flex justify-between items-end mb-2 h-[30px]">
+                          <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
+                              {Number(item.score).toLocaleString('vi-VN')}
+                          </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-end mb-2 h-[30px]">
+                          <div className="text-[26px] font-bold text-slate-300 dark:text-slate-600 leading-none">
+                              -
+                          </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
                 <div className="p-4 pt-0 mt-auto flex items-center gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <Eye size={16} className="text-slate-400" />
-                        Xem chi tiết
-                    </button>
-                    <button
+                    {item.status === 'Graded' && (
+                      <button 
+                        onClick={() => handleViewHistory(item.id)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
+                      >
+                          <Eye size={16} /> Xem kết quả
+                      </button>
+                    )}
+                    {item.status === 'Grading' && (
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenMenuId(openMenuId === item.id ? null : item.id);
+                          navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
                         }}
-                        className="p-2 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800 rounded-lg transition-colors relative"
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
+                        title="Bấm vào để xem tiến trình chấm ngầm realtime"
                       >
-                        <MoreVertical size={16} />
-                        
-                      {openMenuId === item.id && (
-                        <div className="absolute right-0 bottom-full mb-2 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden animate-fade-in-up">
-                          <div
-                            onClick={(e) => handleDeleteHistory(e, item.id)}
-                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                            Xóa
-                          </div>
-                        </div>
-                      )}
-                    </button>
+                        <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
+                        Đang chấm...
+                      </button>
+                    )}
+                    {item.status === 'Submitted' && (
+                      <button 
+                        onClick={(e) => handleGradeSubmission(e, item.id)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
+                      >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                          Chấm điểm
+                      </button>
+                    )}
+                    {item.status === 'NotSubmitted' && (
+                      <button disabled className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-50 text-slate-300 dark:bg-slate-800/30 dark:text-slate-600 border border-transparent rounded-lg text-sm font-semibold cursor-not-allowed">
+                          -
+                      </button>
+                    )}
+
                 </div>
               </div>
             );
@@ -766,6 +1104,330 @@ export default function AssignmentPage() {
                 Xóa ngay
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Deadline Adjustment Modal */}
+      {isDeadlineModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20">
+                  <Clock size={20} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Điều chỉnh hạn nộp bài
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] font-medium">
+                    {assignment?.metadata?.title || 'Bài tập'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDeadlineModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/80 rounded-xl transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 overflow-y-auto max-h-[80vh]">
+              {deadlineModalError && (
+                <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs font-semibold">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{deadlineModalError}</span>
+                </div>
+              )}
+
+              {/* Current Deadline Banner */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+                  <Calendar size={15} className="text-slate-400" />
+                  <span>Hạn nộp hiện tại:</span>
+                </div>
+                <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                  {(assignment as any)?.stats?.dueDate
+                    ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                    : 'Chưa thiết lập'}
+                </span>
+              </div>
+
+              {/* Quick Extension Chips */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                  Gia hạn nhanh
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '+1 ngày', days: 1 },
+                    { label: '+3 ngày', days: 3 },
+                    { label: '+7 ngày', days: 7 },
+                    { label: '+14 ngày', days: 14 }
+                  ].map(preset => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset.days)}
+                      className="py-2 px-1 bg-slate-50 dark:bg-slate-700/40 hover:bg-brand-50 dark:hover:bg-brand-500/15 text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-xs font-bold transition-all border border-slate-200/60 dark:border-slate-700/60 hover:border-brand-300 dark:hover:border-brand-500/40 text-center"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Integrated Calendar Box */}
+              <div className="border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-3.5 bg-white dark:bg-slate-800/90 shadow-2xs">
+                
+                {/* Month Header */}
+                <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-100 dark:border-slate-700/50">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">
+                    {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+                {/* Day of Week Labels */}
+                <div className="grid grid-cols-7 gap-1 mb-1 text-center">
+                  {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(day => (
+                    <div key={day} className="text-[11px] font-bold text-slate-400 dark:text-slate-500 py-1">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {daysList.map((day, idx) => {
+                    if (day === null) return <div key={`empty-${idx}`} className="w-8 h-8"></div>;
+                    const isSelected = selectedDateObj?.getDate() === day && selectedDateObj?.getMonth() === calendarMonth.getMonth() && selectedDateObj?.getFullYear() === calendarMonth.getFullYear();
+                    const isToday = new Date().getDate() === day && new Date().getMonth() === calendarMonth.getMonth() && new Date().getFullYear() === calendarMonth.getFullYear();
+
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleCalendarDaySelect(day)}
+                        className={classNames(
+                          "w-full aspect-square rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-150 relative",
+                          isSelected
+                            ? "bg-brand-600 text-white shadow-md shadow-brand-600/30 scale-105"
+                            : isToday
+                              ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400 hover:bg-brand-100"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/80"
+                        )}
+                      >
+                        {day}
+                        {isToday && !isSelected && (
+                          <span className="absolute bottom-1 w-1 h-1 rounded-full bg-brand-500"></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Result Preview Banner */}
+              <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Hạn nộp mới:</span>
+                <span className="font-bold text-brand-600 dark:text-brand-400">
+                  {selectedDateObj ? (
+                    `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} 23:59`
+                  ) : (
+                    'Chưa chọn ngày'
+                  )}
+                </span>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsDeadlineModalOpen(false)}
+                disabled={savingDeadline}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDeadline}
+                disabled={savingDeadline}
+                className="flex items-center gap-2 px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-600/25 transition-all disabled:opacity-50"
+              >
+                {savingDeadline ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Save size={16} />
+                )}
+                <span>Cập nhật hạn nộp</span>
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Grading Strategy Settings Modal */}
+      {isGradingSettingsModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-brand-500/10 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/20">
+                  <Settings size={22} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Cấu hình phương thức chấm bài
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px] font-medium">
+                    {assignment?.metadata?.title || 'Bài tập'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsGradingSettingsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/80 rounded-xl transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+              
+              {/* Option 1: Continuous Queue (Chấm ngầm) */}
+              <div
+                onClick={() => !savingStrategy && handleSaveGradingStrategy('CONTINUOUS_QUEUE')}
+                className={classNames(
+                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  selectedGradingStrategy === 'CONTINUOUS_QUEUE'
+                    ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/10"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={classNames(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                    selectedGradingStrategy === 'CONTINUOUS_QUEUE'
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  )}>
+                    <Zap size={24} className="stroke-[2.5]" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        ⚡ Chấm ngầm theo hàng đợi
+                      </h4>
+                      {selectedGradingStrategy === 'CONTINUOUS_QUEUE' && (
+                        <span className="px-2.5 py-0.5 bg-emerald-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
+                          Đang dùng
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Học sinh nộp bài đến đâu, hệ thống tự động đưa vào hàng đợi FIFO và kích hoạt AI/Autograder chấm ngầm ngay lập tức.
+                    </p>
+                    <div className="pt-2 flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg border border-emerald-200/60 dark:border-emerald-500/20">
+                        🚀 Nộp trước chấm trước
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
+                        Tự động hóa 100%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 2: Batch Post-Deadline (Dồn bài chấm 1 lần) */}
+              <div
+                onClick={() => !savingStrategy && handleSaveGradingStrategy('BATCH_POST_DEADLINE')}
+                className={classNames(
+                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  selectedGradingStrategy === 'BATCH_POST_DEADLINE'
+                    ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-500/50"
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={classNames(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105",
+                    selectedGradingStrategy === 'BATCH_POST_DEADLINE'
+                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/30"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  )}>
+                    <Clock size={24} className="stroke-[2.5]" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        📦 Dồn bài chấm 1 lần
+                      </h4>
+                      {selectedGradingStrategy === 'BATCH_POST_DEADLINE' && (
+                        <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
+                          Đang dùng
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bài nộp của học sinh sẽ ở trạng thái chờ. Hệ thống chỉ bắt đầu dồn lại chấm hàng loạt khi Giảng viên bấm nút Chấm tất cả.
+                    </p>
+                    <div className="pt-2 flex items-center gap-2">
+                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold rounded-lg border border-amber-200/60 dark:border-amber-500/20">
+                        ⚖️ Chủ động kích hoạt
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
+                        Chấm hàng loạt khi Giảng viên bấm Chấm tất cả
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-400 font-medium">
+                {savingStrategy ? 'Đang lưu cấu hình...' : 'Nhấp vào chế độ để áp dụng ngay'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsGradingSettingsModalOpen(false)}
+                className="px-5 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+
           </div>
         </div>,
         document.body

@@ -17,6 +17,9 @@ import * as crypto from 'crypto';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 import { prisma } from '../../../../../../database/prisma.js';
+import { CloudinaryService } from '../../../../../../shared/infrastructure/services/cloudinary.service.js';
+import { SendAssignmentNotificationUseCase } from '../../../../../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js';
+import { NodemailerService } from '../../../../../../shared/infrastructure/email/nodemailer.service.js';
 
 // ─── Server-Side Image Cache ─────────────────────────────────────────
 // Stores extracted document images in-memory so they never need to
@@ -38,462 +41,537 @@ function cleanExpiredImageCache(): void {
 }
 
 export class AssignmentController extends BaseController {
-  private assignmentRepository: PublishedAssignmentRepository;
-  private aiProvider: GeminiAiProvider;
+    private assignmentRepository: PublishedAssignmentRepository;
+    private aiProvider: GeminiAiProvider;
 
-  constructor(documentExtractor: DocumentExtractor, artifactStore: any) {
-    super();
-    this.aiProvider = new GeminiAiProvider();
-    this.assignmentRepository = globalAssignmentRepository;
-  }
+    constructor(documentExtractor: DocumentExtractor, artifactStore: any) {
+        super();
+        this.aiProvider = new GeminiAiProvider();
+        this.assignmentRepository = globalAssignmentRepository;
+    }
 
-  uploadAssignment = async (req: Request, res: Response): Promise<void> => {
-      try {
-          if (!req.file) throw new BadRequestError('No file');
-          // mock impl
-          this.ok(res, { id: 'temp' }, 'Assignment uploaded');
-      } catch (err) {
-          throw new Error('Error upload');
-      }
-  };
+    uploadAssignment = async (req: Request, res: Response): Promise<void> => {
+        try {
+            if (!req.file) throw new BadRequestError('No file');
+            // mock impl
+            this.ok(res, { id: 'temp' }, 'Assignment uploaded');
+        } catch (err) {
+            throw new Error('Error upload');
+        }
+    };
 
-  extractText = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { file } = req;
-          const { semester, subject } = req.body;
-          if (!file) throw new BadRequestError('No file');
-          if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
-          const docExt = new DocumentExtractor();
-          const extractedDoc = await docExt.extractAsync(file.buffer, file.mimetype);
+    extractText = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { file } = req;
+            const { semester, subject } = req.body;
+            if (!file) throw new BadRequestError('No file');
+            if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
+            const docExt = new DocumentExtractor();
+            const extractedDoc = await docExt.extractAsync(file.buffer, file.mimetype);
 
-          // Collect ALL images from all sections for the image cache
-          const allImages: DocumentImage[] = [];
-          for (const section of extractedDoc.sections) {
-              for (const img of section.images) {
-                  allImages.push({
-                      buffer: img.buffer,
-                      contentType: img.contentType,
-                      label: img.label,
-                      isMockup: img.isMockup,
-                  });
-              }
-          }
+            // Collect ALL images from all sections for the image cache
+            const allImages: DocumentImage[] = [];
+            for (const section of extractedDoc.sections) {
+                for (const img of section.images) {
+                    allImages.push({
+                        buffer: img.buffer,
+                        contentType: img.contentType,
+                        label: img.label,
+                        isMockup: img.isMockup,
+                    });
+                }
+            }
 
-          // Cache images server-side if any exist
-          let documentImageKey: string | null = null;
-          if (allImages.length > 0) {
-              documentImageKey = crypto.createHash('sha256')
-                  .update(extractedDoc.rawText.substring(0, 500) + allImages.length)
-                  .digest('hex')
-                  .substring(0, 16);
+            // Cache images server-side if any exist
+            let documentImageKey: string | null = null;
+            if (allImages.length > 0) {
+                documentImageKey = crypto.createHash('sha256')
+                    .update(extractedDoc.rawText.substring(0, 500) + allImages.length)
+                    .digest('hex')
+                    .substring(0, 16);
 
-              cleanExpiredImageCache();
-              IMAGE_CACHE.set(documentImageKey, {
-                  images: allImages,
-                  createdAt: Date.now(),
-              });
-              console.log(`[AssignmentController] Cached ${allImages.length} document images under key: ${documentImageKey}`);
-          }
+                cleanExpiredImageCache();
+                IMAGE_CACHE.set(documentImageKey, {
+                    images: allImages,
+                    createdAt: Date.now(),
+                });
+                console.log(`[AssignmentController] Cached ${allImages.length} document images under key: ${documentImageKey}`);
+            }
 
-          this.ok(res, { text: extractedDoc, documentImageKey }, 'Text extracted');
-      } catch (error) {
-          throw new Error('Error extracting text');
-      }
-  };
+            // Upload file to Cloudinary directly for Lecturer Assignment Attachment
+            let uploadedFileUrl: string | null = null;
+            try {
+                const uploadOptions = {
+                    folder: 'aita/assignments',
+                    resource_type: 'raw' as any,
+                    use_filename: true,
+                    unique_filename: true,
+                };
+                const cloudinaryRes = await CloudinaryService.uploadStream(file.buffer, uploadOptions);
+                uploadedFileUrl = cloudinaryRes.secure_url;
+                console.log(`[AssignmentController] Uploaded assignment document to Cloudinary: ${uploadedFileUrl}`);
+            } catch (uploadError) {
+                console.error(`[AssignmentController] Failed to upload assignment to Cloudinary:`, uploadError);
+            }
 
-  generateContent = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { prompt, semester, subject } = req.body;
-          if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
-          const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt);
-          this.ok(res, { markdown }, 'Content generated');
-      } catch (error) {
-          throw new Error('Error generating content');
-      }
-  };
+            this.ok(res, {
+                text: extractedDoc,
+                documentImageKey,
+                uploadedFile: uploadedFileUrl ? {
+                    url: uploadedFileUrl,
+                    fileName: file.originalname,
+                    fileType: file.mimetype
+                } : null
+            }, 'Text extracted');
+        } catch (error) {
+            throw new Error('Error extracting text');
+        }
+    };
 
-  parseRubric = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { content, documentImageKey } = req.body;
-          if (!content) throw new BadRequestError('No content');
+    generateContent = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { prompt, semester, subject } = req.body;
+            if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
+            const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt);
+            this.ok(res, { markdown }, 'Content generated');
+        } catch (error) {
+            throw new Error('Error generating content');
+        }
+    };
 
-          const requirementParser = new RequirementParserService(this.aiProvider);
-          const rubricGenerator = new RubricGeneratorService(this.aiProvider);
+    parseRubric = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { content, documentImageKey } = req.body;
+            if (!content) throw new BadRequestError('No content');
 
-          let contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-          if (typeof content === 'object' && content.rawText) {
-              contentStr = content.rawText;
-          }
-          console.log(`[AssignmentController] parseRubric: contentStr length is ${contentStr.length}`);
+            const requirementParser = new RequirementParserService(this.aiProvider);
+            const rubricGenerator = new RubricGeneratorService(this.aiProvider);
 
-          // Retrieve cached images if key was provided
-          let documentImages: DocumentImage[] | undefined;
-          if (documentImageKey && IMAGE_CACHE.has(documentImageKey)) {
-              documentImages = IMAGE_CACHE.get(documentImageKey)!.images;
-              console.log(`[AssignmentController] parseRubric: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
-          }
+            let contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+            if (typeof content === 'object' && content.rawText) {
+                contentStr = content.rawText;
+            }
+            console.log(`[AssignmentController] parseRubric: contentStr length is ${contentStr.length}`);
 
-          const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
-          const rubric = await rubricGenerator.generateRubricAsync(draftBlueprint);
+            // Retrieve cached images if key was provided
+            let documentImages: DocumentImage[] | undefined;
+            if (documentImageKey && IMAGE_CACHE.has(documentImageKey)) {
+                documentImages = IMAGE_CACHE.get(documentImageKey)!.images;
+                console.log(`[AssignmentController] parseRubric: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
+            }
 
-          this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
-      } catch (error) {
-          throw new Error('Error parsing rubric');
-      }
-  };
+            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
+            const rubric = await rubricGenerator.generateRubricAsync(draftBlueprint);
 
-  parseRequirements = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { content, documentImageKey } = req.body;
-          if (!content) throw new BadRequestError('No content');
-          const requirementParser = new RequirementParserService(this.aiProvider);
-          
-          let contentStr = typeof content === 'string' ? content : JSON.stringify(content);
-          if (typeof content === 'object' && content.rawText) {
-              contentStr = content.rawText;
-          }
-          console.log(`[AssignmentController] parseRequirements: contentStr length is ${contentStr.length}`);
+            this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
+        } catch (error) {
+            throw new Error('Error parsing rubric');
+        }
+    };
 
-          // Retrieve cached images if key was provided
-          let documentImages: DocumentImage[] | undefined;
-          if (documentImageKey && IMAGE_CACHE.has(documentImageKey)) {
-              documentImages = IMAGE_CACHE.get(documentImageKey)!.images;
-              console.log(`[AssignmentController] parseRequirements: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
-          }
-          
-          const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
-          this.ok(res, { blueprint: draftBlueprint }, 'Requirements parsed');
-      } catch (error) {
-          throw new Error('Error parsing requirements');
-      }
-  };
+    parseRequirements = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { content, documentImageKey } = req.body;
+            if (!content) throw new BadRequestError('No content');
+            const requirementParser = new RequirementParserService(this.aiProvider);
 
-  generateRubric = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { blueprint } = req.body;
-          if (!blueprint) throw new BadRequestError('No blueprint');
-          const rubricGenerator = new RubricGeneratorService(this.aiProvider);
-          const rubric = await rubricGenerator.generateRubricAsync(blueprint);
-          this.ok(res, { rubric }, 'Rubric generated');
-      } catch (error) {
-          throw new Error('Error generating rubric');
-      }
-  };
+            let contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+            if (typeof content === 'object' && content.rawText) {
+                contentStr = content.rawText;
+            }
+            console.log(`[AssignmentController] parseRequirements: contentStr length is ${contentStr.length}`);
 
-  publish = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const { metadata, blueprint, rubric } = req.body;
-          const testSuiteGen = new TestSuiteGeneratorService();
-          const testSuites = await testSuiteGen.generateTestSuitesAsync(blueprint);
+            // Retrieve cached images if key was provided
+            let documentImages: DocumentImage[] | undefined;
+            if (documentImageKey && IMAGE_CACHE.has(documentImageKey)) {
+                documentImages = IMAGE_CACHE.get(documentImageKey)!.images;
+                console.log(`[AssignmentController] parseRequirements: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
+            }
 
-          const publishedAssignmentId = uuidv4();
-          const publishedAssignment: PublishedAssignment = {
-              id: publishedAssignmentId,
-              version: '1.0.0',
-              metadata,
-              blueprintId: blueprint.id,
-              rubric,
-              testSuites
-          };
+            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
+            this.ok(res, { blueprint: draftBlueprint }, 'Requirements parsed');
+        } catch (error) {
+            throw new Error('Error parsing requirements');
+        }
+    };
 
-          await this.assignmentRepository.saveAsync(publishedAssignment);
+    generateRubric = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { blueprint } = req.body;
+            if (!blueprint) throw new BadRequestError('No blueprint');
+            const rubricGenerator = new RubricGeneratorService(this.aiProvider);
+            const rubric = await rubricGenerator.generateRubricAsync(blueprint);
+            this.ok(res, { rubric }, 'Rubric generated');
+        } catch (error) {
+            throw new Error('Error generating rubric');
+        }
+    };
 
-          // INTEGRATION WITH AITA CORE
-          const { title, description, subject, semesterId, classIds, dueDate } = metadata;
-          
-          if (classIds && classIds.length > 0) {
-              // 1. Resolve subject code to SubjectId
-              const subjectRecord = await prisma.subject.findUnique({
-                  where: { SubjectCode: subject }
-              });
+    publish = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { metadata, blueprint, rubric } = req.body;
+            const testSuiteGen = new TestSuiteGeneratorService();
+            const testSuites = await testSuiteGen.generateTestSuitesAsync(blueprint);
 
-              if (subjectRecord) {
-                  // 2. Create Core Exam Record
-                  const examId = publishedAssignmentId; // Keep 1:1 mapping
-                  
-                  // Calculate total points from rubric
-                  const totalPoints = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
+            const publishedAssignmentId = uuidv4();
+            const publishedAssignment: PublishedAssignment = {
+                id: publishedAssignmentId,
+                version: '1.0.0',
+                metadata,
+                blueprintId: blueprint.id,
+                rubric,
+                testSuites
+            };
 
-                  let parsedDueDate: Date | undefined;
-                  if (dueDate) {
-                      parsedDueDate = new Date(dueDate);
-                      if (parsedDueDate < new Date()) {
-                          throw new BadRequestError('Due date cannot be in the past');
-                      }
-                  }
+            await this.assignmentRepository.saveAsync(publishedAssignment);
 
-                  await prisma.exam.create({
-                      data: {
-                          Id: examId,
-                          Title: title || 'AI Assignment',
-                          Description: description || '',
-                          SubjectId: subjectRecord.Id,
-                          ExamType: 'Assignment',
-                          Status: 'Published',
-                          TotalPoints: totalPoints,
-                          CreatedBy: req.user?.id || null,
-                          StartDate: new Date(),
-                          DueDate: parsedDueDate,
-                          AiGeneratedContent: JSON.stringify({ blueprintId: blueprint.id }),
-                          ExamClass: {
-                              create: classIds.map((cId: string) => ({
-                                  ClassId: cId,
-                                  DueDate: parsedDueDate
-                              }))
-                          }
-                      }
-                  });
-              }
-          }
+            // INTEGRATION WITH AITA CORE
+            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType } = metadata;
 
-          this.created(res, publishedAssignment, 'Assignment published successfully');
-      } catch (error) {
-          console.error("Publish Error:", error);
-          throw new Error('Error publishing');
-      }
-  };
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-  getAll = async (_req: Request, res: Response): Promise<void> => {
-      try {
-          const assignments = await this.assignmentRepository.getAllAsync();
-          
-          if (!assignments || assignments.length === 0) {
-              this.ok(res, [], 'Assignments fetched');
-              return;
-          }
+            // 1. Resolve subject code or ID to SubjectId safely
+            let subjectRecord: any = null;
+            if (subject && typeof subject === 'string') {
+                const isSubjectUuid = uuidRegex.test(subject);
+                subjectRecord = await prisma.subject.findFirst({
+                    where: isSubjectUuid
+                        ? { OR: [{ Id: subject }, { SubjectCode: subject }] }
+                        : { SubjectCode: subject }
+                });
+            }
 
-          const examIds = assignments.map(a => a.id);
-          
-          // Get Exam dates and related class/submission data
-          const exams = await prisma.exam.findMany({
-              where: { Id: { in: examIds } },
-              select: {
-                  Id: true,
-                  StartDate: true,
-                  DueDate: true,
-                  _count: {
-                      select: { Submission: true }
-                  },
-                  ExamClass: {
-                      select: {
-                          Class: {
-                              select: {
-                                  _count: {
-                                      select: { StudentClass: true }
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-          });
+            const examId = publishedAssignmentId; // Keep 1:1 mapping
+            const totalPoints = rubric?.rules ? rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0) : 10;
 
-          // Build a map for quick lookup
-          const statsMap = new Map();
-          exams.forEach(exam => {
-              let totalStudents = 0;
-              exam.ExamClass.forEach(ec => {
-                  totalStudents += ec.Class?._count?.StudentClass || 0;
-              });
+            let parsedDueDate: Date | undefined;
+            if (dueDate) {
+                const d = new Date(dueDate);
+                if (!isNaN(d.getTime())) parsedDueDate = d;
+            }
 
-              statsMap.set(exam.Id, {
-                  createdAt: exam.StartDate,
-                  dueDate: exam.DueDate,
-                  submitted: exam._count.Submission || 0,
-                  totalStudents: totalStudents
-              });
-          });
+            const validClassIds = Array.isArray(classIds) ? classIds.filter((c: any) => typeof c === 'string' && uuidRegex.test(c)) : [];
+            const creatorId = (req.user?.id && uuidRegex.test(req.user.id)) ? req.user.id : null;
 
-          // Attach stats to assignment response
-          const enhancedAssignments = assignments.map(a => {
-              const stats = statsMap.get(a.id) || {
-                  createdAt: new Date(),
-                  dueDate: null,
-                  submitted: 0,
-                  totalStudents: 0
-              };
-              
-              const percentage = stats.totalStudents > 0 
-                  ? Math.round((stats.submitted / stats.totalStudents) * 100) 
-                  : 0;
+            await prisma.exam.create({
+                data: {
+                    Id: examId,
+                    Title: title || 'AI Assignment',
+                    Description: description || '',
+                    SubjectId: subjectRecord?.Id || null,
+                    ExamType: 'Assignment',
+                    Status: 'Published',
+                    TotalPoints: totalPoints,
+                    CreatedBy: creatorId,
+                    StartDate: new Date(),
+                    DueDate: parsedDueDate,
+                    AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id }),
+                    ...(validClassIds.length > 0 ? {
+                        ExamClass: {
+                            create: validClassIds.map((cId: string) => ({
+                                ClassId: cId,
+                                DueDate: parsedDueDate
+                            }))
+                        }
+                    } : {})
+                }
+            });
 
-              return {
-                  ...a,
-                  stats: {
-                      ...stats,
-                      percentage
-                  }
-              };
-          });
+            // 3. Create ExamAttachment if a file was uploaded
+            if (fileUrl) {
+                await prisma.examAttachment.create({
+                    data: {
+                        ExamId: examId,
+                        FileUrl: fileUrl,
+                        FileName: fileName || 'Assignment Document',
+                        FileType: fileType || 'application/octet-stream'
+                    }
+                });
+            }
 
-          this.ok(res, enhancedAssignments, 'Assignments fetched');
-      } catch (error) {
-          console.error("GetAll Error:", error);
-          throw new Error('Error fetching assignments');
-      }
-  };
+            // 4. Send Notifications (In-App & Email)
+            try {
+                const sendNotificationUseCase = new SendAssignmentNotificationUseCase(new NodemailerService());
+                sendNotificationUseCase.execute({
+                    examId: examId,
+                    title: title || 'AI Assignment',
+                    type: 'Assignment',
+                    classIds: validClassIds,
+                    subjectId: subjectRecord?.Id,
+                    dueDate: parsedDueDate,
+                    createdBy: creatorId || 'system'
+                }).catch((err) => console.error("Error sending assignment notification:", err));
+            } catch (notifErr) {
+                console.error("Failed to initialize assignment notification:", notifErr);
+            }
 
-  getById = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const id = req.params.id;
-          const assignment = await this.assignmentRepository.getAsync(id);
-          if (assignment) {
-              // Fetch detailed stats for this single assignment
-              const exam = await prisma.exam.findUnique({
-                  where: { Id: id },
-                  select: {
-                      StartDate: true,
-                      DueDate: true,
-                      ExamClass: {
-                          select: {
-                              Class: {
-                                  select: {
-                                      _count: { select: { StudentClass: true } }
-                                  }
-                              }
-                          }
-                      },
-                      Submission: {
-                          select: {
-                              TotalScore: true,
-                              GradingStatus: true
-                          }
-                      }
-                  }
-              });
+            this.created(res, publishedAssignment, 'Assignment published successfully');
+        } catch (error: any) {
+            console.error("Publish Error:", error);
+            res.status(500).json({ error: error.message || "Error publishing assignment" });
+        }
+    };
 
-              let stats = {
-                  totalStudents: 0,
-                  submitted: 0,
-                  notSubmitted: 0,
-                  grading: 0,
-                  averageScore: 0,
-                  submittedPercentage: 0,
-                  notSubmittedPercentage: 0,
-                  gradingPercentage: 0,
-                  createdAt: new Date(),
-                  dueDate: null as any
-              };
+    getAll = async (_req: Request, res: Response): Promise<void> => {
+        try {
+            const assignments = await this.assignmentRepository.getAllAsync();
 
-              if (exam) {
-                  let totalStudents = 0;
-                  exam.ExamClass.forEach(ec => {
-                      totalStudents += ec.Class?._count?.StudentClass || 0;
-                  });
-                  
-                  const submittedCount = exam.Submission.length;
-                  const notSubmittedCount = Math.max(0, totalStudents - submittedCount);
-                  
-                  // Pending / Processing / Error => Grading
-                  // For AITA system, GradingStatus could be 'Pending', 'Processing', 'Graded', 'Failed'
-                  // Usually 'Pending' and 'Processing' are considered "Đang chấm" (grading)
-                  const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Pending' || s.GradingStatus === 'Processing').length;
-                  
-                  // Average score is calculated for 'Graded' submissions
-                  const gradedSubmissions = exam.Submission.filter(s => s.GradingStatus === 'Graded' && s.TotalScore !== null);
-                  let averageScore = 0;
-                  if (gradedSubmissions.length > 0) {
-                      const totalScore = gradedSubmissions.reduce((sum, s) => sum + Number(s.TotalScore || 0), 0);
-                      averageScore = totalScore / gradedSubmissions.length;
-                  }
+            if (!assignments || assignments.length === 0) {
+                this.ok(res, [], 'Assignments fetched');
+                return;
+            }
 
-                  stats = {
-                      totalStudents,
-                      submitted: submittedCount,
-                      notSubmitted: notSubmittedCount,
-                      grading: gradingCount,
-                      averageScore: Number(averageScore.toFixed(2)),
-                      submittedPercentage: totalStudents > 0 ? Number(((submittedCount / totalStudents) * 100).toFixed(1)) : 0,
-                      notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmittedCount / totalStudents) * 100).toFixed(1)) : 0,
-                      gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0, // Grading percentage usually relative to submitted
-                      createdAt: exam.StartDate as any,
-                      dueDate: exam.DueDate as any
-                  };
-              }
+            const examIds = assignments.map(a => a.id);
 
-              const enhancedAssignment = {
-                  ...assignment,
-                  stats
-              };
+            // Get Exam dates and related class/submission data
+            const exams = await prisma.exam.findMany({
+                where: { Id: { in: examIds } },
+                select: {
+                    Id: true,
+                    StartDate: true,
+                    DueDate: true,
+                    _count: {
+                        select: { Submission: true }
+                    },
+                    ExamClass: {
+                        select: {
+                            Class: {
+                                select: {
+                                    _count: {
+                                        select: { StudentClass: true }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
 
-              this.ok(res, enhancedAssignment, 'Assignment fetched');
-          } else {
-              throw new BadRequestError('Not found');
-          }
-      } catch (error) {
-          throw new Error('Error fetching assignment');
-      }
-  };
+            // Build a map for quick lookup
+            const statsMap = new Map();
+            exams.forEach(exam => {
+                let totalStudents = 0;
+                exam.ExamClass.forEach(ec => {
+                    totalStudents += ec.Class?._count?.StudentClass || 0;
+                });
 
-  update = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const id = req.params.id;
-          const { title, description, dueDate } = req.body;
+                statsMap.set(exam.Id, {
+                    createdAt: exam.StartDate,
+                    dueDate: exam.DueDate,
+                    submitted: exam._count.Submission || 0,
+                    totalStudents: totalStudents
+                });
+            });
 
-          const assignment = await this.assignmentRepository.getAsync(id);
-          if (!assignment) {
-              throw new BadRequestError('Assignment not found');
-          }
+            // Attach stats to assignment response
+            const enhancedAssignments = assignments.map(a => {
+                const stats = statsMap.get(a.id) || {
+                    createdAt: new Date(),
+                    dueDate: null,
+                    submitted: 0,
+                    totalStudents: 0
+                };
 
-          // 1. Update Prisma Exam Record
-          const examRecord = await prisma.exam.findUnique({ where: { Id: id } });
-          if (!examRecord) {
-              throw new BadRequestError('Exam record not found in database');
-          }
+                const percentage = stats.totalStudents > 0
+                    ? Math.round((stats.submitted / stats.totalStudents) * 100)
+                    : 0;
 
-          let parsedDueDate: Date | undefined;
-          if (dueDate) {
-              parsedDueDate = new Date(dueDate);
-              if (parsedDueDate < examRecord.StartDate) {
-                  throw new BadRequestError('Due date cannot be earlier than the assignment start date');
-              }
-          }
+                return {
+                    ...a,
+                    stats: {
+                        ...stats,
+                        percentage
+                    }
+                };
+            });
 
-          await prisma.exam.update({
-              where: { Id: id },
-              data: {
-                  Title: title,
-                  Description: description,
-                  DueDate: parsedDueDate
-              }
-          });
+            this.ok(res, enhancedAssignments, 'Assignments fetched');
+        } catch (error) {
+            console.error("GetAll Error:", error);
+            throw new Error('Error fetching assignments');
+        }
+    };
 
-          // 2. Update Prisma ExamClass Records
-          await prisma.examClass.updateMany({
-              where: { ExamId: id },
-              data: {
-                  DueDate: parsedDueDate
-              }
-          });
+    getById = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+            const assignment = await this.assignmentRepository.getAsync(id);
+            if (assignment) {
+                // Fetch detailed stats for this single assignment
+                const exam = await prisma.exam.findUnique({
+                    where: { Id: id },
+                    select: {
+                        StartDate: true,
+                        DueDate: true,
+                        ExamClass: {
+                            select: {
+                                Class: {
+                                    select: {
+                                        _count: { select: { StudentClass: true } }
+                                    }
+                                }
+                            }
+                        },
+                        Submission: {
+                            select: {
+                                TotalScore: true,
+                                GradingStatus: true
+                            }
+                        }
+                    }
+                });
 
-          // 3. Update Document Store Metadata
-          const updatedAssignment = {
-              ...assignment,
-              metadata: {
-                  ...assignment.metadata,
-                  title,
-                  description,
-                  dueDate
-              }
-          };
-          
-          await this.assignmentRepository.saveAsync(updatedAssignment);
+                let stats = {
+                    totalStudents: 0,
+                    submitted: 0,
+                    notSubmitted: 0,
+                    grading: 0,
+                    averageScore: 0,
+                    submittedPercentage: 0,
+                    notSubmittedPercentage: 0,
+                    gradingPercentage: 0,
+                    createdAt: new Date(),
+                    dueDate: null as any
+                };
 
-          this.ok(res, updatedAssignment, 'Assignment updated successfully');
-      } catch (error) {
-          console.error("Update Error:", error);
-          throw new Error('Error updating assignment');
-      }
-  };
+                if (exam) {
+                    let totalStudents = 0;
+                    exam.ExamClass.forEach(ec => {
+                        totalStudents += ec.Class?._count?.StudentClass || 0;
+                    });
 
-  delete = async (req: Request, res: Response): Promise<void> => {
-      try {
-          const id = req.params.id;
-          await this.assignmentRepository.deleteAsync(id);
-          this.ok(res, null, 'Assignment deleted successfully');
-      } catch (error) {
-          throw new Error('Error deleting assignment');
-      }
-  };
+                    const submittedCount = exam.Submission.length;
+                    const notSubmittedCount = Math.max(0, totalStudents - submittedCount);
+
+                    // Only 'Processing' is considered "Đang chấm" (grading).
+                    // 'Pending' means it was uploaded but hasn't started grading yet (Đã nộp).
+                    const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Processing').length;
+
+                    // Average score is calculated for 'Graded' submissions
+                    const gradedSubmissions = exam.Submission.filter(s => s.GradingStatus === 'Graded' && s.TotalScore !== null);
+                    let averageScore = 0;
+                    if (gradedSubmissions.length > 0) {
+                        const totalScore = gradedSubmissions.reduce((sum, s) => sum + Number(s.TotalScore || 0), 0);
+                        averageScore = totalScore / gradedSubmissions.length;
+                    }
+
+                    stats = {
+                        totalStudents,
+                        submitted: submittedCount,
+                        notSubmitted: notSubmittedCount,
+                        grading: gradingCount,
+                        averageScore: Number(averageScore.toFixed(2)),
+                        submittedPercentage: totalStudents > 0 ? Number(((submittedCount / totalStudents) * 100).toFixed(1)) : 0,
+                        notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmittedCount / totalStudents) * 100).toFixed(1)) : 0,
+                        gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0, // Grading percentage usually relative to submitted
+                        createdAt: exam.StartDate as any,
+                        dueDate: exam.DueDate as any,
+                        gradingStrategy: (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE'
+                    };
+                }
+
+                const enhancedAssignment = {
+                    ...assignment,
+                    metadata: {
+                        ...assignment.metadata,
+                        gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE'
+                    },
+                    stats
+                };
+
+                this.ok(res, enhancedAssignment, 'Assignment fetched');
+            } else {
+                throw new BadRequestError('Not found');
+            }
+        } catch (error) {
+            throw new Error('Error fetching assignment');
+        }
+    };
+
+    update = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+            const { title, description, dueDate, gradingStrategy } = req.body;
+
+            const assignment = await this.assignmentRepository.getAsync(id);
+            if (!assignment) {
+                throw new BadRequestError('Assignment not found');
+            }
+
+            // 1. Update Prisma Exam Record
+            const examRecord = await prisma.exam.findUnique({ where: { Id: id } });
+            if (!examRecord) {
+                throw new BadRequestError('Exam record not found in database');
+            }
+
+            let parsedDueDate: Date | undefined;
+            if (dueDate) {
+                parsedDueDate = new Date(dueDate);
+                if (parsedDueDate < examRecord.StartDate) {
+                    throw new BadRequestError('Due date cannot be earlier than the assignment start date');
+                }
+            }
+
+            await prisma.exam.update({
+                where: { Id: id },
+                data: {
+                    Title: title,
+                    Description: description,
+                    DueDate: parsedDueDate,
+                    GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
+                }
+            });
+
+            // 2. Update Prisma ExamClass Records
+            await prisma.examClass.updateMany({
+                where: { ExamId: id },
+                data: {
+                    DueDate: parsedDueDate
+                }
+            });
+
+            // 3. Update Document Store Metadata
+            const updatedAssignment = {
+                ...assignment,
+                metadata: {
+                    ...assignment.metadata,
+                    title,
+                    description,
+                    dueDate,
+                    gradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
+                }
+            };
+
+            await this.assignmentRepository.saveAsync(updatedAssignment);
+
+            this.ok(res, updatedAssignment, 'Assignment updated successfully');
+        } catch (error) {
+            console.error("Update Error:", error);
+            throw new Error('Error updating assignment');
+        }
+    };
+
+    delete = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+
+            // 1. Delete Core SQL records to ensure it's removed from Student view
+            try {
+                await prisma.examClass.deleteMany({ where: { ExamId: id } });
+                await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
+                await prisma.submission.deleteMany({ where: { ExamId: id } });
+                await prisma.exam.delete({ where: { Id: id } });
+            } catch (e) {
+                console.warn(`[AssignmentController] Failed to clean up core exam records for ${id}:`, e);
+            }
+
+            // 2. Delete from Document DB
+            await this.assignmentRepository.deleteAsync(id);
+            this.ok(res, null, 'Assignment deleted successfully');
+        } catch (error) {
+            throw new Error('Error deleting assignment');
+        }
+    };
 }
+
 

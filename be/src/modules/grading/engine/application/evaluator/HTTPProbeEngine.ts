@@ -140,6 +140,7 @@ export class HTTPProbeEngine {
 
         // Evaluate assertions
         const assertionResults = (step.assertions || []).map(assertion => {
+          const resolvedJsonPath = this.resolvePlaceholders(assertion.jsonPath, capturedVariables);
           const expectedVal = assertion.value !== undefined ? assertion.value : (assertion as any).expectedValue;
           const resolvedValue = expectedVal !== undefined
             ? this.resolvePlaceholders(String(expectedVal), capturedVariables)
@@ -147,21 +148,21 @@ export class HTTPProbeEngine {
           
           if (response.status === 204) {
             return {
-              assertion: `${assertion.jsonPath} (skipped due to 204 No Content)`,
+              assertion: `${resolvedJsonPath} (skipped due to 204 No Content)`,
               passed: true,
               actual: null
             };
           }
 
-          const passed = this.evaluateAssertion(responseBody, assertion.jsonPath, assertion.assertType, resolvedValue);
-          let actual = this.evaluateJsonPath(responseBody, assertion.jsonPath);
+          const passed = this.evaluateAssertion(responseBody, resolvedJsonPath, assertion.assertType, resolvedValue);
+          let actual = this.evaluateJsonPath(responseBody, resolvedJsonPath);
           
           if (!passed && (actual === null || actual === undefined)) {
             actual = "Không tìm thấy thuộc tính này (null)";
           }
 
           return {
-            assertion: `${assertion.jsonPath} ${assertion.assertType} ${resolvedValue ?? ""}`.trim(),
+            assertion: `${resolvedJsonPath} ${assertion.assertType} ${resolvedValue ?? ""}`.trim(),
             passed,
             actual
           };
@@ -257,9 +258,20 @@ export class HTTPProbeEngine {
   }
 
   private resolvePlaceholders(template: string, variables: Record<string, any>): string {
-    return template.replace(/\{([^}]+)\}/g, (match, varName) => {
-      return variables[varName] !== undefined ? String(variables[varName]) : match;
-    });
+    // Intelligent variable resolver: handles both {var} and {{var}} (Mustache) syntax.
+    // Also provides smart fallback: if {{productId}} or {orderId} can't be found,
+    // try the generic 'id' variable (set by auto-capture).
+    const resolve = (match: string, varName: string): string => {
+      if (variables[varName] !== undefined) return String(variables[varName]);
+      // Fallback: any *Id or *_id variable → try generic 'id'
+      if (/id$/i.test(varName) && variables['id'] !== undefined) return String(variables['id']);
+      return match;
+    };
+    // Pass 1: Resolve {{variable}} (Mustache-style, used by some AI models)
+    let result = template.replace(/\{\{([^}]+)\}\}/g, resolve);
+    // Pass 2: Resolve {variable} (standard style)
+    result = result.replace(/\{([^{}]+)\}/g, resolve);
+    return result;
   }
 
   private evaluateJsonPath(obj: any, path: string): any {
@@ -296,6 +308,9 @@ export class HTTPProbeEngine {
         return String(actual) === String(expectedValue);
       case "contains":
         return String(actual).includes(String(expectedValue));
+      case "greater_than":
+      case "greaterThan":
+        return parseFloat(actual) > parseFloat(expectedValue);
       case "isArray":
         return Array.isArray(actual);
       case "count_equals":

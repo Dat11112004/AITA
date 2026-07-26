@@ -28,14 +28,28 @@ export class ExamMapper {
       (exam as any).subjectName = raw.Subject.SubjectName;
       (exam as any).subjectCode = raw.Subject.SubjectCode;
     }
+    if (raw.StartDate) {
+      (exam as any).startDate = raw.StartDate;
+    }
     if (raw.ExamClass) {
       (exam as any).classes = raw.ExamClass.map((ec: any) => ec.ClassId);
+      if (raw.ExamClass.length > 0) {
+        const firstEc = raw.ExamClass[0];
+        if (firstEc.Class?.InstructorClass?.[0]?.User) {
+          const user = firstEc.Class.InstructorClass[0].User;
+          (exam as any).lecturer = user.FullName;
+          (exam as any).lecturerAvatar = user.Avatar;
+        }
+      }
     }
     if (raw._count?.Submission !== undefined) {
       (exam as any).submissionCount = raw._count.Submission
     }
     if (raw.ExamAttachment) {
       (exam as any).ExamAttachment = raw.ExamAttachment
+    }
+    if (raw.ExamSection) {
+      (exam as any).ExamSection = raw.ExamSection
     }
 
     return exam

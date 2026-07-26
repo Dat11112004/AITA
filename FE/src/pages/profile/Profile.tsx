@@ -4,7 +4,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield, GraduationCap } from 'lucide-react'
+import { Save, UserCircle, KeyRound, Mail, Camera, Loader2, Shield, GraduationCap, Settings, Zap, Clock } from 'lucide-react'
+import classNames from 'classnames'
 import { useAuth } from '@/store/AuthContext'
 import { api, type ClassRow } from '@/lib/api'
 
@@ -46,6 +47,15 @@ export function Profile() {
   const [savingPassword, setSavingPassword] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const passwordCardRef = useRef<HTMLDivElement>(null)
+
+  const [defaultGradingStrategy, setDefaultGradingStrategy] = useState<'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE'>(() => {
+    return (localStorage.getItem('aita_default_grading_strategy') as any) || 'CONTINUOUS_QUEUE'
+  })
+
+  const handleSaveDefaultStrategy = (strat: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
+    setDefaultGradingStrategy(strat)
+    localStorage.setItem('aita_default_grading_strategy', strat)
+  }
 
   useEffect(() => {
     if (mustChangePassword && passwordCardRef.current) {
@@ -299,6 +309,71 @@ export function Profile() {
               />
             </div>
           </Card>
+
+          {/* Default Grading Strategy Configuration Card */}
+          {user?.role === 'lecturer' && (
+            <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="text-brand-500 w-5 h-5 ml-1" />
+                  <CardHeader title="Cấu Hình Phương Thức Chấm Bài Mặc Định" />
+                </div>
+              </div>
+              <div className="p-6 grid sm:grid-cols-2 gap-4">
+                {/* Option 1: Continuous Queue */}
+                <div
+                  onClick={() => handleSaveDefaultStrategy('CONTINUOUS_QUEUE')}
+                  className={classNames(
+                    "p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 relative",
+                    defaultGradingStrategy === 'CONTINUOUS_QUEUE'
+                      ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500 shadow-sm"
+                      : "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-emerald-300"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                      <Zap size={18} className="text-emerald-500 stroke-[2.5]" />
+                      <span>⚡ Chấm ngầm theo hàng đợi</span>
+                    </div>
+                    {defaultGradingStrategy === 'CONTINUOUS_QUEUE' && (
+                      <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                        Đang chọn
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Học sinh nộp bài đến đâu, AI/Autograder tự động xếp vào hàng đợi FIFO và chấm ngầm ngay lập tức.
+                  </p>
+                </div>
+
+                {/* Option 2: Batch Post-Deadline */}
+                <div
+                  onClick={() => handleSaveDefaultStrategy('BATCH_POST_DEADLINE')}
+                  className={classNames(
+                    "p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 relative",
+                    defaultGradingStrategy === 'BATCH_POST_DEADLINE'
+                      ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500 shadow-sm"
+                      : "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-amber-300"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                      <Clock size={18} className="text-amber-500 stroke-[2.5]" />
+                      <span>📦 Dồn bài chấm 1 lần</span>
+                    </div>
+                    {defaultGradingStrategy === 'BATCH_POST_DEADLINE' && (
+                      <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                        Đang chọn
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Giữ bài nộp ở trạng thái chờ và dồn lại chấm đồng loạt 1 lần khi Giảng viên bấm nút Chấm tất cả.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Password Form */}
           <Card ref={passwordCardRef} className="overflow-hidden border border-slate-200 dark:border-slate-800">

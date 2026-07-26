@@ -19,6 +19,8 @@ export class NotificationsRouter {
         this.router.get('/', authenticate, asyncHandler((req, res) => ctrl.listMyNotifications(req, res)))
         this.router.put('/read-all', authenticate, asyncHandler((req, res) => ctrl.markAllAsRead(req, res)))
         this.router.put('/:id/read', authenticate, asyncHandler((req, res) => ctrl.markAsRead(req, res)))
+        this.router.delete('/all', authenticate, asyncHandler((req, res) => ctrl.deleteAllNotifications(req, res)))
+        this.router.delete('/:id', authenticate, asyncHandler((req, res) => ctrl.deleteNotification(req, res)))
         this.router.post('/broadcast', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => ctrl.broadcast(req, res)))
     }
 }

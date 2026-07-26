@@ -182,6 +182,24 @@ export class Submission extends AggregateRoot {
 
   // ── Business Logic ──
 
+  resubmit(zipFileUrl: string, content?: string): void {
+    this.zipFileUrl = zipFileUrl
+    this.submittedAt = new Date()
+    this.attemptNumber = (this.attemptNumber || 1) + 1
+    this.gradingStatus = 'Pending'
+    this.reviewStatus = 'PendingReview'
+    this.totalScore = null
+    this.finalScore = null
+    this.instructorFeedback = null
+    this.studentFeedback = null
+    this.reviewedBy = null
+    this.reviewedAt = null
+    this.gradedAt = null
+    if (content !== undefined) {
+      (this as any).content = content
+    }
+  }
+
   startGrading(): void {
     this.gradingStatus = 'Queued'
   }

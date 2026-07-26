@@ -22,8 +22,50 @@ export class PlaywrightExecutor {
         
         let browser;
         try {
-            browser = await chromium.launch({ headless: true });
+            browser = await chromium.launch({ 
+                headless: true 
+            });
             const page = await browser.newPage();
+            
+            // Network Interceptor: Auto-correct hardcoded API ports and inject CORS
+            await page.route('**/*', async (route) => {
+                const request = route.request();
+                const url = request.url();
+                
+                // Only intercept API-like requests going to localhost or 127.0.0.1
+                if ((url.includes('localhost:') || url.includes('127.0.0.1:')) && url.toLowerCase().includes('/api')) {
+                    try {
+                        const parsedUrl = new URL(url);
+                        const backendUrl = new URL(baseUrl);
+                        
+                        // If the port doesn't match the sandbox backend port, rewrite it
+                        if (parsedUrl.port !== backendUrl.port) {
+                            console.log(`[PlaywrightExecutor] Intercepted hardcoded API request to ${parsedUrl.port}. Proxying to backend port ${backendUrl.port} with CORS...`);
+                            parsedUrl.port = backendUrl.port;
+                            parsedUrl.hostname = 'localhost'; // Normalize hostname
+                            
+                            // Perform the request via Playwright's fetcher to bypass browser CORS restrictions
+                            const response = await route.fetch({ url: parsedUrl.toString() });
+                            
+                            // Inject CORS headers into the response so the browser accepts it
+                            const headers = { ...response.headers() };
+                            headers['access-control-allow-origin'] = '*';
+                            headers['access-control-allow-methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+                            headers['access-control-allow-headers'] = '*';
+                            
+                            await route.fulfill({
+                                response,
+                                headers
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        // URL parse error, just continue normally
+                    }
+                }
+                
+                await route.continue();
+            });
             
             // Smart Probing: Discover routes from source code
             const discoveredRoutes = await this.discoverRoutes(projectDirectory);
@@ -150,10 +192,11 @@ export class PlaywrightExecutor {
                 // @ts-ignore
                 const contentText = await page.evaluate(() => document.body.innerText).catch(() => "");
                 const isBlazorNotFound = contentText.toLowerCase().includes("sorry, there's nothing at this address");
-                const isEmpty = contentText.trim().length === 0;
                 
-                if (isEmpty || isBlazorNotFound) {
-                    console.log(`[PlaywrightExecutor] Route ${safeTargetPath} seems empty or 404, skipping screenshot.`);
+                // We MUST capture the screenshot even if it's completely blank (e.g. React crashed). 
+                // Skipping it causes the engine to fall back to Code Review, allowing broken apps to get 100%.
+                if (isBlazorNotFound) {
+                    console.log(`[PlaywrightExecutor] Route ${safeTargetPath} is Blazor 404, skipping screenshot.`);
                     continue;
                 }
 

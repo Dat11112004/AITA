@@ -51,7 +51,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let token = getStoredItem(AUTH_STORAGE_KEYS.token)
-  
+
   const headers: HeadersInit = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -68,7 +68,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (refreshTokenStr) {
       if (isRefreshing) {
         return new Promise<T>((resolve, reject) => {
-          failedQueue.push({ 
+          failedQueue.push({
             resolve: (newToken) => {
               // Retry with new token
               const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
@@ -79,8 +79,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
                   else resolve(j.Data !== undefined ? j.Data : j.data)
                 })
                 .catch(reject)
-            }, 
-            reject 
+            },
+            reject
           });
         });
       }
@@ -99,9 +99,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         }
 
         const data = refreshData.Data !== undefined ? refreshData.Data : refreshData.data;
-        
+
         const remember = !!localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
-        
+
         setStoredItem(AUTH_STORAGE_KEYS.token, data.token, remember);
         setStoredItem(AUTH_STORAGE_KEYS.refreshToken, data.refreshToken, remember);
         if (data.user) {
@@ -131,7 +131,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!res.ok || json.success === false || json.statusCode >= 400) {
     throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lá»—i API', json.statusCode || res.status, json.error?.code)
   }
-  return (json.Data !== undefined ? json.Data : json.data) as T
+  if (json.Data !== undefined) return json.Data as T;
+  if (json.data !== undefined) return json.data as T;
+  return json as T;
 }
 
 function toNullableNumber(value: unknown): number | null {
@@ -245,7 +247,7 @@ export const api = {
     const q = new URLSearchParams(params).toString()
     return request<AssignmentRow[]>(`/assignments${q ? `?${q}` : ''}`)
   },
-  
+
   // Student Portal
   getStudentDashboard: () => request<any>('/student-portal/dashboard'),
   getStudentSubjects: () => request<any[]>('/student-portal/subjects'),
@@ -294,7 +296,7 @@ export const api = {
     if (classId && classId !== 'all') params.append('classId', classId)
     params.append('page', page.toString())
     params.append('limit', limit.toString())
-    
+
     return request<any>(`/subjects/${subjectId}/students?${params.toString()}`)
   },
 
@@ -314,6 +316,15 @@ export const api = {
   removeSemesterSubject: (semesterId: string, subjectId: string) => request<void>(`/semesters/${semesterId}/subjects/${subjectId}`, { method: 'DELETE' }),
   deleteSeason: (season: string) => request<void>(`/semesters/season/${encodeURIComponent(season)}`, { method: 'DELETE' }),
   getClassesBySubject: (semesterId: string, subjectId: string) => request<any[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
+
+  // ── Prompts ───────────────────────────────────────────────────
+  getPromptTemplates: (subjectId: string) => request<any[]>(`/prompts/subject/${subjectId}`, { cache: 'no-store' }),
+  createPromptTemplate: (data: any) => request<any>('/prompts', { method: 'POST', body: JSON.stringify(data) }),
+  updatePromptTemplate: (id: string, data: any) => request<any>(`/prompts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deletePromptTemplate: (id: string) => request<void>(`/prompts/${id}`, { method: 'DELETE' }),
+  incrementPromptUsage: (id: string) => request<void>(`/prompts/${id}/increment-usage`, { method: 'POST' }),
+
+
 
   // â”€â”€â”€ Exams CRUD â”€â”€â”€
   getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
@@ -354,10 +365,14 @@ export const api = {
       submittedAt: normalized.submittedAt,
     }
   },
-  async submitAssignment(data: CreateSubmissionBody) {
-    const row = await request<any>(`/submissions`, {
+  submitAssignment: (file: File | null, content: string, assignmentId: string) => {
+    const formData = new FormData()
+    if (file) formData.append('file', file)
+    formData.append('content', content)
+    formData.append('assignmentId', assignmentId)
+    return request<{ submissionId: string, zipFileUrl: string, status: string }>('/submissions', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: formData,
     })
     return normalizeSubmissionRow(row)
   },
@@ -407,10 +422,12 @@ export const api = {
   getSettingsConfig: () => request<any>('/settings'),
   updateSettingsConfig: (body: any) => request<any>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ðŸ’¡ Notifications ðŸ’¡
+  // Notifications
   getNotifications: (page = 1, limit = 20) => request<any>(`/notifications?page=${page}&limit=${limit}`),
   markNotificationAsRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsAsRead: () => request<void>('/notifications/read-all', { method: 'PUT' }),
+  deleteNotification: (id: string) => request<void>(`/notifications/${id}`, { method: 'DELETE' }),
+  deleteAllNotifications: () => request<void>('/notifications/all', { method: 'DELETE' }),
   broadcastNotification: (body: any) => request<any>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
 
   // â”€â”€â”€ Audit Logs â”€â”€â”€
@@ -511,15 +528,38 @@ export interface StudentRow {
 export interface AssignmentRow {
   id: string
   title: string
+  description: string
   type: string
   class?: string
   classId: string
+  dueAt: string
   due?: string | null
-  submitted?: number
   status: string
-  description?: string
+  subjectId: string
+  subjectName?: string | null
+  lecturer?: string | null
+  lecturerAvatar?: string | null
+  createdAt?: string | null
+  classes?: string[]
+  maxScore?: number
+  submitted?: number
   content?: unknown
-  attachments?: { id: string; fileName: string; fileUrl: string; fileType: string }[]
+  attachments?: {
+    id: string
+    fileName: string
+    fileUrl: string
+    fileType: string
+  }[]
+  rubrics?: {
+    id: string
+    description: string
+    maxPoints: number
+    criteria: {
+      id: string
+      description: string
+      maxPoints: number
+    }[]
+  }[]
 }
 
 export interface SubmissionRow {
@@ -680,7 +720,9 @@ export const gradingApi = {
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
-  
+  publishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/publish', { method: 'POST' }),
+  unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
+
   uploadAssignment: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -689,7 +731,7 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
+
   extractText: (file: File, semester: string, subject: string, options?: RequestInit) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -701,34 +743,45 @@ export const gradingApi = {
       ...options
     })
   },
-  
+
   generateContent: (prompt: string, semester: string, subject: string, options?: RequestInit) => request<{ markdown: string }>('/grading/assignments/generate-content', {
     method: 'POST',
     body: JSON.stringify({ prompt, semester, subject }),
     ...options
   }).then(res => res.markdown),
-  
+
   parseRubric: (content: string, documentImageKey?: string | null, options?: RequestInit) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
     method: 'POST',
     body: JSON.stringify({ content, documentImageKey }),
     ...options
   }),
-  
+
   parseRequirements: (content: string, documentImageKey?: string | null) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {
     method: 'POST',
     body: JSON.stringify({ content, documentImageKey }),
   }).then(res => res.blueprint),
-  
+
   generateRubric: (blueprint: any) => request<{ rubric: any }>('/grading/assignments/generate-rubric', {
     method: 'POST',
     body: JSON.stringify({ blueprint }),
   }).then(res => res.rubric),
-  
+
   publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<any>('/grading/assignments/publish', {
     method: 'POST',
     body: JSON.stringify({ metadata, blueprint, rubric }),
   }),
-  
+
+  submitAssignment: (file: File | null, content: string, assignmentId: string) => {
+    const formData = new FormData()
+    if (file) formData.append('file', file)
+    formData.append('content', content)
+    formData.append('assignmentId', assignmentId)
+    return request<{ submissionId: string, zipFileUrl: string, status: string }>('/submissions', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
   submitProject: (file: File, assignmentId?: string) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -738,7 +791,6 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
   submitBatchProject: (files: File[], assignmentId?: string) => {
     const formData = new FormData()
     files.forEach(f => formData.append('files', f))
@@ -748,12 +800,33 @@ export const gradingApi = {
       body: formData,
     })
   },
-  
+
+  gradeExistingSubmission: (submissionId: string) => {
+    return request<{ submissionId: string, statusUrl: string }>('/grading/submissions/grade-existing', {
+      method: 'POST',
+      body: JSON.stringify({ submissionId }),
+    })
+  },
+
+  gradeExistingBatch: (assignmentId: string) => {
+    return request<{ jobs: any[] }>('/grading/submissions/grade-existing-batch', {
+      method: 'POST',
+      body: JSON.stringify({ assignmentId }),
+    })
+  },
+
+  gradeSelectedBatch: (assignmentId: string, submissionIds: string[]) => {
+    return request<{ jobs: any[] }>('/grading/submissions/grade-selected-batch', {
+      method: 'POST',
+      body: JSON.stringify({ assignmentId, submissionIds }),
+    })
+  },
+
   getBatchStatus: (ids: string[]) => {
     if (!ids || ids.length === 0) return Promise.resolve({ statuses: {} as Record<string, any> })
     return request<{ statuses: Record<string, any> }>('/grading/submissions/batch-status?ids=' + ids.join(','))
   },
-  
+
   cancelBatch: (ids: string[]) => {
     if (!ids || ids.length === 0) return Promise.resolve({ success: true, cancelledCount: 0 })
     return request<{ success: boolean, cancelledCount: number }>('/grading/submissions/batch-cancel', {
@@ -761,9 +834,9 @@ export const gradingApi = {
       body: JSON.stringify({ ids }),
     })
   },
-  
+
   subscribeToProgress: (
-    submissionId: string, 
+    submissionId: string,
     onProgress: (job: any) => void,
     onComplete: () => void,
     onError: (err: any) => void
@@ -807,20 +880,24 @@ export const gradingApi = {
       eventSource.close()
     }
   },
-  
+
   getSubmissionResult: (submissionId: string) => request<any>('/grading/submissions/' + submissionId + '/result'),
-  
+
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
-  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string) => {
+  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string) => {
     const params = new URLSearchParams();
     if (assignmentId) params.append('assignmentId', assignmentId);
     if (page) params.append('page', page.toString());
     if (limit) params.append('limit', limit.toString());
     if (search) params.append('search', search);
-    
+    if (status) params.append('status', status);
+    if (scoreRange) params.append('scoreRange', scoreRange);
+    if (sort) params.append('sort', sort);
+
     return request<{ history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
   },
-  
+
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
+  getSemesters: () => request<any[]>('/semesters').catch(() => []),
 }

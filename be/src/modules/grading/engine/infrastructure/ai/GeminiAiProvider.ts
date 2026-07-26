@@ -44,7 +44,7 @@ For EACH requirement, classify ALL of the following:
 
 A) COMPLEXITY: "high", "medium", or "low".
 B) COMPLEXITY REASON: 1 sentence justification.
-C) IS UI VISIBLE: true ONLY if the requirement explicitly describes visual elements on screen (e.g. "Build a Product List screen", "Display product image"). Set false for written questions even if they mention UI concepts.
+C) IS UI VISIBLE: true ONLY if the core deliverable is explicitly building a graphical user interface (e.g., "Build a Product List screen", "Implement a Modal", "Design the layout"). CRITICAL: DO NOT set this to true if the requirement merely mentions data fields (e.g. "information", "guid"), API endpoints, backend logic, or database tables.
 D) IS CRUD: boolean. True only for actual data manipulation operations.
 E) IS WRITTEN ANSWER: true if the core deliverable is a written explanation, theoretical analysis, text report, or oral defense preparation. Do NOT set this to true if the primary deliverable is executable code.
 F) IS ARCHITECTURE CODE: true if the core deliverable is the structural organization, file layering, or design pattern implementation within the source code itself. Do NOT set this to true for standard UI building, bug fixing, or functional logic.
@@ -82,10 +82,12 @@ Even within the SAME PART, if there is BOTH a coding task AND a written question
 ════════════════════════════════════════
 PROJECT TYPE CLASSIFICATION
 ════════════════════════════════════════
-"projectType" values: "algorithm" | "web" | "desktop" | "mobile" | "unity"
+"projectType" values: "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity"
 - If the assignment mentions Flutter, Dart, Android, iOS → "mobile"
 - If it mentions stdin/stdout algorithm problems → "algorithm"
-- Only use "web" for HTTP APIs, REST services, or browser-based UIs.
+- For HTTP APIs, REST services → "backend"
+- For browser-based UIs only → "frontend"
+- For both API and UI together → "fullstack"
 
 ════════════════════════════════════════
 ALGORITHM PROJECTS SPECIAL RULE
@@ -100,7 +102,7 @@ OUTPUT FORMAT (JSON OBJECT)
   "_planning": "Step-by-step reasoning. List ALL PARTS found. Show point distribution math.",
   "_partsCovered": ["PART A", "PART B", "PART C", "..."],
   "hasExplicitRubric": boolean,
-  "projectType": "algorithm" | "web" | "desktop" | "mobile" | "unity",
+  "projectType": "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity",
   "language": "csharp" | "java" | "typescript" | "python" | "dart" | "other",
   "framework": "net8" | "spring" | "react" | "angular" | "flutter" | "wpf" | "maui" | "unity" | "other",
   "assignmentTitle": "string",
@@ -222,8 +224,8 @@ OUTPUT FORMAT (JSON OBJECT)
                 // ═══════════════════════════════════════════════════════
                 // CODE-LEVEL ALGORITHM DETECTION FALLBACK
                 // ═══════════════════════════════════════════════════════
-                // If the AI misclassifies an algorithm problem as "backend" (e.g., because
-                // the teacher mentioned "Node.js"), we detect it here using keyword analysis
+                // If the AI misclassifies an algorithm problem as "backend" or "frontend" (e.g., because
+                // the teacher mentioned "Node.js" or "React"), we detect it here using keyword analysis
                 // on the ORIGINAL prompt text and forcefully correct the projectType.
                 if (blueprint.projectType !== "algorithm") {
                     const lowerPrompt = prompt.toLowerCase();
@@ -397,7 +399,7 @@ OUTPUT FORMAT (JSON OBJECT)
     public async generateRubricRulesAsync(requirements: ParsedRequirement[], projectType: string, assignmentDescription?: string): Promise<any[]> {
         const rules: any[] = [];
         const pt = projectType.toLowerCase();
-        const isWebProject = ["web", "backend", "frontend", "fullstack", "aspnet", "nodejs", "java", "php", "golang", "blazor"].includes(pt);
+        const isWebProject = ["backend", "frontend", "fullstack", "aspnet", "nodejs", "java", "php", "golang", "blazor"].includes(pt);
 
         // 1. Determine strategies deterministically
         const strategyMap = new Map<string, string>();
@@ -410,7 +412,7 @@ OUTPUT FORMAT (JSON OBJECT)
                 strategy = "AICodeReview";
             } else if (req.isUIVisible) {
                 // Mobile and web projects with visual UI → AIVision (screenshots from device/emulator)
-                strategy = ["web", "frontend", "fullstack", "blazor", "aspnet", "nodejs", "mobile", "flutter"].some(t => pt.includes(t)) ? "AIVision" : "AICodeReview";
+                strategy = ["frontend", "fullstack", "blazor", "aspnet", "nodejs", "mobile", "flutter"].some(t => pt.includes(t)) ? "AIVision" : "AICodeReview";
             } else if (req.isCRUD) {
                 strategy = isWebProject ? "HTTPProbe" : "AICodeReview";
             } else if (pt === "algorithm") {
@@ -429,41 +431,7 @@ OUTPUT FORMAT (JSON OBJECT)
         const probeReqs = requirements.filter(r => strategyMap.get(r.id) === "HTTPProbe" || strategyMap.get(r.id) === "StdInOutProbe" || strategyMap.get(r.id) === "AIVision");
         let probeConfigs: Record<string, any> = {};
 
-        // ═══════════════════════════════════════════════════════
-        // CODE-LEVEL TEST CASE EXTRACTION (BYPASS AI)
-        // ═══════════════════════════════════════════════════════
-        // For algorithm projects, attempt to extract I/O examples directly from
-        // the assignment description HTML. This ensures 100% synchronization
-        // between the examples shown in Màn 1 and the test cases in Màn 2.
-        const stdioReqs = probeReqs.filter(r => strategyMap.get(r.id) === "StdInOutProbe");
-        const httpReqs = probeReqs.filter(r => strategyMap.get(r.id) === "HTTPProbe");
-        let extractedExamples: { input: string; output: string }[] = [];
-
-        if (stdioReqs.length > 0 && assignmentDescription) {
-            extractedExamples = this.extractExamplesFromDescription(assignmentDescription);
-            if (extractedExamples.length > 0) {
-                console.log(`[GeminiAiProvider] Extracted ${extractedExamples.length} test cases from assignment description (bypassing AI).`);
-                for (const req of stdioReqs) {
-                    probeConfigs[req.id] = {
-                        type: "stdio",
-                        config: {
-                            description: "Test cases extracted from assignment examples",
-                            testCases: extractedExamples.map((ex, i) => ({
-                                id: `t${i + 1}`,
-                                input: ex.input,
-                                expectedOutput: ex.output,
-                                timeoutMs: 5000
-                            }))
-                        }
-                    };
-                }
-            }
-        }
-
-        // Only call AI for probes that weren't resolved by extraction
-        const unresolvedProbeReqs = probeReqs.filter(r => !probeConfigs[r.id]);
-
-        if (unresolvedProbeReqs.length > 0) {
+        if (probeReqs.length > 0) {
             let systemPrompt = `You are a testing engineer. Generate test payloads for the following requirements.
 OUTPUT A STRICT JSON OBJECT mapping requirement ID to its test configuration.
 
@@ -516,8 +484,8 @@ For StdInOutProbe (Algorithms), generate test cases functioning strictly as an A
 4. NO CHAT, NO STATUS: 'expectedOutput' MUST be the pure computational answer. NEVER invent status messages like "Input processed successfully" or describe complexity like "O(n)".
 5. STRICT ALIGNMENT: Ensure the generated input and expectedOutput perfectly align with the required formatting in the problem description (e.g., correct number of lines, space separations, and fallback outputs like '-1').
 6. DATA CONSISTENCY: If the input requires an integer N followed by N elements, you MUST ensure that the number of elements generated EXACTLY matches N.
-7. EXTRACTING EXAMPLES: If the ORIGINAL ASSIGNMENT DESCRIPTION contains EXAMPLES, you MUST extract these examples to use as your 3 test cases. However, you MUST STILL LEAVE 'expectedOutput' EMPTY ("") and rely on the 'javascriptSolver'.
-8. REFERENCE SOLUTION EXECUTION (ABSOLUTE MANDATE): NO MATTER WHAT, you MUST ALWAYS leave 'expectedOutput' empty ("") for ALL test cases. You MUST ALWAYS write a flawless algorithmic solver in JavaScript and put it in the 'javascriptSolver' field. The system will NEVER trust your expectedOutput strings and will ALWAYS execute your JavaScript code with your 'input' to compute the 100% correct 'expectedOutput'.
+7. EXACT EXTRACTION OF EXAMPLES: If the ORIGINAL ASSIGNMENT DESCRIPTION contains EXAMPLES, you MUST extract BOTH the 'input' AND the provided 'expectedOutput' EXACTLY as written. DO NOT leave expectedOutput empty for these teacher-provided examples.
+8. REFERENCE SOLUTION EXECUTION: For any ADDITIONAL or NEW hidden test cases you generate beyond the teacher's examples, you MUST leave 'expectedOutput' empty (""). The system will execute your 'javascriptSolver' to compute the missing outputs. You MUST ALWAYS write a flawless algorithmic solver in JavaScript and put it in the 'javascriptSolver' field.
    - Your 'javascriptSolver' MUST be a single pure function named 'solve' that takes exactly one string parameter ('input') and returns exactly one string (the output).
    - EXTREMELY IMPORTANT: Your solver MUST flawlessly parse the EXACT input format you generated. Use 'input.trim().split("\\n")' and split lines carefully based on the problem description. Example: "function solve(input) { const lines = input.trim().split('\\n'); const [N, K] = lines[0].trim().split(' ').map(Number); const arr = lines[1].trim().split(' ').map(Number); ... return ans.toString(); }"
 
@@ -539,7 +507,7 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
                 systemPrompt += `\n\n--- ORIGINAL ASSIGNMENT DESCRIPTION ---\n${assignmentDescription}\n---------------------------------------`;
             }
 
-            const prompt = `Requirements to configure:\n${JSON.stringify(unresolvedProbeReqs, null, 2)}`;
+            const prompt = `Requirements to configure:\n${JSON.stringify(probeReqs, null, 2)}`;
             try {
                 const response = await AiClientManager.executeWithFallback(async (client, model) => {
                     return await client.chat.completions.create({
@@ -603,10 +571,11 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
                         console.log(`[GeminiAiProvider] Executing AI Reference Solution for req ${req.id}...`);
                         const solveFn = new Function('input', config.javascriptSolver + '\nreturn solve(input);');
                         for (const tc of config.testCases) {
-                            // FORCE EXECUTION: We never trust the AI's math. Always overwrite.
-                            const computedOutput = solveFn(tc.input);
-                            tc.expectedOutput = String(computedOutput).trim();
-                            console.log(`[GeminiAiProvider] Computed output for input: ${tc.input.replace(/\\n/g, ' ')} -> ${tc.expectedOutput}`);
+                            if (!tc.expectedOutput || tc.expectedOutput.trim() === "") {
+                                const computedOutput = solveFn(tc.input);
+                                tc.expectedOutput = String(computedOutput).trim();
+                                console.log(`[GeminiAiProvider] Computed output for input: ${tc.input.replace(/\\n/g, ' ')} -> ${tc.expectedOutput}`);
+                            }
                         }
                     } catch (e) {
                         console.error(`[GeminiAiProvider] Failed to execute AI javascriptSolver for req ${req.id}:`, e);
@@ -677,6 +646,48 @@ RULES:
             console.error(`[GeminiAiProvider] Failed to generate assignment content:`, error);
             throw new Error('AI Generation failed. Please try again.');
         }
+    }
+
+    public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
+        const passedTitles = passedRules.map(r => `- ${r.title} (+${r.earnedScore})`).join('\n');
+        const failedTitles = failedRules.map(r => `- ${r.title} (0)`).join('\n');
+
+        const systemPrompt = `Bạn là một Tech Lead (Mentor) đang review bài tập của sinh viên.
+Nhiệm vụ của bạn là tổng hợp Feedback dựa trên kết quả chấm điểm từ hệ thống.
+
+YÊU CẦU QUAN TRỌNG (CRITICAL TONE & STYLE):
+1. VĂN PHONG THỰC TẾ, TRỰC DIỆN: Tuyệt đối KHÔNG DÙNG các từ ngữ sáo rỗng, chào hỏi, chúc mừng (VD: KHÔNG dùng "Chào bạn", "Rất vui mừng", "Chúc mừng", "Xuất sắc"). Đi thẳng ngay vào phân tích chuyên môn.
+2. RẤT NGẮN GỌN & ĐÚNG TRỌNG TÂM: Tối đa 2-3 đoạn ngắn. Nhận xét cực kỳ thực tế, tránh giải thích dông dài đạo lý.
+3. PHẠM VI CHÍNH XÁC: Chỉ đánh giá dựa trên danh sách các tiêu chí Đạt (Passed) và Chưa đạt (Failed) bên dưới.
+4. CẤU TRÚC:
+   - Trạng thái hiện tại (Đạt ${totalScore}/${maxScore} điểm).
+   - Đánh giá kỹ thuật: Nêu rõ điểm làm được và LỖ HỔNG kiến thức (nếu có tiêu chí Failed). Nếu điểm tuyệt đối (10/10), chỉ cần 1 câu chốt về mức độ hoàn thiện.
+   - Hướng khắc phục / Mở rộng (Actionable advice): 1-2 câu ngắn gọn về thực tế công việc.
+5. NGÔN NGỮ: Tiếng Việt, sử dụng thuật ngữ IT chuẩn. Định dạng Markdown đơn giản.`;
+
+        const userPrompt = `Bài tập: ${assignmentTitle}
+Điểm số: ${totalScore} / ${maxScore}
+
+--- CÁC TIÊU CHÍ ĐÃ ĐẠT ---
+${passedTitles || '(Không có)'}
+
+--- CÁC TIÊU CHÍ CHƯA ĐẠT / BỊ LỖI ---
+${failedTitles || '(Không có)'}
+
+Hãy viết feedback cuối cùng cho sinh viên này.`;
+
+        const response = await AiClientManager.executeWithFallback(async (client, model) => {
+            return await client.chat.completions.create({
+                model: model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.2 // Low temperature for consistent, professional tone
+            });
+        });
+
+        return response.choices[0].message.content || "Hệ thống không thể tạo feedback vào lúc này.";
     }
 
     /**
@@ -810,81 +821,6 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
             console.error(`[GeminiAiProvider] Failed to evaluate image (outer):`, error.message || error);
             throw new Error(`Hệ thống chấm điểm AI Vision gặp sự cố: ${error.message || 'Unknown error'}`);
         }
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // DETERMINISTIC EXAMPLE EXTRACTOR (CODE-LEVEL, NO AI)
-    // ═══════════════════════════════════════════════════════
-    // Parses Input/Output example blocks from the assignment description HTML.
-    // This ensures test cases are IDENTICAL to the examples shown to students.
-    private extractExamplesFromDescription(description: string): { input: string; output: string }[] {
-        const examples: { input: string; output: string }[] = [];
-
-        // Strip HTML tags but preserve whitespace structure
-        const text = description
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/?(p|div|li|pre|code|h[1-6]|ul|ol|tr|td|th)[^>]*>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&#?\w+;/g, '');
-
-        // Restrict search area to the examples section to avoid matching "input" in technical requirements
-        let searchArea = text;
-        const examplesSectionMatch = text.match(/expected behavior|example inputs and outputs|examples?|test cases?/i);
-        if (examplesSectionMatch && examplesSectionMatch.index !== undefined) {
-            searchArea = text.substring(examplesSectionMatch.index);
-        }
-
-        // Strategy 1: Find "Input:" / "Output:" blocks  
-        // Matches patterns like:
-        //   Input:\n  5\n  1 2 3 4 5\n  9\n  Output:\n  0 1
-        const ioPattern = /(?:input|input example)[:\s]*\n([\s\S]*?)(?:output|expected output)[:\s]*\n([\s\S]*?)(?=(?:input|input example)[:\s]*\n|$)/gi;
-        let match;
-
-        while ((match = ioPattern.exec(searchArea)) !== null) {
-            const rawInput = match[1].trim();
-            const rawOutput = match[2].trim();
-
-            if (rawInput && rawOutput) {
-                // Clean each line: trim whitespace, join with \n
-                const inputLines = rawInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                const outputLines = rawOutput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-                if (inputLines.length > 0 && outputLines.length > 0) {
-                    examples.push({
-                        input: inputLines.join('\n'),
-                        output: outputLines.join('\n')
-                    });
-                }
-            }
-        }
-
-        if (examples.length > 0) {
-            console.log(`[GeminiAiProvider] extractExamplesFromDescription: Found ${examples.length} examples via Input/Output pattern.`);
-            return examples;
-        }
-
-        // Strategy 2: Find "In:" / "Out:" shorthand blocks
-        const shortPattern = /(?:^|\n)\s*In:\s*([\s\S]*?)(?:^|\n)\s*Out:\s*([\s\S]*?)(?=(?:^|\n)\s*In:|$)/gim;
-        while ((match = shortPattern.exec(searchArea)) !== null) {
-            const inputLines = match[1].trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            const outputLines = match[2].trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            if (inputLines.length > 0 && outputLines.length > 0) {
-                examples.push({
-                    input: inputLines.join('\n'),
-                    output: outputLines.join('\n')
-                });
-            }
-        }
-
-        if (examples.length > 0) {
-            console.log(`[GeminiAiProvider] extractExamplesFromDescription: Found ${examples.length} examples via In/Out pattern.`);
-        }
-
-        return examples;
     }
 }
 

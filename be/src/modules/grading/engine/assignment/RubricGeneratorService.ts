@@ -95,10 +95,17 @@ export class RubricGeneratorService {
             const hasDataAuthLogic = ["firebase", "firestore", "auth", "đăng nhập", "đăng ký", "login", "register", "database", "cơ sở dữ liệu", "lưu trữ", "sql", "mongo", "crud", "api", "fetch"].some(kw => textToCheck.includes(kw));
 
             // CRITICAL OVERRIDE: If the requirement involves Database/Auth/Firebase logic, 
-            // it MUST NOT be graded purely by AIVision. It must be AICodeReview.
-            if (hasDataAuthLogic && req.recommendedEngine !== 'AICodeReview' && req.recommendedEngine !== 'HTTPProbe') {
-                req.recommendedEngine = 'AICodeReview';
-                req.isArchitectureCode = true;
+            // it MUST NOT be graded purely by AIVision.
+            // However, if the requirement is ALSO UI-visible (e.g., "Product List Screen with API calls"),
+            // use HybridVisionAndCode to capture BOTH screenshots AND code review.
+            if (hasDataAuthLogic && req.recommendedEngine !== 'AICodeReview' && req.recommendedEngine !== 'HTTPProbe' && rule.scoringStrategy !== 'HTTPProbe') {
+                if (req.isUIVisible) {
+                    // UI + Data Logic → Hybrid: screenshots for visual proof + code review for logic
+                    req.recommendedEngine = 'HybridVisionAndCode';
+                } else {
+                    req.recommendedEngine = 'AICodeReview';
+                    req.isArchitectureCode = true;
+                }
             }
 
             // Safety override: If the requirement is clearly asking to answer questions, explain, or describe, force it to AiTextAnalysis.
@@ -285,22 +292,26 @@ export class RubricGeneratorService {
                 };
             }
 
-            // Priority 1: UI-visible → AIVision vs AICodeReview
+
+
+            // Priority 1: UI-visible → HybridVisionAndCode (Preferred) or AIVision
             if (req.isUIVisible === true) {
                 // If it already has AIVision from GeminiAiProvider, preserve it
                 if (rule.scoringStrategy === 'AIVision') {
                     return rule;
                 }
-                // If it asks for integration, APIs, or fetch, use AICodeReview to inspect the frontend source code.
-                if (["integration", "tích hợp", "api", "fetch", "ajax", "kết nối"].some(kw => textToCheck.includes(kw))) {
+                
+                // For web projects, UI is always backed by code (HTML/React/etc), 
+                // so HybridVisionAndCode is the best strategy to get BOTH visual proof and code logic.
+                if (isHttpProbeAvailable) {
                     return {
                         ...rule,
-                        scoringStrategy: 'AICodeReview',
-                        requiredEvidence: [{
-                            evidenceType: 'ai.code.reviewed' as any,
-                            minimumConfidence: 0.9,
-                            semanticDescription: `Inspect the frontend source code (e.g. index.html, app.js). Verify that it makes network calls (e.g. fetch, XMLHttpRequest) to the backend API to fulfill this requirement.`
-                        }]
+                        scoringStrategy: 'HybridVisionAndCode',
+                        isHybrid: true,
+                        requiredEvidence: [
+                            { evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 },
+                            { evidenceType: 'ai.code.reviewed' as any, minimumConfidence: 0.85, semanticDescription: rule.description }
+                        ]
                     };
                 }
                 

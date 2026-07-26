@@ -50,39 +50,59 @@ export class PublishGradeRequestDto {
 
 export class SubmissionResponseDto {
   static from(submission: any) {
+    let aiFeedback = null;
+    try {
+      const rawReport = submission.reportData || submission.ReportData;
+      if (rawReport) {
+        const parsed = typeof rawReport === 'string' ? JSON.parse(rawReport) : rawReport;
+        aiFeedback = parsed.overallFeedback || null;
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+
+    const revStatus = submission.reviewStatus || submission.ReviewStatus || 'DRAFT';
+    const isPublished = revStatus === 'PUBLISHED' || submission.isPublished === true;
+
+    let rawTotalScore = submission.totalScore !== undefined && submission.totalScore !== null ? Number(submission.totalScore) : (submission.TotalScore !== undefined && submission.TotalScore !== null ? Number(submission.TotalScore) : null);
+    let rawFinalScore = submission.finalScore !== undefined && submission.finalScore !== null ? Number(submission.finalScore) : (submission.FinalScore !== undefined && submission.FinalScore !== null ? Number(submission.FinalScore) : null);
+
     return {
-      id: submission.Id,
-      examId: submission.ExamId,
-      assignmentId: submission.ExamId,
-      studentId: submission.StudentId,
-      classId: submission.ClassId,
-      attemptNumber: submission.AttemptNumber,
-      isLatest: submission.IsLatest,
-      submittedAt: submission.SubmittedAt,
-      zipFileUrl: submission.ZipFileUrl,
-      gradingStatus: submission.GradingStatus,
-      reviewStatus: submission.ReviewStatus,
-      totalScore: submission.TotalScore === null || submission.TotalScore === undefined ? null : Number(submission.TotalScore),
-      finalScore: submission.FinalScore === null || submission.FinalScore === undefined ? null : Number(submission.FinalScore),
-      instructorFeedback: submission.InstructorFeedback,
-      studentFeedback: submission.StudentFeedback,
-      reviewedBy: submission.ReviewedBy,
-      reviewedAt: submission.ReviewedAt,
-      gradedAt: submission.GradedAt,
+      id: submission.id || submission.Id,
+      examId: submission.examId || submission.ExamId,
+      assignmentId: submission.examId || submission.ExamId,
+      studentId: submission.studentId || submission.StudentId,
+      classId: submission.classId || submission.ClassId,
+      attemptNumber: submission.attemptNumber || submission.AttemptNumber,
+      isLatest: submission.isLatest ?? submission.IsLatest,
+      submittedAt: submission.submittedAt || submission.SubmittedAt,
+      zipFileUrl: submission.zipFileUrl || submission.ZipFileUrl,
+      gradingStatus: submission.gradingStatus || submission.GradingStatus,
+      reviewStatus: revStatus,
+      isPublished: isPublished,
+      totalScore: isPublished ? rawTotalScore : null,
+      finalScore: isPublished ? rawFinalScore : null,
+      score: isPublished ? (rawFinalScore ?? rawTotalScore) : null,
+      instructorFeedback: isPublished ? (submission.instructorFeedback || submission.InstructorFeedback) : null,
+      studentFeedback: submission.studentFeedback || submission.StudentFeedback,
+      reviewedBy: submission.reviewedBy || submission.ReviewedBy,
+      reviewedAt: submission.reviewedAt || submission.ReviewedAt,
+      gradedAt: submission.gradedAt || submission.GradedAt,
+      aiFeedback: isPublished ? aiFeedback : null,
       student: submission.User_Submission_StudentIdToUser ? {
         id: submission.User_Submission_StudentIdToUser.Id,
         name: submission.User_Submission_StudentIdToUser.FullName,
         email: submission.User_Submission_StudentIdToUser.Email,
-      } : null,
+      } : (submission.student ? submission.student : null),
       exam: submission.Exam ? {
         id: submission.Exam.Id,
         title: submission.Exam.Title,
         status: submission.Exam.Status,
-      } : null,
+      } : (submission.exam ? submission.exam : null),
       class: submission.Class ? {
         id: submission.Class.Id,
         code: submission.Class.ClassCode,
-      } : null,
+      } : (submission.class ? submission.class : null),
     }
   }
 }

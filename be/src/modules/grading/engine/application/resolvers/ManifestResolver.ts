@@ -14,7 +14,7 @@ export class ProjectTypeResolver {
         
         // Mocking a fallback detection for Sprint 1
         return {
-            projectType: 'web',
+            projectType: 'backend',
             language: 'unknown',
             framework: 'net8'
         };
@@ -40,10 +40,9 @@ export class ManifestResolver {
         const detected = await this.typeResolver.detectAsync(this.storage, sourceCodeUri);
         
         return {
-            projectType: detected.projectType || 'web',
+            projectType: detected.projectType || 'backend',
             language: detected.language || 'csharp',
             framework: detected.framework || 'unknown'
         };
     }
 }
-

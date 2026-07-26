@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type SubjectRow } from '@/lib/api'
-import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, CheckSquare } from 'lucide-react'
+import { Plus, Library, TableProperties, Loader2, X, AlertTriangle, CheckSquare, ArrowUpDown, ArrowUp, ArrowDown, BookOpen, Edit2 } from 'lucide-react'
 
 export function AdminSubjects() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
@@ -20,6 +21,76 @@ export function AdminSubjects() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Subject Detail Modal State
+  const [detailSubject, setDetailSubject] = useState<SubjectRow | null>(null)
+
+  // Sorting State
+  const [sortKey, setSortKey] = useState<'semester' | 'code' | 'name' | 'status'>('semester')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  const sortedSubjects = useMemo(() => {
+    return [...subjects].sort((a, b) => {
+      if (sortKey === 'semester') {
+        const parseSem = (val: any) => {
+          if (val == null || val === '') return 999
+          const num = Number(String(val).replace(/\D/g, ''))
+          return isNaN(num) ? 999 : num
+        }
+        const semA = parseSem(a.semester)
+        const semB = parseSem(b.semester)
+        if (semA !== semB) {
+          return sortOrder === 'asc' ? semA - semB : semB - semA
+        }
+        return (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' })
+      }
+
+      if (sortKey === 'code') {
+        const comp = (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' })
+        return sortOrder === 'asc' ? comp : -comp
+      }
+
+      if (sortKey === 'name') {
+        const comp = (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' })
+        return sortOrder === 'asc' ? comp : -comp
+      }
+
+      if (sortKey === 'status') {
+        const statusA = (a.status || 'active').toString()
+        const statusB = (b.status || 'active').toString()
+        const comp = statusA.localeCompare(statusB)
+        return sortOrder === 'asc' ? comp : -comp
+      }
+
+      return 0
+    })
+  }, [subjects, sortKey, sortOrder])
+
+  const handleSortToggle = (key: 'semester' | 'code' | 'name' | 'status') => {
+    if (sortKey === key) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortOrder('asc')
+    }
+  }
+
+  const renderHeader = (label: string, key: 'semester' | 'code' | 'name' | 'status') => {
+    const isSorted = sortKey === key
+    return (
+      <button
+        onClick={() => handleSortToggle(key)}
+        className="flex items-center gap-1.5 hover:text-brand-600 dark:hover:text-brand-400 transition-colors font-semibold select-none group"
+      >
+        <span>{label}</span>
+        {isSorted ? (
+          sortOrder === 'asc' ? <ArrowUp size={14} className="text-brand-600 dark:text-brand-400" /> : <ArrowDown size={14} className="text-brand-600 dark:text-brand-400" />
+        ) : (
+          <ArrowUpDown size={13} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        )}
+      </button>
+    )
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -308,13 +379,13 @@ export function AdminSubjects() {
                 }] : []),
                 {
                   key: 'code',
-                  header: 'Mã môn',
+                  header: renderHeader('Mã môn', 'code'),
                   render: (r: SubjectRow) => <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{r.code}</span>
                 },
-                { key: 'name', header: 'Tên môn học' },
+                { key: 'name', header: renderHeader('Tên môn học', 'name') },
                 {
                   key: 'semester',
-                  header: 'Kỳ học',
+                  header: renderHeader('Kỳ học', 'semester'),
                   render: (r: SubjectRow) => r.semester ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
                       {/^k[yỳ]/i.test(String(r.semester)) ? r.semester : `Kỳ ${r.semester}`}
@@ -326,7 +397,7 @@ export function AdminSubjects() {
 
                 {
                   key: 'status',
-                  header: 'Trạng thái',
+                  header: renderHeader('Trạng thái', 'status'),
                   render: (r: SubjectRow) => {
                     const status = r.status
                     const isActive = status === 'active' || status === '1' || status === 'true' || !status
@@ -341,8 +412,9 @@ export function AdminSubjects() {
                   key: 'actions',
                   header: '',
                   render: (r: SubjectRow) => (
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => {
+                    <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={(e) => {
+                        e.stopPropagation()
                         if (selectedIds.size === 1) {
                           const id = Array.from(selectedIds)[0]
                           const subj = subjects.find(s => s.id === id)
@@ -353,7 +425,8 @@ export function AdminSubjects() {
                       }}>
                         Chỉnh sửa
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => {
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(e) => {
+                        e.stopPropagation()
                         if (selectedIds.size > 0) {
                           handleBulkDelete()
                         } else {
@@ -366,19 +439,115 @@ export function AdminSubjects() {
                   )
                 }
               ] as any}
-              data={subjects}
+              data={sortedSubjects}
               keyExtractor={(r) => r.id}
-              onRowClick={selectionMode ? (row) => {
-                setSelectedIds(prev => {
-                  const next = new Set(prev)
-                  if (next.has(row.id)) next.delete(row.id)
-                  else next.add(row.id)
-                  return next
-                })
-              } : undefined}
+              onRowClick={(row) => {
+                if (selectionMode) {
+                  setSelectedIds(prev => {
+                    const next = new Set(prev)
+                    if (next.has(row.id)) next.delete(row.id)
+                    else next.add(row.id)
+                    return next
+                  })
+                } else {
+                  setDetailSubject(row)
+                }
+              }}
             />
           </div>
         </Card>
+      )}
+
+      {/* Subject Detail Modal */}
+      {detailSubject && createPortal(
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setDetailSubject(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-brand-600 to-indigo-600 text-white relative">
+              <button 
+                onClick={() => setDetailSubject(null)}
+                className="absolute top-4 right-4 p-1.5 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner shrink-0">
+                  <BookOpen size={24} />
+                </div>
+                <div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-white mb-1">
+                    {detailSubject.semester ? (
+                      /^k[yỳ]/i.test(String(detailSubject.semester)) ? detailSubject.semester : `Kỳ ${detailSubject.semester}`
+                    ) : 'Chưa xếp kỳ'}
+                  </span>
+                  <h2 className="text-xl font-bold leading-tight">{detailSubject.code}</h2>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1 block">Tên môn học</label>
+                <p className="text-lg font-bold text-slate-900 dark:text-white leading-snug">{detailSubject.name || 'Chưa cập nhật'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Mã môn học</label>
+                  <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-base">{detailSubject.code}</span>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Trạng thái</label>
+                  {(() => {
+                    const isActive = detailSubject.status === 'active' || detailSubject.status === '1' || detailSubject.status === 'true' || !detailSubject.status
+                    return (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        {isActive ? 'Hoạt động' : 'Tạm dừng'}
+                      </span>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1 block">Mô tả môn học</label>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+                  {detailSubject.description || <span className="italic text-slate-400">Chưa có thông tin mô tả chi tiết cho môn học này.</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setDetailSubject(null)}
+                className="px-4 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+              >
+                Đóng
+              </Button>
+              <Button
+                onClick={() => {
+                  const subj = detailSubject
+                  setDetailSubject(null)
+                  handleEdit(subj)
+                }}
+                className="px-5 bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 shadow-sm"
+              >
+                <Edit2 size={16} /> Chỉnh sửa
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

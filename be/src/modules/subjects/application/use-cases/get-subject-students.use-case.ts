@@ -1,5 +1,7 @@
 import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-work.interface.js'
+import type { ISubjectRepository } from '../../domain/repositories/subject-repository.interface.js'
+import { TOKENS } from '../../../../shared/infrastructure/tokens.js'
 import { NotFoundError } from '../../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
 
@@ -19,43 +21,25 @@ export class GetSubjectStudentsUseCase implements IUseCase<GetSubjectStudentsPar
   async execute(params: GetSubjectStudentsParams): Promise<any> {
     const { subjectId, semesterId, classId, page, limit } = params
 
+    const subjectRepo = this.uow.resolve<ISubjectRepository>(TOKENS.SubjectRepository)
+
     // Verify subject exists
-    const subject = await this.uow.getClient().subject.findUnique({
-      where: { Id: subjectId }
-    })
+    const subject = await subjectRepo.findById(subjectId)
     
     if (!subject) {
       throw new NotFoundError(MESSAGES.SUBJECT_NOT_FOUND || 'Không tìm thấy môn học')
     }
 
-    const whereClause: any = {
-      Class: {
-        SubjectId: subjectId,
-        ...(semesterId && { SemesterId: semesterId }),
-        ...(classId && classId !== 'all' && { Id: classId })
-      }
-    }
-
     const skip = (page - 1) * limit
     const take = limit
 
-    const [total, enrollments] = await Promise.all([
-      this.uow.getClient().studentClass.count({ where: whereClause }),
-      this.uow.getClient().studentClass.findMany({
-        where: whereClause,
-        select: {
-          User: { select: { Id: true, FullName: true, Email: true, StudentCode: true } },
-          Class: { select: { Id: true, ClassCode: true } }
-        },
-        skip,
-        take,
-        // Order by Class Code then User FullName for consistent UX
-        orderBy: [
-          { Class: { ClassCode: 'asc' } },
-          { User: { FullName: 'asc' } }
-        ]
-      })
-    ])
+    const { total, enrollments } = await subjectRepo.getSubjectStudents(
+      subjectId,
+      semesterId,
+      classId,
+      skip,
+      take
+    )
 
     const data = enrollments
       .filter((e: any) => e.User)

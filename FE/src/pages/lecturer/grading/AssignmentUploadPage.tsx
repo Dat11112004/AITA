@@ -2,53 +2,33 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/modules/grading/FileUpload';
 import { gradingApi as api, api as mainApi } from '@/lib/api';
-import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, Clock, ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react';
+import { aiGenerationStore } from '@/services/aiGenerationStore';
+import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react';
 import classNames from 'classnames';
 import Editor from 'react-simple-wysiwyg';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
 
-interface PromptTemplate {
-    id: number;
-    subject: string;
-    category: string;
-    title: string;
-    description: string;
-    requirements: string[];
-    outcomes: string[];
-    difficulty: 'Dễ' | 'Trung bình' | 'Khó';
-    duration: string;
-    tags: string[];
-    prompt: string;
+export interface PromptTemplate {
+    id: string;
+    name: string;
+    subjectId: string;
+    projectTypeId?: string;
+    category?: string;
+    templateContent: string;
+    placeholderSchema?: string;
+    isActive?: boolean;
+    temperature?: number;
 }
-
-const PROMPT_TEMPLATES: PromptTemplate[] = [
-    { id: 1, subject: 'PRM392', category: 'Assignment', title: 'Flutter Mobile App – ToDo List', description: 'Tạo bài tập yêu cầu sinh viên phát triển một ứng dụng quản lý công việc (ToDo List) bằng Flutter.', requirements: ['Flutter 3.x', 'Firebase Authentication', 'Cloud Firestore', 'CRUD Task', 'State Management (Provider hoặc Riverpod)', 'Form Validation', 'Responsive UI'], outcomes: ['Sinh viên có thể xây dựng một ứng dụng Flutter hoàn chỉnh với kiến trúc rõ ràng, quản lý trạng thái hợp lý và kết nối Firebase.'], difficulty: 'Trung bình', duration: '2-3 giờ', tags: ['Mobile Development'], prompt: 'Tạo bài tập yêu cầu sinh viên phát triển một ứng dụng quản lý công việc (ToDo List) bằng Flutter. Ứng dụng phải có giao diện trực quan, dữ liệu được lưu trữ trên Firebase và hỗ trợ xác thực người dùng.\n\nYêu cầu công nghệ:\n- Flutter 3.x\n- Firebase Authentication\n- Cloud Firestore\n- CRUD Task\n- State Management (Provider hoặc Riverpod)\n- Form Validation\n- Responsive UI\n\nKết quả mong đợi:\nSinh viên có thể xây dựng một ứng dụng Flutter hoàn chỉnh với kiến trúc rõ ràng, quản lý trạng thái hợp lý và kết nối Firebase.' },
-    { id: 2, subject: 'PRM392', category: 'Final Project', title: 'Firebase Chat Application', description: 'Thiết kế ứng dụng nhắn tin thời gian thực sử dụng Flutter và Firebase.', requirements: ['Đăng nhập bằng Email', 'Danh sách người dùng', 'Chat 1-1', 'Tin nhắn thời gian thực', 'Upload hình ảnh', 'Notification cơ bản'], outcomes: ['Ứng dụng hoạt động ổn định với khả năng đồng bộ dữ liệu thời gian thực.'], difficulty: 'Khó', duration: '3-4 giờ', tags: ['Realtime', 'Firebase'], prompt: 'Thiết kế ứng dụng nhắn tin thời gian thực sử dụng Flutter và Firebase.\n\nYêu cầu công nghệ:\n- Đăng nhập bằng Email\n- Danh sách người dùng\n- Chat 1-1\n- Tin nhắn thời gian thực\n- Upload hình ảnh\n- Notification cơ bản\n\nKết quả mong đợi:\nỨng dụng hoạt động ổn định với khả năng đồng bộ dữ liệu thời gian thực.' },
-    { id: 3, subject: 'PRM392', category: 'Lab', title: 'E-Commerce UI', description: 'Thiết kế giao diện ứng dụng thương mại điện tử bằng Flutter dựa trên Figma.', requirements: ['Home', 'Product List', 'Product Detail', 'Cart', 'Checkout', 'Responsive', 'Dark Mode'], outcomes: ['Hoàn thiện UI đúng thiết kế, cấu trúc widget hợp lý và tối ưu trải nghiệm người dùng.'], difficulty: 'Dễ', duration: '2 giờ', tags: ['UI/UX', 'Figma'], prompt: 'Thiết kế giao diện ứng dụng thương mại điện tử bằng Flutter dựa trên Figma.\n\nYêu cầu màn hình:\n- Home\n- Product List\n- Product Detail\n- Cart\n- Checkout\n- Responsive\n- Dark Mode\n\nKết quả mong đợi:\nHoàn thiện UI đúng thiết kế, cấu trúc widget hợp lý và tối ưu trải nghiệm người dùng.' },
-    { id: 4, subject: 'SWP391', category: 'Assignment', title: 'Spring Boot REST API', description: 'Tạo bài tập xây dựng hệ thống RESTful API bằng Spring Boot.', requirements: ['CRUD API', 'Spring Data JPA', 'MySQL', 'JWT Authentication', 'Role Based Authorization', 'Validation', 'Swagger', 'Exception Handling'], outcomes: ['Sinh viên xây dựng được backend theo kiến trúc REST, đáp ứng các tiêu chuẩn bảo mật và dễ mở rộng.'], difficulty: 'Khó', duration: '4 giờ', tags: ['Backend', 'Java'], prompt: 'Tạo bài tập xây dựng hệ thống RESTful API bằng Spring Boot.\n\nYêu cầu công nghệ:\n- CRUD API\n- Spring Data JPA\n- MySQL\n- JWT Authentication\n- Role Based Authorization\n- Validation\n- Swagger\n- Exception Handling\n\nKết quả mong đợi:\nSinh viên xây dựng được backend theo kiến trúc REST, đáp ứng các tiêu chuẩn bảo mật và dễ mở rộng.' },
-    { id: 5, subject: 'SWP391', category: 'Midterm', title: 'React Dashboard', description: 'Xây dựng Dashboard quản trị bằng ReactJS.', requirements: ['React Router', 'Axios', 'Authentication', 'Dashboard', 'Chart', 'Table', 'Pagination', 'Responsive'], outcomes: ['Ứng dụng có giao diện hiện đại, quản lý dữ liệu hiệu quả và đáp ứng trên nhiều thiết bị.'], difficulty: 'Trung bình', duration: '3 giờ', tags: ['Frontend', 'React'], prompt: 'Xây dựng Dashboard quản trị bằng ReactJS.\n\nYêu cầu công nghệ:\n- React Router\n- Axios\n- Authentication\n- Dashboard\n- Chart\n- Table\n- Pagination\n- Responsive\n\nKết quả mong đợi:\nỨng dụng có giao diện hiện đại, quản lý dữ liệu hiệu quả và đáp ứng trên nhiều thiết bị.' },
-    { id: 6, subject: 'DBI202', category: 'Assignment', title: 'SQL Database Design', description: 'Thiết kế cơ sở dữ liệu cho hệ thống quản lý bán hàng.', requirements: ['ERD', 'Chuẩn hóa đến 3NF', 'Tạo Database', 'Primary Key', 'Foreign Key', 'Trigger', 'Stored Procedure', 'View'], outcomes: ['Cơ sở dữ liệu đầy đủ, đảm bảo tính toàn vẹn dữ liệu và hỗ trợ các chức năng nghiệp vụ.'], difficulty: 'Trung bình', duration: '2-3 giờ', tags: ['Database', 'SQL'], prompt: 'Thiết kế cơ sở dữ liệu cho hệ thống quản lý bán hàng.\n\nYêu cầu:\n- ERD\n- Chuẩn hóa đến 3NF\n- Tạo Database\n- Primary Key\n- Foreign Key\n- Trigger\n- Stored Procedure\n- View\n\nKết quả mong đợi:\nCơ sở dữ liệu đầy đủ, đảm bảo tính toàn vẹn dữ liệu và hỗ trợ các chức năng nghiệp vụ.' },
-    { id: 7, subject: 'AI201', category: 'Lab', title: 'AI Prompt Engineering', description: 'Thiết kế prompt nhằm khai thác hiệu quả mô hình ngôn ngữ lớn (LLM) để giải quyết bài toán thực tế.', requirements: ['Prompt Structure', 'Context Design', 'Few-shot Prompting', 'Chain of Thought', 'Prompt Evaluation', 'Prompt Optimization'], outcomes: ['Sinh viên biết xây dựng prompt chất lượng và đánh giá kết quả sinh ra từ AI.'], difficulty: 'Trung bình', duration: '2 giờ', tags: ['AI', 'Prompt'], prompt: 'Thiết kế prompt nhằm khai thác hiệu quả mô hình ngôn ngữ lớn (LLM) để giải quyết bài toán thực tế.\n\nYêu cầu kỹ thuật:\n- Prompt Structure\n- Context Design\n- Few-shot Prompting\n- Chain of Thought\n- Prompt Evaluation\n- Prompt Optimization\n\nKết quả mong đợi:\nSinh viên biết xây dựng prompt chất lượng và đánh giá kết quả sinh ra từ AI.' },
-    { id: 8, subject: 'AI201', category: 'Final Project', title: 'Machine Learning Classification', description: 'Xây dựng mô hình phân loại dữ liệu bằng Python.', requirements: ['Data Preprocessing', 'Feature Engineering', 'Train/Test Split', 'Random Forest hoặc SVM', 'Evaluation Metrics', 'Visualization'], outcomes: ['Mô hình đạt độ chính xác theo yêu cầu và có báo cáo phân tích kết quả.'], difficulty: 'Khó', duration: '4 giờ', tags: ['Python', 'Machine Learning'], prompt: 'Xây dựng mô hình phân loại dữ liệu bằng Python.\n\nYêu cầu kỹ thuật:\n- Data Preprocessing\n- Feature Engineering\n- Train/Test Split\n- Random Forest hoặc SVM\n- Evaluation Metrics\n- Visualization\n\nKết quả mong đợi:\nMô hình đạt độ chính xác theo yêu cầu và có báo cáo phân tích kết quả.' },
-    { id: 9, subject: 'CSD201', category: 'Assignment', title: 'Java OOP Assignment', description: 'Phát triển ứng dụng quản lý thư viện bằng Java theo hướng đối tượng.', requirements: ['Inheritance', 'Polymorphism', 'Interface', 'Exception Handling', 'Generic', 'Collections', 'File I/O'], outcomes: ['Áp dụng đầy đủ các nguyên lý OOP và viết mã theo chuẩn Clean Code.'], difficulty: 'Trung bình', duration: '3 giờ', tags: ['Java', 'OOP'], prompt: 'Phát triển ứng dụng quản lý thư viện bằng Java theo hướng đối tượng.\n\nYêu cầu kỹ thuật:\n- Inheritance\n- Polymorphism\n- Interface\n- Exception Handling\n- Generic\n- Collections\n- File I/O\n\nKết quả mong đợi:\nÁp dụng đầy đủ các nguyên lý OOP và viết mã theo chuẩn Clean Code.' },
-    { id: 10, subject: 'CSD201', category: 'Midterm', title: 'Data Structures & Algorithms', description: 'Giải quyết các bài toán thuật toán bằng Java.', requirements: ['BST', 'AVL Tree', 'BFS', 'DFS', 'Dijkstra', 'Kruskal', 'Time Complexity Analysis'], outcomes: ['Sinh viên cài đặt đúng thuật toán, phân tích được độ phức tạp và tối ưu lời giải.'], difficulty: 'Khó', duration: '3-4 giờ', tags: ['Algorithms', 'Data Structures'], prompt: 'Giải quyết các bài toán thuật toán bằng Java.\n\nYêu cầu kỹ thuật:\n- BST\n- AVL Tree\n- BFS\n- DFS\n- Dijkstra\n- Kruskal\n- Time Complexity Analysis\n\nKết quả mong đợi:\nSinh viên cài đặt đúng thuật toán, phân tích được độ phức tạp và tối ưu lời giải.' }
-];
-
-const RECENT_TEMPLATES = [
-    'Flutter CRUD Application',
-    'Java REST API',
-    'SQL Midterm Practice'
-];
 
 const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
     const selectedOption = normalizedOptions.find(opt => opt.value === value);
 
     return (
         <div className={`relative ${className}`}>
-            <div 
+            <div
                 className={classNames(
                     "w-full px-4 py-2 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-sm transition-all",
                     isOpen ? "border-brand-500 ring-2 ring-brand-100" : (hasError ? "border-rose-400 ring-2 ring-rose-100 bg-rose-50/30" : "border-slate-200 hover:border-slate-300")
@@ -56,22 +36,22 @@ const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", c
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className={value ? "text-slate-900 font-semibold" : "text-slate-400"}>
-                    {selectedOption ? selectedOption.label : placeholder}
+                    {selectedOption ? selectedOption.label : (value ? value : placeholder)}
                 </span>
                 <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </div>
-            
+
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 py-1.5 max-h-64 overflow-y-auto">
                         {normalizedOptions.map(opt => (
-                            <div 
+                            <div
                                 key={opt.value}
                                 className={classNames(
                                     "px-4 py-2.5 mx-1.5 my-0.5 text-sm cursor-pointer transition-all duration-200 rounded-xl flex items-center",
-                                    value === opt.value 
-                                        ? "bg-brand-50 text-brand-700 font-bold" 
+                                    value === opt.value
+                                        ? "bg-brand-50 text-brand-700 font-bold"
                                         : "text-slate-600 hover:bg-brand-50/60 hover:text-brand-600 font-medium"
                                 )}
                                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
@@ -94,18 +74,27 @@ export default function AssignmentUploadPage() {
     const [content, setContent] = useState('');
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
-    const [metadata, setMetadata] = useState({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
+    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [activeSubjectFilter, setActiveSubjectFilter] = useState('PRM392');
 
-    const [previewTemplateId, setPreviewTemplateId] = useState<number | null>(null);
+    const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [subjectCode, setSubjectCode] = useState('');
+    const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
+    const [subjectCodeToId, setSubjectCodeToId] = useState<Record<string, string>>({});
+
+    const [drawerSubjectCode, setDrawerSubjectCode] = useState('');
+    const [drawerPromptTemplates, setDrawerPromptTemplates] = useState<PromptTemplate[]>([]);
+
+    const [drawerWidth, setDrawerWidth] = useState(50);
+    const [isDragging, setIsDragging] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [previewContent, setPreviewContent] = useState('');
 
     const navigate = useNavigate();
 
@@ -115,16 +104,30 @@ export default function AssignmentUploadPage() {
     const [selectedSemester, setSelectedSemester] = useState<string>('');
     const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
     const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, dueDate?: string, classes?: string }>({});
-    
-    const abortControllerRef = useRef<AbortController | null>(null);
 
     const handleCancelGeneration = () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
+        aiGenerationStore.cancelGeneration();
         setIsLoading(false);
     };
+
+    useEffect(() => {
+        const unsubscribe = aiGenerationStore.subscribe((storeState) => {
+            setIsLoading(storeState.isGenerating);
+            if (storeState.loadingMsg) setLoadingMsg(storeState.loadingMsg);
+            if (storeState.error) setError(storeState.error);
+            if (storeState.result) {
+                setContent(storeState.result.content);
+                setRubric(storeState.result.rubric);
+                setBlueprint(storeState.result.blueprint);
+                setMetadata(storeState.result.metadata);
+                setStep(storeState.result.step);
+            }
+            if (storeState.selectedSemester) setSelectedSemester(storeState.selectedSemester);
+            if (storeState.subjectCode) setSubjectCode(storeState.subjectCode);
+            if (storeState.textPrompt) setTextPrompt(storeState.textPrompt);
+        });
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -144,18 +147,83 @@ export default function AssignmentUploadPage() {
                 if (activeSem) setSelectedSemester(activeSem.id);
 
                 const uniqueSubjects = new Set<string>();
+                const subjectIdMap: Record<string, string> = {};
                 clsData.forEach((c: any) => {
                     const code = c.subject?.code;
-                    if (code) uniqueSubjects.add(code);
+                    const id = c.subject?.id;
+                    if (code) {
+                        uniqueSubjects.add(code);
+                        if (id) subjectIdMap[code] = id;
+                    }
                 });
                 const subjectList = Array.from(uniqueSubjects).sort();
                 setTeacherSubjects(subjectList);
+                setSubjectCodeToId(subjectIdMap);
             } catch (err) {
                 console.error("Failed to load classes:", err);
             }
         };
         fetchClasses();
     }, []);
+
+    useEffect(() => {
+        if (isDrawerOpen) {
+            if (subjectCode) {
+                setDrawerSubjectCode(subjectCode);
+            } else if (teacherSubjects.length > 0) {
+                setDrawerSubjectCode(teacherSubjects[0]);
+            }
+        }
+    }, [isDrawerOpen, subjectCode, teacherSubjects]);
+
+    useEffect(() => {
+        const subjectId = subjectCodeToId[drawerSubjectCode];
+        if (drawerSubjectCode && subjectId) {
+            mainApi.getPromptTemplates(subjectId)
+                .then(setDrawerPromptTemplates)
+                .catch(console.error);
+        } else {
+            setDrawerPromptTemplates([]);
+        }
+    }, [drawerSubjectCode, subjectCodeToId]);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            const container = containerRef.current;
+            if (!container) return;
+            const containerRect = container.getBoundingClientRect();
+            let newWidthPercent = ((containerRect.right - e.clientX) / containerRect.width) * 100;
+            if (newWidthPercent < 30) newWidthPercent = 30;
+            if (newWidthPercent > 70) newWidthPercent = 70;
+            setDrawerWidth(newWidthPercent);
+        };
+
+        const handleMouseUp = () => {
+            if (isDragging) setIsDragging(false);
+        };
+
+        if (isDragging) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+
+    useEffect(() => {
+        const subjectId = subjectCodeToId[subjectCode];
+        if (subjectCode && subjectId) {
+            mainApi.getPromptTemplates(subjectId)
+                .then(setPromptTemplates)
+                .catch(console.error);
+        } else {
+            setPromptTemplates([]);
+        }
+    }, [subjectCode, subjectCodeToId]);
 
     useEffect(() => {
         if (error) {
@@ -168,65 +236,23 @@ export default function AssignmentUploadPage() {
         const newErrors: { semester?: string, subjectCode?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             return;
         }
         setValidationErrors({});
-        
+
         if (!textPrompt) return;
         setError(null);
-        setIsLoading(true);
-        abortControllerRef.current = new AbortController();
-
-        try {
-            setLoadingMsg('Gemini is generating the assignment content...');
-            const finalPrompt = subjectCode ? `Môn học: ${subjectCode}\n\n${textPrompt}` : textPrompt;
-            const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
-
-            setLoadingMsg('Analyzing content & extracting grading blueprint...');
-            const draftBlueprint = await api.parseRequirements(markdown);
-
-            setLoadingMsg('Running background execution to compute Test Cases...');
-            const generatedRubric = await api.generateRubric(draftBlueprint);
-
-            let finalMarkdown = markdown;
-            if (draftBlueprint.projectType === 'algorithm') {
-                const ioRule = generatedRubric.rules.find((r: any) => r.scoringStrategy === 'StdInOutProbe');
-                const testCases = ioRule?.requiredEvidence?.[0]?.stdInOutProbe?.testCases;
-                if (testCases && testCases.length > 0) {
-                    finalMarkdown += `<br/><h3>Expected Behavior (Test Cases)</h3><ul>`;
-                    testCases.forEach((tc: any, idx: number) => {
-                        finalMarkdown += `<li><strong>Test Case ${idx + 1}:</strong><br/>Input:<pre>${tc.input}</pre>Output:<pre>${tc.expectedOutput}</pre></li><br/>`;
-                    });
-                    finalMarkdown += `</ul>`;
-                }
-            }
-
-            setContent(finalMarkdown);
-            setRubric(generatedRubric);
-            setBlueprint(draftBlueprint);
-            setMetadata({
-                title: draftBlueprint.assignmentTitle || 'AI Generated Assignment',
-                description: draftBlueprint.description || '',
-                projectType: draftBlueprint.projectType || 'backend',
-                subject: subjectCode || draftBlueprint.subject || ''
-            });
-            setStep(2);
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
-            setError(err.response?.data?.error || err.message || "Failed to generate content");
-        } finally {
-            setIsLoading(false);
-        }
+        aiGenerationStore.startGeneration(textPrompt, selectedSemester, subjectCode);
     };
 
     const handleFileUpload = async (file: File) => {
         const newErrors: { semester?: string, subjectCode?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             return;
@@ -234,30 +260,7 @@ export default function AssignmentUploadPage() {
         setValidationErrors({});
 
         setError(null);
-        setIsLoading(true);
-        setLoadingMsg('Analyzing document and generating rubric...');
-        abortControllerRef.current = new AbortController();
-        try {
-            const extractResult = await api.extractText(file, selectedSemester, subjectCode, { signal: abortControllerRef.current.signal });
-            const text = extractResult.text?.rawText || (typeof extractResult.text === 'string' ? extractResult.text : JSON.stringify(extractResult.text));
-            const result = await api.parseRubric(text, extractResult.documentImageKey, { signal: abortControllerRef.current.signal });
-
-            setRubric(result.rubric);
-            setBlueprint(result.blueprint);
-            setMetadata({
-                title: result.blueprint.assignmentTitle || 'AI Generated Assignment',
-                description: result.blueprint.description || '',
-                projectType: result.blueprint.projectType || 'backend',
-                subject: subjectCode || result.blueprint.subject || ''
-            });
-
-            setStep(3); // Skip step 2 for files
-        } catch (err: any) {
-            if (err.name === 'AbortError') return;
-            setError(err.response?.data?.error || err.message || "Failed to process file");
-        } finally {
-            setIsLoading(false);
-        }
+        aiGenerationStore.startFileGeneration(file, selectedSemester, subjectCode);
     };
 
     const handleParseRubric = async () => {
@@ -269,7 +272,7 @@ export default function AssignmentUploadPage() {
 
     const handlePublish = async () => {
         if (!rubric || !blueprint) return;
-        
+
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
         if (selectedClasses.length === 0) newErrors.classes = "Vui lòng chọn ít nhất 1 lớp để giao bài tập.";
@@ -278,7 +281,7 @@ export default function AssignmentUploadPage() {
         } else if (new Date(metadata.dueDate) < new Date()) {
             newErrors.dueDate = "Hạn nộp không được ở trong quá khứ.";
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
             setError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
@@ -307,8 +310,9 @@ export default function AssignmentUploadPage() {
         setIsLoading(true);
         setLoadingMsg('Finalizing and publishing assignment...');
         try {
-            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses };
+            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content };
             const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);
+            aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
         } catch (err: any) {
             setError(err.response?.data?.error || err.message || "Failed to publish assignment");
@@ -345,7 +349,7 @@ export default function AssignmentUploadPage() {
         }
     };
 
-    const availableSubjectsForInput = selectedSemester 
+    const availableSubjectsForInput = selectedSemester
         ? Array.from(new Set(allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code).map((c: any) => c.subject.code))).sort()
         : teacherSubjects;
 
@@ -355,14 +359,17 @@ export default function AssignmentUploadPage() {
     };
 
     return (
-        <div className="bg-gradient-to-br from-indigo-50/50 via-white to-white h-[calc(100vh-64px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-8 rounded-tl-3xl font-sans relative flex">
-            <div className={classNames("overflow-y-auto overflow-x-hidden transition-all duration-300 relative flex flex-col", isDrawerOpen ? "w-1/2 shrink-0" : "flex-1")}>
+        <div ref={containerRef} className={classNames("bg-gradient-to-br from-indigo-50/50 via-white to-white h-[calc(100vh-64px)] -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-8 rounded-tl-3xl font-sans relative flex", isDragging && "select-none")}>
+            <div
+                className={classNames("overflow-y-auto overflow-x-hidden transition-all relative flex flex-col h-full", isDrawerOpen ? "shrink-0" : "flex-1 w-full")}
+                style={{ width: isDrawerOpen ? `${100 - drawerWidth}%` : '100%', transitionDuration: isDragging ? '0ms' : '300ms' }}
+            >
 
                 {/* Clean Background to match mockup */}
 
                 <div className="max-w-6xl mx-auto w-full flex flex-col flex-1 relative z-10 px-6 lg:px-12 pt-5 pb-6">
                     <div className="mb-3 animate-fade-in">
-                        <button onClick={() => navigate(`/lecturer/grading/assignments`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
+                        <button onClick={() => { aiGenerationStore.reset(); navigate(`/lecturer/grading/assignments`); }} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
                             <ArrowLeft size={20} />
                             Back to assignments
                         </button>
@@ -370,7 +377,7 @@ export default function AssignmentUploadPage() {
 
                     {/* Top Section: Title + Steps + Image */}
                     <div className={classNames("flex items-start justify-between shrink-0 relative z-0", isDrawerOpen ? "mb-8" : "mb-0")}>
-                        
+
                         {/* Left side: Title and Steps */}
                         <div className="flex flex-col gap-8">
                             <div className="flex gap-4">
@@ -418,7 +425,7 @@ export default function AssignmentUploadPage() {
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-600 mb-6"></div>
                             <h2 className="text-2xl text-slate-800 font-bold mb-2">{loadingMsg}</h2>
                             <p className="text-slate-500 mb-6">Vui lòng chờ AI xử lý yêu cầu của bạn...</p>
-                            <button 
+                            <button
                                 onClick={handleCancelGeneration}
                                 className="px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors shadow-sm"
                             >
@@ -530,15 +537,15 @@ export default function AssignmentUploadPage() {
                                                                 Mã môn học <span className="text-rose-500">*</span>
                                                             </div>
                                                             <div className="relative">
-                                                                <CustomDropdown 
-                                                                    value={subjectCode} 
+                                                                <CustomDropdown
+                                                                    value={subjectCode}
                                                                     onChange={(val) => {
                                                                         setSubjectCode(val);
                                                                         setSelectedClasses([]);
                                                                         setMetadata({ ...metadata, subject: val });
                                                                         setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
-                                                                    }} 
-                                                                    options={availableSubjectsForInput as string[]} 
+                                                                    }}
+                                                                    options={availableSubjectsForInput as string[]}
                                                                     placeholder="Chọn môn học..."
                                                                     hasError={!!validationErrors.subjectCode}
                                                                 />
@@ -618,15 +625,15 @@ export default function AssignmentUploadPage() {
                                                     Mã môn học <span className="text-rose-500">*</span>
                                                 </div>
                                                 <div className="relative">
-                                                    <CustomDropdown 
-                                                        value={subjectCode} 
+                                                    <CustomDropdown
+                                                        value={subjectCode}
                                                         onChange={(val) => {
                                                             setSubjectCode(val);
                                                             setSelectedClasses([]);
                                                             setMetadata({ ...metadata, subject: val });
                                                             setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
-                                                        }} 
-                                                        options={availableSubjectsForInput as string[]} 
+                                                        }}
+                                                        options={availableSubjectsForInput as string[]}
                                                         placeholder="Chọn môn học..."
                                                         hasError={!!validationErrors.subjectCode}
                                                     />
@@ -666,7 +673,7 @@ export default function AssignmentUploadPage() {
                                         </div>
                                     </div>
                                     <div className="mt-6 flex justify-between">
-                                        <button onClick={() => setStep(1)} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Quay lại</button>
+                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Quay lại</button>
                                         <button
                                             onClick={handleParseRubric}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all"
@@ -689,13 +696,13 @@ export default function AssignmentUploadPage() {
                                         <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-4">
                                             <div className="col-span-1">
                                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code (Môn học)</label>
-                                                <CustomDropdown 
-                                                    value={metadata.subject || ''} 
+                                                <CustomDropdown
+                                                    value={metadata.subject || ''}
                                                     onChange={(v) => {
                                                         setMetadata({ ...metadata, subject: v });
                                                         setSelectedClasses([]); // Reset classes when subject changes
-                                                    }} 
-                                                    options={teacherSubjects} 
+                                                    }}
+                                                    options={teacherSubjects}
                                                     className="w-full"
                                                     placeholder="Chọn môn học..."
                                                 />
@@ -721,6 +728,7 @@ export default function AssignmentUploadPage() {
                                                     <option value="mobile">Mobile</option>
                                                     <option value="desktop">Desktop</option>
                                                     <option value="algorithm">Algorithm</option>
+                                                    <option value="unity">Unity / Game</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -753,8 +761,8 @@ export default function AssignmentUploadPage() {
                                                                     }}
                                                                     className={classNames(
                                                                         "px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200",
-                                                                        selectedClasses.includes(c.id) 
-                                                                            ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1" 
+                                                                        selectedClasses.includes(c.id)
+                                                                            ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1"
                                                                             : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/50"
                                                                     )}
                                                                 >
@@ -868,7 +876,7 @@ export default function AssignmentUploadPage() {
                                                                         ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                     )}>
-                                                        {rule.scoringStrategy === 'AIVision' ? '👁 Visual check' : rule.scoringStrategy === 'StdInOutProbe' ? '⌨️ I/O test' : rule.scoringStrategy === 'HTTPProbe' ? '🌐 API probe' : rule.scoringStrategy === 'AICodeReview' ? '🤖 AI review' : rule.scoringStrategy === 'AiTextAnalysis' ? '📝 Text analysis' : rule.scoringStrategy === 'Manual' ? '👩‍🏫 Teacher review' : '⚡ Auto test'}
+                                                        {rule.scoringStrategy === 'AIVision' ? '👁 Visual check' : rule.scoringStrategy === 'StdInOutProbe' ? '⌨️ I/O test' : rule.scoringStrategy === 'HTTPProbe' ? '🌐 API probe' : rule.scoringStrategy === 'AICodeReview' ? '🤖 AI review' : rule.scoringStrategy === 'AiTextAnalysis' ? '📝 Text analysis' : rule.scoringStrategy === 'HybridVisionAndCode' ? '⚡ Hybrid AI & UI test' : rule.scoringStrategy === 'Manual' ? '👩‍🏫 Teacher review' : '⚡ Auto test'}
                                                     </span>
                                                 </div>
                                                 {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
@@ -959,7 +967,7 @@ export default function AssignmentUploadPage() {
                                     <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Thiếu thông tin</h4>
                                     <p className="text-sm text-slate-600 mt-1">{error}</p>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setError(null)}
                                     className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 p-1 rounded-md hover:bg-slate-50"
                                 >
@@ -973,7 +981,19 @@ export default function AssignmentUploadPage() {
 
             {/* Context Panel */}
             {isDrawerOpen && (
-                <div className="w-1/2 bg-white border-l border-slate-200 shadow-[-4px_0_24px_-10px_rgba(0,0,0,0.1)] flex flex-col z-20 h-full animate-in slide-in-from-right duration-300 font-sans shrink-0">
+                <div
+                    className="bg-white border-l border-slate-200 shadow-[-4px_0_24px_-10px_rgba(0,0,0,0.1)] flex flex-col z-20 h-full animate-in slide-in-from-right font-sans shrink-0 relative"
+                    style={{ width: `${drawerWidth}%`, transitionDuration: isDragging ? '0ms' : '300ms' }}
+                >
+                    {/* Resizer Handle */}
+                    <div
+                        className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-brand-500/50 active:bg-brand-500/80 z-30 transition-colors"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            setIsDragging(true);
+                        }}
+                    />
+
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
                         <h2 className="text-[22px] font-black text-slate-900 tracking-tight">Gợi ý prompt</h2>
@@ -1000,102 +1020,121 @@ export default function AssignmentUploadPage() {
 
                     {/* Split Content */}
                     <div className="flex-1 flex border-t border-slate-100 min-h-0 overflow-hidden">
-                        {/* Left Sidebar (Subjects) */}
-                        <div className="w-[140px] shrink-0 bg-slate-50 border-r border-slate-100 flex flex-col py-3 overflow-y-auto">
-                            <div className="flex items-center justify-between px-4 py-2 text-xs font-bold text-slate-500 mb-1">
-                                <span>Tất cả môn học</span>
-                                <span className="text-slate-500">{PROMPT_TEMPLATES.length}</span>
-                            </div>
-                            {['PRM392', 'SWP391', 'DBI202', 'AI201', 'Khác'].map(sub => {
-                                const count = PROMPT_TEMPLATES.filter(x => sub === 'Khác' ? !['PRM392', 'SWP391', 'DBI202', 'AI201'].includes(x.subject) : x.subject === sub).length;
-                                return (
-                                    <button
-                                        key={sub}
-                                        onClick={() => setActiveSubjectFilter(sub)}
-                                        className={classNames(
-                                            "flex items-center justify-between px-4 py-2.5 text-[13px] font-semibold transition-all relative",
-                                            activeSubjectFilter === sub ? "bg-white text-brand-700 shadow-sm" : "text-slate-600 hover:bg-slate-100"
-                                        )}
-                                    >
-                                        {activeSubjectFilter === sub && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-600"></div>}
-                                        <span>{sub}</span>
-                                        <span className={classNames("px-1.5 py-0.5 rounded-md font-bold text-[10px]", activeSubjectFilter === sub ? "bg-brand-50 text-brand-600" : "bg-transparent text-slate-400")}>{count}</span>
-                                    </button>
-                                )
-                            })}
-
-                            <div className="mt-6 mb-2 flex items-center gap-1.5 px-4 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-                                <Clock size={12} /> Mới sử dụng
-                            </div>
-                            <div className="flex flex-col">
-                                {RECENT_TEMPLATES.map((t, i) => (
-                                    <button key={i} className="text-left px-4 py-2 text-[12px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 truncate transition-colors">
-                                        {t}
-                                    </button>
-                                ))}
+                        {/* LEFT COLUMN: Subjects */}
+                        <div className="w-1/3 border-r border-slate-100 overflow-y-auto bg-white p-6 flex flex-col gap-4">
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-2">Danh mục môn học</h3>
+                            <div className="flex flex-col gap-3">
+                                {teacherSubjects.map(subj => {
+                                    const isSelected = subj === drawerSubjectCode;
+                                    return (
+                                        <button
+                                            key={subj}
+                                            onClick={() => {
+                                                setDrawerSubjectCode(subj);
+                                                setSubjectCode(subj);
+                                                setMetadata((prev: any) => ({ ...prev, subject: subj }));
+                                                setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
+                                            }}
+                                            className={classNames(
+                                                "w-full text-left px-4 py-2 rounded-full transition-all flex items-center justify-between border",
+                                                isSelected
+                                                    ? "bg-[#5CD289] border-[#5CD289] text-slate-900 font-bold shadow-sm"
+                                                    : "bg-white border-slate-200 text-slate-700 hover:border-brand-300 font-medium"
+                                            )}
+                                        >
+                                            <span className="text-[14px]">[{subj}]</span>
+                                            {isSelected && (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-900">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                                {teacherSubjects.length === 0 && (
+                                    <div className="text-slate-400 text-sm text-center py-4">
+                                        Không có môn học
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Right Content (Templates) */}
-                        <div className="flex-1 overflow-y-auto bg-white p-6">
+                        {/* RIGHT COLUMN: Content */}
+                        <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6 relative">
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-4">Nội dung gợi ý</h3>
                             {(() => {
-                                const filtered = PROMPT_TEMPLATES.filter(p => {
-                                    if (activeSubjectFilter === 'Khác') return !['PRM392', 'SWP391', 'DBI202', 'AI201'].includes(p.subject);
-                                    return p.subject === activeSubjectFilter;
-                                }).filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
+                                const filtered = drawerPromptTemplates.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
                                 if (filtered.length === 0) {
                                     return (
-                                        <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-70">
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-70">
                                             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
                                                 <Search className="text-slate-400" size={24} />
                                             </div>
                                             <p className="text-slate-600 font-bold mb-1">Chưa có template nào</p>
-                                            <p className="text-slate-400 text-xs">Vui lòng thử môn học hoặc từ khóa khác.</p>
+                                            <p className="text-slate-400 text-xs">Hãy tạo template mới trong mục Quản lý gợi ý prompt.</p>
                                         </div>
                                     );
                                 }
 
                                 return (
-                                    <div className="flex flex-col gap-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <h3 className="text-[14px] font-black text-slate-800">{activeSubjectFilter} <span className="text-slate-400 font-medium">- Templates</span></h3>
-                                        </div>
-
+                                    <div className="flex flex-col gap-5">
                                         {filtered.map(prompt => (
-                                            <div key={prompt.id} className="bg-white border border-slate-200 rounded-xl hover:border-brand-300 transition-colors flex flex-col">
-                                                <div className="p-4 pb-3 flex-1">
-                                                    <h4 className="font-bold text-slate-900 text-[14px] mb-1.5">{prompt.title}</h4>
-                                                    <p className="text-slate-500 text-[13px] leading-relaxed line-clamp-2">
-                                                        {prompt.description}
-                                                    </p>
+                                            <div key={prompt.id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-300 transition-colors shadow-sm flex flex-col">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <span className="px-3 py-1 bg-slate-100 text-slate-700 text-sm font-bold rounded-full">
+                                                        {drawerSubjectCode}
+                                                    </span>
+                                                    <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                                        {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase()}
+                                                    </span>
                                                 </div>
 
-                                                <div className="px-4 pb-4 flex flex-col justify-end border-t border-slate-100 pt-4 mt-2">
-                                                    <div className="flex items-center justify-end gap-3">
+                                                <h4 className="font-bold text-slate-900 text-[18px] mb-3 leading-snug">{prompt.name}</h4>
+
+                                                <div className="flex-1 text-slate-600 text-[14px] leading-relaxed mb-4">
+                                                    <div className="line-clamp-3">
+                                                        {prompt.templateContent}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-end justify-between mt-auto">
+                                                    <div className="flex flex-col gap-1 text-[13px] text-slate-600 font-medium">
+                                                        {/* Matching the layout placeholders from the design if needed */}
+                                                        {prompt.category && <div>Dạng: {prompt.category}</div>}
+                                                    </div>
+                                                    <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => setPreviewTemplateId(prompt.id)}
-                                                            className="px-5 py-2 text-[12px] font-bold text-brand-600 border border-brand-200 hover:bg-brand-50 rounded-lg transition-colors"
+                                                            onClick={() => {
+                                                                setPreviewTemplateId(prompt.id);
+                                                                setPreviewContent(prompt.templateContent);
+                                                            }}
+                                                            className="px-4 py-2.5 text-[13px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-xl shadow-sm transition-colors shrink-0"
                                                         >
-                                                            Xem trước
+                                                            Xem chi tiết
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                setTextPrompt(prompt.prompt);
+                                                                setTextPrompt(prompt.templateContent);
+                                                                if (drawerSubjectCode !== subjectCode) {
+                                                                    setSubjectCode(drawerSubjectCode);
+                                                                    setMetadata((prev: any) => ({ ...prev, subject: drawerSubjectCode }));
+                                                                    setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
+                                                                }
+                                                                mainApi.incrementPromptUsage(prompt.id).catch(console.error);
+                                                                if (prompt.projectTypeId) {
+                                                                    setMetadata((prev: any) => ({ ...prev, projectType: prompt.projectTypeId! }));
+                                                                }
                                                                 setIsDrawerOpen(false);
                                                             }}
-                                                            className="px-5 py-2 text-[12px] font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm transition-colors"
+                                                            className="px-6 py-2.5 text-[14px] font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-colors shrink-0"
                                                         >
-                                                            Sử dụng
+                                                            Áp dụng
                                                         </button>
                                                     </div>
                                                 </div>
                                             </div>
                                         ))}
-
-                                        <button className="flex items-center justify-center gap-1 mt-2 mb-4 text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline">
-                                            Xem tất cả template của {activeSubjectFilter} <ArrowRight size={14} />
-                                        </button>
                                     </div>
                                 );
                             })()}
@@ -1114,7 +1153,7 @@ export default function AssignmentUploadPage() {
 
             {/* Preview Dialog */}
             {previewTemplateId !== null && (() => {
-                const t = PROMPT_TEMPLATES.find(x => x.id === previewTemplateId);
+                const t = drawerPromptTemplates.find(x => x.id === previewTemplateId) || promptTemplates.find(x => x.id === previewTemplateId);
                 if (!t) return null;
                 return (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center font-sans p-4">
@@ -1123,10 +1162,11 @@ export default function AssignmentUploadPage() {
                             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                 <div>
                                     <div className="flex gap-2 mb-1">
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">{t.subject}</span>
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">{t.category}</span>
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">{subjectCode}</span>
+                                        {t.category && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">{t.category}</span>}
+                                        {t.projectTypeId && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">{t.projectTypeId}</span>}
                                     </div>
-                                    <h2 className="text-xl font-bold text-slate-900">{t.title}</h2>
+                                    <h2 className="text-xl font-bold text-slate-900">{t.name}</h2>
                                 </div>
                                 <button onClick={() => setPreviewTemplateId(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-800 transition-colors">
                                     <X size={18} />
@@ -1135,26 +1175,15 @@ export default function AssignmentUploadPage() {
 
                             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-900 mb-2">Mô tả</h3>
-                                    <p className="text-slate-600 text-sm leading-relaxed">{t.description}</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-sm font-bold text-slate-900 mb-2">Yêu cầu</h3>
-                                    <ul className="list-disc pl-5 flex flex-col gap-1.5">
-                                        {t.requirements.map((req, i) => (
-                                            <li key={i} className="text-slate-600 text-sm">{req}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-sm font-bold text-slate-900 mb-2">Kết quả mong đợi</h3>
-                                    <ul className="list-disc pl-5 flex flex-col gap-1.5">
-                                        {t.outcomes.map((out, i) => (
-                                            <li key={i} className="text-slate-600 text-sm leading-relaxed">{out}</li>
-                                        ))}
-                                    </ul>
+                                    <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                                        Nội dung Prompt (Có thể chỉnh sửa)
+                                    </h3>
+                                    <textarea
+                                        className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-700 text-[14px] leading-relaxed resize-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-sans"
+                                        value={previewContent}
+                                        onChange={(e) => setPreviewContent(e.target.value)}
+                                        placeholder="Chỉnh sửa nội dung prompt tại đây trước khi áp dụng..."
+                                    />
                                 </div>
                             </div>
 
@@ -1164,7 +1193,16 @@ export default function AssignmentUploadPage() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setTextPrompt(t.prompt);
+                                        setTextPrompt(previewContent);
+                                        if (drawerSubjectCode !== subjectCode) {
+                                            setSubjectCode(drawerSubjectCode);
+                                            setMetadata((prev: any) => ({ ...prev, subject: drawerSubjectCode }));
+                                            setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
+                                        }
+                                        mainApi.incrementPromptUsage(t.id).catch(console.error);
+                                        if (t.projectTypeId) {
+                                            setMetadata((prev: any) => ({ ...prev, projectType: t.projectTypeId! }));
+                                        }
                                         setPreviewTemplateId(null);
                                         setIsDrawerOpen(false);
                                     }}

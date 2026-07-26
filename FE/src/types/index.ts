@@ -127,6 +127,7 @@ export interface SubmissionResponse {
   rules: ScoreRule[];
   failedRules: ScoreRule[];
   manualReviewNotes?: string[];
+  overallFeedback?: string;
   assessedAt?: string;
   error?: string;
 }

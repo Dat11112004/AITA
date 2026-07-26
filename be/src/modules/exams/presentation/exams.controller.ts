@@ -60,11 +60,43 @@ export class ExamsController extends BaseController {
   async downloadAttachment(req: Request, res: Response): Promise<void> {
     const attachmentId = req.params.attachmentId as string
     this.logger.debug(`Received request to download attachment: ${attachmentId}`)
-    
+
     const attachment = await this.examRepo.getAttachment(attachmentId)
     if (!attachment) {
       res.status(404).json({ success: false, Message: 'Attachment not found' })
       return
+    }
+
+    if (attachment.fileUrl.startsWith('http://') || attachment.fileUrl.startsWith('https://')) {
+      try {
+        const response = await fetch(attachment.fileUrl);
+        if (!response.ok) {
+          this.logger.error(`Failed to fetch attachment from cloud: ${response.status} ${response.statusText}`);
+          res.status(500).json({ success: false, Message: 'Failed to download file from cloud storage' });
+          return;
+        }
+
+        res.attachment(attachment.fileName);
+        if ((attachment as any).fileType) {
+          res.setHeader('Content-Type', (attachment as any).fileType);
+        } else {
+          res.setHeader('Content-Type', 'application/octet-stream');
+        }
+
+        if (response.body) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          res.end(buffer);
+        } else {
+          res.status(500).json({ success: false, Message: 'Empty file from cloud storage' });
+        }
+      } catch (err: any) {
+        this.logger.error(`Error streaming attachment: ${err.message}`);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, Message: 'Error streaming file' });
+        }
+      }
+      return;
     }
 
     const filePath = path.join(process.cwd(), attachment.fileUrl)

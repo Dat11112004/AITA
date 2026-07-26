@@ -20,6 +20,7 @@
 
   /* ── Theme Backgrounds ── */
   --color-bg-light: #f8fafc; /* slate-50 */
+  --color-bg-light-orange: #f9fafb; /* neutral light gray matching template */
 
   /* ── Accent = Emerald for Success ── */
   --color-accent-400: #34d399;

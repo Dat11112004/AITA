@@ -8,8 +8,29 @@ export class PrismaExamRepository implements IExamRepository {
   private get include() {
     return {
       Subject: true,
-      ExamClass: true,
+      ExamClass: {
+        include: {
+          Class: {
+            include: {
+              InstructorClass: {
+                include: { User: true }
+              }
+            }
+          }
+        }
+      },
       ExamAttachment: true,
+      ExamSection: {
+        include: {
+          RubricRule: {
+            include: {
+              RubricCriterion: {
+                orderBy: { SortOrder: 'asc' }
+              }
+            }
+          }
+        }
+      },
       _count: { select: { Submission: true } }
     }
   }

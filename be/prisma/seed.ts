@@ -7,6 +7,19 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding AITA database...')
 
+  try {
+    await prisma.$connect()
+  } catch (error: any) {
+    console.error('\n❌ [LỖI KẾT NỐI CƠ SỞ DỮ LIỆU] Không thể kết nối tới SQL Server tại localhost:1433.')
+    console.error('─────────────────────────────────────────────────────────────────────────────')
+    console.error('👉 Vui lòng kiểm tra các bước sau:')
+    console.error('   1. Dịch vụ SQL Server: Mở Services (services.msc) -> Kiểm tra SQL Server (SQLEXPRESS) hoặc MSSQLSERVER đã ở trạng thái Running chưa.')
+    console.error('   2. Bật TCP/IP: Mở SQL Server Configuration Manager -> Protocols for SQLEXPRESS -> Enable TCP/IP -> Thiết lập IPAll TCP Port = 1433.')
+    console.error('   3. Kiểm tra biến DATABASE_URL trong file be/.env.')
+    console.error('─────────────────────────────────────────────────────────────────────────────\n')
+    process.exit(1)
+  }
+
   const hash = (p: string) => bcrypt.hash(p, 10)
 
   // Create roles first
@@ -208,5 +221,8 @@ async function main() {
 }
 
 main()
-  .catch(console.error)
+  .catch((err) => {
+    console.error('❌ Lỗi không xác định khi seed:', err instanceof Error ? err.message : err)
+    process.exit(1)
+  })
   .finally(() => prisma.$disconnect())

@@ -84,6 +84,8 @@ import { AssessSubmissionUseCase } from '../../modules/ai/application/use-cases/
 import { GetLearningFeedbackUseCase } from '../../modules/ai/application/use-cases/get-learning-feedback.use-case.js'
 import { GetAiConfigUseCase, UpdateAiConfigUseCase } from '../../modules/ai/application/use-cases/ai-config.use-case.js'
 import { GenerateRubricUseCase } from '../../modules/ai/application/use-cases/generate-rubric.use-case.js'
+import { GeneratePromptUseCase } from '../../modules/ai/application/use-cases/generate-prompt.use-case.js'
+import { RefinePromptUseCase } from '../../modules/ai/application/use-cases/refine-prompt.use-case.js'
 import { AiController as ModularAiController } from '../../modules/ai/presentation/ai.controller.js'
 import { PrismaAuditRepository } from '../../modules/audit/infrastructure/repositories/prisma-audit-repository.js'
 import { GetAuditLogsUseCase } from '../../modules/audit/application/use-cases/get-audit-logs.use-case.js'
@@ -93,11 +95,20 @@ import { PrismaConfigRepository } from '../../modules/config/infrastructure/repo
 import { ListProjectTypesUseCase, GetProjectTypeUseCase, UpdateProjectTypeUseCase } from '../../modules/config/application/use-cases/config.use-case.js'
 import { ConfigController } from '../../modules/config/presentation/config.controller.js'
 import { PrismaNotificationRepository } from '../../modules/notifications/infrastructure/repositories/prisma-notification-repository.js'
-import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
+import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase, DeleteNotificationUseCase, DeleteAllNotificationsUseCase } from '../../modules/notifications/application/use-cases/notification.use-case.js'
 import { BroadcastNotificationUseCase } from '../../modules/notifications/application/use-cases/broadcast-notification.use-case.js'
 import { SendAssignmentNotificationUseCase } from '../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js'
 import { NotificationsController } from '../../modules/notifications/presentation/notifications.controller.js'
 import { NodemailerService } from './email/nodemailer.service.js'
+
+// Prompts
+import { PrismaPromptTemplateRepository } from '../../modules/prompts/infrastructure/repositories/prisma-prompt-template-repository.js'
+import { ListPromptsBySubjectUseCase } from '../../modules/prompts/application/use-cases/list-prompts-by-subject.use-case.js'
+import { CreatePromptUseCase } from '../../modules/prompts/application/use-cases/create-prompt.use-case.js'
+import { UpdatePromptUseCase } from '../../modules/prompts/application/use-cases/update-prompt.use-case.js'
+import { DeletePromptUseCase } from '../../modules/prompts/application/use-cases/delete-prompt.use-case.js'
+import { IncrementPromptUsageUseCase } from '../../modules/prompts/application/use-cases/increment-prompt-usage.use-case.js'
+import { PromptsController } from '../../modules/prompts/presentation/prompts.controller.js'
 import { PrismaRubricRepository } from '../../modules/rubric/infrastructure/repositories/prisma-rubric-repository.js'
 import { ListRubricRulesUseCase, GetRubricRuleWithCriteriaUseCase } from '../../modules/rubric/application/use-cases/rubric.use-case.js'
 import { SaveExamRubricUseCase } from '../../modules/rubric/application/use-cases/save-exam-rubric.use-case.js'
@@ -121,6 +132,7 @@ import { SettingsController } from '../../modules/settings/presentation/settings
 // import * as statsController from '../../controllers/stats.controller.js' // REMOVED
 // import * as settingsController from '../../controllers/settings.controller.js' // REMOVED
 // import * as optionsController from '../../controllers/options.controller.js' // REMOVED
+
 
 /**
  * DI Container — wraps legacy services/controllers for backward compatibility.
@@ -294,7 +306,7 @@ export class DIContainer {
       // ── Exams (Replaces Assignments) ─────────────────────────
       const listExamsUseCase = new ListExamsUseCase(examRepo, uow)
       const createExamUseCase = new CreateExamUseCase(examRepo, sendAssignmentNotificationUseCase)
-      const updateExamUseCase = new UpdateExamUseCase(examRepo)
+      const updateExamUseCase = new UpdateExamUseCase(examRepo, sendAssignmentNotificationUseCase)
       const getExamUseCase = new GetExamUseCase(examRepo)
 
       const examsController = new ExamsController(
@@ -318,6 +330,8 @@ export class DIContainer {
       const getAiConfigUseCase = new GetAiConfigUseCase(uow)
       const updateAiConfigUseCase = new UpdateAiConfigUseCase(uow)
       const generateRubricUseCase = new GenerateRubricUseCase(aiService, logger)
+      const generatePromptUseCase = new GeneratePromptUseCase(aiService, aiRepo)
+      const refinePromptUseCase = new RefinePromptUseCase(aiService, aiRepo)
 
       const modularAiController = new ModularAiController(
         generateExerciseUseCase,
@@ -326,13 +340,15 @@ export class DIContainer {
         getLearningFeedbackUseCase,
         getAiConfigUseCase,
         updateAiConfigUseCase,
-        generateRubricUseCase
+        generateRubricUseCase,
+        generatePromptUseCase,
+        refinePromptUseCase
       )
       this.services.set('AiController', modularAiController)
 
       // ── Submissions ──────────────────────────────────────────
       const listSubmissionsUseCase = new ListSubmissionsUseCase(submissionRepo)
-      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow, assessSubmissionUseCase)
+      const submitSubmissionUseCase = new CreateSubmissionUseCase(submissionRepo, uow)
       const getSubmissionUseCase = new GetSubmissionUseCase(submissionRepo)
       const publishGradeUseCase = new PublishGradeUseCase(submissionRepo)
       const bulkPublishGradesUseCase = new BulkPublishGradesUseCase(submissionRepo)
@@ -442,12 +458,16 @@ export class DIContainer {
       const markNotificationAsReadUseCase = new MarkNotificationAsReadUseCase(notificationRepo)
       const markAllNotificationsAsReadUseCase = new MarkAllNotificationsAsReadUseCase(notificationRepo)
       const broadcastNotificationUseCase = new BroadcastNotificationUseCase(notificationRepo)
+      const deleteNotificationUseCase = new DeleteNotificationUseCase(notificationRepo)
+      const deleteAllNotificationsUseCase = new DeleteAllNotificationsUseCase(notificationRepo)
 
       const notificationsController = new NotificationsController(
         listUserNotificationsUseCase,
         markNotificationAsReadUseCase,
         markAllNotificationsAsReadUseCase,
         broadcastNotificationUseCase,
+        deleteNotificationUseCase,
+        deleteAllNotificationsUseCase,
         logger
       )
       this.services.set('NotificationsController', notificationsController)
@@ -522,6 +542,27 @@ export class DIContainer {
       this.services.set(TOKENS.SettingsController, settingsController)
       this.services.set('OptionsController', settingsController)
       this.services.set(TOKENS.OptionsController, settingsController)
+
+      // ── Prompts ───────────────────────────────────────────────
+      const promptTemplateRepo = new PrismaPromptTemplateRepository(uow.getClient())
+      this.services.set(TOKENS.PromptTemplateRepository, promptTemplateRepo)
+      uow.registerFactory(TOKENS.PromptTemplateRepository, (client) => new PrismaPromptTemplateRepository(client))
+
+      const listPromptsUseCase = new ListPromptsBySubjectUseCase(promptTemplateRepo)
+      const createPromptUseCase = new CreatePromptUseCase(promptTemplateRepo)
+      const updatePromptUseCase = new UpdatePromptUseCase(promptTemplateRepo)
+      const deletePromptUseCase = new DeletePromptUseCase(promptTemplateRepo)
+      const incrementPromptUsageUseCase = new IncrementPromptUsageUseCase(promptTemplateRepo)
+
+      const promptsController = new PromptsController(
+        listPromptsUseCase,
+        createPromptUseCase,
+        updatePromptUseCase,
+        deletePromptUseCase,
+        incrementPromptUsageUseCase
+      )
+      this.services.set('PromptsController', promptsController)
+      this.services.set(TOKENS.PromptsController, promptsController)
 
       // Legacy: Assignments - Migrated to Clean Architecture
 

@@ -13,6 +13,13 @@ export class StudentPortalController extends BaseController {
     const studentId = req.user!.id
     this.logger.debug(`Fetching student dashboard for ${studentId}`)
     
+    // Fetch student's existing submissions to filter out completed assignments
+    const studentSubmissions = await prisma.submission.findMany({
+      where: { StudentId: studentId },
+      select: { ExamId: true }
+    });
+    const submittedExamIds = studentSubmissions.map(s => s.ExamId).filter(Boolean) as string[];
+
     // Aggregate data: Assignments due soon, classes, notifications
     const rawUpcomingAssignments = await prisma.exam.findMany({
       where: {
@@ -28,6 +35,9 @@ export class StudentPortalController extends BaseController {
         },
         DueDate: {
           gte: new Date()
+        },
+        Id: {
+          notIn: submittedExamIds
         }
       },
       orderBy: { DueDate: 'asc' },
@@ -138,17 +148,28 @@ export class StudentPortalController extends BaseController {
       },
       include: {
         Subject: true,
+        InstructorClass: {
+          include: { User: true }
+        }
       }
     })
 
     const subjectsMap = new Map<string, any>()
     for (const c of enrolledClasses) {
       if (c.Subject && !subjectsMap.has(c.Subject.Id)) {
+        // Collect lecturers from InstructorClass
+        const lecturers = c.InstructorClass.map(ic => ({
+          id: ic.User.Id,
+          name: ic.User.FullName,
+          avatar: ic.User.Avatar || null,
+        }))
+
         subjectsMap.set(c.Subject.Id, {
           id: c.Subject.Id,
           code: c.Subject.SubjectCode,
           name: c.Subject.SubjectName,
           description: c.Subject.Description,
+          lecturers,
         })
       }
     }

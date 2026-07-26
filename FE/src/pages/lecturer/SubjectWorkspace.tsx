@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { api, type SubjectRow, type ClassRow } from '@/lib/api'
 import { 
   Loader2, Users, BookOpen, Bell, LayoutGrid,
-  GraduationCap, Send, ArrowLeft, Package, Download, Search, Info,
-  Calendar, ChevronDown
+  GraduationCap, Download, Search, Info,
+  ArrowLeft, Package, Calendar, Send, Bot
 } from 'lucide-react'
 
 export function SubjectWorkspace() {
   const { id: subjectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const semesterId = searchParams.get('semesterId')
+  const semesterId = searchParams.get('semesterId') || undefined
 
   const [loading, setLoading] = useState(true)
   const [subject, setSubject] = useState<SubjectRow | null>(null)
@@ -105,11 +105,6 @@ export function SubjectWorkspace() {
     return colors[hash % colors.length]
   }
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return 'text-emerald-500';
-    if (score >= 6.5) return 'text-blue-500';
-    return 'text-orange-500';
-  }
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 pb-12 px-6 lg:px-8">
@@ -209,13 +204,20 @@ export function SubjectWorkspace() {
           { id: 'assignments', icon: BookOpen, label: 'Bài tập & Đề thi' },
           { id: 'students', icon: Users, label: 'Sinh viên' },
           { id: 'announcements', icon: Bell, label: 'Thông báo' },
+          { id: 'prompts', icon: Bot, label: 'Gợi ý Prompt' },
         ].map((tab) => {
           const isActive = activeTab === tab.id
           const Icon = tab.icon
           return (
             <button 
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                if (tab.id === 'prompts') {
+                  navigate(`/lecturer/prompts?subjectId=${subjectId}`)
+                } else {
+                  setActiveTab(tab.id as any)
+                }
+              }}
               className={`flex items-center gap-2 px-4 py-4 text-sm font-semibold transition-colors relative whitespace-nowrap ${isActive ? 'text-brand-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl my-1 py-3'}`}
             >
               <Icon className="w-4 h-4" /> {tab.label}
@@ -394,7 +396,7 @@ export function SubjectWorkspace() {
                     <tr>
                       <td colSpan={4} className="px-8 py-12 text-center text-slate-500">Không có sinh viên nào.</td>
                     </tr>
-                  ) : students.map((s, i) => (
+                  ) : students.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-8 py-4">
                         <div className="flex items-center gap-4">

@@ -23,6 +23,24 @@ export interface AssessInput {
   assignmentDescription?: string
 }
 
+export interface GeneratePromptTemplateInput {
+  name: string
+  description?: string
+  category?: string
+  subjectCode?: string
+  draftContent?: string
+  // ── Educational params (from AI config form) ──
+  questionCount?: number
+  difficulty?: string
+  topic?: string
+  language?: string
+  additionalNotes?: string
+}
+
+export interface RefinePromptTemplateInput {
+  content: string
+}
+
 // ── Output Types ─────────────────────────────────────────────
 
 export interface GenerateExerciseOutput {
@@ -77,6 +95,10 @@ export interface GenerateRubricOutput {
   totalScore: number
 }
 
+export interface GeneratePromptTemplateOutput {
+  prompt: string
+}
+
 // ── Service Interface ────────────────────────────────────────
 
 export interface IAIService {
@@ -84,4 +106,6 @@ export interface IAIService {
   assess(input: AssessInput): Promise<AssessOutput>
   learningFeedback(studentId: string): Promise<LearningFeedbackOutput>
   generateRubric(input: GenerateRubricInput): Promise<GenerateRubricOutput>
+  generatePromptTemplate(input: GeneratePromptTemplateInput): Promise<GeneratePromptTemplateOutput>
+  refinePromptTemplate(input: RefinePromptTemplateInput): Promise<GeneratePromptTemplateOutput>
 }

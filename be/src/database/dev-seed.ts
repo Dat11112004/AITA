@@ -18,8 +18,8 @@ export async function seedTestAccounts(): Promise<void> {
     // Proactively connect to test the connection and prevent verbose Prisma query stack traces on failure.
     await prisma.$connect()
   } catch (error: any) {
-    if (error?.message?.includes("Can't reach database server")) {
-      throw new Error("Can't reach database server. Please ensure SQL Server is running and accessible.")
+    if (error?.message?.includes("Can't reach database server") || error?.code === 'P1001') {
+      throw new Error("Cannot reach SQL Server at localhost:1433. Please verify SQL Server (SQLEXPRESS) service is running and TCP/IP port 1433 is enabled.")
     }
     throw new Error(error?.message?.split('\n').pop() || 'Database connection failed.')
   }

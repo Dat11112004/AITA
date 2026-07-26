@@ -1,6 +1,6 @@
 import { MESSAGES } from '../../../shared/constants/messages.js'
 import type { Request, Response } from 'express'
-import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase } from '../application/use-cases/notification.use-case.js'
+import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNotificationsAsReadUseCase, DeleteNotificationUseCase, DeleteAllNotificationsUseCase } from '../application/use-cases/notification.use-case.js'
 import { BroadcastNotificationUseCase } from '../application/use-cases/broadcast-notification.use-case.js'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
@@ -11,6 +11,8 @@ export class NotificationsController extends BaseController {
         private readonly markNotificationAsReadUseCase: MarkNotificationAsReadUseCase,
         private readonly markAllNotificationsAsReadUseCase: MarkAllNotificationsAsReadUseCase,
         private readonly broadcastNotificationUseCase: BroadcastNotificationUseCase,
+        private readonly deleteNotificationUseCase: DeleteNotificationUseCase,
+        private readonly deleteAllNotificationsUseCase: DeleteAllNotificationsUseCase,
         private readonly logger: ILogger
     ) {
         super()
@@ -55,5 +57,20 @@ export class NotificationsController extends BaseController {
             createdBy: userId
         })
         this.created(res, result, 'Broadcast notification successful')
+    }
+
+    async deleteNotification(req: Request, res: Response): Promise<void> {
+        const userId = (req as any).user.id
+        const notificationId = req.params.id as string
+        this.logger.info(`Deleting notification ${notificationId} for user ${userId}`)
+        await this.deleteNotificationUseCase.execute(userId, notificationId)
+        this.ok(res, null, 'Deleted notification successfully')
+    }
+
+    async deleteAllNotifications(req: Request, res: Response): Promise<void> {
+        const userId = (req as any).user.id
+        this.logger.info(`Deleting all notifications for user ${userId}`)
+        await this.deleteAllNotificationsUseCase.execute(userId)
+        this.ok(res, null, 'Deleted all notifications successfully')
     }
 }

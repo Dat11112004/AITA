@@ -19,10 +19,15 @@ export class PrismaSubjectRepository implements ISubjectRepository {
 
   async findMany(filter?: SubjectFilter): Promise<Subject[]> {
     const rawList = await this.client.subject.findMany({
-      where: this.mapFilterToWhere(filter),
-      orderBy: { SubjectCode: 'asc' }
+      where: this.mapFilterToWhere(filter)
     })
-    return rawList.map(SubjectMapper.toDomain)
+    const sorted = rawList.sort((a: any, b: any) => {
+      const semA = a.Semester != null ? Number(a.Semester) : 999
+      const semB = b.Semester != null ? Number(b.Semester) : 999
+      if (semA !== semB) return semA - semB
+      return (a.SubjectCode || '').localeCompare(b.SubjectCode || '', undefined, { numeric: true, sensitivity: 'base' })
+    })
+    return sorted.map(SubjectMapper.toDomain)
   }
 
   async findById(id: string): Promise<Subject | null> {
@@ -235,5 +240,40 @@ export class PrismaSubjectRepository implements ISubjectRepository {
     if (newLinks.length > 0) {
       await this.client.semesterSubject.createMany({ data: newLinks })
     }
+  }
+
+  async getSubjectStudents(
+    subjectId: string,
+    semesterId?: string,
+    classId?: string,
+    skip?: number,
+    take?: number
+  ): Promise<{ total: number, enrollments: any[] }> {
+    const whereClause: any = {
+      Class: {
+        SubjectId: subjectId,
+        ...(semesterId && { SemesterId: semesterId }),
+        ...(classId && classId !== 'all' && { Id: classId })
+      }
+    }
+
+    const [total, enrollments] = await Promise.all([
+      this.client.studentClass.count({ where: whereClause }),
+      this.client.studentClass.findMany({
+        where: whereClause,
+        select: {
+          User: { select: { Id: true, FullName: true, Email: true, StudentCode: true, Avatar: true } },
+          Class: { select: { Id: true, ClassCode: true } }
+        },
+        skip,
+        take,
+        orderBy: [
+          { Class: { ClassCode: 'asc' } },
+          { User: { FullName: 'asc' } }
+        ]
+      })
+    ])
+
+    return { total, enrollments }
   }
 }

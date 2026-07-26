@@ -1,17 +1,10 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from 'express';
 
+// UserContext type for grading engine
 export interface UserContext {
     userId: string;
     role: 'Admin' | 'Instructor' | 'Student' | 'Reviewer';
-}
-
-declare global {
-    namespace Express {
-        interface Request {
-            user?: UserContext;
-        }
-    }
 }
 
 export class AuthMiddleware {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { gradingApi as api } from '@/lib/api';
 import type { PublishedAssignment, RubricRule } from '@/types';
+import { FormattedText } from '@/components/ui/FormattedText';
 import { BookOpen, ArrowLeft } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import classNames from 'classnames';
@@ -48,6 +49,16 @@ export default function AssignmentRubricPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Pass threshold: {assignment.rubric?.passThreshold ? assignment.rubric.passThreshold * 100 : 70}%</p>
             </div>
         </div>
+
+        {(assignment.metadata as any)?.content || assignment.metadata?.description ? (
+          <div className="p-8 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">Chi tiết bài tập</h2>
+            <div 
+                className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: (assignment.metadata as any).content || assignment.metadata.description }}
+            />
+          </div>
+        ) : null}
         
         <div className="p-0 overflow-x-auto">
             <table className="w-full text-left">
@@ -60,19 +71,46 @@ export default function AssignmentRubricPage() {
                 </tr>
             </thead>
             <tbody className="divide-y dark:divide-slate-700/30 divide-slate-200/50">
-                {assignment.rubric?.rules?.map((rule: RubricRule, idx: number) => (
+                {assignment.rubric?.rules?.map((rule: RubricRule, idx: number) => {
+                  const filteredTags = (rule.tags || []).filter((tag: any) => {
+                    if (typeof tag === 'string') {
+                      const t = tag.toLowerCase();
+                      if (t === 'api' || t === 'ui' || t === 'frontend' || t === 'backend') return false;
+                    }
+                    return true;
+                  });
+
+                  return (
                 <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-8 py-4 text-sm font-medium dark:text-slate-400 text-slate-500">{rule.category || 'General'}</td>
+                    <td className="px-8 py-4 text-sm font-medium dark:text-slate-400 text-slate-500 align-middle">{typeof rule.category === 'string' ? rule.category : (JSON.stringify(rule.category) || 'General')}</td>
                     <td className="px-8 py-4 dark:text-slate-200 text-slate-700">
-                    <p className="font-semibold dark:text-brand-300 text-brand-600">{rule.name || rule.title || 'Rule'}</p>
-                    <p className="text-sm dark:text-slate-400 text-slate-500 mt-1 leading-relaxed">{rule.description}</p>
-                    {rule.tags && rule.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                        {rule.tags.map((tag: string, i: number) => (
-                            <span key={i} className="px-2 py-0.5 rounded text-xs font-medium dark:bg-slate-800 bg-slate-100 dark:text-slate-300 text-slate-600 border dark:border-slate-700 border-slate-200">
-                            #{tag}
+                    <p className="font-semibold dark:text-brand-300 text-brand-600 mb-2">{typeof (rule.name || rule.title) === 'string' ? (rule.name || rule.title) : JSON.stringify(rule.name || rule.title || 'Rule')}</p>
+                    <FormattedText className="text-sm dark:text-slate-400 text-slate-500 leading-relaxed" text={typeof rule.description === 'string' ? rule.description : JSON.stringify(rule.description)} />
+                    {filteredTags && Array.isArray(filteredTags) && filteredTags.length > 0 && (
+                        <div className="flex flex-col gap-2 mt-4">
+                        {filteredTags.map((rawTag: any, i: number) => {
+                            let tag = rawTag;
+                            if (typeof rawTag === 'string' && rawTag.startsWith('{') && rawTag.endsWith('}')) {
+                                try {
+                                    tag = JSON.parse(rawTag);
+                                } catch (e) {
+                                    // ignore parse error
+                                }
+                            }
+                            if (typeof tag === 'object' && tag !== null && tag.method && tag.path) {
+                                return (
+                                    <div key={i} className="flex items-center gap-2 flex-wrap border dark:border-slate-700 border-slate-200 rounded-md px-2 py-1.5 bg-slate-50 dark:bg-slate-800 w-fit">
+                                      <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200">{tag.method}</span>
+                                      <span className="font-mono text-xs text-brand-600 dark:text-brand-400">{tag.path}</span>
+                                      {tag.description && <span className="text-slate-500 dark:text-slate-400 text-xs ml-1">- {tag.description}</span>}
+                                    </div>
+                                );
+                            }
+                            return (
+                            <span key={i} className="px-2 py-0.5 rounded text-xs font-medium dark:bg-slate-800 bg-slate-100 dark:text-slate-300 text-slate-600 border dark:border-slate-700 border-slate-200 w-fit">
+                            #{typeof tag === 'string' ? tag : JSON.stringify(tag)}
                             </span>
-                        ))}
+                        )})}
                         </div>
                     )}
                     {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
@@ -96,17 +134,27 @@ export default function AssignmentRubricPage() {
                         <div className="mt-4 p-4 dark:bg-slate-900 bg-slate-50 rounded-lg border dark:border-slate-800 border-slate-200">
                         <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">Grading criteria</p>
                         <ul className="space-y-1">
-                            {rule.criteria.map((c: string, i: number) => (
+                            {rule.criteria.map((c: any, i: number) => (
                             <li key={i} className="flex items-start gap-2 text-sm">
                                 <div className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0"></div>
-                                <span className="dark:text-slate-300 text-slate-600">{c}</span>
+                                <div className="dark:text-slate-300 text-slate-600">
+                                    {typeof c === 'string' ? c : (
+                                      c.method && c.path ? (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700">{typeof c.method === 'string' ? c.method : 'UNKNOWN'}</span>
+                                          <span className="font-mono text-xs text-brand-600 dark:text-brand-400">{typeof c.path === 'string' ? c.path : 'UNKNOWN'}</span>
+                                          <span className="text-slate-500 dark:text-slate-400">{c.description && typeof c.description === 'string' ? `- ${c.description}` : ''}</span>
+                                        </div>
+                                      ) : (typeof c.description === 'string' ? c.description : (typeof c.title === 'string' ? c.title : JSON.stringify(c)))
+                                    )}
+                                </div>
                             </li>
                             ))}
                         </ul>
                         </div>
                     )}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-4 text-center align-middle">
                     {(() => {
                         let text = 'AUTO';
                         let colorClass = 'text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:border-slate-700';
@@ -142,9 +190,9 @@ export default function AssignmentRubricPage() {
                         );
                     })()}
                     </td>
-                    <td className="px-8 py-4 text-right font-bold dark:text-emerald-400 text-emerald-600">{typeof (rule as any).weight === 'number' ? (rule as any).weight.toString() : (rule as any).weight}</td>
+                    <td className="px-8 py-4 text-right font-bold dark:text-emerald-400 text-emerald-600 align-middle">{typeof (rule as any).weight === 'number' ? (rule as any).weight.toString() : (rule as any).weight}</td>
                 </tr>
-                ))}
+                )})}
                 <tr className="dark:bg-slate-900/30 bg-slate-100">
                 <td colSpan={3} className="px-8 py-4 font-bold dark:text-slate-300 text-slate-700 text-right">Total possible score</td>
                 <td className="px-8 py-4 text-right font-bold dark:text-white text-slate-900 text-xl">{(assignment.rubric as any)?.totalWeight || 0}</td>
