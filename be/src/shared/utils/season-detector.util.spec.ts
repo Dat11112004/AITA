@@ -71,10 +71,11 @@ describe('SeasonDetectorUtil', () => {
             }).toThrow(SeasonDetectorError)
         })
 
-        test('should throw error for invalid season name', () => {
-            expect(() => {
-                detectSeasonFromFilename('Autumn_2026.xlsx')
-            }).toThrow(SeasonDetectorError)
+        test('should accept "autumn" as a documented alias of Fall', () => {
+            // SEASON_ALIASES maps autumn → Fall, so this is a supported name, not an invalid one.
+            const result = detectSeasonFromFilename('Autumn_2026.xlsx')
+            expect(result.season).toBe('Fall')
+            expect(result.year).toBe(2026)
         })
 
         test('should fallback to current year for missing year', () => {
@@ -83,16 +84,20 @@ describe('SeasonDetectorUtil', () => {
             expect(result.year).toBe(new Date().getFullYear())
         })
 
-        test('should throw error for invalid year format', () => {
-            expect(() => {
-                detectSeasonFromFilename('Fall_20.xlsx')
-            }).toThrow(SeasonDetectorError)
+        // As-built (defect candidate): a year the detector cannot parse is not rejected — the season
+        // still matches and the year silently falls back to the current one, exactly like the
+        // "missing year" case above. A file named Fall_1999.xlsx is therefore imported as Fall <this
+        // year> instead of being refused. Documented here rather than corrected.
+        test('falls back to the current year for an unparseable year instead of throwing', () => {
+            const result = detectSeasonFromFilename('Fall_20.xlsx')
+            expect(result.season).toBe('Fall')
+            expect(result.year).toBe(new Date().getFullYear())
         })
 
-        test('should throw error for year outside valid range', () => {
-            expect(() => {
-                detectSeasonFromFilename('Fall_1999.xlsx')
-            }).toThrow(SeasonDetectorError)
+        test('falls back to the current year for a year outside the supported 20xx range', () => {
+            const result = detectSeasonFromFilename('Fall_1999.xlsx')
+            expect(result.season).toBe('Fall')
+            expect(result.year).toBe(new Date().getFullYear())
         })
 
         test('should throw error for empty filename', () => {

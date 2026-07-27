@@ -23,21 +23,27 @@ export class SubmissionMapper {
       raw.StudentFeedback
     )
     
-    // Attach unmapped fields for DTO compatibility
+    // Attach related entities for the response DTO (the DTO reads these off the domain entity).
     if (raw.User_Submission_StudentIdToUser) {
       (submission as any).student = {
+        id: raw.User_Submission_StudentIdToUser.Id,
         fullName: raw.User_Submission_StudentIdToUser.FullName,
-        studentCode: raw.User_Submission_StudentIdToUser.StudentCode
+        email: raw.User_Submission_StudentIdToUser.Email,
+        studentCode: raw.User_Submission_StudentIdToUser.StudentCode,
       }
     }
     if (raw.Exam) {
       (submission as any).exam = {
+        id: raw.Exam.Id,
         title: raw.Exam.Title,
-        description: raw.Exam.Description
+        status: raw.Exam.Status,
+        description: raw.Exam.Description,
       }
     }
     if (raw.Class) {
-      (submission as any).className = raw.Class.ClassName
+      // NOTE: the Class model has ClassCode, not ClassName.
+      (submission as any).classInfo = { id: raw.Class.Id, code: raw.Class.ClassCode }
+      ;(submission as any).className = raw.Class.ClassCode
     }
     if (raw.StudentFeedback) {
       (submission as any).studentFeedback = raw.StudentFeedback

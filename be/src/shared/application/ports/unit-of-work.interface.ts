@@ -22,9 +22,11 @@ export interface IUnitOfWork {
   resolve<T>(token: symbol): T
 
   /**
-   * Get the underlying database client (e.g. PrismaClient).
-   * Note: This is an implementation detail and should ideally be avoided in domain logic, 
-   * but it's used in some legacy or query-heavy use-cases.
+   * Escape hatch: the raw database client (e.g. PrismaClient), for read-side
+   * queries that don't yet have a dedicated repository (e.g. cross-aggregate
+   * list/count queries). Inside a transaction it returns the transactional
+   * client. Prefer repositories via resolve(); use this sparingly. Typed as
+   * `any` to keep this application-layer port free of a Prisma dependency.
    */
   getClient(): any
 }
