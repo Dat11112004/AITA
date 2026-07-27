@@ -45,7 +45,7 @@ For EACH requirement, classify ALL of the following:
 A) COMPLEXITY: "high", "medium", or "low".
 B) COMPLEXITY REASON: 1 sentence justification.
 C) IS UI VISIBLE: true ONLY if the core deliverable is explicitly building a graphical user interface (e.g., "Build a Product List screen", "Implement a Modal", "Design the layout"). CRITICAL: DO NOT set this to true if the requirement merely mentions data fields (e.g. "information", "guid"), API endpoints, backend logic, or database tables.
-D) IS CRUD: boolean. True only for actual data manipulation operations.
+D) IS CRUD: boolean. True for actual data manipulation operations AND for ANY REST API endpoints implementation (e.g., GET, POST, PUT, DELETE). CRITICAL: If the task involves building APIs, this MUST be true.
 E) IS WRITTEN ANSWER: true if the core deliverable is a written explanation, theoretical analysis, text report, or oral defense preparation. Do NOT set this to true if the primary deliverable is executable code.
 F) IS ARCHITECTURE CODE: true if the core deliverable is the structural organization, file layering, or design pattern implementation within the source code itself. Do NOT set this to true for standard UI building, bug fixing, or functional logic.
 G) IS DIAGRAM TASK: true if the core deliverable is a visual representation (e.g., UML, flowchart, architecture diagram).
@@ -59,7 +59,7 @@ L) RECOMMENDED ENGINE: Based on the reason, output the exact engine name:
 - "AIVision": MUST be used ONLY for purely visual UI requirements. If a requirement includes ANY complex logic (e.g., offline storage, debounce, state logic, API integration) alongside UI, you MUST NOT use AIVision alone.
 - "HybridVisionAndCode": MUST be used when a requirement contains BOTH visual UI features (that need screenshots) AND complex invisible logic (e.g., offline storage, debouncing, API integration, state management). This tells the system to evaluate BOTH the screenshot and the source code simultaneously.
 - "HybridTextAndCode": MUST be used when a requirement asks for BOTH a written theory/essay answer AND an actual code implementation (e.g., "Design the architecture in code and explain your design choices in the document"). This tells the system to evaluate BOTH the written document and the source code simultaneously.
-- "HTTPProbe": Use only if testing a REST API endpoint.
+- "HTTPProbe": Use only if testing a REST API endpoint. CRITICAL: If the requirement asks to implement REST APIs (GET, POST, etc.), you MUST use HTTPProbe and you MUST set isCRUD to true. DO NOT use HybridTextAndCode or AiTextAnalysis for API endpoints.
 
 ════════════════════════════════════════
 MULTI-PART EXAM STRUCTURE
@@ -401,29 +401,58 @@ OUTPUT FORMAT (JSON OBJECT)
         const pt = projectType.toLowerCase();
         const isWebProject = ["backend", "frontend", "fullstack", "aspnet", "nodejs", "java", "php", "golang", "blazor"].includes(pt);
 
-        // 1. Determine strategies deterministically
+        // 1. Determine strategies — TRUST AI's recommendedEngine FIRST, flags as fallback
         const strategyMap = new Map<string, string>();
         let hasStdInOutProbe = false;
+        const canRunBrowser = ["frontend", "fullstack", "blazor", "aspnet", "nodejs", "mobile", "flutter"].some(t => pt.includes(t));
 
         for (const req of requirements) {
-            let strategy = "AICodeReview";
-            if (req.isWrittenAnswer) {
-                // Written answers: will be overridden to AiTextAnalysis by applyScoringStrategies
-                strategy = "AICodeReview";
-            } else if (req.isUIVisible) {
-                // Mobile and web projects with visual UI → AIVision (screenshots from device/emulator)
-                strategy = ["frontend", "fullstack", "blazor", "aspnet", "nodejs", "mobile", "flutter"].some(t => pt.includes(t)) ? "AIVision" : "AICodeReview";
-            } else if (req.isCRUD) {
-                strategy = isWebProject ? "HTTPProbe" : "AICodeReview";
-            } else if (pt === "algorithm") {
-                const isArchitectural = /hash|map|o\(n\)|complexity|time|space|loop|format/i.test(req.title) || /hash|map|o\(n\)|complexity|time|space|loop|format/i.test(req.description);
-                if (!isArchitectural && !hasStdInOutProbe) {
-                    strategy = "StdInOutProbe";
-                    hasStdInOutProbe = true;
-                } else {
-                    strategy = "AICodeReview";
+            let strategy: string;
+
+            if (req.recommendedEngine) {
+                // ═══════════════════════════════════════════════════════
+                // PRIMARY PATH: Use AI's explicit recommendation.
+                // Apply only structural constraints (project type limits).
+                // ═══════════════════════════════════════════════════════
+                switch (req.recommendedEngine) {
+                    case 'HTTPProbe':
+                        strategy = isWebProject ? 'HTTPProbe' : 'AICodeReview';
+                        break;
+                    case 'AIVision':
+                    case 'HybridVisionAndCode':
+                        strategy = canRunBrowser ? 'AIVision' : 'AICodeReview';
+                        break;
+                    case 'AiTextAnalysis':
+                    case 'HybridTextAndCode':
+                        strategy = 'AiTextAnalysis';
+                        break;
+                    case 'AICodeReview':
+                    default:
+                        strategy = 'AICodeReview';
+                        break;
+                }
+            } else {
+                // ═══════════════════════════════════════════════════════
+                // FALLBACK PATH: AI didn't provide recommendedEngine.
+                // Derive from boolean flags. isCRUD checked BEFORE isWrittenAnswer
+                // to ensure API reqs get HTTPProbe even if both flags are set.
+                // ═══════════════════════════════════════════════════════
+                strategy = 'AICodeReview';
+                if (req.isCRUD) {
+                    strategy = isWebProject ? 'HTTPProbe' : 'AICodeReview';
+                } else if (req.isUIVisible) {
+                    strategy = canRunBrowser ? 'AIVision' : 'AICodeReview';
+                } else if (req.isWrittenAnswer || req.isDiagramTask) {
+                    strategy = 'AiTextAnalysis';
+                } else if (pt === 'algorithm') {
+                    const isArchitectural = /hash|map|o\(n\)|complexity|time|space|loop|format/i.test(req.title + ' ' + req.description);
+                    if (!isArchitectural && !hasStdInOutProbe) {
+                        strategy = 'StdInOutProbe';
+                        hasStdInOutProbe = true;
+                    }
                 }
             }
+
             strategyMap.set(req.id, strategy);
         }
 
@@ -649,8 +678,8 @@ RULES:
     }
 
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
-        const passedTitles = passedRules.map(r => `- ${r.title} (+${r.earnedScore})`).join('\n');
-        const failedTitles = failedRules.map(r => `- ${r.title} (0)`).join('\n');
+        const passedTitles = passedRules.map(r => `- Tiêu chí: ${r.title} (+${r.earnedScore}đ)\n  Đánh giá chi tiết: ${r.details}`).join('\n\n');
+        const failedTitles = failedRules.map(r => `- Tiêu chí: ${r.title} (0đ)\n  Lỗi/Nhận xét: ${r.details}`).join('\n\n');
 
         const systemPrompt = `Bạn là một Tech Lead (Mentor) đang review bài tập của sinh viên.
 Nhiệm vụ của bạn là tổng hợp Feedback dựa trên kết quả chấm điểm từ hệ thống.
@@ -658,11 +687,11 @@ Nhiệm vụ của bạn là tổng hợp Feedback dựa trên kết quả chấ
 YÊU CẦU QUAN TRỌNG (CRITICAL TONE & STYLE):
 1. VĂN PHONG THỰC TẾ, TRỰC DIỆN: Tuyệt đối KHÔNG DÙNG các từ ngữ sáo rỗng, chào hỏi, chúc mừng (VD: KHÔNG dùng "Chào bạn", "Rất vui mừng", "Chúc mừng", "Xuất sắc"). Đi thẳng ngay vào phân tích chuyên môn.
 2. RẤT NGẮN GỌN & ĐÚNG TRỌNG TÂM: Tối đa 2-3 đoạn ngắn. Nhận xét cực kỳ thực tế, tránh giải thích dông dài đạo lý.
-3. PHẠM VI CHÍNH XÁC: Chỉ đánh giá dựa trên danh sách các tiêu chí Đạt (Passed) và Chưa đạt (Failed) bên dưới.
+3. PHẠM VI CHÍNH XÁC: Chỉ đánh giá dựa trên danh sách các tiêu chí Đạt (Passed) và Chưa đạt (Failed) cùng với "Đánh giá chi tiết" của từng tiêu chí bên dưới. Tuyệt đối KHÔNG TƯỞNG TƯỢNG hoặc đưa ra các khái niệm ngoài phạm vi bài học (ví dụ: Không khuyên dùng Docker, CI/CD, Unit Test, Validation... nếu tiêu chí không hề đề cập đến).
 4. CẤU TRÚC:
    - Trạng thái hiện tại (Đạt ${totalScore}/${maxScore} điểm).
-   - Đánh giá kỹ thuật: Nêu rõ điểm làm được và LỖ HỔNG kiến thức (nếu có tiêu chí Failed). Nếu điểm tuyệt đối (10/10), chỉ cần 1 câu chốt về mức độ hoàn thiện.
-   - Hướng khắc phục / Mở rộng (Actionable advice): 1-2 câu ngắn gọn về thực tế công việc.
+   - Đánh giá kỹ thuật: Dựa hoàn toàn vào phần "Đánh giá chi tiết" của các tiêu chí, hãy tổng hợp lại những gì sinh viên đã code tốt và những lỗi/hạn chế cụ thể sinh viên gặp phải.
+   - Hướng khắc phục / Tối ưu: Dựa trên các lỗi hoặc điểm chưa hoàn hảo trong "Đánh giá chi tiết", đưa ra 1-2 lời khuyên tối ưu code thiết thực. TUYỆT ĐỐI không dùng văn mẫu chung chung và KHÔNG khuyên "Hướng phát triển mở rộng" ra ngoài phạm vi môn học. Nếu "Đánh giá chi tiết" không có gì để chê, không cần bịa ra lời khuyên.
 5. NGÔN NGỮ: Tiếng Việt, sử dụng thuật ngữ IT chuẩn. Định dạng Markdown đơn giản.`;
 
         const userPrompt = `Bài tập: ${assignmentTitle}

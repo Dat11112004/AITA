@@ -855,7 +855,6 @@ export function StudentAssignmentDetail() {
                             {displayPoints}
                           </span>
                         </div>
-
                         {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
                           <div className="px-4 pb-4">
                             <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>

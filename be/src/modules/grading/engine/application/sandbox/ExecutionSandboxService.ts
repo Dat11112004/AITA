@@ -95,7 +95,7 @@ export class ExecutionSandboxService {
       // DYNAMIC DOCKER PROVISIONING
       // ═══════════════════════════════════════════════════════════
       let dockerImage = "mcr.microsoft.com/dotnet/sdk:8.0";
-      let cmd = ["sh", "-c", `cd "${runDir}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080`];
+      let cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080`];
       let env = [
           "ASPNETCORE_ENVIRONMENT=Sandbox",
           "DOTNET_ENVIRONMENT=Sandbox",
@@ -155,14 +155,18 @@ export class ExecutionSandboxService {
             }
           }
 
-          let fsRunScript = `(cd "${runDir}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080 > /sandbox/backend.log 2>&1) &\n`;
+          let fsSetupScript = `cp -a /app /sandbox\n`;
+          let runDirSandbox = runDir.replace('/app', '/sandbox');
+          let fsRunScript = `(cd "${runDirSandbox}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080 > /sandbox/backend.log 2>&1) &\n`;
           
           const fsPackageJsons = await this.findAllFiles(submissionPath, 'package.json');
           for (const pkgPath of fsPackageJsons) {
             const relativeDir = path.relative(submissionPath, path.dirname(pkgPath)).replace(/\\/g, '/');
-            const containerDir = relativeDir ? `/app/${relativeDir}` : `/app`;
+            const containerDir = relativeDir ? `/sandbox/${relativeDir}` : `/sandbox`;
             
-            let frontendJob = `(cd "${containerDir}" && echo "[Sandbox] Starting npm install..." && (npm install --no-fund --no-audit --prefer-offline --loglevel error || true)`;
+            fsSetupScript += `(cd "${containerDir}" && echo "[Sandbox] Starting npm install..." && (npm install --no-fund --no-audit --prefer-offline --no-progress --loglevel error || true))\n`;
+            
+            let frontendJob = `(cd "${containerDir}"`;
             
             try {
               const pkgContent = await fs.readFile(pkgPath, 'utf8');
@@ -182,7 +186,7 @@ export class ExecutionSandboxService {
           }
           
           // Daemonized container: use bash wait -n to exit immediately if ANY background service crashes
-          cmd = ["bash", "-c", `mkdir -p /sandbox && ${fsRunScript} wait -n || exit $?`];
+          cmd = ["bash", "-c", `${fsSetupScript}\n${fsRunScript}\nwait -n || exit $?`];
           env = [
               "ASPNETCORE_ENVIRONMENT=Sandbox",
               "DOTNET_ENVIRONMENT=Sandbox",
@@ -430,22 +434,22 @@ export NODE_ENV=development
           break;
         case "java":
           dockerImage = "maven:3.9-eclipse-temurin-21";
-          cmd = ["sh", "-c", `cd "${runDir}" && (mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=8080" || (mvn clean package -DskipTests && java -jar target/*.jar))`];
+          cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && (mvn spring-boot:run -Dspring-boot.run.arguments="--server.port=8080" || (mvn clean package -DskipTests && java -jar target/*.jar))`];
           env = ["SERVER_PORT=8080", "PORT=8080"];
           break;
         case "python":
           dockerImage = "python:3.12-slim";
-          cmd = ["sh", "-c", `cd "${runDir}" && if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && (python manage.py runserver 0.0.0.0:8080 || uvicorn main:app --host 0.0.0.0 --port 8080 || python app.py)`];
+          cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && (python manage.py runserver 0.0.0.0:8080 || uvicorn main:app --host 0.0.0.0 --port 8080 || python app.py)`];
           env = ["PORT=8080"];
           break;
         case "golang":
           dockerImage = "golang:1.22-alpine";
-          cmd = ["sh", "-c", `cd "${runDir}" && go mod download && go run .`];
+          cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && go mod download && go run .`];
           env = ["PORT=8080"];
           break;
         case "php":
           dockerImage = "php:8.2-cli";
-          cmd = ["sh", "-c", `cd "${runDir}" && if [ -f composer.json ]; then apt-get update && apt-get install -y unzip && curl -sS https://getcomposer.org/installer | php && php composer.phar install; fi && if [ -d public ]; then php -S 0.0.0.0:8080 -t public; else php -S 0.0.0.0:8080 -t .; fi`];
+          cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && if [ -f composer.json ]; then apt-get update && apt-get install -y unzip && curl -sS https://getcomposer.org/installer | php && php composer.phar install; fi && if [ -d public ]; then php -S 0.0.0.0:8080 -t public; else php -S 0.0.0.0:8080 -t .; fi`];
           env = ["PORT=8080"];
           break;
       }
@@ -482,7 +486,7 @@ export NODE_ENV=development
         Cmd: cmd,
         HostConfig: {
           Binds: [
-            `${submissionPath.replace(/\\/g, '/')}:/app`,
+            `${submissionPath.replace(/\\/g, '/')}:/app:ro`,
             `grading_npm_cache:/root/.npm`,
             `grading_nuget_cache:/root/.nuget/packages`,
             `grading_maven_cache:/root/.m2`,
@@ -513,9 +517,9 @@ export NODE_ENV=development
 
       const baseUrl = `http://localhost:${hostPort}`;
       try {
-        // Wait for app to be ready (180s timeout for heavy Node.js fullstack builds)
+        // Wait for app to be ready (300s timeout for heavy Node.js fullstack builds)
         if (this.isServerRuntime(runtimeStack)) {
-          await this.waitUntilReady(container, baseUrl, 180000);
+          await this.waitUntilReady(container, baseUrl, 300000);
         }
       } catch (err: any) {
         console.error(`[Sandbox] Timeout/Crash waiting for ${baseUrl}. Fetching container logs...`);

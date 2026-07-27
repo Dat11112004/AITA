@@ -380,12 +380,15 @@ STRICT RULES:
 
           // Attempt to synthesize from relevantFiles
           if (finalParsed.relevantFiles && finalParsed.relevantFiles.length > 0) {
+            // Normalize prompt to forward slashes for easier matching of file paths
+            const normalizedPrompt = prompt.replace(/\\/g, '/');
             for (const file of finalParsed.relevantFiles) {
-              const escapedFile = file.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+              const normalizedFile = file.replace(/\\/g, '/');
+              const escapedFile = normalizedFile.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
               // Allow partial paths: match anything before the file name on the same line
               // Stop matching at \n\n--- OR \n\n... [CONTENT TRUNCATED
               const regex = new RegExp(`// FILE:\\s*(?:[^\\n]*?)${escapedFile}\\s*\\n([\\s\\S]*?)(?=\\n\\n---|\\n\\n\\.\\.\\. \\[CONTENT TRUNCATED)`);
-              const match = prompt.match(regex);
+              const match = normalizedPrompt.match(regex);
               if (match) {
                 let content = match[1].trim();
                 finalParsed.relevantSnippets.push({

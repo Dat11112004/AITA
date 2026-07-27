@@ -13,8 +13,8 @@ export function FormattedText({ text, className }: FormattedTextProps) {
   return (
     <div className={`space-y-1 ${className || ''}`}>
       {lines.map((line, lineIdx) => {
-        const isBullet = line.trim().startsWith('* ');
-        const content = isBullet ? line.replace(/^\s*\*\s+/, '') : line;
+        const isBullet = line.trim().startsWith('* ') || line.trim().startsWith('- ');
+        const content = isBullet ? line.replace(/^\s*[*|-]\s+/, '') : line;
 
         // Split by inline markdown: `code`, 'bold', **bold**
         const regex = /(`[^`]+`|'[^']+'|\*\*[^*]+\*\*)/g;

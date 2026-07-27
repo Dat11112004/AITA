@@ -31,9 +31,13 @@ export class PlaywrightExecutor {
             await page.route('**/*', async (route) => {
                 const request = route.request();
                 const url = request.url();
+                const resourceType = request.resourceType();
                 
-                // Only intercept API-like requests going to localhost or 127.0.0.1
-                if ((url.includes('localhost:') || url.includes('127.0.0.1:')) && url.toLowerCase().includes('/api')) {
+                // Only intercept API-like requests (fetch/xhr) going to localhost or 127.0.0.1
+                // Do NOT intercept 'script' or 'document' requests (e.g. Vite loading /src/api/axiosClient.ts)
+                if ((resourceType === 'fetch' || resourceType === 'xhr') && 
+                    (url.includes('localhost:') || url.includes('127.0.0.1:')) && 
+                    url.toLowerCase().includes('/api')) {
                     try {
                         const parsedUrl = new URL(url);
                         const backendUrl = new URL(baseUrl);
@@ -80,39 +84,43 @@ export class PlaywrightExecutor {
             let successfullyLoaded = false;
             let finalUrl = baseUrl;
 
-            // Probe loop across all base URLs
-            for (const currentBaseUrl of baseUrlsToCheck) {
+            // Probe loop across all base URLs. We check additionalUrls (Frontend) BEFORE baseUrl (Backend).
+            // This prevents Playwright from falsely identifying Backend Swagger as the main UI.
+            const prioritizedBaseUrls = [...(additionalUrls || []), baseUrl];
+
+            // Global retry loop for slow UI startups (e.g. background npm install in fullstack containers)
+            for (let globalAttempt = 1; globalAttempt <= 25; globalAttempt++) {
                 if (successfullyLoaded) break;
                 
-                for (const probePath of pathsToProbe) {
-                    try {
-                        const testUrl = `${currentBaseUrl}${probePath.startsWith('/') ? probePath : '/' + probePath}`;
-                        // Use a retry mechanism for Vite's slow first bundle
-                        for (let attempt = 1; attempt <= 3; attempt++) {
-                            try {
-                                const response = await page.goto(testUrl, { waitUntil: 'networkidle', timeout: 15000 });
-                                
-                                // Consider it a success if it returns 200 OK and has some body content
-                                if (response && response.ok()) {
-                                    const content = await page.content();
-                                    // Verify it's actually an HTML page, not just an empty response or basic JSON API
-                                    if (content.toLowerCase().includes('<body') && content.length > 50) {
-                                        console.log(`[PlaywrightExecutor] Found valid UI at ${testUrl}`);
-                                        successfullyLoaded = true;
-                                        finalUrl = testUrl;
-                                        break; // Success!
-                                    }
+                for (const currentBaseUrl of prioritizedBaseUrls) {
+                    if (successfullyLoaded) break;
+                    
+                    for (const probePath of pathsToProbe) {
+                        try {
+                            const testUrl = `${currentBaseUrl}${probePath.startsWith('/') ? probePath : '/' + probePath}`;
+                            // Fast timeout for probing (3s) instead of waiting 15s for nothing
+                            const response = await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 3000 });
+                            
+                            // Consider it a success if it returns 200 OK and has some body content
+                            if (response && response.ok()) {
+                                const content = await page.content();
+                                // Verify it's actually an HTML page, not just an empty response or basic JSON API
+                                if (content.toLowerCase().includes('<body') && content.length > 50) {
+                                    console.log(`[PlaywrightExecutor] Found valid UI at ${testUrl}`);
+                                    successfullyLoaded = true;
+                                    finalUrl = currentBaseUrl; // Fix: Use root URL, not the probed file path like /index.html
+                                    break; // Success!
                                 }
-                            } catch(e) {
-                                if (attempt === 3) throw e;
-                                console.log(`[PlaywrightExecutor] Attempt ${attempt} failed, retrying...`);
-                                await page.waitForTimeout(2000);
                             }
+                        } catch(e) {
+                            // Suppress errors during probe
                         }
-                        if (successfullyLoaded) break;
-                    } catch (e) {
-                        console.log(`[PlaywrightExecutor] Probe failed for ${probePath} on ${currentBaseUrl}`);
                     }
+                }
+                
+                if (!successfullyLoaded) {
+                    console.log(`[PlaywrightExecutor] Global Attempt ${globalAttempt}/25 failed to find UI. Waiting 3s before retrying...`);
+                    await page.waitForTimeout(3000);
                 }
             }
 
@@ -172,13 +180,22 @@ export class PlaywrightExecutor {
                 console.log(`[PlaywrightExecutor] Capturing discovered route ${fullTargetUrl}...`);
                 
                 try {
-                    await page.goto(fullTargetUrl, { waitUntil: 'load', timeout: 15000 });
+                    // Increase timeout to 45s to allow Vite/Webpack to pre-bundle dependencies on the first load
+                    await page.goto(fullTargetUrl, { waitUntil: 'load', timeout: 45000 });
                 } catch (e: any) {
                     console.log(`[PlaywrightExecutor] Navigation to ${fullTargetUrl} timed out or failed:`, e.message);
                 }
                 
                 // Wait for SPA frameworks (Blazor WASM/Server, React, etc.) to hydrate
                 await page.waitForTimeout(3000); 
+                
+                // Adaptive wait: ensure the page isn't just a blank white screen (e.g. Vite still compiling JS)
+                await page.waitForFunction(() => {
+                    const bodyText = document.body ? document.body.innerText.trim() : '';
+                    return bodyText.length > 20;
+                }, { timeout: 30000 }).catch(() => {
+                    console.log(`[PlaywrightExecutor] Adaptive wait for UI text content timed out after 30s. Page might be blank or have very little text.`);
+                });
                 
                 // Safety check: if goto failed completely and we're stuck on the old page, skip
                 // We compare base paths to handle trailing slashes and query strings

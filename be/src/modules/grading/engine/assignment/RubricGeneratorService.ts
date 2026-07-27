@@ -61,314 +61,220 @@ export class RubricGeneratorService {
     }
 
     /**
-     * Deterministically sets scoringStrategy based on requirement characteristics.
+     * Validates and finalizes scoringStrategy based on STRUCTURAL CONSTRAINTS only.
      * 
-     * Priority order:
-     * 0. isWrittenAnswer = true → AiTextAnalysis (student answers in .docx)
-     * 1. isUIVisible = true  → AIVision (Playwright screenshot + Gemini Vision)
-     * 2. isCRUD = true + AI generated HTTPProbe steps → PRESERVE HTTPProbe
-     * 3. isCRUD = true but no HTTPProbe steps → AICodeReview fallback
-     * 4. Structural/architectural → AICodeReview (flexible, not Boolean/Roslyn)
-     * 5. Everything else → preserve AI decision (AICodeReview)
+     * ARCHITECTURE: generateRubricRulesAsync already resolved the correct strategy
+     * from AI's recommendedEngine. This method ONLY applies hard constraints that
+     * the AI cannot know about (project type limitations, probe availability).
+     * It does NOT re-classify using keyword heuristics.
      */
     private applyScoringStrategies(rules: RubricRule[], requirements: ParsedRequirement[], projectType: string, fullContext?: string): RubricRule[] {
-        const isHttpProbeAvailable = ["web", "backend", "frontend", "fullstack", "aspnet", "nodejs", "java", "php", "golang", "blazor"].some(pt => projectType.toLowerCase().includes(pt));
-        
-        // Intelligent Architecture Classification
+        const pt = projectType.toLowerCase();
+        const isHttpProbeAvailable = ["web", "backend", "frontend", "fullstack", "aspnet", "nodejs", "java", "php", "golang", "blazor"].some(k => pt.includes(k));
         const contextText = (fullContext || "").toLowerCase();
-        const isRestApi = contextText.includes("api") || contextText.includes("rest") || contextText.includes("swagger") || contextText.includes("endpoint");
-        const isServerUI = contextText.includes("blazor") || contextText.includes("mvc") || contextText.includes("giao diện") || contextText.includes("interface") || contextText.includes("razor") || contextText.includes("html");
-
-        // If it's explicitly a Server UI and NOT explicitly an API, we block HTTP Probe for CRUD
+        const isRestApi = /api|rest|swagger|endpoint/.test(contextText);
+        const isServerUI = /blazor|mvc|razor/.test(contextText);
         const allowHttpProbe = isHttpProbeAvailable && (!isServerUI || isRestApi);
 
         return rules.map((rule, index) => {
             const req = requirements[index];
             if (!req) return rule;
 
-            const textToCheck = (req.title + " " + req.description).toLowerCase();
+            // ══════════════════════════════════════════════════════════════
+            // STEP 1: Accept the strategy from generateRubricRulesAsync.
+            // ══════════════════════════════════════════════════════════════
+            let finalStrategy = rule.scoringStrategy;
 
-            // ═══════════════════════════════════════════════════════
-            // LLM-DIRECTED ROUTING (NEW INTELLIGENT SYSTEM)
-            // ═══════════════════════════════════════════════════════
-            
-            const hasDataAuthLogic = ["firebase", "firestore", "auth", "đăng nhập", "đăng ký", "login", "register", "database", "cơ sở dữ liệu", "lưu trữ", "sql", "mongo", "crud", "api", "fetch"].some(kw => textToCheck.includes(kw));
+            // ══════════════════════════════════════════════════════════════
+            // STEP 2: Apply STRUCTURAL CONSTRAINTS.
+            //         These are hard rules the AI cannot evaluate.
+            // ══════════════════════════════════════════════════════════════
 
-            // CRITICAL OVERRIDE: If the requirement involves Database/Auth/Firebase logic, 
-            // it MUST NOT be graded purely by AIVision.
-            // However, if the requirement is ALSO UI-visible (e.g., "Product List Screen with API calls"),
-            // use HybridVisionAndCode to capture BOTH screenshots AND code review.
-            if (hasDataAuthLogic && req.recommendedEngine !== 'AICodeReview' && req.recommendedEngine !== 'HTTPProbe' && rule.scoringStrategy !== 'HTTPProbe') {
-                if (req.isUIVisible) {
-                    // UI + Data Logic → Hybrid: screenshots for visual proof + code review for logic
-                    req.recommendedEngine = 'HybridVisionAndCode';
-                } else {
-                    req.recommendedEngine = 'AICodeReview';
-                    req.isArchitectureCode = true;
-                }
+            // Constraint A: HTTPProbe requires web project with API context
+            if (finalStrategy === 'HTTPProbe' && !allowHttpProbe) {
+                finalStrategy = 'AICodeReview';
             }
 
-            // Safety override: If the requirement is clearly asking to answer questions, explain, or describe, force it to AiTextAnalysis.
-            if (/^(explain|answer|describe|why|how|what|list|analyze)\b/i.test(req.title) || (/explain|describe|answer/i.test(textToCheck) && !/implement|build|create|add|display|show|design architecture/i.test(textToCheck))) {
-                req.recommendedEngine = 'AiTextAnalysis';
-                req.isWrittenAnswer = true;
+            // Constraint B: AIVision requires browser/device capability
+            if (finalStrategy === 'AIVision' && !isHttpProbeAvailable && !pt.includes('mobile')) {
+                finalStrategy = 'AICodeReview';
             }
 
-            // Safety override: If the requirement is clearly asking to implement code architecture patterns,
-            // force it to AICodeReview, because LLM might confuse it with written design questions.
-            if (/pattern|mvvm|mvc|clean architecture|repository|bloc/i.test(textToCheck) && !/explain|draw|analyze|list/i.test(textToCheck)) {
-                req.recommendedEngine = 'AICodeReview';
-                req.isArchitectureCode = true;
+            // Constraint C: Soft delete has a specialized multi-step HTTPProbe sequence
+            if (req.isSoftDelete === true) {
+                return this.buildSoftDeleteRule(rule, req, allowHttpProbe);
             }
 
-            // Check if LLM explicitly requested AICodeReview for structural/pattern tasks
-            if (req.recommendedEngine === 'AICodeReview' || (!req.recommendedEngine && req.isArchitectureCode && !req.isCRUD)) {
-                // Determine if this is truly an architecture task or a generic logic task
-                const isArchTask = req.isArchitectureCode || /architect|mvvm|mvc|clean|repository|layer/i.test(textToCheck);
-                
+            // Constraint D: StdInOutProbe must have valid test cases
+            if (finalStrategy === 'StdInOutProbe'
+                && !rule.requiredEvidence?.some((e: any) => e.stdInOutProbe?.testCases?.length > 0)) {
+                finalStrategy = 'AICodeReview';
+            }
+
+            // ══════════════════════════════════════════════════════════════
+            // STEP 3: Build the final rule with correct evidence types.
+            // ══════════════════════════════════════════════════════════════
+            return this.buildRuleForStrategy(rule, req, finalStrategy);
+        }) as RubricRule[];
+    }
+
+    /**
+     * Constructs a complete RubricRule with the correct evidence types for a given strategy.
+     */
+    private buildRuleForStrategy(rule: RubricRule, req: ParsedRequirement, strategy: string): any {
+        const isHybrid = req.recommendedEngine === 'HybridVisionAndCode'
+                      || req.recommendedEngine === 'HybridTextAndCode';
+        const textToCheck = (req.title + ' ' + req.description).toLowerCase();
+        const isArchTask = req.isArchitectureCode || /architect|mvvm|mvc|clean|repository|layer/i.test(textToCheck);
+
+        switch (strategy) {
+            case 'HTTPProbe':
+                // Evidence already populated by generateRubricRulesAsync with httpProbe steps.
+                // Only enrich metadata.
                 return {
                     ...rule,
-                    category: isArchTask ? 'Architecture' as any : 'Functional' as any,
-                    scoringStrategy: 'AICodeReview',
+                    scoringStrategy: 'HTTPProbe',
+                    category: rule.category || 'Functional',
                     contextHint: req.partLabel || rule.contextHint || undefined,
-                    requiredEvidence: [{
-                        evidenceType: 'ai.code.reviewed' as any,
-                        minimumConfidence: 0.85,
-                        semanticDescription: isArchTask 
-                            ? `Evaluate the project architecture. The student may use ANY architecture pattern (e.g., MVC, MVVM, Clean Architecture, Repository Pattern) or follow the requested design. Verify that there is a clear separation of concerns with distinct layers. Do NOT penalize for minor naming differences as long as the structural intent is correct.`
-                            : rule.description
-                    }]
+                    isHybrid: isHybrid || undefined,
                 };
-            }
 
-            // Check if LLM explicitly requested AiTextAnalysis or HybridTextAndCode
-            if (req.recommendedEngine === 'AiTextAnalysis' || req.recommendedEngine === 'HybridTextAndCode' || (!req.recommendedEngine && (req.isDiagramTask || req.isWrittenAnswer))) {
-                let category: string = 'Theory';
-                if (/debug|bug|fix|error/i.test(textToCheck)) category = 'Functional';
-                if (/architect|design|pattern|mvvm|clean/i.test(textToCheck)) category = 'Architecture';
-                if (/review|analysis|strength|weakness|improvement/i.test(textToCheck)) category = 'Architecture';
-
+            case 'AIVision':
                 return {
                     ...rule,
-                    category: category as any,
+                    scoringStrategy: 'AIVision',
+                    category: req.isUIVisible ? 'UI/UX' as any : (rule.category || 'Functional'),
+                    contextHint: req.partLabel || rule.contextHint || undefined,
+                    isHybrid: isHybrid || undefined,
+                    requiredEvidence: isHybrid
+                        ? [
+                            { evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 },
+                            { evidenceType: 'ai.code.reviewed' as any, minimumConfidence: 0.85, semanticDescription: rule.description }
+                          ]
+                        : [{ evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 }],
+                };
+
+            case 'AiTextAnalysis':
+                return {
+                    ...rule,
                     scoringStrategy: 'AiTextAnalysis',
-                    isHybrid: req.recommendedEngine === 'HybridTextAndCode',
-                    contextHint: req.partLabel || undefined,
+                    category: this.classifyTextCategory(req) as any,
+                    contextHint: req.partLabel || rule.contextHint || undefined,
+                    isHybrid: isHybrid || undefined,
                     referenceAnswer: req.referenceAnswer || "Học sinh cần trả lời đúng trọng tâm câu hỏi. Đánh giá dựa trên sự hiểu biết và giải thích hợp lý.",
                     requiredEvidence: [{
                         evidenceType: 'ai.text.analyzed' as any,
                         minimumConfidence: 0.7,
                         semanticDescription: rule.description,
-                    }]
-                } as any;
-            }
+                    }],
+                };
 
-            // Check if LLM explicitly requested AIVision for UI tasks
-            if (req.recommendedEngine === 'AIVision' || req.recommendedEngine === 'HybridVisionAndCode') {
+            case 'StdInOutProbe':
+                // Fully populated by generateRubricRulesAsync. Preserve as-is.
+                return rule;
+
+            case 'AICodeReview':
+            default:
                 return {
                     ...rule,
-                    scoringStrategy: 'AIVision',
-                    isHybrid: req.recommendedEngine === 'HybridVisionAndCode',
+                    scoringStrategy: 'AICodeReview',
+                    category: isArchTask ? 'Architecture' as any : (rule.category || 'Functional' as any),
                     contextHint: req.partLabel || rule.contextHint || undefined,
                     requiredEvidence: [{
-                        evidenceType: 'browser.screenshot.captured' as any,
-                        minimumConfidence: 0.9,
-                    }]
-                } as any;
-            }
+                        evidenceType: 'ai.code.reviewed' as any,
+                        minimumConfidence: 0.85,
+                        semanticDescription: isArchTask
+                            ? `Evaluate the project architecture. The student may use ANY architecture pattern (e.g., MVC, MVVM, Clean Architecture, Repository Pattern) or follow the requested design. Verify that there is a clear separation of concerns with distinct layers. Do NOT penalize for minor naming differences as long as the structural intent is correct.`
+                            : rule.description,
+                    }],
+                };
+        }
+    }
 
-            // Special Case 1: Soft Delete
-            if (req.isSoftDelete === true) {
-                if (allowHttpProbe) {
-                    const match = req.title.match(/(?:delete|remove)\s+([a-zA-Z]+)/i);
-                    const entityName = match ? match[1].toLowerCase() : "item";
-                    
-                    return {
-                        ...rule,
-                        scoringStrategy: 'HTTPProbe',
-                        requiredEvidence: [{
-                            evidenceType: 'runtime.http.probed' as any,
-                            minimumConfidence: 0.9,
-                            httpProbe: {
-                                description: `Multi-step probe to verify soft delete for ${entityName}`,
-                                steps: [
-                                    {
-                                        stepId: "s1",
-                                        method: "POST",
-                                        pathTemplate: `/api/${entityName}s`,
-                                        expectedStatus: 201,
-                                        body: { name: `Test ${entityName}`, price: 100, stockQuantity: 10, category: "Test", isAvailable: true },
-                                        captureFromResponse: { variable: "id", jsonPath: "$.id" },
-                                        assertions: []
-                                    },
-                                    {
-                                        stepId: "s2",
-                                        method: "DELETE",
-                                        pathTemplate: `/api/${entityName}s/{id}`,
-                                        expectedStatus: 204,
-                                        body: {},
-                                        captureFromResponse: {},
-                                        assertions: []
-                                    },
-                                    {
-                                        stepId: "s3",
-                                        method: "GET",
-                                        pathTemplate: `/api/${entityName}s/{id}`,
-                                        expectedStatus: 200,
-                                        body: {},
-                                        captureFromResponse: {},
-                                        assertions: [
-                                            { jsonPath: "$.isAvailable", assertType: "equals", value: false }
-                                        ]
-                                    },
-                                    {
-                                        stepId: "s4",
-                                        method: "GET",
-                                        pathTemplate: `/api/${entityName}s`,
-                                        expectedStatus: 200,
-                                        body: {},
-                                        captureFromResponse: {},
-                                        assertions: [
-                                            { jsonPath: "$[?(@.id == {id})]", assertType: "notExists" }
-                                        ]
-                                    }
+    /**
+     * Classifies the category for text/written answer requirements.
+     */
+    private classifyTextCategory(req: ParsedRequirement): string {
+        const text = (req.title + ' ' + req.description).toLowerCase();
+        if (/debug|bug|fix|error/.test(text)) return 'Functional';
+        if (/architect|design|pattern|review|analysis|strength|weakness|improvement/.test(text)) return 'Architecture';
+        return 'Theory';
+    }
+
+    /**
+     * Builds a specialized rule for soft delete requirements.
+     * Soft delete requires a multi-step HTTPProbe sequence to verify that
+     * the entity is logically hidden rather than physically removed.
+     */
+    private buildSoftDeleteRule(rule: RubricRule, req: ParsedRequirement, allowHttpProbe: boolean): any {
+        if (allowHttpProbe) {
+            const match = req.title.match(/(?:delete|remove)\s+([a-zA-Z]+)/i);
+            const entityName = match ? match[1].toLowerCase() : "item";
+
+            return {
+                ...rule,
+                scoringStrategy: 'HTTPProbe',
+                requiredEvidence: [{
+                    evidenceType: 'runtime.http.probed' as any,
+                    minimumConfidence: 0.9,
+                    httpProbe: {
+                        description: `Multi-step probe to verify soft delete for ${entityName}`,
+                        steps: [
+                            {
+                                stepId: "s1",
+                                method: "POST",
+                                pathTemplate: `/api/${entityName}s`,
+                                expectedStatus: 201,
+                                body: { name: `Test ${entityName}`, price: 100, stockQuantity: 10, category: "Test", isAvailable: true },
+                                captureFromResponse: { variable: "id", jsonPath: "$.id" },
+                                assertions: []
+                            },
+                            {
+                                stepId: "s2",
+                                method: "DELETE",
+                                pathTemplate: `/api/${entityName}s/{id}`,
+                                expectedStatus: 204,
+                                body: {},
+                                captureFromResponse: {},
+                                assertions: []
+                            },
+                            {
+                                stepId: "s3",
+                                method: "GET",
+                                pathTemplate: `/api/${entityName}s/{id}`,
+                                expectedStatus: 200,
+                                body: {},
+                                captureFromResponse: {},
+                                assertions: [
+                                    { jsonPath: "$.isAvailable", assertType: "equals", value: false }
+                                ]
+                            },
+                            {
+                                stepId: "s4",
+                                method: "GET",
+                                pathTemplate: `/api/${entityName}s`,
+                                expectedStatus: 200,
+                                body: {},
+                                captureFromResponse: {},
+                                assertions: [
+                                    { jsonPath: "$[?(@.id == {id})]", assertType: "notExists" }
                                 ]
                             }
-                        }]
-                    };
-                } else {
-                    return {
-                        ...rule,
-                        scoringStrategy: 'AICodeReview',
-                        requiredEvidence: [{
-                            evidenceType: 'ai.code.reviewed' as any,
-                            minimumConfidence: 0.9,
-                            semanticDescription: `Inspect the code for soft delete logic. Ensure the entity is NOT removed from the database, but rather its isActive or isAvailable property is set to false, and changes are saved.`
-                        }]
-                    };
-                }
-            }
-
-
-            // Special Case 2: Architectural overrides for STRICT named patterns with exact keywords
-            // (e.g., exam says "You MUST use Repository Pattern" — not "you may use any")
-            if (req.isCRUD !== true && !req.isArchitectureCode) {
-                if (["repository pattern", "repository"].some(kw => textToCheck.includes(kw)) && /must|required|bắt buộc/i.test(textToCheck)) {
-                    return {
-                        ...rule,
-                        scoringStrategy: 'AICodeReview',
-                        requiredEvidence: [{ 
-                            evidenceType: 'ai.code.reviewed' as any, 
-                            minimumConfidence: 0.9,
-                            semanticDescription: `STRICT REQUIREMENT: Verify that the code explicitly implements the Repository Pattern. Look for interfaces and classes named *Repository that abstract data access.` 
-                        }]
-                    } as any;
-                }
-                const hasDI = textToCheck.includes("dependency injection") || /\bdi\b/.test(textToCheck);
-                if (hasDI && /must|required|bắt buộc/i.test(textToCheck)) {
-                    return {
-                        ...rule,
-                        scoringStrategy: 'AICodeReview',
-                        requiredEvidence: [{ 
-                            evidenceType: 'ai.code.reviewed' as any, 
-                            minimumConfidence: 0.9,
-                            semanticDescription: `STRICT REQUIREMENT: Verify that the code explicitly uses Dependency Injection. Look for constructor injection and services registered in a DI container.` 
-                        }]
-                    } as any;
-                }
-            }
-
-            // Special Case 3: CRUD operations in Server UI (No API) -> Force AICodeReview
-            // This must happen BEFORE Priority 1 (isUIVisible) so that Update/Delete aren't assigned AIVision (which fails on empty tables).
-            if (req.isCRUD === true && !allowHttpProbe) {
-                return {
-                    ...rule,
-                    scoringStrategy: 'AICodeReview',
-                    requiredEvidence: [{
-                        evidenceType: 'ai.code.reviewed' as any,
-                        minimumConfidence: 0.85,
-                        semanticDescription: rule.description,
-                    }]
-                };
-            }
-
-
-
-            // Priority 1: UI-visible → HybridVisionAndCode (Preferred) or AIVision
-            if (req.isUIVisible === true) {
-                // If it already has AIVision from GeminiAiProvider, preserve it
-                if (rule.scoringStrategy === 'AIVision') {
-                    return rule;
-                }
-                
-                // For web projects, UI is always backed by code (HTML/React/etc), 
-                // so HybridVisionAndCode is the best strategy to get BOTH visual proof and code logic.
-                if (isHttpProbeAvailable) {
-                    return {
-                        ...rule,
-                        scoringStrategy: 'HybridVisionAndCode',
-                        isHybrid: true,
-                        requiredEvidence: [
-                            { evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 },
-                            { evidenceType: 'ai.code.reviewed' as any, minimumConfidence: 0.85, semanticDescription: rule.description }
                         ]
-                    };
-                }
-                
-                // Otherwise, use AIVision for layout and visual structure
-                return {
-                    ...rule,
-                    scoringStrategy: 'AIVision',
-                    requiredEvidence: [{
-                        evidenceType: 'browser.screenshot.captured' as any,
-                        minimumConfidence: 0.9,
-                    }]
-                };
-            }
-
-            // Priority 2: CRUD + AI generated valid HTTPProbe steps → PRESERVE IF ALLOWED
-            if (req.isCRUD === true && rule.scoringStrategy === 'HTTPProbe'
-                && rule.requiredEvidence?.some((e: any) => e.httpProbe?.steps?.length > 0)) {
-                if (allowHttpProbe) return rule;
-            }
-
-            // Priority 3: CRUD but no valid HTTPProbe steps → AICodeReview
-            if (req.isCRUD === true) {
-                return {
-                    ...rule,
-                    scoringStrategy: 'AICodeReview',
-                    requiredEvidence: [{
-                        evidenceType: 'ai.code.reviewed' as any,
-                        minimumConfidence: 0.85,
-                        semanticDescription: rule.description,
-                    }]
-                };
-            }
-
-            // Priority 4: AI assigned StdInOutProbe for algorithm → preserve if has test cases
-            if (rule.scoringStrategy === 'StdInOutProbe'
-                && rule.requiredEvidence?.some((e: any) => e.stdInOutProbe?.testCases?.length > 0)) {
-                return rule;
-            }
-
-            // Priority 5: AI assigned AICodeReview for complex logic → preserve
-            if (rule.scoringStrategy === 'AICodeReview') {
-                return rule;
-            }
-
-            // Priority 6: Fallback to AICodeReview for anything else to avoid overly strict structural rules
+                    }
+                }]
+            };
+        } else {
             return {
                 ...rule,
                 scoringStrategy: 'AICodeReview',
-                requiredEvidence: rule.requiredEvidence?.length > 0
-                    ? rule.requiredEvidence
-                    : [{ 
-                        evidenceType: 'ai.code.reviewed' as any, 
-                        minimumConfidence: 0.85,
-                        semanticDescription: rule.description 
-                      }]
+                requiredEvidence: [{
+                    evidenceType: 'ai.code.reviewed' as any,
+                    minimumConfidence: 0.9,
+                    semanticDescription: `Inspect the code for soft delete logic. Ensure the entity is NOT removed from the database, but rather its isActive or isAvailable property is set to false, and changes are saved.`
+                }]
             };
-        }) as RubricRule[];
+        }
     }
 
     private computeWeights(rules: RubricRule[], requirements: ParsedRequirement[]): RubricRule[] {

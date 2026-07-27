@@ -35,7 +35,7 @@ export interface ParsedRequirement {
   referenceAnswer?: string;
   partLabel?: string;
   recommendedEngineReason?: string;
-  recommendedEngine?: 'AICodeReview' | 'AiTextAnalysis' | 'AIVision' | 'HTTPProbe' | 'Boolean' | 'Manual';
+  recommendedEngine?: 'AICodeReview' | 'AiTextAnalysis' | 'AIVision' | 'HTTPProbe' | 'HybridVisionAndCode' | 'HybridTextAndCode' | 'Boolean' | 'Manual';
 }
 
 export interface ParsedBlueprint {
