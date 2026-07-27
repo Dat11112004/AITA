@@ -118,8 +118,10 @@ export class DocumentExtractor {
 
     private async extractPdfAsync(fileBuffer: Buffer): Promise<ExtractedDocument> {
         try {
-            const data = await pdfParse(fileBuffer);
-            const rawText = data.text || '';
+            const { PDFParse } = require('pdf-parse');
+            const parser = new PDFParse({ data: fileBuffer });
+            const result = await parser.getText();
+            const rawText = result.text || '';
             
             return {
                 rawText,
