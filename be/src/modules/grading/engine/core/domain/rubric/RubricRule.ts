@@ -2,7 +2,7 @@
 import { EvidenceMatcher } from './EvidenceMatcher';
 
 export type RuleCategory = 'Architecture' | 'Functional' | 'UI' | 'Security' | 'Algorithm' | 'CodeQuality' | 'Theory' | 'Design';
-export type ScoringStrategy = 'Boolean' | 'AIVision' | 'HTTPProbe' | 'AICodeReview' | 'StdInOutProbe' | 'UniversalStatic' | 'AiTextAnalysis' | 'Manual';
+export type ScoringStrategy = 'Boolean' | 'AIVision' | 'HTTPProbe' | 'AICodeReview' | 'StdInOutProbe' | 'UniversalStatic' | 'AiTextAnalysis' | 'SqlExecutionProbe' | 'Manual';
 
 /**
  * Inline definition to avoid cross-layer import from core → application.

@@ -8,6 +8,7 @@ import { IArtifactStore } from '../../core/contracts/IArtifactStore';
 import { HTTPProbeEngine } from './HTTPProbeEngine';
 import { AICodeReviewEngine, ProjectSourceSnapshot } from './AICodeReviewEngine';
 import { StdInOutProbeEngine } from './StdInOutProbeEngine';
+import { SqlExecutionProbeEngine } from './SqlExecutionProbeEngine';
 import { SandboxHandle } from '../sandbox/ExecutionSandboxService';
 import { UniversalStaticAnalyzer } from './UniversalStaticAnalyzer';
 import { AiTextAnalysisEngine } from './AiTextAnalysisEngine';
@@ -40,6 +41,7 @@ export class RubricEvaluator {
     private stdInOutProbe = new StdInOutProbeEngine();
     private staticAnalyzer = new UniversalStaticAnalyzer();
     private textAnalysisEngine = new AiTextAnalysisEngine();
+    private sqlProbe = new SqlExecutionProbeEngine();
 
     constructor(
         private readonly aiProvider: IAiProvider,
@@ -953,6 +955,47 @@ export class RubricEvaluator {
                         score: finalScore,
                         reason: finalReason,
                         evidence: evidencePayload
+                    };
+                }
+
+                case "SqlExecutionProbe": {
+                    if (!context.submissionPath) {
+                        return this.fail(rule, "Submission path not available for SqlExecutionProbe");
+                    }
+                    const sqlSpec = rule.requiredEvidence?.find(e => e.sqlProbe);
+                    if (!sqlSpec?.sqlProbe || sqlSpec.sqlProbe.testCases.length === 0) {
+                        return this.fail(rule, "No SQL test cases defined for SqlExecutionProbe");
+                    }
+                    const sqlResult = await this.sqlProbe.evaluateAsync(
+                        context.submissionPath,
+                        sqlSpec.sqlProbe
+                    );
+                    const sqlProportionalScore = sqlResult.totalPoints > 0
+                        ? (sqlResult.earnedPoints / sqlResult.totalPoints) * rule.weight
+                        : 0;
+                    return {
+                        ruleId: rule.id,
+                        passed: sqlResult.passed,
+                        score: Math.round(sqlProportionalScore * 100) / 100,
+                        reason: `Passed ${sqlResult.passedCases}/${sqlResult.totalCases} SQL test cases (Setup: ${sqlResult.setupMs}ms). ` +
+                            sqlResult.caseResults
+                                .map(c => `${c.passed ? '✓' : '✗'} ${c.title}: ${c.diffSummary}`)
+                                .join('\n'),
+                        evidence: {
+                            sqlTestCases: sqlResult.caseResults.map(c => ({
+                                caseId: c.caseId,
+                                title: c.title,
+                                passed: c.passed,
+                                diffSummary: c.diffSummary,
+                                actualColumns: c.actualColumns,
+                                actualRows: c.actualRows?.slice(0, 10),
+                                expectedColumns: c.expectedColumns,
+                                expectedRows: c.expectedRows?.slice(0, 10),
+                                errorMessage: c.errorMessage,
+                                points: c.points,
+                                earnedPoints: c.earnedPoints
+                            }))
+                        }
                     };
                 }
 

@@ -10,7 +10,7 @@ import * as os from 'os';
  * Teacher-facing project category. This is what the teacher selects when creating an assignment.
  * It determines SCORING STRATEGY, not Docker provisioning.
  */
-export type ProjectType = "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity" | "unknown";
+export type ProjectType = "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity" | "database" | "unknown";
 
 /**
  * Internal runtime stack auto-detected from the student's submitted code.

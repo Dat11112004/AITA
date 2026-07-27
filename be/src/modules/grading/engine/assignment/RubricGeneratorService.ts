@@ -111,6 +111,12 @@ export class RubricGeneratorService {
                 finalStrategy = 'AICodeReview';
             }
 
+            // Constraint E: SqlExecutionProbe must have valid sqlProbe spec
+            if (finalStrategy === 'SqlExecutionProbe'
+                && !rule.requiredEvidence?.some((e: any) => e.sqlProbe?.testCases?.length > 0)) {
+                finalStrategy = 'AICodeReview';
+            }
+
             // ══════════════════════════════════════════════════════════════
             // STEP 3: Build the final rule with correct evidence types.
             // ══════════════════════════════════════════════════════════════
@@ -172,6 +178,16 @@ export class RubricGeneratorService {
             case 'StdInOutProbe':
                 // Fully populated by generateRubricRulesAsync. Preserve as-is.
                 return rule;
+
+            case 'SqlExecutionProbe':
+                // SqlProbe spec is populated externally (by the grading controller when
+                // the teacher provides a setup script + answer key). Preserve as-is.
+                return {
+                    ...rule,
+                    scoringStrategy: 'SqlExecutionProbe',
+                    category: 'Functional' as any,
+                    contextHint: req.partLabel || rule.contextHint || undefined,
+                };
 
             case 'AICodeReview':
             default:

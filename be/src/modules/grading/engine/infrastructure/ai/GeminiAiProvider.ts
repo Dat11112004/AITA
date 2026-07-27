@@ -60,6 +60,7 @@ L) RECOMMENDED ENGINE: Based on the reason, output the exact engine name:
 - "HybridVisionAndCode": MUST be used when a requirement contains BOTH visual UI features (that need screenshots) AND complex invisible logic (e.g., offline storage, debouncing, API integration, state management). This tells the system to evaluate BOTH the screenshot and the source code simultaneously.
 - "HybridTextAndCode": MUST be used when a requirement asks for BOTH a written theory/essay answer AND an actual code implementation (e.g., "Design the architecture in code and explain your design choices in the document"). This tells the system to evaluate BOTH the written document and the source code simultaneously.
 - "HTTPProbe": Use only if testing a REST API endpoint. CRITICAL: If the requirement asks to implement REST APIs (GET, POST, etc.), you MUST use HTTPProbe and you MUST set isCRUD to true. DO NOT use HybridTextAndCode or AiTextAnalysis for API endpoints.
+- "SqlExecutionProbe": MUST be used when the assignment requires writing SQL queries, stored procedures, triggers, or any database DDL/DML statements. The student submits a .sql file and the system executes it against a real database. Use this for SQL/database exam subjects (e.g., DBI202, database courses). Set projectType to "database" when using this engine.
 
 ════════════════════════════════════════
 MULTI-PART EXAM STRUCTURE
@@ -82,12 +83,24 @@ Even within the SAME PART, if there is BOTH a coding task AND a written question
 ════════════════════════════════════════
 PROJECT TYPE CLASSIFICATION
 ════════════════════════════════════════
-"projectType" values: "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity"
+"projectType" values: "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity" | "database"
 - If the assignment mentions Flutter, Dart, Android, iOS → "mobile"
 - If it mentions stdin/stdout algorithm problems → "algorithm"
+- If it is a SQL/database exam (writing SQL queries, stored procedures, triggers, CREATE TABLE) → "database"
 - For HTTP APIs, REST services → "backend"
 - For browser-based UIs only → "frontend"
 - For both API and UI together → "fullstack"
+
+════════════════════════════════════════
+DATABASE/SQL PROJECTS SPECIAL RULE
+════════════════════════════════════════
+If projectType is "database":
+- Create ONE requirement per SQL question/task in the exam
+- Each requirement MUST use recommendedEngine = "SqlExecutionProbe"
+- The title should be descriptive (e.g., "Câu 1: CREATE TABLE theo ERD")
+- The description should include the full question text and expected output format
+- Set marks according to the exam paper's point allocation
+- DO NOT merge multiple SQL questions into a single requirement
 
 ════════════════════════════════════════
 ALGORITHM PROJECTS SPECIAL RULE
@@ -102,7 +115,7 @@ OUTPUT FORMAT (JSON OBJECT)
   "_planning": "Step-by-step reasoning. List ALL PARTS found. Show point distribution math.",
   "_partsCovered": ["PART A", "PART B", "PART C", "..."],
   "hasExplicitRubric": boolean,
-  "projectType": "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity",
+  "projectType": "algorithm" | "backend" | "frontend" | "fullstack" | "desktop" | "mobile" | "unity" | "database",
   "language": "csharp" | "java" | "typescript" | "python" | "dart" | "other",
   "framework": "net8" | "spring" | "react" | "angular" | "flutter" | "wpf" | "maui" | "unity" | "other",
   "assignmentTitle": "string",
@@ -129,7 +142,7 @@ OUTPUT FORMAT (JSON OBJECT)
       "isSoftDelete": boolean,
       "referenceAnswer": "string | null // Provide a short, factual model answer here ONLY IF recommendedEngine is AiTextAnalysis. This is what the student's answer will be compared against. If not a written answer, use null.",
       "recommendedEngineReason": "string",
-      "recommendedEngine": "AICodeReview" | "AiTextAnalysis" | "AIVision" | "HTTPProbe" | "HybridVisionAndCode" | "HybridTextAndCode",
+      "recommendedEngine": "AICodeReview" | "AiTextAnalysis" | "AIVision" | "HTTPProbe" | "HybridVisionAndCode" | "HybridTextAndCode" | "SqlExecutionProbe",
       "crudOperations": []
     }
   ]
@@ -426,6 +439,9 @@ OUTPUT FORMAT (JSON OBJECT)
                     case 'HybridTextAndCode':
                         strategy = 'AiTextAnalysis';
                         break;
+                    case 'SqlExecutionProbe':
+                        strategy = 'SqlExecutionProbe';
+                        break;
                     case 'AICodeReview':
                     default:
                         strategy = 'AICodeReview';
@@ -559,6 +575,7 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
             if (strategy === "AIVision") evidenceType = "browser.screenshot.captured";
             if (strategy === "HTTPProbe") evidenceType = "runtime.http.probed";
             if (strategy === "StdInOutProbe") evidenceType = "runtime.stdio.probed";
+            if (strategy === "SqlExecutionProbe") evidenceType = "runtime.sql.probed";
             if (strategy === "Boolean") evidenceType = "static.code.analyzed";
 
             // Intelligent category assignment
