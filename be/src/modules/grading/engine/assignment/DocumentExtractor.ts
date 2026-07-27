@@ -1,5 +1,8 @@
 // @ts-nocheck
 import mammoth from 'mammoth';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 /**
  * Enhanced DocumentExtractor for grading submissions.
@@ -87,14 +90,14 @@ export class DocumentExtractor {
             return this.extractDocxAsync(fileBuffer);
         }
 
+        if (mimeType.includes('pdf') || this.isPdf(fileBuffer)) {
+            return this.extractPdfAsync(fileBuffer);
+        }
+
         // Fallback for other formats: plain text extraction
         let rawText = '';
         try {
-            if (mimeType.includes('text/') || mimeType === 'application/json') {
-                rawText = fileBuffer.toString('utf-8');
-            } else {
-                rawText = fileBuffer.toString('utf-8');
-            }
+            rawText = fileBuffer.toString('utf-8');
         } catch (error) {
             console.error(`[DocumentExtractor] Failed to extract from ${mimeType}`, error);
             rawText = 'Error extracting document content.';
@@ -104,6 +107,31 @@ export class DocumentExtractor {
             rawText,
             sections: this.parseTextIntoSections(rawText, new Set<string>()),
         };
+    }
+
+    private isPdf(buffer: Buffer): boolean {
+        // PDF magic number: %PDF (25 50 44 46)
+        return buffer.length >= 4 && buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46;
+    }
+
+    // ─── PDF Extraction ─────────────────────────────────────────────
+
+    private async extractPdfAsync(fileBuffer: Buffer): Promise<ExtractedDocument> {
+        try {
+            const data = await pdfParse(fileBuffer);
+            const rawText = data.text || '';
+            
+            return {
+                rawText,
+                sections: this.parseTextIntoSections(rawText, new Set<string>()),
+            };
+        } catch (error) {
+            console.error('[DocumentExtractor] Failed to parse PDF', error);
+            return {
+                rawText: 'Error extracting PDF content.',
+                sections: []
+            };
+        }
     }
 
     // ─── DOCX Extraction ─────────────────────────────────────────────
