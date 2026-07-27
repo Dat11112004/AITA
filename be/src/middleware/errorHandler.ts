@@ -49,6 +49,17 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     }
   }
 
+  // Database unreachable / connection failure — return a clean 503, never a leaked stack
+  // (the full error is already logged above for debugging). Matches P1001 and init errors.
+  if (
+    err.name === 'PrismaClientInitializationError' ||
+    err.name === 'PrismaClientRustPanicError' ||
+    /can't reach database server|database server at/i.test(err.message ?? '')
+  ) {
+    const apiResponse = new ApiResponse(503, 'Không thể kết nối cơ sở dữ liệu. Vui lòng thử lại sau.', { requestId })
+    return res.status(503).json(apiResponse)
+  }
+
   // Handle custom AppError
   if (err instanceof AppError) {
     const errorDetails = isDev ? { ...err.details, stack: err.stack } : err.details

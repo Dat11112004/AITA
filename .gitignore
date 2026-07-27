@@ -35,8 +35,13 @@ cycles/
 /.mcp.json
 /.claude/commands/
 /.claude/skills/po/
-/docs/pm.md
-/docs/index.md
+
+# Docs — LOCAL ONLY. Tài liệu (báo cáo, workbook test, diagram, template) để ở máy,
+# không đẩy lên repo sản phẩm. Hai file dưới đã commit từ trước nên giữ lại.
+# Muốn thêm tài liệu nào vào repo: thêm một dòng "!" ở dưới, hoặc git add -f <file>.
+/docs/*
+!/docs/CODEBASE_REVIEW.md
+!/docs/SYSTEM_ROLES_REQUIREMENTS.md
 
 # NOTE: .claude/skills/aita-* (coding-convention skills) ARE committed on purpose —
 # collaborators/AI tools need them to follow the project's code conventions.

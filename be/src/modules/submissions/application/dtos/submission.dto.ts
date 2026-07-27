@@ -49,6 +49,9 @@ export class PublishGradeRequestDto {
 }
 
 export class SubmissionResponseDto {
+  // Reads the camelCase domain entity (Submission) + the relations the mapper attaches
+  // (.student / .exam / .classInfo). Emits both the nested objects the web reads AND flat
+  // convenience fields (studentName / className / score / status / aiScore) the mobile reads.
   static from(submission: any) {
     let aiFeedback = null;
     try {
@@ -60,6 +63,10 @@ export class SubmissionResponseDto {
     } catch (e) {
       // Ignore parse errors
     }
+
+    const num = (v: any) => (v === undefined || v === null ? null : Number(v))
+    const total = num(submission.totalScore ?? submission.TotalScore)
+    const final = num(submission.finalScore ?? submission.FinalScore)
 
     return {
       id: submission.id || submission.Id,
@@ -73,8 +80,8 @@ export class SubmissionResponseDto {
       zipFileUrl: submission.zipFileUrl || submission.ZipFileUrl,
       gradingStatus: submission.gradingStatus || submission.GradingStatus,
       reviewStatus: submission.reviewStatus || submission.ReviewStatus,
-      totalScore: submission.totalScore !== undefined && submission.totalScore !== null ? Number(submission.totalScore) : (submission.TotalScore !== undefined && submission.TotalScore !== null ? Number(submission.TotalScore) : null),
-      finalScore: submission.finalScore !== undefined && submission.finalScore !== null ? Number(submission.finalScore) : (submission.FinalScore !== undefined && submission.FinalScore !== null ? Number(submission.FinalScore) : null),
+      totalScore: total,
+      finalScore: final,
       instructorFeedback: submission.instructorFeedback || submission.InstructorFeedback,
       studentFeedback: submission.studentFeedback || submission.StudentFeedback,
       reviewedBy: submission.reviewedBy || submission.ReviewedBy,
@@ -85,7 +92,12 @@ export class SubmissionResponseDto {
         id: submission.User_Submission_StudentIdToUser.Id,
         name: submission.User_Submission_StudentIdToUser.FullName,
         email: submission.User_Submission_StudentIdToUser.Email,
-      } : (submission.student ? submission.student : null),
+      } : (submission.student ? {
+        id: submission.student.id,
+        name: submission.student.fullName,
+        email: submission.student.email,
+        code: submission.student.studentCode,
+      } : null),
       exam: submission.Exam ? {
         id: submission.Exam.Id,
         title: submission.Exam.Title,
@@ -94,7 +106,16 @@ export class SubmissionResponseDto {
       class: submission.Class ? {
         id: submission.Class.Id,
         code: submission.Class.ClassCode,
-      } : (submission.class ? submission.class : null),
+      } : (submission.classInfo ? {
+        id: submission.classInfo.id,
+        code: submission.classInfo.code,
+      } : (submission.class ? submission.class : null)),
+      // Flat convenience aliases the mobile client reads
+      status: submission.gradingStatus || submission.GradingStatus,
+      aiScore: total,
+      score: final ?? total,
+      studentName: submission.student?.fullName ?? submission.User_Submission_StudentIdToUser?.FullName ?? null,
+      className: submission.className ?? submission.classInfo?.code ?? submission.Class?.ClassCode ?? null,
     }
   }
 }
