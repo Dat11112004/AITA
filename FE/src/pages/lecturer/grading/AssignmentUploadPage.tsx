@@ -79,6 +79,7 @@ export default function AssignmentUploadPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [existingTotalWeight, setExistingTotalWeight] = useState<number>(0);
 
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -232,6 +233,25 @@ export default function AssignmentUploadPage() {
         }
     }, [error]);
 
+    useEffect(() => {
+        if (!subjectCode) {
+            setExistingTotalWeight(0);
+            return;
+        }
+        api.getAssignments()
+            .then((res: any[]) => {
+                if (Array.isArray(res)) {
+                    const total = res
+                        .filter((a: any) => a.subject === subjectCode || a.subjectCode === subjectCode || a.SubjectCode === subjectCode)
+                        .reduce((sum: number, a: any) => sum + (Number(a.weightPercentage || a.WeightPercentage) || 0), 0);
+                    setExistingTotalWeight(total);
+                }
+            })
+            .catch((err) => console.error("Failed to load existing assignments weight:", err));
+    }, [subjectCode]);
+
+
+
     const handleGenerateContent = async () => {
         const newErrors: { semester?: string, subjectCode?: string } = {};
         if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
@@ -299,6 +319,11 @@ export default function AssignmentUploadPage() {
                     return;
                 }
             }
+        }
+
+        if (existingTotalWeight + (metadata.weightPercentage || 0) > 70) {
+            setError(`Tổng tỷ trọng điểm các bài Assignment/Lab không được vượt quá 70%. Tổng hiện tại là ${existingTotalWeight}%.`);
+            return;
         }
 
         const totalScore = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
@@ -732,6 +757,8 @@ export default function AssignmentUploadPage() {
                                                 </select>
                                             </div>
                                         </div>
+
+
 
                                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
                                             <div className="grid grid-cols-4 gap-6">

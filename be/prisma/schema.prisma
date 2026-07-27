@@ -97,6 +97,8 @@ model Subject {
   Description        String?
   IsActive           Boolean?
   Semester           Int?
+  Credit             Int?
+  SyllabusData       String?              @db.NVarChar(Max)
   AssignmentTemplate AssignmentTemplate[]
   Class              Class[]
   Exam               Exam[]
@@ -236,6 +238,7 @@ model Exam {
   StartDate             DateTime?               @db.DateTime2
   DueDate               DateTime?               @db.DateTime2
   TotalPoints           Decimal?                @db.Decimal(18, 2)
+  WeightPercentage      Decimal?                @db.Decimal(5, 2)
   Status                String?
   GradingStrategy       String?                 @default("CONTINUOUS_QUEUE")
   SubmissionFormat      String?

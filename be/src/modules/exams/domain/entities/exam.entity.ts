@@ -92,6 +92,7 @@ export class Exam extends AggregateRoot {
   examType: ExamTypeValue | null
   duration: number | null
   totalPoints: number | null
+  weightPercentage: number | null
   status: ExamStatusValue | null
   submissionFormat: string | null
   aiGeneratedContent: string | null
@@ -111,6 +112,7 @@ export class Exam extends AggregateRoot {
     examType: ExamTypeValue | null,
     duration: number | null,
     totalPoints: number | null,
+    weightPercentage: number | null,
     status: ExamStatusValue | null,
     submissionFormat: string | null,
     aiGeneratedContent: string | null,
@@ -130,6 +132,7 @@ export class Exam extends AggregateRoot {
     this.examType = examType
     this.duration = duration
     this.totalPoints = totalPoints
+    this.weightPercentage = weightPercentage
     this.status = status
     this.submissionFormat = submissionFormat
     this.aiGeneratedContent = aiGeneratedContent
@@ -151,6 +154,7 @@ export class Exam extends AggregateRoot {
       description?: string
       duration?: number
       totalPoints?: number
+      weightPercentage?: number
       projectTypeId?: string
       gradingProfileId?: string
       assignmentTemplateId?: string
@@ -169,6 +173,7 @@ export class Exam extends AggregateRoot {
       examType,
       params?.duration ?? null,
       params?.totalPoints ?? null,
+      params?.weightPercentage ?? null,
       'Draft',
       params?.submissionFormat ?? null,
       null,   // aiGeneratedContent
@@ -192,6 +197,7 @@ export class Exam extends AggregateRoot {
     examType: ExamTypeValue | null,
     duration: number | null,
     totalPoints: number | null,
+    weightPercentage: number | null,
     status: ExamStatusValue | null,
     submissionFormat: string | null,
     aiGeneratedContent: string | null,
@@ -203,8 +209,8 @@ export class Exam extends AggregateRoot {
     return new Exam(
       id, title, description, assignmentTemplateId, projectTypeId,
       gradingProfileId, subjectId, examType, duration, totalPoints,
-      status, submissionFormat, aiGeneratedContent, originalPrompt,
-      promptTemplateId, createdBy, dueDate
+      weightPercentage, status, submissionFormat, aiGeneratedContent,
+      originalPrompt, promptTemplateId, createdBy, dueDate
     )
   }
 

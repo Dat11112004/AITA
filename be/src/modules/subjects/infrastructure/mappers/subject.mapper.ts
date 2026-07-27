@@ -8,7 +8,9 @@ export class SubjectMapper {
       raw.SubjectName,
       raw.Description,
       raw.IsActive,
-      raw.Semester
+      raw.Semester,
+      raw.Credit,
+      raw.SyllabusData
     )
   }
 
@@ -20,6 +22,8 @@ export class SubjectMapper {
       Description: subject.description,
       IsActive: subject.isActive,
       Semester: subject.semester,
+      Credit: subject.credit,
+      SyllabusData: subject.syllabusData,
     }
   }
 }

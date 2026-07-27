@@ -47,6 +47,8 @@ export class Subject extends AggregateRoot {
   description: string | null
   isActive: boolean | null
   semester: number | null
+  credit: number | null
+  syllabusData: string | null
 
   private constructor(
     id: string,
@@ -54,7 +56,9 @@ export class Subject extends AggregateRoot {
     subjectName: string | null,
     description: string | null,
     isActive: boolean | null = true,
-    semester: number | null = null
+    semester: number | null = null,
+    credit: number | null = null,
+    syllabusData: string | null = null
   ) {
     super()
     this.id = id
@@ -63,6 +67,8 @@ export class Subject extends AggregateRoot {
     this.description = description
     this.isActive = isActive
     this.semester = semester
+    this.credit = credit
+    this.syllabusData = syllabusData
   }
 
   // ── Factory Methods ──
@@ -72,9 +78,11 @@ export class Subject extends AggregateRoot {
     subjectCode: string,
     subjectName: string,
     description?: string,
-    semester?: number
+    semester?: number,
+    credit?: number,
+    syllabusData?: string
   ): Subject {
-    const subject = new Subject(id, subjectCode, subjectName, description ?? null, true, semester ?? null)
+    const subject = new Subject(id, subjectCode, subjectName, description ?? null, true, semester ?? null, credit ?? null, syllabusData ?? null)
     subject.addDomainEvent(new SubjectCreatedEvent(subject.id, subject.subjectCode))
     return subject
   }
@@ -85,9 +93,11 @@ export class Subject extends AggregateRoot {
     subjectName: string | null,
     description: string | null,
     isActive: boolean | null,
-    semester: number | null
+    semester: number | null,
+    credit: number | null = null,
+    syllabusData: string | null = null
   ): Subject {
-    return new Subject(id, subjectCode, subjectName, description, isActive, semester)
+    return new Subject(id, subjectCode, subjectName, description, isActive, semester, credit, syllabusData)
   }
 
   // ── Business Logic ──

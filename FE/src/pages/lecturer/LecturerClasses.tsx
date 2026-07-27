@@ -195,7 +195,14 @@ export function LecturerClasses() {
         <h3 className="text-base font-bold text-slate-800 mb-4">Danh sách theo cấu trúc đào tạo</h3>
 
         <div className="space-y-4">
-          {sortedSeasons.map(season => {
+          {sortedSeasons.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 shadow-sm">
+              <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h4 className="text-base font-semibold text-slate-700">Chưa có lớp học được phân công</h4>
+              <p className="text-sm text-slate-500 mt-1">Bạn chưa được phân công giảng dạy lớp nào trong các học kỳ hiện tại.</p>
+            </div>
+          ) : (
+            sortedSeasons.map(season => {
             const isExpanded = expandedSeasons[season.seasonName];
             const semesterCount = Object.keys(season.semesters).length;
             const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
@@ -354,7 +361,7 @@ export function LecturerClasses() {
                 )}
               </div>
             )
-          })}
+          }))}
         </div>
       </div>
 

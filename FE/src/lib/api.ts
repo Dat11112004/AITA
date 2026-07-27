@@ -281,8 +281,9 @@ export const api = {
   importTeachingAssignmentsExcel: (body: FormData) =>
     request<any>(`/users/import-teaching-assignments-excel`, { method: 'POST', body }),
 
-  // â”€â”€â”€ Subjects CRUD â”€â”€â”€
+  // ─── Subjects CRUD ───
   getSubjects: (page = 1, limit = 10) => request<SubjectRow[]>(`/subjects?page=${page}&limit=${limit}`),
+  getSubject: (id: string) => request<SubjectRow>(`/subjects/${id}`),
   createSubject: (body: CreateSubjectBody) =>
     request<SubjectRow>('/subjects', { method: 'POST', body: JSON.stringify(body) }),
   updateSubject: (id: string, body: Partial<CreateSubjectBody>) =>
@@ -327,7 +328,11 @@ export const api = {
 
 
   // â”€â”€â”€ Exams CRUD â”€â”€â”€
-  getExams: (page = 1, limit = 10) => request<ExamRow[]>(`/exams?page=${page}&limit=${limit}`),
+  getExams: (page = 1, limit = 10, subjectId?: string) => {
+    let url = `/exams?page=${page}&limit=${limit}`;
+    if (subjectId) url += `&classId=${subjectId}`;
+    return request<ExamRow[]>(url);
+  },
   getExam: (id: string) => request<ExamRow>(`/exams/${id}`),
   createExam: (body: CreateExamBody) =>
     request<ExamRow>('/exams', { method: 'POST', body: JSON.stringify(body) }),
@@ -661,8 +666,10 @@ export interface SubjectRow {
   code: string
   name: string
   description?: string
-  status: string
+  status?: string
   semester?: number
+  credit?: number | null
+  syllabusData?: string | null
 }
 
 export interface CreateSubjectBody {
@@ -884,7 +891,7 @@ export const gradingApi = {
 
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
-  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string) => {
+  getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string, classId?: string) => {
     const params = new URLSearchParams();
     if (assignmentId) params.append('assignmentId', assignmentId);
     if (page) params.append('page', page.toString());
@@ -893,8 +900,9 @@ export const gradingApi = {
     if (status) params.append('status', status);
     if (scoreRange) params.append('scoreRange', scoreRange);
     if (sort) params.append('sort', sort);
+    if (classId) params.append('classId', classId);
 
-    return request<{ history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
+    return request<{ classes?: any[], history: any[], meta: { total: number, page: number, limit: number, totalPages: number } }>(`/grading/submissions/history?${params.toString()}`);
   },
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),

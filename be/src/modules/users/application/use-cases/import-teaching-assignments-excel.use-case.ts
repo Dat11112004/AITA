@@ -191,14 +191,32 @@ export class ImportTeachingAssignmentsExcelUseCase {
                         })
 
                         if (!cls) {
-                            const semSubj = await (prisma as any).semesterSubject.findFirst({
-                                where: {
-                                    SubjectId: targetSubj.Id,
-                                    SemesterId: { in: Array.from(targetSemesterIds) }
-                                }
-                            })
+                            let targetSemId: string | undefined = undefined;
 
-                            if (!semSubj) {
+                            if (targetSubj.Semester !== null && targetSubj.Semester !== undefined) {
+                                const expectedCode = `Kỳ ${targetSubj.Semester}`;
+                                const matchedSem = await prisma.semester.findFirst({
+                                    where: {
+                                        Id: { in: Array.from(targetSemesterIds) },
+                                        Code: expectedCode
+                                    }
+                                });
+                                if (matchedSem) {
+                                    targetSemId = matchedSem.Id;
+                                }
+                            }
+
+                            if (!targetSemId) {
+                                const semSubj = await (prisma as any).semesterSubject.findFirst({
+                                    where: {
+                                        SubjectId: targetSubj.Id,
+                                        SemesterId: { in: Array.from(targetSemesterIds) }
+                                    }
+                                })
+                                targetSemId = semSubj?.SemesterId;
+                            }
+
+                            if (!targetSemId) {
                                 throw new Error(`Môn '${subjectCode}' không được mở trong kỳ '${detectedSeasonInfo.formatted}'`)
                             }
 
@@ -206,7 +224,7 @@ export class ImportTeachingAssignmentsExcelUseCase {
                                 data: {
                                     ClassCode: classCode,
                                     SubjectId: targetSubj.Id,
-                                    SemesterId: semSubj.SemesterId,
+                                    SemesterId: targetSemId,
                                     Status: 'Active'
                                 }
                             })

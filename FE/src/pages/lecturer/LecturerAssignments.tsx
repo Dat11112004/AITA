@@ -42,6 +42,9 @@ export function LecturerAssignments() {
   const [generatingRubric, setGeneratingRubric] = useState(false)
   const [aiRubric, setAiRubric] = useState<string>('')
 
+  const [labNumber, setLabNumber] = useState<number>(1)
+  const [weightPercentage, setWeightPercentage] = useState<number>(10)
+
   const load = useCallback(() => {
     let alive = true
     setLoading(true)
@@ -103,10 +106,11 @@ export function LecturerAssignments() {
         (aiRubric ? `\n\n[Rubric Chấm Điểm AI]\n${aiRubric}` : '')
 
       const body: any = {
-        title: newTitle,
+        title: newType === 'Lab' && (!newTitle || newTitle.startsWith('Lab')) ? `Lab ${labNumber}` : newTitle,
         type: newType, 
         description: finalDesc,
         subjectId: newSubjectId,
+        weightPercentage: weightPercentage || 10,
       }
       
       let finalClassIds = newClassIds;
@@ -237,10 +241,17 @@ export function LecturerAssignments() {
                   <label className="block text-sm font-medium mb-1">Phân loại cụ thể</label>
                   <select 
                     value={newType} 
-                    onChange={(e) => setNewType(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewType(val);
+                      if (val === 'Lab' && (!newTitle || newTitle.startsWith('Lab'))) {
+                        setNewTitle(`Lab ${labNumber}`);
+                      }
+                    }}
                     className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
                   >
                     <option value="Assignment">Bài tập tự luận</option>
+                    <option value="Lab">Bài thực hành (Lab)</option>
                     <option value="Quiz">Trắc nghiệm</option>
                     <option value="Coding">Lập trình (Coding)</option>
                     <option value="Exam">Đề thi chung</option>
@@ -256,6 +267,43 @@ export function LecturerAssignments() {
                   />
                 </div>
               </div>
+
+              {newType === 'Lab' && (
+                <div className="grid grid-cols-2 gap-4 bg-brand-50/50 p-3 rounded-lg border border-brand-100 dark:bg-brand-900/10 dark:border-brand-800/30">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Nhập tiếp Lab mấy? *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={labNumber}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value, 10) || 1;
+                        setLabNumber(num);
+                        if (!newTitle || newTitle.startsWith('Lab')) {
+                          setNewTitle(`Lab ${num}`);
+                        }
+                      }}
+                      className="w-full p-2 text-sm border border-brand-200 rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500 font-bold text-brand-700"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Trọng số (% điểm) *</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={weightPercentage}
+                        onChange={(e) => setWeightPercentage(parseInt(e.target.value, 10) || 10)}
+                        className="w-full p-2 pr-6 text-sm border border-brand-200 rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500 font-bold text-brand-700"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Môn học</label>

@@ -1,7 +1,16 @@
 import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-
+import { PRF192_SYLLABUS } from './data/syllabi/prf192-syllabus.js'
+import { PRO192_SYLLABUS } from './data/syllabi/pro192-syllabus.js'
+import { DBI202_SYLLABUS } from './data/syllabi/dbi202-syllabus.js'
+import { PRN212_SYLLABUS } from './data/syllabi/prn212-syllabus.js'
+import { SWD392_SYLLABUS } from './data/syllabi/swd392-syllabus.js'
+import { WDP301_SYLLABUS } from './data/syllabi/wdp301-syllabus.js'
+import { PRJ301_SYLLABUS } from './data/syllabi/prj301-syllabus.js'
+import { PRM392_SYLLABUS } from './data/syllabi/prm392-syllabus.js'
+import { SWP391_SYLLABUS } from './data/syllabi/swp391-syllabus.js'
+import { CSD201_SYLLABUS } from './data/syllabi/csd201-syllabus.js'
 const prisma = new PrismaClient()
 
 async function main() {
@@ -98,33 +107,36 @@ async function main() {
   })
 
   // Create subjects
-  const defaultSubjects = [
-    { code: 'PRF192', name: 'Programming Fundamentals', desc: 'Học các kiến thức lập trình cơ bản bằng ngôn ngữ C: biến, kiểu dữ liệu, toán tử, điều kiện, vòng lặp, hàm, mảng, chuỗi, con trỏ cơ bản, cấu trúc dữ liệu (struct), đọc/ghi tệp và tư duy giải thuật.', semester: 1 },
-    { code: 'PRO192', name: 'Object-Oriented Programming', desc: 'Lập trình hướng đối tượng bằng Java: class, object, constructor, encapsulation, inheritance, polymorphism, abstraction, interface, exception handling, collection framework và làm việc với file.', semester: 2 },
-    { code: 'CSD201', name: 'Data Structures and Algorithms', desc: 'Nghiên cứu cấu trúc dữ liệu và thuật toán: linked list, stack, queue, tree, binary search tree, heap, hash table, graph, các thuật toán sắp xếp, tìm kiếm và phân tích độ phức tạp Big-O.', semester: 3 },
-    { code: 'DBI202', name: 'Introduction to Database Systems', desc: 'Thiết kế và quản lý cơ sở dữ liệu quan hệ: mô hình ERD, chuẩn hóa (Normalization), khóa, ràng buộc, SQL (DDL, DML, DCL), JOIN, VIEW, INDEX, TRIGGER, PROCEDURE và TRANSACTION.', semester: 3 },
-    { code: 'SWP391', name: 'Software Development Project', desc: 'Thực hiện dự án phần mềm theo nhóm, áp dụng quy trình phát triển phần mềm từ phân tích yêu cầu, thiết kế, lập trình, kiểm thử, quản lý mã nguồn bằng Git và trình bày sản phẩm hoàn chỉnh.', semester: 4 },
-    { code: 'PRJ301', name: 'Java Web Application Development', desc: 'Phát triển ứng dụng Web bằng Java với Servlet, JSP, JSTL, MVC, JDBC, Session, Cookie, Filter, Authentication, Authorization và kết nối cơ sở dữ liệu.', semester: 5 },
-    { code: 'PRM392', name: 'Mobile Programming', desc: 'Phát triển ứng dụng di động Android bằng Java hoặc Kotlin: Activity, Fragment, Intent, RecyclerView, SQLite/Room, REST API, Firebase, Material Design và quản lý vòng đời ứng dụng.', semester: 5 },
-    { code: 'PRN212', name: 'C# Programming and .NET', desc: 'Phát triển ứng dụng bằng C# và .NET: LINQ, Entity Framework Core, ASP.NET Core Web API, Dependency Injection, Authentication (JWT), RESTful API và kết nối SQL Server.', semester: 6 },
-    { code: 'WDP301', name: 'Web Application Development', desc: 'Xây dựng ứng dụng web hiện đại với HTML5, CSS3, JavaScript, Responsive Design, AJAX/Fetch API, REST API và tích hợp Frontend với Backend.', semester: 6 },
-    { code: 'SWD392', name: 'Software Architecture and Design', desc: 'Thiết kế kiến trúc phần mềm sử dụng UML, Design Pattern (Singleton, Factory, Repository, Strategy...), kiến trúc nhiều lớp (Layered Architecture), Clean Architecture, SOLID Principles và tối ưu khả năng bảo trì, mở rộng hệ thống.', semester: 7 },
+  const defaultSubjects: Array<{ code: string; name: string; desc: string; semester: number; syllabus?: any }> = [
+    { code: 'PRF192', name: 'Programming Fundamentals', desc: 'Học các kiến thức lập trình cơ bản bằng ngôn ngữ C: biến, kiểu dữ liệu, toán tử, điều kiện, vòng lặp, hàm, mảng, chuỗi, con trỏ cơ bản, cấu trúc dữ liệu (struct), đọc/ghi tệp và tư duy giải thuật.', semester: 1, syllabus: PRF192_SYLLABUS },
+    { code: 'PRO192', name: 'Object-Oriented Programming', desc: 'Lập trình hướng đối tượng bằng Java: class, object, constructor, encapsulation, inheritance, polymorphism, abstraction, interface, exception handling, collection framework và làm việc với file.', semester: 2, syllabus: PRO192_SYLLABUS },
+    { code: 'CSD201', name: 'Data Structures and Algorithms', desc: 'Nghiên cứu cấu trúc dữ liệu và thuật toán: linked list, stack, queue, tree, binary search tree, heap, hash table, graph, các thuật toán sắp xếp, tìm kiếm và phân tích độ phức tạp Big-O.', semester: 3, syllabus: CSD201_SYLLABUS },
+    { code: 'DBI202', name: 'Introduction to Database Systems', desc: 'Thiết kế và quản lý cơ sở dữ liệu quan hệ: mô hình ERD, chuẩn hóa (Normalization), khóa, ràng buộc, SQL (DDL, DML, DCL), JOIN, VIEW, INDEX, TRIGGER, PROCEDURE và TRANSACTION.', semester: 3, syllabus: DBI202_SYLLABUS },
+    { code: 'SWP391', name: 'Software Development Project', desc: 'Thực hiện dự án phần mềm theo nhóm, áp dụng quy trình phát triển phần mềm từ phân tích yêu cầu, thiết kế, lập trình, kiểm thử, quản lý mã nguồn bằng Git và trình bày sản phẩm hoàn chỉnh.', semester: 4, syllabus: SWP391_SYLLABUS },
+    { code: 'PRJ301', name: 'Java Web Application Development', desc: 'Phát triển ứng dụng Web bằng Java với Servlet, JSP, JSTL, MVC, JDBC, Session, Cookie, Filter, Authentication, Authorization và kết nối cơ sở dữ liệu.', semester: 3, syllabus: PRJ301_SYLLABUS },
+    { code: 'PRM392', name: 'Mobile Programming', desc: 'Phát triển ứng dụng di động Android bằng Java hoặc Kotlin: Activity, Fragment, Intent, RecyclerView, SQLite/Room, REST API, Firebase, Material Design và quản lý vòng đời ứng dụng.', semester: 5, syllabus: PRM392_SYLLABUS },
+    { code: 'PRN212', name: 'C# Programming and .NET', desc: 'Phát triển ứng dụng bằng C# và .NET: LINQ, Entity Framework Core, ASP.NET Core Web API, Dependency Injection, Authentication (JWT), RESTful API và kết nối SQL Server.', semester: 6, syllabus: PRN212_SYLLABUS },
+    { code: 'WDP301', name: 'Web Application Development', desc: 'Xây dựng ứng dụng web hiện đại với HTML5, CSS3, JavaScript, Responsive Design, AJAX/Fetch API, REST API và tích hợp Frontend với Backend.', semester: 6, syllabus: WDP301_SYLLABUS },
+    { code: 'SWD392', name: 'Software Architecture and Design', desc: 'Thiết kế kiến trúc phần mềm sử dụng UML, Design Pattern (Singleton, Factory, Repository, Strategy...), kiến trúc nhiều lớp (Layered Architecture), Clean Architecture, SOLID Principles và tối ưu khả năng bảo trì, mở rộng hệ thống.', semester: 7, syllabus: SWD392_SYLLABUS },
   ]
 
   for (const subj of defaultSubjects) {
-    await prisma.subject.upsert({
+    const syllabusJson = subj.syllabus ? JSON.stringify(subj.syllabus) : null
+    await (prisma.subject as any).upsert({
       where: { SubjectCode: subj.code },
       update: {
         SubjectName: subj.name,
         Description: subj.desc,
-        Semester: subj.semester
+        Semester: subj.semester,
+        ...(syllabusJson ? { SyllabusData: syllabusJson } : {})
       },
       create: {
         SubjectCode: subj.code,
         SubjectName: subj.name,
         Description: subj.desc,
         IsActive: true,
-        Semester: subj.semester
+        Semester: subj.semester,
+        SyllabusData: syllabusJson
       }
     })
   }
@@ -177,32 +189,7 @@ async function main() {
     create: { UserId: student.Id, ClassId: cls.Id },
   })
 
-  // Create exams (assignments)
-  await prisma.exam.create({
-    data: {
-      Title: 'Lab 1: REST API cơ bản',
-      Description: 'Xây dựng CRUD API với Express.',
-      SubjectId: subject.Id,
-      ExamType: 'Assignment',
-      Status: 'Published',
-      Duration: 7 * 24 * 60, // 7 days in minutes
-      TotalPoints: 10,
-      CreatedBy: lecturer.Id,
-    },
-  })
-
-  await prisma.exam.create({
-    data: {
-      Title: 'Quiz: OOP & Design Patterns',
-      Description: 'Trắc nghiệm 10 câu.',
-      SubjectId: subject.Id,
-      ExamType: 'Midterm',
-      Status: 'Published',
-      Duration: 14 * 24 * 60,
-      TotalPoints: 10,
-      CreatedBy: lecturer.Id,
-    },
-  })
+  // Exams will be created by lecturer through + Tạo Lab / Bài tập
 
   // Create audit log
   await prisma.auditLog.create({

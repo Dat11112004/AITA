@@ -1,0 +1,13 @@
+PrismaClientKnownRequestError: 
+Invalid `this.client.user.delete()` invocation in
+C:\Users\Admin\AITA\be\src\modules\users\infrastructure\repositories\prisma-user-repository.ts:115:26
+
+  112 this.client.auditLog.deleteMany({ where: { UserId: id } }),
+  113 this.client.aiUsageLog.deleteMany({ where: { UserId: id } }),
+  114 this.client.notificationRecipient.deleteMany({ where: { UserId: id } }),
+→ 115 this.client.user.delete(
+Transaction failed due to a write conflict or a deadlock. Please retry your transaction
+    at Zn.handleRequestError (C:\Users\Admin\AITA\be\node_modules\@prisma\client\runtime\library.js:121:7459)
+    at Zn.handleAndLogRequestError (C:\Users\Admin\AITA\be\node_modules\@prisma\client\runtime\library.js:121:6784)
+    at Zn.request (C:\Users\Admin\AITA\be\node_modules\@prisma\client\runtime\library.js:121:6491)
+    at async l (C:\Users\Admin\AITA\be\node_modules\@prisma\client\runtime\library.js:130:9778)

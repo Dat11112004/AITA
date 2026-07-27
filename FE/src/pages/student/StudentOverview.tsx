@@ -164,8 +164,8 @@ export function StudentOverview() {
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <BookOpen className="text-brand-600" size={20} /> Các môn học hiện tại
             </h2>
-            <Link to="/student/classes" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
-              Xem bảng điểm <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            <Link to="/student/courses" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
+              Xem tất cả <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 

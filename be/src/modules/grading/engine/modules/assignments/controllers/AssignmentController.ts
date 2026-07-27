@@ -226,7 +226,7 @@ export class AssignmentController extends BaseController {
             await this.assignmentRepository.saveAsync(publishedAssignment);
 
             // INTEGRATION WITH AITA CORE
-            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType } = metadata;
+            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, weightPercentage } = metadata;
 
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -239,6 +239,27 @@ export class AssignmentController extends BaseController {
                         ? { OR: [{ Id: subject }, { SubjectCode: subject }] }
                         : { SubjectCode: subject }
                 });
+            }
+
+            // Weight validation
+            if (weightPercentage) {
+                const existingExams = await prisma.exam.findMany({
+                    where: { SubjectId: subjectRecord?.Id || null }
+                });
+                const currentTotalWeight = existingExams.reduce((sum, exam) => {
+                    let w = 0;
+                    if ((exam as any).WeightPercentage) w = Number((exam as any).WeightPercentage);
+                    else if (exam.AiGeneratedContent) {
+                        try {
+                            const parsed = JSON.parse(exam.AiGeneratedContent);
+                            if (parsed.weightPercentage) w = Number(parsed.weightPercentage);
+                        } catch(e) {}
+                    }
+                    return sum + w;
+                }, 0);
+                if (currentTotalWeight + Number(weightPercentage) > 70) {
+                    throw new BadRequestError(`Tổng tỷ trọng điểm không được vượt quá 70%. Tổng hiện tại là ${currentTotalWeight}%.`);
+                }
             }
 
             const examId = publishedAssignmentId; // Keep 1:1 mapping
@@ -259,13 +280,13 @@ export class AssignmentController extends BaseController {
                     Title: title || 'AI Assignment',
                     Description: description || '',
                     SubjectId: subjectRecord?.Id || null,
-                    ExamType: 'Assignment',
+                    ExamType: examType || 'Assignment',
                     Status: 'Published',
                     TotalPoints: totalPoints,
                     CreatedBy: creatorId,
                     StartDate: new Date(),
                     DueDate: parsedDueDate,
-                    AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id }),
+                    AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id, weightPercentage: weightPercentage ? Number(weightPercentage) : 0 }),
                     ...(validClassIds.length > 0 ? {
                         ExamClass: {
                             create: validClassIds.map((cId: string) => ({

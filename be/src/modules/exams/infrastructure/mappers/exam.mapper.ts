@@ -3,6 +3,18 @@ import type { ExamTypeValue, ExamStatusValue } from '../../domain/entities/exam.
 
 export class ExamMapper {
   static toDomain(raw: any): Exam {
+    let aiContent = raw.AiGeneratedContent;
+    let weightPercentage = raw.WeightPercentage ? Number(raw.WeightPercentage) : null;
+    if (aiContent) {
+      try {
+        const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
+        if (parsed && parsed.weightPercentage) weightPercentage = Number(parsed.weightPercentage);
+      } catch(e) {}
+    }
+    if (weightPercentage === null || weightPercentage === undefined || isNaN(weightPercentage)) {
+      weightPercentage = 10;
+    }
+
     const exam = Exam.restore(
       raw.Id,
       raw.Title,
@@ -14,6 +26,7 @@ export class ExamMapper {
       raw.ExamType as ExamTypeValue,
       raw.Duration,
       raw.TotalPoints,
+      weightPercentage,
       raw.Status as ExamStatusValue,
       raw.SubmissionFormat,
       raw.AiGeneratedContent,
@@ -56,6 +69,15 @@ export class ExamMapper {
   }
 
   static toPersistence(exam: Exam): any {
+    let aiGeneratedContent = exam.aiGeneratedContent;
+    if (exam.weightPercentage) {
+      try {
+        const parsed = aiGeneratedContent ? JSON.parse(aiGeneratedContent) : {};
+        parsed.weightPercentage = exam.weightPercentage;
+        aiGeneratedContent = JSON.stringify(parsed);
+      } catch(e) {}
+    }
+
     return {
       Id: exam.id,
       Title: exam.title,
@@ -69,7 +91,7 @@ export class ExamMapper {
       TotalPoints: exam.totalPoints,
       Status: exam.status,
       SubmissionFormat: exam.submissionFormat,
-      AiGeneratedContent: exam.aiGeneratedContent,
+      AiGeneratedContent: aiGeneratedContent,
       OriginalPrompt: exam.originalPrompt,
       PromptTemplateId: exam.promptTemplateId,
       CreatedBy: exam.createdBy,

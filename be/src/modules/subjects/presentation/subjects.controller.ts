@@ -65,7 +65,7 @@ export class SubjectsController extends BaseController {
       page,
       limit
     })
-    
+
     this.ok(res, result, MESSAGES.SUCCESS || 'Lấy danh sách sinh viên thành công')
   }
 }

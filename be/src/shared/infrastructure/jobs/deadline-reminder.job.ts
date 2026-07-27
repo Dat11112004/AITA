@@ -75,10 +75,22 @@ export class DeadlineReminderJob {
         });
         if (hasSubmitted) continue;
 
+        // Skip if reminder notification already sent for this student and exam
+        const existingNotif = await prisma.notification.findFirst({
+          where: {
+            ReferenceId: exam.Id,
+            Type: 'Reminder',
+            NotificationRecipient: {
+              some: { UserId: studentId }
+            }
+          }
+        })
+        if (existingNotif) continue
+
         await prisma.notification.create({
           data: {
             Title: `Nhắc nhở: Sắp đến hạn nộp bài`,
-            Message: `Bài tập "${exam.Title}" sẽ hết hạn vào lúc ${exam.DueDate?.toLocaleString()}. Vui lòng hoàn thành đúng hạn.`,
+            Message: `Bài tập "${exam.Title}" sẽ hết hạn vào lúc ${exam.DueDate?.toLocaleString('vi-VN')}. Vui lòng hoàn thành đúng hạn.`,
             Type: 'Reminder',
             ReferenceId: exam.Id,
             ReferenceType: 'Exam',

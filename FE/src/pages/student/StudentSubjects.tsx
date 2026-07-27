@@ -173,10 +173,10 @@ export function StudentSubjects() {
                 <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
                   <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
                   <ChevronRight size={14} />
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Môn học</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Kết quả</span>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Môn học & Bài tập</h1>
-                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Quản lý môn học, bài tập, bài thi và theo dõi tiến độ học tập trong mùa học {selectedSemester}.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Kết quả & Bài tập</h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Theo dõi điểm số, kết quả bài tập, bài thi và tiến độ học tập trong mùa học {selectedSemester}.</p>
               </div>
               <SemesterSelector
                 selectedSemester={selectedSemester}

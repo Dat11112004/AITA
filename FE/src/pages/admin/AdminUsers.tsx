@@ -347,19 +347,18 @@ export function AdminUsers() {
     if (selectedIds.size === 0) return
     setBulkDeleting(true)
     setError('')
+    // Close modal immediately so user sees main list
+    setConfirmBulkDelete(false)
     try {
-      // Cập nhật giao diện realtime
-      setUsers(prev => prev.filter(u => !selectedIds.has(u.id)))
       await Promise.all(Array.from(selectedIds).map(id => api.deleteUser(id)))
-      setConfirmBulkDelete(false)
-      setSelectedIds(new Set())
-      setIsSelectionMode(false)
-      api.getUsers(activeTab, 1, 100, search).then(data => setUsers(data || []))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Xóa hàng loạt thất bại')
-      load()
     } finally {
       setBulkDeleting(false)
+      setSelectedIds(new Set())
+      setIsSelectionMode(false)
+      // Reload fresh data from server
+      load()
     }
   }
 
@@ -1382,9 +1381,9 @@ export function AdminUsers() {
                     return (
                       <div className="relative inline-block">
                         {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className={`w-12 h-16 rounded-md object-cover border border-slate-200 shadow-sm ${isLocked ? 'opacity-50 grayscale' : ''}`} />
+                          <img src={u.avatar} alt={u.name} className={`w-[111px] h-[146px] object-cover shadow-sm ${isLocked ? 'opacity-50 grayscale' : ''}`} />
                         ) : (
-                          <div className={`w-12 h-16 rounded-md bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-lg border border-slate-200 shadow-sm ${isLocked ? 'opacity-50' : ''}`}>
+                          <div className={`w-[111px] h-[146px] bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-3xl shadow-sm ${isLocked ? 'opacity-50' : ''}`}>
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -1439,7 +1438,7 @@ export function AdminUsers() {
                           }}
                           onDelete={() => {
                             if (selectedIds.size > 0) {
-                              handleBulkDelete()
+                              setConfirmBulkDelete(true)
                             } else {
                               setConfirmDelete(u.id)
                             }

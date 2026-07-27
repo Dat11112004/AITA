@@ -48,6 +48,7 @@ export class ApiRouteManager {
     this.router.use('/classes', new ClassesRouter().router)
     this.router.use('/subjects', new SubjectsRouter().router)
     this.router.use('/assignments', new ExamsRouter().router) // Legacy UI still calls /assignments
+    this.router.use('/exams', new ExamsRouter().router)
     this.router.use('/submissions', new SubmissionsRouter().router)
     this.router.use('/users', new UsersRouter().router)
     this.router.use('/ai', new AiRouter().router)

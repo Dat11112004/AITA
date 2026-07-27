@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma.js'
+import { syncClassSemesters } from './sync-class-semesters.js'
 
 /**
  * Dev-only bootstrap: upsert the three demo accounts on server start so a fresh
@@ -48,9 +49,11 @@ export async function seedTestAccounts(): Promise<void> {
         create: { UserId: user.Id, RoleId: role.Id },
       })
     }
+    await syncClassSemesters()
   } catch (error: any) {
     // If it fails during upsert, also sanitize the error message to keep console clean
     const cleanMsg = error?.message?.split('\n').pop() || 'Error seeding database.'
     throw new Error(`Seed failed: ${cleanMsg}`)
   }
 }
+

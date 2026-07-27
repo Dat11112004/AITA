@@ -25,7 +25,9 @@ export class SubjectResponseDto {
     public readonly name: string | null,
     public readonly description: string | null,
     public readonly status: string,
-    public readonly semester: number | null
+    public readonly semester: number | null,
+    public readonly credit?: number | null,
+    public readonly syllabusData?: string | null
   ) {}
 
   static from(subject: any): SubjectResponseDto {
@@ -38,7 +40,9 @@ export class SubjectResponseDto {
       subject.SubjectName || subject.subjectName,
       subject.Description || subject.description,
       status,
-      subject.Semester !== undefined ? subject.Semester : (subject.semester ?? null)
+      subject.Semester !== undefined ? subject.Semester : (subject.semester ?? null),
+      subject.Credit !== undefined ? subject.Credit : (subject.credit ?? null),
+      subject.SyllabusData !== undefined ? subject.SyllabusData : (subject.syllabusData ?? null)
     )
   }
 }

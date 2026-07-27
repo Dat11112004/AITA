@@ -835,8 +835,19 @@ export class SubmissionController extends BaseController {
           const statusFilter = req.query.status as string | undefined;
           const scoreRange = req.query.scoreRange as string | undefined;
           const sortOrder = req.query.sort as string | undefined;
+          const classIdFilter = req.query.classId as string | undefined;
 
           if (!assignmentId) throw new BadRequestError('Assignment ID is required');
+
+          // Fetch all classes linked to this assignment
+          const examClasses = await prisma.examClass.findMany({
+              where: { ExamId: assignmentId },
+              include: { Class: true }
+          });
+          const classesList = examClasses
+              .map(ec => ec.Class)
+              .filter(Boolean)
+              .map(c => ({ id: c.Id, className: c.ClassName || c.ClassCode, classCode: c.ClassCode }));
 
           // Fetch all students enrolled in the classes of this assignment
           const allStudentClasses = await prisma.studentClass.findMany({
@@ -856,7 +867,8 @@ export class SubmissionController extends BaseController {
                   } : undefined
               },
               include: {
-                  User: true
+                  User: true,
+                  Class: true
               }
           });
 
@@ -902,6 +914,9 @@ export class SubmissionController extends BaseController {
                   studentName: sc.User.FullName || 'Chưa cập nhật',
                   studentCode: sc.User.StudentCode || sc.UserId,
                   studentAvatar: sc.User.Avatar,
+                  classId: sc.ClassId,
+                  className: sc.Class?.ClassName || sc.Class?.ClassCode || 'Chưa phân lớp',
+                  classCode: sc.Class?.ClassCode || '',
                   score,
                   maxScore,
                   percentage,
@@ -909,6 +924,11 @@ export class SubmissionController extends BaseController {
                   status
               };
           });
+
+          // Apply Class Filter
+          if (classIdFilter && classIdFilter !== 'ALL') {
+              history = history.filter(h => h.classId === classIdFilter);
+          }
 
           // Apply Status Filter
           if (statusFilter && statusFilter !== 'ALL') {
@@ -944,6 +964,7 @@ export class SubmissionController extends BaseController {
           const paginatedHistory = history.slice((page - 1) * limit, page * limit);
 
           this.ok(res, { 
+              classes: classesList,
               history: paginatedHistory,
               meta: {
                   total,

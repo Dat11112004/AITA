@@ -24,6 +24,7 @@ import { AdminOverview } from '@/pages/admin/AdminOverview'
 import { AdminUsers } from '@/pages/admin/AdminUsers'
 import { AdminClasses } from '@/pages/admin/AdminClasses'
 import { AdminSubjects } from '@/pages/admin/AdminSubjects'
+import { AdminSubjectDetail } from '@/pages/admin/AdminSubjectDetail'
 import { AdminExams } from '@/pages/admin/AdminExams'
 import { AdminAIConfig } from '@/pages/admin/AdminAIConfig'
 import { AdminSettings } from '@/pages/admin/AdminSettings'
@@ -50,9 +51,9 @@ import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail'
 import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
 import { StudentSubjects } from '@/pages/student/StudentSubjects'
+import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentClasses } from '@/pages/student/StudentClasses'
 import { StudentClassDetail } from '@/pages/student/StudentClassDetail'
-import { StudentResults } from '@/pages/student/StudentResults'
 import { StudentNotifications } from '@/pages/student/StudentNotifications'
 
 export function AppRoutes() {
@@ -86,6 +87,7 @@ export function AppRoutes() {
         <Route path="users" element={<AdminUsers />} />
         <Route path="classes" element={<AdminClasses />} />
         <Route path="subjects" element={<AdminSubjects />} />
+        <Route path="subjects/:id" element={<AdminSubjectDetail />} />
         <Route path="exams" element={<AdminExams />} />
         <Route path="ai-config" element={<AdminAIConfig />} />
         <Route path="settings" element={<AdminSettings />} />
@@ -154,6 +156,7 @@ export function AppRoutes() {
         }
       >
         <Route index element={<StudentOverview />} />
+        <Route path="courses" element={<StudentCourses />} />
         <Route path="classes" element={<StudentClasses />} />
         <Route path="subjects" element={<StudentSubjects />} />
         <Route path="classes/:id" element={<StudentClassDetail />} />
@@ -161,7 +164,6 @@ export function AppRoutes() {
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
         <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
         <Route path="grading/result/:id" element={<ResultPage />} />
-        <Route path="results" element={<StudentResults />} />
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="profile" element={<Profile />} />
       </Route>

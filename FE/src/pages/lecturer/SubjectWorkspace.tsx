@@ -27,13 +27,16 @@ export function SubjectWorkspace() {
   const [totalPages, setTotalPages] = useState(1)
   const [loadingStudents, setLoadingStudents] = useState(false)
 
+  const [exams, setExams] = useState<any[]>([])
+  const [loadingExams, setLoadingExams] = useState(false)
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       try {
         const [subData, clsData] = await Promise.all([
           api.getSubjects(1, 1000),
-          api.getClasses(1, 1000) // Tối ưu: Đảm bảo fetch toàn bộ lớp học của giảng viên, tránh bị limit 10 mặc định
+          api.getClasses(1, 1000)
         ])
         
         const foundSubject = subData?.find(s => s.id === subjectId) || null
@@ -45,7 +48,6 @@ export function SubjectWorkspace() {
         ) || []
         setClasses(subjectClasses)
         
-        // Auto-select the first class as requested
         if (subjectClasses.length > 0) {
           setSelectedClassId(subjectClasses[0].id)
         }
@@ -59,7 +61,7 @@ export function SubjectWorkspace() {
   }, [subjectId, semesterId])
 
   useEffect(() => {
-    let ignore = false // Tối ưu: Ngăn chặn Race Condition khi fetch dữ liệu liên tục
+    let ignore = false
     if (!subjectId) return
     const fetchStudents = async () => {
       setLoadingStudents(true)
@@ -79,6 +81,27 @@ export function SubjectWorkspace() {
     fetchStudents()
     return () => { ignore = true }
   }, [subjectId, semesterId, selectedClassId, currentPage])
+
+  const fetchExamsList = async () => {
+    if (!subjectId) return
+    setLoadingExams(true)
+    try {
+      const res = await api.getExams(1, 1000, subjectId)
+      const filteredExams = (res || []).filter((e: any) => {
+        const t = (e.examType || e.type || '').toLowerCase()
+        return t === 'assignment' || t === 'lab' || t === 'quiz' || t === 'coding' || t === 'exam'
+      })
+      setExams(filteredExams)
+    } catch (err) {
+      console.error('Lỗi khi tải exams:', err)
+    } finally {
+      setLoadingExams(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchExamsList()
+  }, [subjectId])
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
 
@@ -104,7 +127,6 @@ export function SubjectWorkspace() {
     const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return colors[hash % colors.length]
   }
-
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 pb-12 px-6 lg:px-8">
@@ -261,25 +283,28 @@ export function SubjectWorkspace() {
                   <tr>
                     <th className="px-6 py-4 font-semibold w-12 text-center">#</th>
                     <th className="px-6 py-4 font-semibold">Sinh viên</th>
-                    <th className="px-6 py-4 font-semibold text-center leading-relaxed">Assignment 1<br/><span className="font-normal">(10%)</span></th>
-                    <th className="px-6 py-4 font-semibold text-center leading-relaxed">Assignment 2<br/><span className="font-normal">(10%)</span></th>
-                    <th className="px-6 py-4 font-semibold text-center leading-relaxed">Đề thi TH<br/><span className="font-normal">(30%)</span></th>
-                    <th className="px-6 py-4 font-semibold text-center leading-relaxed">Đề thi CK<br/><span className="font-normal">(50%)</span></th>
-                    <th className="px-6 py-4 font-semibold text-center leading-relaxed">Tổng kết<br/><span className="font-normal">(10)</span></th>
+                    {exams.map((exam: any) => (
+                      <th key={exam.id} className="px-6 py-4 font-semibold text-center leading-relaxed">
+                        {exam.title || exam.examType}
+                      </th>
+                    ))}
+                    <th className="px-6 py-4 font-semibold text-center leading-relaxed text-slate-800">
+                      Tổng kết
+                    </th>
                     <th className="px-6 py-4 font-semibold text-center">Xếp loại</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {loadingStudents ? (
+                  {loadingStudents || loadingExams ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={4 + exams.length} className="px-6 py-12 text-center text-slate-500">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-600 mb-2" />
-                        Đang tải danh sách sinh viên...
+                        Đang tải dữ liệu...
                       </td>
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500">Không có sinh viên nào.</td>
+                      <td colSpan={4 + exams.length} className="px-6 py-12 text-center text-slate-500">Không có sinh viên nào.</td>
                     </tr>
                   ) : students.map((s, idx) => (
                     <tr key={s.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -295,10 +320,9 @@ export function SubjectWorkspace() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-center font-bold text-slate-400">—</td>
-                      <td className="px-6 py-5 text-center font-bold text-slate-400">—</td>
-                      <td className="px-6 py-5 text-center font-bold text-slate-400">—</td>
-                      <td className="px-6 py-5 text-center font-bold text-slate-400">—</td>
+                      {exams.map((exam: any) => (
+                        <td key={exam.id} className="px-6 py-5 text-center font-bold text-slate-400">—</td>
+                      ))}
                       <td className="px-6 py-5 text-center font-extrabold text-slate-800 text-[15px]">—</td>
                       <td className="px-6 py-5 text-center">
                         <span className="px-3 py-1 rounded-full text-[11px] uppercase tracking-wider font-bold inline-flex items-center justify-center min-w-[80px] bg-slate-100 text-slate-500">
@@ -346,26 +370,59 @@ export function SubjectWorkspace() {
             )}
             
             {/* Footer */}
-            <div className="p-4 border-t border-slate-100 bg-[#FAFAFC] flex items-center gap-2 text-[13px] text-brand-600">
-              <Info className="w-4 h-4" />
-              <span className="text-slate-500">Điểm tổng kết được tính theo tỷ lệ: Assignment 1 (10%) + Assignment 2 (10%) + Đề thi TH (30%) + Đề thi CK (50%).</span>
+            <div className="p-4 border-t border-slate-100 bg-[#FAFAFC] flex items-center gap-2 text-[13px]">
+              <Info className="w-4 h-4 shrink-0 text-brand-600" />
+              <span className="text-slate-600 font-medium">
+                Bảng điểm danh sách sinh viên và các bài kiểm tra/đề thi của môn học.
+              </span>
             </div>
           </div>
         )}
 
-        {/* Other Tabs */}
+        {/* Assignments Tab */}
         {activeTab === 'assignments' && (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex items-center justify-center flex-col text-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-              <BookOpen className="w-8 h-8 text-slate-300" />
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-brand-600" />
+                Quản lý Bài tập & Đề thi
+              </h2>
             </div>
-            <h3 className="text-xl font-bold text-slate-700 mb-2">Quản lý Bài tập & Đề thi</h3>
-            <p className="text-slate-500 max-w-md">
-              Chưa có bài tập nào được tạo.
-            </p>
+
+            {exams.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h4 className="text-base font-semibold text-slate-700">Chưa có bài tập hoặc đề thi nào</h4>
+                <p className="text-sm text-slate-500 mt-1">Danh sách các bài tập và đề thi được phát cho sinh viên sẽ xuất hiện tại đây.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {exams.map((exam: any) => (
+                  <div key={exam.id} className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm hover:border-brand-300 transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-50 text-brand-600 border border-brand-100 uppercase">
+                          {exam.examType || 'Lab'}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          Trọng số {exam.weightPercentage || 10}%
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-base text-slate-800 mb-1">{exam.title}</h4>
+                      <p className="text-xs text-slate-500 line-clamp-2">{exam.description || 'Không có mô tả'}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                      <span>Đã publish</span>
+                      <span className="text-emerald-600 font-semibold">Đang nhận bài</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
+        {/* Students Tab */}
         {activeTab === 'students' && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] overflow-hidden">
             <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between">
@@ -455,9 +512,9 @@ export function SubjectWorkspace() {
           </div>
         )}
 
+        {/* Announcements Tab */}
         {activeTab === 'announcements' && (
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left Column */}
             <div className="w-full md:w-[280px] flex-shrink-0">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -468,7 +525,6 @@ export function SubjectWorkspace() {
               </div>
             </div>
             
-            {/* Right Column */}
             <div className="flex-1">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex gap-4">

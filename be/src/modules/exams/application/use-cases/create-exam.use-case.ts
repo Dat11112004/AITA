@@ -16,6 +16,25 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
     const file = input.file
     const examType = data.type === 'quiz' ? 'Quiz' : (data.type || 'Assignment')
 
+    if (data.weightPercentage) {
+      const existingExams = await this.examRepo.findMany({ subjectId: data.subjectId })
+      const currentTotalWeight = existingExams.reduce((sum, exam) => {
+        let weight = 0
+        if (exam.weightPercentage) weight = Number(exam.weightPercentage)
+        else if ((exam as any).aiGeneratedContent) {
+          try {
+            const parsed = JSON.parse((exam as any).aiGeneratedContent)
+            if (parsed.weightPercentage) weight = Number(parsed.weightPercentage)
+          } catch(e) {}
+        }
+        return sum + weight
+      }, 0)
+
+      if (currentTotalWeight + Number(data.weightPercentage) > 70) {
+        throw new Error(`Tổng tỷ trọng điểm các bài Assignment/Lab không được vượt quá 70%. Tổng hiện tại là ${currentTotalWeight}%.`)
+      }
+    }
+
     const exam = Exam.create(
       randomUUID(),
       data.title,
@@ -25,6 +44,7 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
       {
         description: data.description,
         totalPoints: data.maxScore ?? 10,
+        weightPercentage: data.weightPercentage ?? 0,
         duration: data.duration,
       }
     )

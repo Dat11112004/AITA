@@ -95,6 +95,8 @@ export default function AssignmentPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('score_desc');
+  const [classFilter, setClassFilter] = useState('ALL');
+  const [classList, setClassList] = useState<{ id: string, className: string, classCode: string }[]>([]);
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
@@ -119,8 +121,11 @@ export default function AssignmentPage() {
   const fetchHistoryData = React.useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
-      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder, classFilter);
       setHistory(res.history || []);
+      if (res.classes && Array.isArray(res.classes)) {
+        setClassList(res.classes);
+      }
       if (res.meta) {
         setTotalPages(res.meta.totalPages || 1);
         setTotalItems(res.meta.total || 0);
@@ -130,7 +135,7 @@ export default function AssignmentPage() {
     } finally {
       if (showLoader) setLoading(false);
     }
-  }, [id, page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder]);
+  }, [id, page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder, classFilter]);
 
   useEffect(() => {
     fetchAssignmentData();
@@ -204,7 +209,7 @@ export default function AssignmentPage() {
         await api.deleteHistory(deleteModalId);
       }
       setDeleteModalId(null);
-      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder);
+      const res: any = await api.getHistory(id || 'student-management-system', page, limit, debouncedSearch, statusFilter, scoreRangeFilter, sortOrder, classFilter);
       setHistory(res.history || []);
       if (res.meta) {
         setTotalPages(res.meta.totalPages || 1);
@@ -719,6 +724,18 @@ export default function AssignmentPage() {
                 { value: 'time_desc', label: 'Nộp gần đây' }
               ]}
             />
+            <CustomSelect
+              label="Lớp:"
+              value={classFilter}
+              onChange={(v) => {
+                setClassFilter(v);
+                setPage(1);
+              }}
+              options={[
+                { value: 'ALL', label: 'Tất cả lớp' },
+                ...classList.map(c => ({ value: c.id, label: c.className || c.classCode }))
+              ]}
+            />
           </div>
         </div>
 
@@ -778,6 +795,7 @@ export default function AssignmentPage() {
                 </th>
                 <th className="py-4 px-4">Sinh viên</th>
                 <th className="py-4 px-4">Mã sinh viên</th>
+                <th className="py-4 px-4">Lớp</th>
                 <th className="py-4 px-4">Thời gian nộp</th>
                 <th className="py-4 px-4 min-w-[120px]">Điểm</th>
                 <th className="py-4 px-4 text-center">Xếp loại</th>
@@ -822,6 +840,11 @@ export default function AssignmentPage() {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">{item.studentCode || item.studentId}</td>
+                    <td className="py-4 px-4">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        {item.className || item.classCode || '-'}
+                      </span>
+                    </td>
                     <td className="py-4 px-4">
                       {item.status === 'NotSubmitted' ? (
                         <div className="text-slate-400 font-medium">-</div>
@@ -948,7 +971,14 @@ export default function AssignmentPage() {
                         <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[15px] leading-snug">
                           {displayName}
                         </h3>
-                        <p className="text-xs text-slate-500 font-medium mb-1">{item.studentCode || item.studentId}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs text-slate-500 font-medium">{item.studentCode || item.studentId}</p>
+                          {item.className && (
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                              {item.className}
+                            </span>
+                          )}
+                        </div>
                         {item.status !== 'NotSubmitted' ? (
                           <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
                             Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}

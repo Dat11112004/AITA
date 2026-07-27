@@ -9,6 +9,7 @@ export const CreateExamSchema = z.object({
   dueAt: z.string().optional(),
   dueDate: z.string().optional(),
   maxScore: z.coerce.number().optional(),
+  weightPercentage: z.coerce.number().optional(),
   classIds: z.union([z.string(), z.array(z.string())]).optional().transform(val => {
     if (typeof val === 'string') {
       return val.split(',').map(s => s.trim()).filter(Boolean)
@@ -35,6 +36,7 @@ export const UpdateExamSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   status: z.string().optional(),
+  weightPercentage: z.coerce.number().optional(),
 })
 
 export type UpdateExamRequestDtoType = z.infer<typeof UpdateExamSchema>
@@ -64,11 +66,13 @@ export class ExamResponseDto {
     public readonly lecturer?: string | null,
     public readonly lecturerAvatar?: string | null,
     public readonly attachments?: { id: string, fileName: string, fileUrl: string, fileType: string }[] | null,
-    public readonly rubrics?: any[] | null
+    public readonly rubrics?: any[] | null,
+    public readonly weightPercentage?: number | null
   ) {}
 
   static from(exam: any): ExamResponseDto {
     const dueValue = exam.dueDate || exam.DueDate;
+    const weightPct = exam.weightPercentage ?? (exam.WeightPercentage ? Number(exam.WeightPercentage) : 10);
     
     // Parse rubrics from ExamSection or AI Generated Rubrics
     let rubrics = null;
@@ -113,7 +117,8 @@ export class ExamResponseDto {
         fileUrl: a.FileUrl || a.fileUrl,
         fileType: a.FileType || a.fileType
       })) : null,
-      rubrics
+      rubrics,
+      weightPct
     )
   }
 }
