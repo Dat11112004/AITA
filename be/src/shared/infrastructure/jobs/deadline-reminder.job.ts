@@ -66,13 +66,22 @@ export class DeadlineReminderJob {
       }
 
       for (const studentId of studentIds) {
-        // Broadcast specifically to each student or create a targeted method
-        // Here we'll simulate by creating direct notifications
+        // Skip students who have already submitted this exam
+        const hasSubmitted = await prisma.submission.findFirst({
+          where: {
+            StudentId: studentId,
+            ExamId: exam.Id
+          }
+        });
+        if (hasSubmitted) continue;
+
         await prisma.notification.create({
           data: {
             Title: `Nhắc nhở: Sắp đến hạn nộp bài`,
             Message: `Bài tập "${exam.Title}" sẽ hết hạn vào lúc ${exam.DueDate?.toLocaleString()}. Vui lòng hoàn thành đúng hạn.`,
             Type: 'Reminder',
+            ReferenceId: exam.Id,
+            ReferenceType: 'Exam',
             NotificationRecipient: {
               create: {
                 UserId: studentId,
@@ -83,7 +92,7 @@ export class DeadlineReminderJob {
         })
       }
     }
-    
+
     logger.info(`Deadline reminder job completed. Sent reminders for ${upcomingExams2Days.length} exams.`)
   }
 }

@@ -1,12 +1,252 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, gradingApi, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
-import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw } from 'lucide-react'
+import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw, Copy, Terminal } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { FormattedText } from '@/components/ui/FormattedText'
+
+const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code', onCopy, isCopied }: { code: string; language?: string; onCopy: () => void; isCopied: boolean }) {
+  const codeLines = code.split('\n');
+
+  return (
+    <div className="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-[#0d1117] shadow-xl">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161b22] border-b border-slate-800 text-xs font-mono text-slate-400">
+        <span className="flex items-center gap-2 text-emerald-400 font-bold uppercase tracking-wider">
+          <Terminal size={14} /> {language}
+        </span>
+        <button
+          onClick={onCopy}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-[11px] font-semibold border border-slate-700 shadow-sm"
+        >
+          {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+          <span>{isCopied ? 'Đã sao chép' : 'Sao chép code'}</span>
+        </button>
+      </div>
+
+      <div className="p-4 max-h-[420px] overflow-y-auto overflow-x-auto text-xs sm:text-sm font-mono text-slate-100 leading-relaxed scrollbar-thin scrollbar-thumb-slate-700">
+        <table className="w-full border-collapse">
+          <tbody>
+            {codeLines.map((line, lIdx) => (
+              <tr key={lIdx} className="hover:bg-slate-800/40 transition-colors">
+                <td className="select-none text-slate-600 text-right pr-4 py-0.5 w-10 text-[11px] font-mono border-r border-slate-800/80 shrink-0">
+                  {lIdx + 1}
+                </td>
+                <td className="pl-4 py-0.5 whitespace-pre font-mono text-slate-200">
+                  {line}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+});
+
+const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }: { content: string }) {
+  const [copiedIdx, setCopiedIdx] = useState<string | number | null>(null);
+
+  if (!content || !content.trim()) {
+    return (
+      <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+        <FileText className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.</p>
+      </div>
+    );
+  }
+
+  const handleCopy = (codeText: string, id: string | number) => {
+    navigator.clipboard.writeText(codeText);
+    setCopiedIdx(id);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
+  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  if (isHtml) {
+    return (
+      <div
+        className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words overflow-hidden [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+
+  if (content.includes('```')) {
+    return (
+      <div className="prose prose-slate dark:prose-invert max-w-none break-words text-sm leading-relaxed">
+        <ReactMarkdown
+          components={{
+            code({ node, inline, className, children, ...props }: any) {
+              const match = /language-(\w+)/.exec(className || '');
+              const codeString = String(children).replace(/\n$/, '');
+              const codeId = Math.random().toString();
+              const lang = match ? match[1] : 'code';
+              if (!inline) {
+                return (
+                  <CodeBlockViewer
+                    code={codeString}
+                    language={lang}
+                    onCopy={() => handleCopy(codeString, codeId)}
+                    isCopied={copiedIdx === codeId}
+                  />
+                );
+              }
+              return (
+                <code className="bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-mono text-xs font-bold border border-slate-200 dark:border-slate-700" {...props}>
+                  {children}
+                </code>
+              );
+            },
+            h1: ({ children }) => <h1 className="text-xl font-extrabold text-slate-900 dark:text-white mt-6 mb-3 border-b border-slate-200 dark:border-slate-800 pb-2 flex items-center gap-2">{children}</h1>,
+            h2: ({ children }) => <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-5 mb-2 flex items-center gap-2">{children}</h2>,
+            h3: ({ children }) => <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mt-4 mb-2">{children}</h3>,
+            p: ({ children }) => <p className="mb-3 leading-relaxed text-slate-700 dark:text-slate-300">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc list-inside space-y-1.5 mb-4 text-slate-700 dark:text-slate-300">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1.5 mb-4 text-slate-700 dark:text-slate-300">{children}</ol>,
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  const lines = content.split('\n');
+  const blocks: { type: 'text' | 'code' | 'heading'; content: string }[] = [];
+
+  let currentCodeLines: string[] = [];
+  let currentTextLines: string[] = [];
+
+  const flushText = () => {
+    if (currentTextLines.length > 0) {
+      const text = currentTextLines.join('\n').trim();
+      if (text) blocks.push({ type: 'text', content: text });
+      currentTextLines = [];
+    }
+  };
+
+  const flushCode = () => {
+    if (currentCodeLines.length > 0) {
+      const code = currentCodeLines.join('\n').trim();
+      if (code) blocks.push({ type: 'code', content: code });
+      currentCodeLines = [];
+    }
+  };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+
+    const isHeadingLine =
+      /^(Expected Behavior|Test Cases|Example usage|Test Case \d+|Constraints|Problem Statement|Input:|Output:)/i.test(trimmed);
+
+    const isCodeLine =
+      !isHeadingLine &&
+      (trimmed.startsWith('//') ||
+      trimmed.startsWith('#include') ||
+      trimmed.startsWith('using namespace') ||
+      trimmed.startsWith('class ') ||
+      trimmed.startsWith('struct ') ||
+      trimmed.startsWith('public:') ||
+      trimmed.startsWith('private:') ||
+      trimmed.startsWith('TreeNode*') ||
+      trimmed.startsWith('ListNode*') ||
+      trimmed.startsWith('int main()') ||
+      trimmed.startsWith('return ') ||
+      trimmed.startsWith('std::') ||
+      trimmed.includes('->') ||
+      trimmed.startsWith('import ') ||
+      trimmed.startsWith('def ') ||
+      (currentCodeLines.length > 0 && (trimmed.startsWith('}') || trimmed.startsWith('{') || trimmed.endsWith(';') || trimmed === '')));
+
+    if (isHeadingLine) {
+      flushText();
+      flushCode();
+      blocks.push({ type: 'heading', content: trimmed });
+    } else if (isCodeLine) {
+      flushText();
+      currentCodeLines.push(line);
+    } else {
+      flushCode();
+      currentTextLines.push(line);
+    }
+  });
+
+  flushText();
+  flushCode();
+
+  return (
+    <div className="space-y-4 text-slate-800 dark:text-slate-200">
+      {blocks.map((block, idx) => {
+        if (block.type === 'heading') {
+          return (
+            <div key={idx} className="mt-6 mb-2 pt-2 flex items-center gap-2 text-base font-extrabold text-blue-600 dark:text-blue-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <Sparkles size={16} className="text-blue-500 shrink-0" />
+              <span>{block.content}</span>
+            </div>
+          );
+        }
+
+        if (block.type === 'code') {
+          return (
+            <CodeBlockViewer
+              key={idx}
+              code={block.content}
+              language="Sample Code / Harness"
+              onCopy={() => handleCopy(block.content, idx)}
+              isCopied={copiedIdx === idx}
+            />
+          );
+        }
+
+        return (
+          <div key={idx} className="whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-300 text-sm">
+            {block.content}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: string | Date }) {
+  const [countdownText, setCountdownText] = useState<string>('');
+
+  useEffect(() => {
+    if (!dueDate) return;
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const dueTime = new Date(dueDate).getTime();
+      const diff = dueTime - now;
+
+      if (diff <= 0) {
+        setCountdownText('Đã hết hạn nộp bài');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days} ngày`);
+      parts.push(`${hours.toString().padStart(2, '0')} giờ`);
+      parts.push(`${minutes.toString().padStart(2, '0')} phút`);
+      parts.push(`${seconds.toString().padStart(2, '0')} giây`);
+
+      setCountdownText(parts.join(' '));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [dueDate]);
+
+  return <span>{countdownText || 'Đang tính...'}</span>;
+});
 
 export function StudentAssignmentDetail() {
   const { id } = useParams()
@@ -30,75 +270,50 @@ export function StudentAssignmentDetail() {
 
   const [appealText, setAppealText] = useState('')
   const [showAppeal, setShowAppeal] = useState(false)
-  const [countdownText, setCountdownText] = useState<string>('')
 
   const dueDate = assignment?.due || (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate || (assignment as any)?.dueDate || (assignment as any)?.DueDate || (assignment as any)?.ExamClass?.[0]?.DueDate
 
-  useEffect(() => {
-    if (!dueDate) return
-    const updateCountdown = () => {
-      const now = new Date().getTime()
-      const dueTime = new Date(dueDate).getTime()
-      const diff = dueTime - now
-
-      if (diff <= 0) {
-        setCountdownText('Đã hết hạn nộp bài')
-        return
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-      const parts = []
-      if (days > 0) parts.push(`${days} ngày`)
-      parts.push(`${hours.toString().padStart(2, '0')} giờ`)
-      parts.push(`${minutes.toString().padStart(2, '0')} phút`)
-      parts.push(`${seconds.toString().padStart(2, '0')} giây`)
-
-      setCountdownText(parts.join(' '))
-    }
-
-    updateCountdown()
-    const timer = setInterval(updateCountdown, 1000)
-    return () => clearInterval(timer)
-  }, [dueDate])
-
-  const loadData = useCallback(() => {
+  const loadData = useCallback((showLoader = false) => {
     if (!id) return
     let alive = true
-    setLoading(true)
+    if (showLoader) setLoading(true)
 
     Promise.all([
       gradingApi.getAssignment(id).catch(() => api.getAssignment(id)),
-      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null) // Mock: assume first is current user's
+      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null)
     ])
       .then(([a, s]) => {
         if (alive) {
-          console.log('API getAssignment result:', a)
-          console.log('API getSubmissions result:', s)
           setAssignment(a as any)
           setSubmission(s as SubmissionRow)
         }
       })
-      .finally(() => { if (alive) setLoading(false) })
+      .finally(() => { if (alive && showLoader) setLoading(false) })
 
     return () => { alive = false }
   }, [id])
 
   useEffect(() => {
-    const cleanup = loadData()
+    const cleanup = loadData(true)
 
     // 1. BroadcastChannel Listener (Cross-tab/window instant real-time sync)
     let channel: BroadcastChannel | null = null
+    let submissionChannel: BroadcastChannel | null = null
     try {
       channel = new BroadcastChannel('aita_assignment_updates')
       channel.onmessage = (event) => {
         if (event.data?.id === id && event.data?.dueDate) {
           console.log('[StudentAssignmentDetail] Real-time deadline update received:', event.data.dueDate)
           setAssignment(prev => prev ? { ...prev, due: event.data.dueDate, stats: { ...(prev as any).stats, dueDate: event.data.dueDate } } as any : prev)
-          loadData()
+          loadData(false)
+        }
+      }
+
+      submissionChannel = new BroadcastChannel('aita_submission_events')
+      submissionChannel.onmessage = (event) => {
+        if (event.data?.type === 'SUBMISSION_PUBLISHED') {
+          console.log('[StudentAssignmentDetail] Real-time publish event received!')
+          loadData(false)
         }
       }
     } catch (e) {}
@@ -111,9 +326,13 @@ export function StudentAssignmentDetail() {
           if (parsed.id === id && parsed.dueDate) {
             console.log('[StudentAssignmentDetail] Storage deadline update received:', parsed.dueDate)
             setAssignment(prev => prev ? { ...prev, due: parsed.dueDate, stats: { ...(prev as any).stats, dueDate: parsed.dueDate } } as any : prev)
-            loadData()
+            loadData(false)
           }
         } catch (err) {}
+      }
+      if (e.key === 'aita_last_publish_event' && e.newValue) {
+        console.log('[StudentAssignmentDetail] Storage publish event received!')
+        loadData(false)
       }
     }
 
@@ -122,40 +341,43 @@ export function StudentAssignmentDetail() {
       const detail = (e as CustomEvent).detail
       if (detail?.id === id && detail?.dueDate) {
         setAssignment(prev => prev ? { ...prev, due: detail.dueDate, stats: { ...(prev as any).stats, dueDate: detail.dueDate } } as any : prev)
-        loadData()
+        loadData(false)
       }
     }
 
     window.addEventListener('storage', handleStorage)
     window.addEventListener('aita_assignment_updated', handleCustomEvent)
 
-    // 4. Smart background polling (every 5 seconds) to ensure real-time status without manual reload
-    const pollInterval = setInterval(() => {
-      gradingApi.getAssignment(id!).catch(() => api.getAssignment(id!)).then(newAssignment => {
-        if (newAssignment) {
-          const newDue = (newAssignment as any).due || (newAssignment as any)?.stats?.dueDate || (newAssignment as any)?.metadata?.dueDate
-          if (newDue) {
-            setAssignment(prev => {
-              const currentDue = prev?.due || (prev as any)?.stats?.dueDate
-              if (currentDue !== newDue) {
-                console.log('[StudentAssignmentDetail] Background poll detected updated deadline:', newDue)
-                return { ...prev, ...newAssignment, due: newDue } as any
-              }
-              return prev
-            })
-          }
+    // 4. Pure Real-Time Evaluation Listener (Zero idle polling)
+    let pollInterval: ReturnType<typeof setInterval> | null = null
+    const isEvaluating = submission?.reviewStatus === 'pending' || submission?.reviewStatus === 'processing'
+    if (isEvaluating) {
+      pollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          api.getSubmissions({ assignmentId: id! }).then(res => {
+            const s = res?.[0]
+            if (s) {
+              setSubmission(prev => {
+                if (!prev || prev.reviewStatus !== s.reviewStatus || (prev as any).isPublished !== (s as any).isPublished || prev.score !== s.score) {
+                  return s as SubmissionRow
+                }
+                return prev
+              })
+            }
+          }).catch(() => {})
         }
-      })
-    }, 5000)
+      }, 5000)
+    }
 
     return () => {
       if (cleanup) cleanup()
       if (channel) channel.close()
+      if (submissionChannel) submissionChannel.close()
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('aita_assignment_updated', handleCustomEvent)
-      clearInterval(pollInterval)
+      if (pollInterval) clearInterval(pollInterval)
     }
-  }, [id, loadData])
+  }, [id, loadData, submission?.reviewStatus])
 
   const handleSubmit = async () => {
     if (!id || (!file && !content)) return
@@ -163,6 +385,11 @@ export function StudentAssignmentDetail() {
     setIsSubmitting(true)
     try {
       await api.submitAssignment(file, content, id)
+      try {
+        const evtChannel = new BroadcastChannel('aita_submission_events');
+        evtChannel.postMessage({ type: 'SUBMISSION_CREATED', assignmentId: id });
+        evtChannel.close();
+      } catch (e) {}
       setToast({
         message: wasAlreadySubmitted
           ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.'
@@ -202,8 +429,9 @@ export function StudentAssignmentDetail() {
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
   const isSubmitted = !!submission;
-  const displayScore = submission ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
-  const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || displayScore != null);
+  const isPublished = submission && ((submission as any).reviewStatus === 'PUBLISHED' || (submission as any).isPublished === true);
+  const displayScore = (submission && isPublished) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
+  const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
   const isLocked = isPastDue && !isSubmitted;
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
@@ -371,13 +599,15 @@ export function StudentAssignmentDetail() {
               </tr>
             </thead>
             <tbody>
-              ${rubricsList.map((r: any, idx: number) => `
+              ${rubricsList.map((r: any, idx: number) => {
+                const rPoints = r.weight ?? r.maxPoints ?? r.maxScore ?? r.points ?? r.score ?? 0;
+                return `
                 <tr>
                   <td align="center"><strong>${idx + 1}</strong></td>
-                  <td>${r.description || 'Tiêu chí'}</td>
-                  <td align="center"><strong style="color:#2563eb;">${r.maxPoints} đ</strong></td>
+                  <td>${r.description || r.title || 'Tiêu chí'}</td>
+                  <td align="center"><strong style="color:#2563eb;">${rPoints} điểm</strong></td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>
         ` : ''}
@@ -458,6 +688,7 @@ export function StudentAssignmentDetail() {
                   </div>
                 )}
 
+
                 {assignment.due && (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-sm border ${isPastDue || isNearDeadline
                       ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800'
@@ -472,43 +703,70 @@ export function StudentAssignmentDetail() {
           </div>
           {/* Deadline & Live Countdown Banner */}
           {dueDate && (
-            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
-              isPastDue 
-                ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
-                : isNearDeadline
-                  ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
-                  : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
-                  isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
-                }`}>
-                  <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
-                      isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
-                    </span>
-                    <span className="text-xs font-semibold">
-                      Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </span>
+            isSubmitted ? (
+              <div className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-emerald-500/10 border-emerald-300 dark:border-emerald-700/50 text-emerald-900 dark:text-emerald-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm bg-emerald-600 text-white">
+                    <CheckCircle2 size={20} />
                   </div>
-                  <p className="text-xs mt-1 font-bold">
-                    {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : `Thời gian còn lại: ${countdownText}`}
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-600 text-white">
+                        BÀI LÀM ĐÃ NỘP
+                      </span>
+                      <span className="text-xs font-semibold">
+                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 font-bold">
+                      Bạn đã hoàn thành nộp bài{submission?.submittedAt ? ` lúc ${new Date(submission.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString('vi-VN')}` : ''}. Có thể nộp lại nếu cần chỉnh sửa.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 flex items-center gap-2 text-xs font-bold">
+                  <Check size={16} />
+                  <span>Hoàn thành nộp bài</span>
                 </div>
               </div>
-
-              {!isPastDue && (
-                <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  {countdownText || 'Đang tính...'}
+            ) : (
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
+                isPastDue 
+                  ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
+                  : isNearDeadline
+                    ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
+                    : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
+                    isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                  }`}>
+                    <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
+                        isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
+                      }`}>
+                        {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
+                      </span>
+                      <span className="text-xs font-semibold">
+                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1 font-bold flex items-center gap-1">
+                      {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : <>Thời gian còn lại: <CountdownDisplay dueDate={dueDate} /></>}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {!isPastDue && (
+                  <div className="px-4 py-2 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-700/80 shadow-sm shrink-0 flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <CountdownDisplay dueDate={dueDate} />
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           {/* Card: Chi tiết bài tập (Đề bài chi tiết) */}
@@ -526,16 +784,7 @@ export function StudentAssignmentDetail() {
               </button>
             </div>
             <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
-              {fullContent ? (
-                <div
-                  className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: fullContent }}
-                />
-              ) : (
-                <p className="whitespace-pre-wrap leading-relaxed">
-                  {assignment.description || (assignment as any)?.metadata?.description || 'Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.'}
-                </p>
-              )}
+              <SmartAssignmentContent content={fullContent || assignment.description || (assignment as any)?.metadata?.description || ''} />
             </div>
           </Card>
 
@@ -581,54 +830,71 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="px-5 py-2">
                 <div className="space-y-4">
-                  {rubricsList.map((rule: any, index: number) => (
-                    <div key={rule.id} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
-                      <div className="p-4 flex justify-between items-start gap-4">
-                        <div className="flex gap-3 flex-1">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm border border-blue-200 dark:border-blue-800">
-                            {index + 1}
+                  {rubricsList.map((rule: any, index: number) => {
+                    const rulePoints = rule.weight ?? rule.maxPoints ?? rule.maxScore ?? rule.points ?? rule.score;
+                    const hasValidPoints = rulePoints != null && !isNaN(Number(rulePoints)) && Number(rulePoints) > 0;
+                    const displayPoints = hasValidPoints
+                      ? `${Number(rulePoints)} điểm`
+                      : (rule.criteria?.length ? `${rule.criteria.reduce((s: number, c: any) => s + (Number(c.weight ?? c.maxPoints ?? c.maxScore ?? 0) || 0), 0)} điểm` : 'Tiêu chí');
+
+                    return (
+                      <div key={rule.id || index} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
+                        <div className="p-4 flex justify-between items-start gap-4">
+                          <div className="flex gap-3 flex-1">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm border border-blue-200 dark:border-blue-800">
+                              {index + 1}
+                            </div>
+                            <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1">
+                              {rule.title && (
+                                <span className="font-bold text-slate-900 dark:text-white block mb-1">{rule.title}</span>
+                              )}
+                              <FormattedText text={rule.description || rule.title || 'Tiêu chí'} />
+                            </div>
                           </div>
-                          <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1">
-                            <FormattedText text={rule.description || 'Tiêu chí'} />
-                          </div>
+                          <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/60 px-3 py-1.5 rounded-lg shrink-0 mt-0.5 border border-blue-200 dark:border-blue-700 shadow-sm whitespace-nowrap">
+                            {displayPoints}
+                          </span>
                         </div>
-                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/30 px-2.5 py-1 rounded-md shrink-0 mt-0.5 border border-blue-100 dark:border-blue-800">
-                          {rule.maxPoints}đ
-                        </span>
+
+                        {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
+                            <div className="flex flex-col gap-2">
+                              {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, i: number) => (
+                                <div key={i} className="bg-white dark:bg-[#151821] rounded border border-blue-100 dark:border-blue-800/50 p-3 text-xs font-mono grid grid-cols-2 gap-4 shadow-sm">
+                                  <div>
+                                    <span className="text-slate-400 font-semibold mb-1 block">In:</span>
+                                    <span className="dark:text-slate-300 text-slate-700 whitespace-pre-wrap">{tc.input}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400 font-semibold mb-1 block">Out:</span>
+                                    <span className="dark:text-emerald-400/80 text-emerald-600 whitespace-pre-wrap">{tc.expectedOutput}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {rule.criteria && rule.criteria.length > 0 && (
+                          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {rule.criteria.map((c: any, cIdx: number) => {
+                              const cPoints = c.weight ?? c.maxPoints ?? c.maxScore ?? c.points ?? c.score;
+                              const cDisplay = cPoints != null && !isNaN(Number(cPoints)) && Number(cPoints) > 0 ? `${Number(cPoints)} điểm` : '';
+                              return (
+                                <li key={c.id || cIdx} className="p-3 flex justify-between items-start gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                  <FormattedText className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" text={typeof c.description === 'string' ? c.description : JSON.stringify(c.description)} />
+                                  {cDisplay && (
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap pt-0.5 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">{cDisplay}</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </div>
-
-                      {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
-                        <div className="px-4 pb-4">
-                          <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
-                          <div className="flex flex-col gap-2">
-                            {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, i: number) => (
-                              <div key={i} className="bg-white dark:bg-[#151821] rounded border border-blue-100 dark:border-blue-800/50 p-3 text-xs font-mono grid grid-cols-2 gap-4 shadow-sm">
-                                <div>
-                                  <span className="text-slate-400 font-semibold mb-1 block">In:</span>
-                                  <span className="dark:text-slate-300 text-slate-700 whitespace-pre-wrap">{tc.input}</span>
-                                </div>
-                                <div>
-                                  <span className="text-slate-400 font-semibold mb-1 block">Out:</span>
-                                  <span className="dark:text-emerald-400/80 text-emerald-600 whitespace-pre-wrap">{tc.expectedOutput}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {rule.criteria && rule.criteria.length > 0 && (
-                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {rule.criteria.map((c: any) => (
-                            <li key={c.id} className="p-3 flex justify-between items-start gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                              <FormattedText className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" text={typeof c.description === 'string' ? c.description : JSON.stringify(c.description)} />
-                              <span className="text-xs font-medium text-slate-500 dark:text-slate-500 whitespace-nowrap pt-0.5">{c.maxPoints}đ</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </Card>
@@ -636,61 +902,78 @@ export function StudentAssignmentDetail() {
 
           {/* Grading & Feedback Result */}
           {isGraded && displayScore != null && (
-            <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm animate-in slide-in-from-bottom-4 duration-500">
-              <div className="px-5 py-2 flex justify-between items-center">
-                <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
-                </h2>
-              </div>
-
-              <div className="px-5 py-2">
-                {submission.aiFeedback ? (
-                  <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
-                        <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
-                      </div>
-                    </div>
-                    <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
-                      <ReactMarkdown>{submission.aiFeedback as string}</ReactMarkdown>
-                    </div>
+            <Card className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 shadow-sm animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+              {!((submission as any)?.reviewStatus === 'PUBLISHED' || (submission as any)?.isPublished) ? (
+                <div className="p-6 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 text-amber-900 dark:text-amber-200 flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                    <Clock size={24} className="animate-pulse" />
                   </div>
-                ) : (
-                  <div className="mb-6">
-                    <p className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-center italic">
-                      Không có nhận xét tự động.
+                  <div>
+                    <h3 className="font-bold text-base text-amber-900 dark:text-amber-100 mb-1">
+                      ⌛ Bài làm đang được Giảng viên chấm & xét duyệt điểm
+                    </h3>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                      Bài làm của bạn đã được hệ thống AI phân tích và lưu kết quả. 
+                      Giảng viên đang tiến hành xem xét điểm số và đánh giá chi tiết. Kết quả và điểm số chính thức sẽ hiển thị ngay khi Giảng viên duyệt & bấm <strong>Công bố kết quả</strong>.
                     </p>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="p-5 space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
+                    </h2>
+                  </div>
 
-                <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
-                  {!showAppeal ? (
-                    <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
-                      Bạn có thắc mắc về điểm số?
-                    </button>
-                  ) : (
-                    <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
-                      <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Nhập nội dung thắc mắc..."
-                            value={appealText}
-                            onChange={(e) => setAppealText(e.target.value)}
-                          />
+                  {submission.aiFeedback ? (
+                    <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
+                          <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
                         </div>
-                        <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
-                          <Send size={16} className="mr-2" /> Gửi
-                        </Button>
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
+                        </div>
+                      </div>
+                      <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
+                        <ReactMarkdown>{submission.aiFeedback as string}</ReactMarkdown>
                       </div>
                     </div>
+                  ) : (
+                    <div className="mb-6">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-center italic">
+                        Không có nhận xét tự động.
+                      </p>
+                    </div>
                   )}
+
+                  <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+                    {!showAppeal ? (
+                      <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
+                        Bạn có thắc mắc về điểm số?
+                      </button>
+                    ) : (
+                      <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
+                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <Input
+                              placeholder="Nhập nội dung thắc mắc..."
+                              value={appealText}
+                              onChange={(e) => setAppealText(e.target.value)}
+                            />
+                          </div>
+                          <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
+                            <Send size={16} className="mr-2" /> Gửi
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           )}
 

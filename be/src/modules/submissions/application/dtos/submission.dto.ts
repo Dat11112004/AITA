@@ -65,8 +65,14 @@ export class SubmissionResponseDto {
     }
 
     const num = (v: any) => (v === undefined || v === null ? null : Number(v))
-    const total = num(submission.totalScore ?? submission.TotalScore)
-    const final = num(submission.finalScore ?? submission.FinalScore)
+
+    const revStatus = submission.reviewStatus || submission.ReviewStatus || 'DRAFT'
+    const isPublished = revStatus === 'PUBLISHED' || submission.isPublished === true
+
+    // Scores and lecturer feedback stay hidden until the grade is published — this gate
+    // applies to the flat aliases below (score / aiScore) too, not just the nested fields.
+    const total = isPublished ? num(submission.totalScore ?? submission.TotalScore) : null
+    const final = isPublished ? num(submission.finalScore ?? submission.FinalScore) : null
 
     return {
       id: submission.id || submission.Id,
@@ -79,15 +85,16 @@ export class SubmissionResponseDto {
       submittedAt: submission.submittedAt || submission.SubmittedAt,
       zipFileUrl: submission.zipFileUrl || submission.ZipFileUrl,
       gradingStatus: submission.gradingStatus || submission.GradingStatus,
-      reviewStatus: submission.reviewStatus || submission.ReviewStatus,
+      reviewStatus: revStatus,
+      isPublished: isPublished,
       totalScore: total,
       finalScore: final,
-      instructorFeedback: submission.instructorFeedback || submission.InstructorFeedback,
+      instructorFeedback: isPublished ? (submission.instructorFeedback || submission.InstructorFeedback) : null,
       studentFeedback: submission.studentFeedback || submission.StudentFeedback,
       reviewedBy: submission.reviewedBy || submission.ReviewedBy,
       reviewedAt: submission.reviewedAt || submission.ReviewedAt,
       gradedAt: submission.gradedAt || submission.GradedAt,
-      aiFeedback: aiFeedback,
+      aiFeedback: isPublished ? aiFeedback : null,
       student: submission.User_Submission_StudentIdToUser ? {
         id: submission.User_Submission_StudentIdToUser.Id,
         name: submission.User_Submission_StudentIdToUser.FullName,

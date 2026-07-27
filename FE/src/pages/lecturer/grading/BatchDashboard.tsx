@@ -86,47 +86,58 @@ export default function BatchDashboard() {
         return () => clearInterval(interval);
     }, [batchStartTime, jobs]);
 
-    // Polling for batch status
+    // Polling for batch status + BroadcastChannel listener
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
+        let channel: BroadcastChannel | null = null;
 
         const activeJobs = jobs.filter(j => j.state === 'queued' || j.state === 'processing');
 
-        if (activeJobs.length > 0) {
-            interval = setInterval(async () => {
-                try {
-                    const ids = activeJobs.map(j => j.id);
-                    const res = await api.getBatchStatus(ids);
+        const pollStatus = async () => {
+            if (activeJobs.length === 0) return;
+            try {
+                const ids = activeJobs.map(j => j.id);
+                const res = await api.getBatchStatus(ids);
 
-                    setJobs(prevJobs => {
-                        const newJobs = [...prevJobs];
-                        let changed = false;
+                setJobs(prevJobs => {
+                    const newJobs = [...prevJobs];
+                    let changed = false;
 
-                        for (let i = 0; i < newJobs.length; i++) {
-                            const updatedData = res.statuses[newJobs[i].id];
-                            if (updatedData) {
-                                if (newJobs[i].state !== updatedData.state ||
-                                    newJobs[i].progressPercent !== updatedData.progressPercent ||
-                                    newJobs[i].currentTask !== updatedData.currentTask) {
+                    for (let i = 0; i < newJobs.length; i++) {
+                        const updatedData = res.statuses[newJobs[i].id];
+                        if (updatedData) {
+                            if (newJobs[i].state !== updatedData.state ||
+                                newJobs[i].progressPercent !== updatedData.progressPercent ||
+                                newJobs[i].currentTask !== updatedData.currentTask) {
 
-                                    newJobs[i] = {
-                                        ...newJobs[i],
-                                        ...updatedData
-                                    };
-                                    changed = true;
-                                }
+                                newJobs[i] = {
+                                    ...newJobs[i],
+                                    ...updatedData
+                                };
+                                changed = true;
                             }
                         }
+                    }
 
-                        return changed ? newJobs : prevJobs;
-                    });
-                } catch (err) {
-                    console.error("Failed to poll batch status:", err);
-                }
-            }, 2000);
+                    return changed ? newJobs : prevJobs;
+                });
+            } catch (err) {
+                console.error("Failed to poll batch status:", err);
+            }
+        };
+
+        if (activeJobs.length > 0) {
+            interval = setInterval(pollStatus, 4000);
+            try {
+                channel = new BroadcastChannel('aita_submission_events');
+                channel.onmessage = () => pollStatus();
+            } catch (e) {}
         }
 
-        return () => clearInterval(interval);
+        return () => {
+            if (interval) clearInterval(interval);
+            if (channel) channel.close();
+        };
     }, [jobs]);
 
     const handleUpload = async (files: File[]) => {

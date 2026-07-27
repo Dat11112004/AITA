@@ -397,7 +397,7 @@ export function AdminUsers() {
       const res = await api.importStudentsExcel(formData)
       
       if (res.errorCount > 0) {
-        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
           msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
         }
@@ -431,7 +431,7 @@ export function AdminUsers() {
       const res = await api.importLecturersExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
           msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
         }
@@ -465,7 +465,7 @@ export function AdminUsers() {
       const res = await api.importTeachingAssignmentsExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Import hoàn tất.\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
           msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
         }

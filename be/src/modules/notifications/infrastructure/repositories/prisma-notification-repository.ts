@@ -10,13 +10,20 @@ export class PrismaNotificationRepository implements INotificationRepository {
             recipientWhere.IsRead = params.read
         }
 
+        // Fetch student's submitted exam IDs to exclude deadline warnings for completed assignments
+        const userSubmissions = await (this.prisma as any).submission.findMany({
+            where: { StudentId: userId },
+            select: { ExamId: true }
+        });
+        const submittedExamIds = new Set(userSubmissions.map((s: any) => s.ExamId).filter(Boolean));
+
         const list = await (this.prisma as any).notification.findMany({
             where: {
                 NotificationRecipient: {
                     some: recipientWhere
                 }
             },
-            take: params.limit ?? 20,
+            take: params.limit ?? 50,
             skip: params.offset ?? 0,
             orderBy: { CreatedAt: 'desc' },
             include: {
@@ -27,7 +34,18 @@ export class PrismaNotificationRepository implements INotificationRepository {
             }
         })
 
-        return list.map((l: any) => {
+        // Filter out deadline reminders for assignments the student has already submitted
+        const filteredList = list.filter((l: any) => {
+            const isDeadlineNotif = l.Type === 'Reminder' || l.Type === 'DEADLINE_WARNING';
+            if (!isDeadlineNotif) return true;
+
+            if (l.ReferenceId && submittedExamIds.has(l.ReferenceId)) {
+                return false;
+            }
+            return true;
+        }).slice(0, params.limit ?? 20);
+
+        return filteredList.map((l: any) => {
             const notif = Notification.restore(
                 l.Id, l.Title, l.Message, l.Type, l.ReferenceId, l.ReferenceType, l.CreatedBy, l.CreatedAt
             )

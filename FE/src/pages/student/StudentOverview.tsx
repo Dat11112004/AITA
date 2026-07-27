@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar, Bell, Check } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
+import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
 export function StudentOverview() {
   const navigate = useNavigate()
@@ -10,6 +12,14 @@ export function StudentOverview() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+
+  const fetchNotifs = useCallback(async () => {
+    try {
+      const notifData = await api.getNotifications(1, 5)
+      setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
+    } catch (e) {}
+  }, [])
 
   const loadData = useCallback(() => {
     let alive = true
@@ -32,13 +42,17 @@ export function StudentOverview() {
 
   useEffect(() => {
     const cleanup = loadData()
-    return cleanup
-  }, [loadData])
+    const unsubscribeNotifs = subscribeNotificationEvents(() => fetchNotifs())
+    return () => {
+      cleanup()
+      unsubscribeNotifs()
+    }
+  }, [loadData, fetchNotifs])
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  const upcomingTasks = dashboardData?.upcomingAssignments || []
+  const upcomingTasks = (dashboardData?.upcomingAssignments || []).filter((a: any) => !a.isSubmitted && a.status !== 'Submitted' && a.status !== 'Graded' && !a.submitted)
   const subjects = dashboardData?.enrolledClasses?.map((c: any) => ({
     id: c.subject?.id || c.id,
     code: c.subject?.code || c.classCode,
@@ -63,9 +77,10 @@ export function StudentOverview() {
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
     try {
       await api.markNotificationAsRead(id)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }
@@ -73,7 +88,9 @@ export function StudentOverview() {
 
   const handleNotificationClick = async (item: any) => {
     if (!item.read && !item.isRead) {
-      handleMarkAsRead(item.id)
+      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true, isRead: true } : n))
+      api.markNotificationAsRead(item.id).catch(console.error)
+      emitNotificationEvent()
     }
     const targetId = item.referenceId || item.ReferenceId
     if (targetId) {
@@ -82,9 +99,10 @@ export function StudentOverview() {
   }
 
   const handleMarkAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
     try {
       await api.markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }
@@ -96,15 +114,20 @@ export function StudentOverview() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
-            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên - Học kỳ 1 (2026)</span>
+            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên • Mùa học {selectedSemester}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
             Chào bạn, chúc một ngày tốt lành!
           </h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">
-            Bạn có {upcomingTasks.length} bài tập sắp đến hạn. Hãy hoàn thành sớm nhé.
+            Bạn có {upcomingTasks.length} bài tập sắp đến hạn trong mùa học này. Hãy hoàn thành sớm nhé.
           </p>
         </div>
+        <SemesterSelector
+          selectedSemester={selectedSemester}
+          onChange={setSelectedSemester}
+          className="self-start md:self-auto shrink-0"
+        />
       </div>
 
       {/* Urgent Deadline Alert Banner */}

@@ -6,6 +6,7 @@ const includeDefault = {
   User_Submission_StudentIdToUser: true,
   Exam: true,
   Class: true,
+  SubmissionArtifact: true,
 }
 
 export class PrismaSubmissionRepository implements ISubmissionRepository {
@@ -16,6 +17,7 @@ export class PrismaSubmissionRepository implements ISubmissionRepository {
     if (filter?.examId) where.ExamId = filter.examId
     if (filter?.studentId) where.StudentId = filter.studentId
     if (filter?.classId) where.ClassId = filter.classId
+    if (filter?.status) where.GradingStatus = filter.status
     if (filter?.instructorId) {
       where.Class = {
         InstructorClass: {
@@ -48,6 +50,23 @@ export class PrismaSubmissionRepository implements ISubmissionRepository {
   async findById(id: string): Promise<Submission | null> {
     const raw = await this.client.submission.findUnique({
       where: { Id: id },
+      include: includeDefault,
+    })
+    return raw ? SubmissionMapper.toDomain(raw) : null
+  }
+
+  async findByIdForInstructor(id: string, instructorId: string): Promise<Submission | null> {
+    const raw = await this.client.submission.findFirst({
+      where: {
+        Id: id,
+        Class: {
+          InstructorClass: {
+            some: {
+              UserId: instructorId,
+            },
+          },
+        },
+      },
       include: includeDefault,
     })
     return raw ? SubmissionMapper.toDomain(raw) : null

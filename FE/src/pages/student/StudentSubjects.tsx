@@ -17,20 +17,23 @@ type SubjectInfo = {
   lecturers?: LecturerInfo[]
 }
 
+import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+
 export function StudentSubjects() {
   const navigate = useNavigate()
   const [subjects, setSubjects] = useState<SubjectInfo[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
   const location = useLocation()
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(location.state?.expand || null)
   const [activeTab, setActiveTab] = useState('Tất cả')
 
   const tabs = ['Tất cả', 'Bài tập', 'Bài thi', 'Đã chấm']
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((showLoader = false) => {
     let alive = true
-    setLoading(true)
+    if (showLoader) setLoading(true)
     
     Promise.all([
       api.getStudentSubjects().catch(() => []),
@@ -45,10 +48,12 @@ export function StudentSubjects() {
         const mergedAssignments = (assignmentsRes || []).map(a => {
           const sub = submissionsMap.get(a.id)
           if (sub) {
+            const isPublished = sub.reviewStatus === 'PUBLISHED' || sub.isPublished === true
+            const validScore = isPublished ? (sub.finalScore ?? sub.totalScore ?? sub.score ?? sub.Score) : undefined
             return { 
               ...a, 
-              status: sub.status === 'GRADED' || sub.score !== null ? 'Graded' : 'Submitted',
-              score: sub.finalScore ?? sub.totalScore ?? sub.score
+              status: (isPublished && validScore !== undefined && validScore !== null) ? 'Graded' : 'Submitted',
+              score: validScore !== null ? validScore : undefined
             }
           }
           return a
@@ -63,14 +68,38 @@ export function StudentSubjects() {
 
         setAssignments(mergedAssignments)
       }
-    }).finally(() => { if (alive) setLoading(false) })
+    }).finally(() => { if (alive && showLoader) setLoading(false) })
     
     return () => { alive = false }
   }, [])
 
   useEffect(() => {
-    const cleanup = loadData()
-    return cleanup
+    const cleanup = loadData(true)
+
+    let submissionChannel: BroadcastChannel | null = null
+    try {
+      submissionChannel = new BroadcastChannel('aita_submission_events')
+      submissionChannel.onmessage = (event) => {
+        if (event.data?.type === 'SUBMISSION_PUBLISHED') {
+          console.log('[StudentSubjects] Real-time publish event received!')
+          loadData(false)
+        }
+      }
+    } catch (e) {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'aita_last_publish_event' && e.newValue) {
+        console.log('[StudentSubjects] Storage publish event received!')
+        loadData(false)
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      if (cleanup) cleanup()
+      if (submissionChannel) submissionChannel.close()
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [loadData])
 
   // Handle auto-expand and scroll
@@ -139,13 +168,22 @@ export function StudentSubjects() {
         <div className="space-y-6">
           {/* Header Area */}
           <div className="pt-2 pb-2">
-            <div className="flex items-center gap-2 text-sm text-slate-400 mb-3">
-              <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
-              <ChevronRight size={14} />
-              <span className="font-medium text-slate-700 dark:text-slate-300">Môn học</span>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+                  <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
+                  <ChevronRight size={14} />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Môn học</span>
+                </div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Môn học & Bài tập</h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Quản lý môn học, bài tập, bài thi và theo dõi tiến độ học tập trong mùa học {selectedSemester}.</p>
+              </div>
+              <SemesterSelector
+                selectedSemester={selectedSemester}
+                onChange={setSelectedSemester}
+                className="self-start md:self-auto shrink-0"
+              />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Môn học & Bài tập</h1>
-            <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Quản lý môn học, bài tập, bài thi và theo dõi tiến độ học tập của bạn.</p>
             
             <div className="flex flex-wrap items-center gap-2 mt-6">
               {tabs.map(tab => (

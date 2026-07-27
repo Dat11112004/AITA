@@ -199,6 +199,62 @@ export class SubmissionController extends BaseController {
       }
   }
 
+  public executeGradingForSubmission = async (submissionId: string): Promise<void> => {
+      const submissionRecord = await prisma.submission.findUnique({
+          where: { Id: submissionId },
+          include: { User_Submission_StudentIdToUser: true }
+      });
+
+      if (!submissionRecord) {
+          throw new BadRequestError('Submission not found');
+      }
+
+      if (!submissionRecord.ZipFileUrl) {
+          throw new BadRequestError('Submission does not have an uploaded file (ZipFileUrl is null)');
+      }
+
+      const assignmentId = submissionRecord.ExamId;
+      if (!assignmentId) {
+          throw new BadRequestError('Submission is not linked to an Exam (assignment)');
+      }
+
+      const publishedAssignment = await globalAssignmentRepository.getAsync(assignmentId);
+      if (!publishedAssignment) {
+          throw new BadRequestError('Published assignment not found for this submission');
+      }
+
+      const studentCode = submissionRecord.User_Submission_StudentIdToUser?.StudentCode || 
+                          submissionRecord.User_Submission_StudentIdToUser?.Username || 
+                          submissionRecord.StudentId;
+
+      // 1. Download file to temp directory
+      const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+      await this.downloadFile(submissionRecord.ZipFileUrl, tempZipPath);
+
+      // 2. Unzip file
+      const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
+      await extractZipAsync(tempZipPath, extractDir);
+      await this.extractNestedZips(extractDir);
+
+      // 3. Update status to 'Processing'
+      await prisma.submission.update({
+          where: { Id: submissionId },
+          data: { GradingStatus: 'Processing' }
+      });
+
+      const engineSubmission: Submission = {
+          id: submissionId,
+          assignmentId: assignmentId,
+          studentId: studentCode!,
+          sourceCodeUri: tempZipPath,
+          currentState: SubmissionState.Queued,
+          statusHistory: []
+      };
+
+      globalJobManager.initJob(submissionId);
+      this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+  };
+
   /**
    * POST /api/grading/submissions/grade-existing
    * Grades a single submission that has already been uploaded (has ZipFileUrl)
@@ -210,59 +266,7 @@ export class SubmissionController extends BaseController {
               throw new BadRequestError('submissionId is required');
           }
 
-          const submissionRecord = await prisma.submission.findUnique({
-              where: { Id: submissionId },
-              include: { User_Submission_StudentIdToUser: true }
-          });
-
-          if (!submissionRecord) {
-              throw new BadRequestError('Submission not found');
-          }
-
-          if (!submissionRecord.ZipFileUrl) {
-              throw new BadRequestError('Submission does not have an uploaded file (ZipFileUrl is null)');
-          }
-
-          const assignmentId = submissionRecord.ExamId;
-          if (!assignmentId) {
-              throw new BadRequestError('Submission is not linked to an Exam (assignment)');
-          }
-
-          const publishedAssignment = await globalAssignmentRepository.getAsync(assignmentId);
-          if (!publishedAssignment) {
-              throw new BadRequestError('Published assignment not found for this submission');
-          }
-
-          const studentCode = submissionRecord.User_Submission_StudentIdToUser?.StudentCode || 
-                              submissionRecord.User_Submission_StudentIdToUser?.Username || 
-                              submissionRecord.StudentId;
-
-          // 1. Download file to temp directory
-          const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
-          await this.downloadFile(submissionRecord.ZipFileUrl, tempZipPath);
-
-          // 2. Unzip file
-          const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-          await extractZipAsync(tempZipPath, extractDir);
-          await this.extractNestedZips(extractDir);
-
-          // 3. Update status to 'Processing'
-          await prisma.submission.update({
-              where: { Id: submissionId },
-              data: { GradingStatus: 'Processing' }
-          });
-
-          const engineSubmission: Submission = {
-              id: submissionId,
-              assignmentId: assignmentId,
-              studentId: studentCode!,
-              sourceCodeUri: tempZipPath,
-              currentState: SubmissionState.Queued,
-              statusHistory: []
-          };
-
-          globalJobManager.initJob(submissionId);
-          this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+          await this.executeGradingForSubmission(submissionId);
 
           this.ok(res, { submissionId, statusUrl: `/api/grading/submissions/${submissionId}/stream` }, 'Submission accepted for grading');
 
@@ -647,7 +651,7 @@ export class SubmissionController extends BaseController {
       });
   }
 
-  streamProgress = (req: Request, res: Response) => {
+  streamProgress = async (req: Request, res: Response) => {
       const id = req.params.id as string;
       
       res.setHeader('Content-Type', 'text/event-stream');
@@ -656,7 +660,30 @@ export class SubmissionController extends BaseController {
       res.flushHeaders();
 
       // Send initial state
-      const job = globalJobManager.getJob(id);
+      let job = globalJobManager.getJob(id);
+      if (!job) {
+          try {
+              const subRecord = await prisma.submission.findUnique({ where: { Id: id } });
+              if (subRecord) {
+                  if (subRecord.GradingStatus === 'Graded' || subRecord.GradingStatus === 'Completed' || subRecord.Score !== null) {
+                      res.write(`data: ${JSON.stringify({
+                          id,
+                          state: 'completed',
+                          progressPercent: 100,
+                          currentTask: 'Chấm điểm hoàn tất',
+                          result: { totalScore: subRecord.Score }
+                      })}\n\n`);
+                      res.end();
+                      return;
+                  } else if (subRecord.ZipFileUrl) {
+                      // Self-healing: if in DB but memory job missing, start grading job immediately
+                      await this.executeGradingForSubmission(id).catch(() => {});
+                      job = globalJobManager.getJob(id);
+                  }
+              }
+          } catch (e) {}
+      }
+
       if (job) {
           res.write(`data: ${JSON.stringify(job)}\n\n`);
       } else {
@@ -753,7 +780,50 @@ export class SubmissionController extends BaseController {
           }
       }
 
-      this.ok(res, { submissionId: id, score: report.totalScore || 0, maxScore: report.maxPossibleScore || 0, rules: report.passedRules || [], failedRules: report.failedRules || [], manualReviewNotes: report.manualReviewNotes || [], overallFeedback: report.overallFeedback }, 'Result fetched successfully');
+      let isPublished = false;
+      let reviewStatus = 'DRAFT';
+      try {
+        const subRecord = await prisma.submission.findUnique({
+          where: { Id: id },
+          select: { ReviewStatus: true }
+        });
+        reviewStatus = subRecord?.ReviewStatus || 'DRAFT';
+        isPublished = reviewStatus === 'PUBLISHED';
+      } catch (e) {}
+
+      this.ok(res, {
+        submissionId: id,
+        score: report.totalScore || 0,
+        maxScore: report.maxPossibleScore || 0,
+        rules: report.passedRules || [],
+        failedRules: report.failedRules || [],
+        manualReviewNotes: report.manualReviewNotes || [],
+        overallFeedback: report.overallFeedback,
+        isPublished,
+        reviewStatus
+      }, 'Result fetched successfully');
+  };
+
+  publish = async (req: Request, res: Response) => {
+      const id = req.params.id as string;
+      try {
+        await prisma.submission.update({
+          where: { Id: id },
+          data: { ReviewStatus: 'PUBLISHED' }
+        });
+      } catch (e) {}
+      this.ok(res, { success: true, isPublished: true, reviewStatus: 'PUBLISHED' }, 'Đã công bố kết quả cho học sinh thành công!');
+  };
+
+  unpublish = async (req: Request, res: Response) => {
+      const id = req.params.id as string;
+      try {
+        await prisma.submission.update({
+          where: { Id: id },
+          data: { ReviewStatus: 'DRAFT' }
+        });
+      } catch (e) {}
+      this.ok(res, { success: true, isPublished: false, reviewStatus: 'DRAFT' }, 'Đã chuyển kết quả về trạng thái nháp.');
   };
 
   getHistory = async (req: Request, res: Response) => {

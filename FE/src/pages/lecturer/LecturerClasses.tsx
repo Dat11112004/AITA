@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
-import { 
+import {
   Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
   Calendar, ChevronDown, ChevronUp, Book, Code, MoreHorizontal,
   Users, Info
@@ -12,7 +12,7 @@ export function LecturerClasses() {
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [semesters, setSemesters] = useState<SemesterRow[]>([])
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
-  
+
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -61,10 +61,10 @@ export function LecturerClasses() {
   filteredClasses.forEach(cls => {
     const semId = (cls.semester as any)?.id || 'unknown';
     const semesterRecord = semesters.find(s => s.id === semId);
-    
+
     const seasonName = semesterRecord?.season || 'Các Học Kỳ Khác';
     const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Kỳ Khác';
-    
+
     const subId = (cls.subject as any)?.id || 'unknown';
     const subjectRecord = subjects.find(s => s.id === subId);
     const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Môn Khác';
@@ -77,13 +77,13 @@ export function LecturerClasses() {
     if (semesterRecord?.isActive) seasonGroup.isActive = true;
 
     if (!seasonGroup.semesters[semId]) {
-      seasonGroup.semesters[semId] = { 
-        semesterId: semId, 
-        semesterCode, 
-        startDate: semesterRecord?.startDate, 
+      seasonGroup.semesters[semId] = {
+        semesterId: semId,
+        semesterCode,
+        startDate: semesterRecord?.startDate,
         endDate: semesterRecord?.endDate,
         isActive: semesterRecord?.isActive || false,
-        subjects: {} 
+        subjects: {}
       };
     }
     const semesterGroup = seasonGroup.semesters[semId];
@@ -91,7 +91,7 @@ export function LecturerClasses() {
     if (!semesterGroup.subjects[subId]) {
       semesterGroup.subjects[subId] = { subjectId: subId, subjectCode, subjectName, classes: [], avgStudents: 0 };
     }
-    
+
     semesterGroup.subjects[subId].classes.push(cls);
   });
 
@@ -116,7 +116,7 @@ export function LecturerClasses() {
     if (sortedSeasons.length > 0 && Object.keys(expandedSeasons).length === 0) {
       const firstSeason = sortedSeasons[0];
       setExpandedSeasons({ [firstSeason.seasonName]: true });
-      
+
       const semestersList = Object.values(firstSeason.semesters);
       if (semestersList.length > 0) {
         setExpandedSemesters({ [semestersList[0].semesterId]: true });
@@ -157,7 +157,7 @@ export function LecturerClasses() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 px-6 lg:px-8">
-      
+
       {/* Header matching the design */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -169,13 +169,13 @@ export function LecturerClasses() {
             Quản lý hệ thống lớp học theo cấu trúc: Mùa học → Kỳ học → Môn học → Lớp học.
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm lớp học..." 
+            <input
+              type="text"
+              placeholder="Tìm kiếm lớp học..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 pr-10 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -193,7 +193,7 @@ export function LecturerClasses() {
 
       <div className="mt-8">
         <h3 className="text-base font-bold text-slate-800 mb-4">Danh sách theo cấu trúc đào tạo</h3>
-        
+
         <div className="space-y-4">
           {sortedSeasons.map(season => {
             const isExpanded = expandedSeasons[season.seasonName];
@@ -202,9 +202,9 @@ export function LecturerClasses() {
 
             return (
               <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                
+
                 {/* Season Header */}
-                <div 
+                <div
                   onClick={() => toggleSeason(season.seasonName)}
                   className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
                 >
@@ -237,9 +237,9 @@ export function LecturerClasses() {
 
                       return (
                         <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
-                          
+
                           {/* Semester Header */}
-                          <div 
+                          <div
                             onClick={() => toggleSemester(semester.semesterId)}
                             className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
                           >
@@ -278,10 +278,10 @@ export function LecturerClasses() {
                                 <tbody className="divide-y divide-slate-100">
                                   {sortedSubjects.map(subject => {
                                     const isSubjExpanded = expandedSubjects[subject.subjectId];
-                                    
+
                                     return (
                                       <React.Fragment key={subject.subjectId}>
-                                        <tr 
+                                        <tr
                                           onClick={() => navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)}
                                           className="hover:bg-slate-50/50 group cursor-pointer"
                                         >
@@ -302,14 +302,14 @@ export function LecturerClasses() {
                                           <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} sinh viên</td>
                                           <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
-                                              <button 
+                                              <button
                                                 onClick={(e) => toggleSubject(subject.subjectId, e)}
                                                 className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
                                                 title="Xem danh sách lớp"
                                               >
                                                 {isSubjExpanded ? <ChevronDown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                                               </button>
-                                              <button 
+                                              <button
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition-colors"
                                               >
@@ -318,15 +318,15 @@ export function LecturerClasses() {
                                             </div>
                                           </td>
                                         </tr>
-                                        
+
                                         {/* Expanded Subject Classes */}
                                         {isSubjExpanded && subject.classes.length > 1 && (
                                           <tr className="bg-slate-50/50">
                                             <td colSpan={5} className="p-0 border-b border-indigo-100">
                                               <div className="px-8 py-4 flex flex-wrap gap-2.5">
                                                 {subject.classes.map(cls => (
-                                                  <button 
-                                                    key={cls.id} 
+                                                  <button
+                                                    key={cls.id}
                                                     onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
                                                     className="group/btn flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 hover:shadow hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                   >

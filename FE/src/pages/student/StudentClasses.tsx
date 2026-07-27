@@ -4,6 +4,8 @@ import { BookOpen, Users, ChevronRight, Loader2, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 
+import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+
 type ClassInfo = {
   id: string
   classCode: string
@@ -15,6 +17,7 @@ export function StudentClasses() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<ClassInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
 
   const loadData = useCallback(() => {
     let alive = true
@@ -35,14 +38,18 @@ export function StudentClasses() {
     return cleanup
   }, [loadData])
 
-  // Group classes by subject
+  // Group classes by subject (only if current semester or mock semester filtering)
+  const isCurrentSemester = selectedSemester === 'SUMMER2026'
+
   const subjectsMap = new Map<string, { subject: ClassInfo['subject'], classes: ClassInfo[] }>()
-  for (const cls of classes) {
-    if (cls.subject) {
-      if (!subjectsMap.has(cls.subject.id)) {
-        subjectsMap.set(cls.subject.id, { subject: cls.subject, classes: [] })
+  if (isCurrentSemester) {
+    for (const cls of classes) {
+      if (cls.subject) {
+        if (!subjectsMap.has(cls.subject.id)) {
+          subjectsMap.set(cls.subject.id, { subject: cls.subject, classes: [] })
+        }
+        subjectsMap.get(cls.subject.id)!.classes.push(cls)
       }
-      subjectsMap.get(cls.subject.id)!.classes.push(cls)
     }
   }
   const groupedSubjects = Array.from(subjectsMap.values())
@@ -51,26 +58,36 @@ export function StudentClasses() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
-      <PageHeader
-        title="Lớp học của tôi"
-        description="Danh sách các lớp học bạn đang tham gia trong học kỳ này."
-        breadcrumbs={[{ label: 'Sinh viên', path: '/student' }, { label: 'Lớp học' }]}
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <PageHeader
+          title="Lớp học của tôi"
+          description={`Danh sách các lớp học bạn đang tham gia trong mùa học ${selectedSemester}.`}
+          breadcrumbs={[{ label: 'Sinh viên', path: '/student' }, { label: 'Lớp học' }]}
+        />
+        <SemesterSelector
+          selectedSemester={selectedSemester}
+          onChange={setSelectedSemester}
+          className="self-start sm:self-auto shrink-0"
+        />
+      </div>
 
       <div className="space-y-6">
         {groupedSubjects.length === 0 ? (
           <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl p-12 text-center text-slate-500 shadow-sm">
-            Bạn chưa đăng ký lớp học nào trong học kỳ này.
+            Bạn chưa đăng ký lớp học nào trong mùa học này.
           </div>
         ) : (
           groupedSubjects.map(group => (
             <div key={group.subject.id} className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <div>
+                <div className="flex items-center gap-3">
                   <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <BookOpen size={20} className="text-brand-600 dark:text-brand-400" /> 
                     {group.subject.code} - {group.subject.name}
                   </h3>
+                  <span className="text-[11px] font-black px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 border border-indigo-500/20">
+                    {selectedSemester}
+                  </span>
                 </div>
                 <div className="text-sm font-medium text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 w-max">
                   {group.classes.length} Lớp học

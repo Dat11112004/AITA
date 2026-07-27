@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { api, aiApi } from '@/lib/api';
+import { api } from '@/lib/api';
+import { promptGenerationStore } from '@/services/promptGenerationStore';
 import { 
   ArrowLeft, Save, AlertCircle, Sparkles, Wand2, Bot, CheckCircle2, 
   FileText, Edit3, Terminal, ChevronRight, X, FileCode, CheckSquare,
@@ -126,53 +127,49 @@ export function PromptCreateEdit() {
     fetchData();
   }, [subjectId, promptId, isEditing]);
 
-  const handleExecuteGenerate = async () => {
-    setIsAiGenerating(true);
-    setError(null);
-    setShowTemplateModal(false);
-
-    const code = subject?.code || subjectId || 'MÔN HỌC';
-
-    try {
-      const generatedPrompt = generateConfiguredPrompt({
-        templateType,
-        questionCount,
-        language,
-        difficulty,
-        topic: topicInput,
-        description: descriptionInput,
-        subjectCode: code,
-      });
-
-      // Attempt AI Refinement for perfect formatting if available
-      try {
-        const res = await aiApi.generatePrompt({
-          name: formData.name || code || 'Prompt Template',
-          topic: topicInput || `Tạo đề ${templateType === 'quiz' ? 'trắc nghiệm' : 'tự luận'} môn ${code}`,
-          category: templateType === 'quiz' ? 'Trắc nghiệm' : 'Tự luận',
-          difficulty,
-          subjectCode: code,
-          additionalNotes: `Số câu: ${questionCount}, Ngôn ngữ: ${language}, Mô tả: ${descriptionInput}`
-        });
-
-        const apiContent = res?.prompt || (res as any)?.data?.prompt;
-        if (apiContent) {
-          setFormData(prev => ({ ...prev, templateContent: apiContent }));
-        } else {
-          setFormData(prev => ({ ...prev, templateContent: generatedPrompt }));
-        }
-      } catch (apiErr) {
-        setFormData(prev => ({ ...prev, templateContent: generatedPrompt }));
+  // Synchronize with background Prompt Generation store
+  useEffect(() => {
+    const unsubscribe = promptGenerationStore.subscribe((storeState) => {
+      setIsAiGenerating(storeState.isGenerating);
+      if (storeState.error) setError(storeState.error);
+      if (storeState.successMsg) {
+        setAiSuccessMessage(storeState.successMsg);
+        setTimeout(() => setAiSuccessMessage(null), 3500);
       }
+      if (storeState.generatedContent) {
+        setFormData(prev => ({ ...prev, templateContent: storeState.generatedContent! }));
+      }
+    });
+    return unsubscribe;
+  }, []);
 
-      setAiSuccessMessage('Đã tự động tạo mẫu Prompt theo cấu hình thành công!');
-      setTimeout(() => setAiSuccessMessage(null), 3500);
-    } catch (err: any) {
-      console.error('Generation error:', err);
-      setError('Có lỗi xảy ra khi tạo Prompt bằng AI.');
-    } finally {
-      setIsAiGenerating(false);
-    }
+  const handleExecuteGenerate = async () => {
+    setShowTemplateModal(false);
+    setError(null);
+    const code = subject?.code || subjectId || 'MÔN HỌC';
+    const fallbackPrompt = generateConfiguredPrompt({
+      templateType,
+      questionCount,
+      language,
+      difficulty,
+      topic: topicInput,
+      description: descriptionInput,
+      subjectCode: code,
+    });
+
+    promptGenerationStore.startExecuteGenerate({
+      templateType,
+      questionCount,
+      language,
+      difficulty,
+      topic: topicInput,
+      description: descriptionInput,
+      subjectCode: code,
+      subjectId: subjectId || '',
+      promptId,
+      name: formData.name || code || 'Prompt Template',
+      fallbackPrompt,
+    });
   };
 
   const handleAiRefine = async () => {
@@ -180,26 +177,14 @@ export function PromptCreateEdit() {
       setError('Vui lòng nhập nội dung prompt trước khi yêu cầu AI chỉnh sửa.');
       return;
     }
-    setIsAiGenerating(true);
     setError(null);
-    try {
-      const res = await aiApi.refinePrompt({ content: formData.templateContent });
-      const refinedContent = res?.prompt || (res as any)?.data?.prompt;
-      if (refinedContent) {
-        setFormData(prev => ({ ...prev, templateContent: refinedContent }));
-        setAiSuccessMessage('Đã chỉnh sửa Prompt bằng AI thành công!');
-        setTimeout(() => setAiSuccessMessage(null), 3500);
-      } else {
-        throw new Error('Fallback refine');
-      }
-    } catch (err: any) {
-      const refined = `Bạn là một chuyên gia/giảng viên hàng đầu thuộc môn học ${subject?.code || subjectId || 'CNTT'}.\n\nNhiệm vụ chính:\n${formData.templateContent.trim()}\n\nYêu cầu đầu ra:\n- Trình bày mạch lạc, chuyên nghiệp.\n- Hỗ trợ các biến: {assignment_name}, {student_code}, {requirements}.\n- Định dạng phản hồi: Markdown chuẩn.`;
-      setFormData(prev => ({ ...prev, templateContent: refined }));
-      setAiSuccessMessage('Đã chỉnh sửa và định dạng Prompt bằng AI!');
-      setTimeout(() => setAiSuccessMessage(null), 3500);
-    } finally {
-      setIsAiGenerating(false);
-    }
+    const code = subject?.code || subjectId || 'CNTT';
+    promptGenerationStore.startAiRefine({
+      content: formData.templateContent,
+      subjectCode: code,
+      subjectId: subjectId || '',
+      promptId,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,6 +209,7 @@ export function PromptCreateEdit() {
         await api.createPromptTemplate(payload);
       }
 
+      promptGenerationStore.reset();
       navigate(`/lecturer/prompts/${subjectId}`);
     } catch (err: any) {
       console.error('Failed to save prompt:', err);
@@ -249,7 +235,7 @@ export function PromptCreateEdit() {
       {/* Top Header matching Image 2 */}
       <div className="space-y-2">
         <button
-          onClick={() => navigate(`/lecturer/prompts/${subjectId}`)}
+          onClick={() => { promptGenerationStore.reset(); navigate(`/lecturer/prompts/${subjectId}`); }}
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 transition-colors font-medium"
         >
           <ArrowLeft size={16} /> Trở về trang thư viện Prompt

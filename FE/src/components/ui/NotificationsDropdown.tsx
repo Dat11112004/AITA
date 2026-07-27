@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, Check, Loader2, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
 export function NotificationsDropdown() {
   const navigate = useNavigate()
@@ -34,17 +35,16 @@ export function NotificationsDropdown() {
 
   useEffect(() => {
     fetchNotifications(true)
-    const interval = setInterval(() => {
-      fetchNotifications(false)
-    }, 10000)
-    return () => clearInterval(interval)
+    const unsubscribe = subscribeNotificationEvents(() => fetchNotifications(false))
+    return unsubscribe
   }, [fetchNotifications])
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true, read: true } : n))
     try {
       await api.markNotificationAsRead(id)
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true, read: true } : n))
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -52,9 +52,10 @@ export function NotificationsDropdown() {
 
   const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    setNotifications(prev => prev.filter(n => n.id !== id))
     try {
       await api.deleteNotification(id)
-      setNotifications(prev => prev.filter(n => n.id !== id))
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -62,9 +63,10 @@ export function NotificationsDropdown() {
 
   const handleDeleteAll = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn xoá tất cả thông báo không?')) return
+    setNotifications([])
     try {
       await api.deleteAllNotifications()
-      setNotifications([])
+      emitNotificationEvent()
     } catch (err) {
       console.error(err)
     }
@@ -72,7 +74,9 @@ export function NotificationsDropdown() {
 
   const handleNotificationClick = async (n: any) => {
     if (!n.isRead && !n.read) {
-      await handleMarkAsRead(n.id)
+      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isRead: true, read: true } : item))
+      api.markNotificationAsRead(n.id).catch(console.error)
+      emitNotificationEvent()
     }
     setOpen(false)
     const refId = n.referenceId || n.ReferenceId
@@ -82,9 +86,10 @@ export function NotificationsDropdown() {
   }
 
   const handleMarkAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })))
     try {
       await api.markAllNotificationsAsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })))
+      emitNotificationEvent()
     } catch (e) {
       console.error(e)
     }

@@ -136,6 +136,52 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return json as T;
 }
 
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function normalizeSubmissionRow(raw: any): SubmissionRow {
+  const studentObj = raw?.student && typeof raw.student === 'object' ? raw.student : null
+  const examObj = raw?.exam && typeof raw.exam === 'object' ? raw.exam : null
+  const classObj = raw?.class && typeof raw.class === 'object' ? raw.class : null
+  const fileObj = raw?.file && typeof raw.file === 'object' ? raw.file : null
+
+  const normalizedAiScore = toNullableNumber(raw?.aiScore ?? raw?.totalScore)
+  const normalizedScore = toNullableNumber(raw?.score ?? raw?.finalScore ?? raw?.totalScore)
+
+  return {
+    id: String(raw?.id ?? ''),
+    assignmentId: raw?.assignmentId ?? raw?.examId ?? raw?.exam?.id ?? '',
+    examId: raw?.examId ?? raw?.assignmentId ?? raw?.exam?.id ?? null,
+    assignment: raw?.assignment ?? examObj?.title ?? null,
+    classId: raw?.classId ?? classObj?.id ?? null,
+    studentId: raw?.studentId ?? studentObj?.id ?? '',
+    student: raw?.student ?? studentObj?.name ?? studentObj?.fullName ?? raw?.studentId ?? '',
+    status: raw?.status ?? raw?.gradingStatus ?? 'pending',
+    gradingStatus: raw?.gradingStatus ?? raw?.status ?? null,
+    reviewStatus: raw?.reviewStatus ?? null,
+    submittedAt: raw?.submittedAt ?? null,
+    gradedAt: raw?.gradedAt ?? null,
+    reviewedAt: raw?.reviewedAt ?? null,
+    content: raw?.content ?? null,
+    language: raw?.language ?? null,
+    zipFileUrl: raw?.zipFileUrl ?? undefined,
+    downloadUrl: raw?.downloadUrl ?? fileObj?.downloadUrl ?? raw?.zipFileUrl ?? undefined,
+    filename: raw?.filename ?? fileObj?.filename ?? fileObj?.fileName ?? undefined,
+    score: normalizedScore,
+    aiScore: normalizedAiScore,
+    totalScore: toNullableNumber(raw?.totalScore),
+    finalScore: toNullableNumber(raw?.finalScore),
+    rawScore: raw?.score ?? raw?.finalScore ?? raw?.totalScore ?? null,
+    rawAiScore: raw?.aiScore ?? raw?.totalScore ?? null,
+    aiFeedback: raw?.aiFeedback ?? null,
+    instructorFeedback: raw?.instructorFeedback ?? null,
+    studentFeedback: raw?.studentFeedback ?? null,
+  }
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; refreshToken: string; user: AuthUser }>('/auth/login', {
@@ -289,12 +335,35 @@ export const api = {
     request<ExamRow>(`/exams/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   // â”€â”€â”€ Submissions â”€â”€â”€
-  async getSubmissions(params?: { assignmentId?: string; status?: string }) {
+  getSubmissionHistory: async (params?: SubmissionListQuery) => {
     const q = new URLSearchParams(params as Record<string, string>).toString()
-    return request<SubmissionRow[]>(`/submissions?${q}`)
+    const rows = await request<any[]>(`/submissions${q ? `?${q}` : ''}`)
+    return (rows || []).map(normalizeSubmissionRow)
+  },
+  async getSubmissions(params?: SubmissionListQuery) {
+    const q = new URLSearchParams(params as Record<string, string>).toString()
+    const rows = await request<any[]>(`/submissions${q ? `?${q}` : ''}`)
+    return (rows || []).map(normalizeSubmissionRow)
+  },
+  getSubmissionDetail: async (id: string) => {
+    const row = await request<any>(`/submissions/${id}`)
+    return normalizeSubmissionRow(row)
   },
   async getSubmission(id: string) {
-    return request<SubmissionRow>(`/submissions/${id}`)
+    const row = await request<any>(`/submissions/${id}`)
+    return normalizeSubmissionRow(row)
+  },
+  async getSubmissionDownload(id: string) {
+    const row = await request<any>(`/submissions/${id}`)
+    const normalized = normalizeSubmissionRow(row)
+    return {
+      id: normalized.id,
+      assignmentId: normalized.assignmentId,
+      downloadUrl: normalized.downloadUrl ?? normalized.zipFileUrl ?? undefined,
+      zipFileUrl: normalized.zipFileUrl ?? undefined,
+      filename: normalized.filename ?? undefined,
+      submittedAt: normalized.submittedAt,
+    }
   },
   submitAssignment: (file: File | null, content: string, assignmentId: string) => {
     const formData = new FormData()
@@ -306,8 +375,10 @@ export const api = {
       body: formData,
     })
   },
-  gradeSubmission: (submissionId: string, body: any) =>
-    request<SubmissionRow>(`/submissions/${submissionId}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
+  gradeSubmission: async (submissionId: string, body: any) => {
+    const row = await request<any>(`/submissions/${submissionId}/grade`, { method: 'PATCH', body: JSON.stringify(body) })
+    return normalizeSubmissionRow(row)
+  },
   submitFeedback: (submissionId: string, feedback: string) =>
     request<void>(`/submissions/${submissionId}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }),
   bulkPublishGrades: (assignmentId: string) =>
@@ -492,20 +563,47 @@ export interface AssignmentRow {
 
 export interface SubmissionRow {
   id: string
+  assignmentId: string
+  examId?: string | null
+  assignment?: string | null
+  classId?: string | null
   student: string
   studentId: string
-  assignmentId: string
-  assignment?: string
   submittedAt: string | null
-  aiScore: number | string | null
-  status: string
-  reviewStatus?: string
-  content?: string
-  language?: string
-  score?: number | null
+  gradedAt?: string | null
+  reviewedAt?: string | null
+  content?: string | null
+  language?: string | null
+  filename?: string
+  downloadUrl?: string
   zipFileUrl?: string
-  aiFeedback?: unknown
-  studentFeedback?: string
+  status: string
+  gradingStatus?: string | null
+  reviewStatus?: string | null
+  score?: number | null
+  aiScore: number | string | null
+  totalScore?: number | null
+  finalScore?: number | null
+  rawScore?: number | string | null
+  rawAiScore?: number | string | null
+  aiFeedback?: unknown | null
+  instructorFeedback?: string | null
+  studentFeedback?: string | null
+}
+
+export interface SubmissionListQuery {
+  assignmentId?: string
+  examId?: string
+  status?: string
+}
+
+export interface CreateSubmissionBody {
+  assignmentId?: string
+  examId?: string
+  classId?: string
+  content?: string
+  zipFileUrl?: string
+  language?: string
 }
 
 export interface AIReviewRow {
@@ -621,6 +719,8 @@ export const gradingApi = {
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
+  publishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/publish', { method: 'POST' }),
+  unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
 
   uploadAssignment: (file: File) => {
     const formData = new FormData()
@@ -798,35 +898,26 @@ export const gradingApi = {
   },
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
-
+  getSemesters: () => request<any[]>('/semesters').catch(() => []),
 }
 
 export const aiApi = {
   generatePrompt: (data: {
-    name: string,
-    description?: string,
-    category?: string,
-    subjectCode?: string,
-    draftContent?: string,
-    questionCount?: number,
-    difficulty?: string,
-    topic?: string,
-    language?: string,
+    name?: string
+    topic?: string
+    category?: string
+    difficulty?: string
+    subjectCode?: string
     additionalNotes?: string
   }) =>
     request<{ prompt: string }>('/ai/prompts/generate', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     }),
+
   refinePrompt: (data: { content: string }) =>
     request<{ prompt: string }>('/ai/prompts/refine', {
       method: 'POST',
-      body: JSON.stringify(data)
-    }).catch(() => {
-      // Fallback in case endpoint is not ready yet
-      return request<{ prompt: string }>('/ai/prompts/generate', {
-        method: 'POST',
-        body: JSON.stringify({ name: "Refine", description: data.content })
-      })
+      body: JSON.stringify(data),
     }),
 }

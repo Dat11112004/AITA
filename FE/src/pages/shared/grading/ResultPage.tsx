@@ -3,7 +3,7 @@ import { useLocation, useParams, Link } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
-import { ArrowLeft, AlertTriangle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { gradingApi as api } from '@/lib/api';
 
@@ -14,8 +14,36 @@ export default function ResultPage() {
   const [result, setResult] = useState<SubmissionResponse | null>((location.state?.result as SubmissionResponse) || null);
   const [loading, setLoading] = useState(!result);
   const [error, setError] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const gradingTime = location.state?.gradingTime as number | undefined;
+
+  const handleTogglePublish = async () => {
+    if (!id || !result) return;
+    try {
+      setIsPublishing(true);
+      const isCurrentlyPublished = !!(result as any).isPublished;
+      if (isCurrentlyPublished) {
+        await api.unpublishSubmission(id);
+        setResult(prev => prev ? { ...prev, isPublished: false } as any : prev);
+      } else {
+        await api.publishSubmission(id);
+        setResult(prev => prev ? { ...prev, isPublished: true } as any : prev);
+      }
+
+      // Broadcast real-time publish event to all open student tabs/windows
+      try {
+        const pubChannel = new BroadcastChannel('aita_submission_events');
+        pubChannel.postMessage({ type: 'SUBMISSION_PUBLISHED', submissionId: id, isPublished: !isCurrentlyPublished });
+        pubChannel.close();
+      } catch (e) {}
+      localStorage.setItem('aita_last_publish_event', JSON.stringify({ type: 'SUBMISSION_PUBLISHED', submissionId: id, isPublished: !isCurrentlyPublished, timestamp: Date.now() }));
+    } catch (e: any) {
+      alert(e.message || 'Lỗi khi công bố điểm');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   useEffect(() => {
     if (!result && id) {
@@ -67,21 +95,59 @@ export default function ResultPage() {
         <span>Go back</span>
       </button>
 
-      {result.error && (
-        <div className="mb-8 p-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-2xl flex items-start gap-4 shadow-sm animate-fade-in">
-          <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-red-100 dark:border-red-500/20">
-            <AlertTriangle className="text-red-500" size={24} />
+      {/* Top Banner: Publish Status & Action */}
+      <div className="mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+            (result as any).isPublished
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800'
+              : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800'
+          }`}>
+            {(result as any).isPublished ? <CheckCircle2 size={20} /> : <Clock size={20} />}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-1">⚠️ Báo Cáo Chấm Điểm Dở Dang</h3>
-            <p className="text-[15px] text-red-700/80 dark:text-red-300/80 leading-relaxed">
-              Bài chấm bị ngắt quãng giữa chừng do lỗi: <strong>{result.error}</strong>.
-              <br />
-              Dưới đây là điểm số và chi tiết của các tiêu chí đã được AI phân tích trước khi hệ thống bị gián đoạn.
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase ${
+                (result as any).isPublished
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+              }`}>
+                {(result as any).isPublished ? 'Đã công bố kết quả' : 'Đang ở trạng thái nháp (Chờ công bố)'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+              {(result as any).isPublished
+                ? 'Học sinh đã có thể xem điểm và nhận xét chi tiết bài làm này.'
+                : 'Giảng viên cần xem xét lại kết quả và nhấn "Công bố" để gửi điểm cho học sinh.'}
             </p>
           </div>
         </div>
-      )}
+
+        <button
+          onClick={handleTogglePublish}
+          disabled={isPublishing}
+          className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all whitespace-nowrap cursor-pointer ${
+            (result as any).isPublished
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+              : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/25'
+          }`}
+        >
+          {isPublishing ? (
+            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+          ) : (result as any).isPublished ? (
+            <RotateCcw size={16} />
+          ) : (
+            <Send size={16} />
+          )}
+          <span>
+            {isPublishing
+              ? 'Đang xử lý...'
+              : (result as any).isPublished
+                ? 'Hủy công bố (Về nháp)'
+                : '🚀 Công bố kết quả cho học sinh'}
+          </span>
+        </button>
+      </div>
 
       <div className="space-y-8">
         <ScoreCard
