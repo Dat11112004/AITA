@@ -10,6 +10,13 @@ type ClassInfo = {
   id: string
   classCode: string
   subject: { id: string; code: string; name: string }
+  semester?: {
+    id: string
+    season: string
+    code: string
+    isActive: boolean
+    label: string
+  } | null
   lecturers: { id: string; name: string }[]
 }
 
@@ -38,18 +45,20 @@ export function StudentClasses() {
     return cleanup
   }, [loadData])
 
-  // Group classes by subject (only if current semester or mock semester filtering)
-  const isCurrentSemester = selectedSemester === 'SUMMER2026'
+  // Filter classes by selected semester
+  const filteredClasses = classes.filter(cls => {
+    if (!cls.semester?.label) return false
+    return cls.semester.label === selectedSemester
+  })
 
+  // Group classes by subject
   const subjectsMap = new Map<string, { subject: ClassInfo['subject'], classes: ClassInfo[] }>()
-  if (isCurrentSemester) {
-    for (const cls of classes) {
-      if (cls.subject) {
-        if (!subjectsMap.has(cls.subject.id)) {
-          subjectsMap.set(cls.subject.id, { subject: cls.subject, classes: [] })
-        }
-        subjectsMap.get(cls.subject.id)!.classes.push(cls)
+  for (const cls of filteredClasses) {
+    if (cls.subject) {
+      if (!subjectsMap.has(cls.subject.id)) {
+        subjectsMap.set(cls.subject.id, { subject: cls.subject, classes: [] })
       }
+      subjectsMap.get(cls.subject.id)!.classes.push(cls)
     }
   }
   const groupedSubjects = Array.from(subjectsMap.values())

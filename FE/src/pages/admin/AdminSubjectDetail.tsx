@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, type SubjectRow } from '@/lib/api'
-import { getStaticSyllabus } from '@/data/syllabi'
+
 import { 
-  ArrowLeft, Clock, Award, 
-  Wrench, FileText, Loader2,
-  ChevronRight, ShieldCheck, Check, ListOrdered, Calendar,
-  Search, Download, Key, AlertCircle
+  ArrowLeft, Loader2, ChevronRight, AlertCircle,
+  Pencil, Save, X, Search, Download, Check
 } from 'lucide-react'
 
 type TabType = 'syllabus' | 'clos' | 'sessions' | 'assessment'
+
+// Type for which card is currently being edited
+type EditingCard = 'header' | 'description' | 'learningOutcomes' | 'studentTasks' | 'tools' | 'assessments' | 'clos' | 'sessions' | null
 
 export function AdminSubjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -20,6 +21,26 @@ export function AdminSubjectDetail() {
   const [activeTab, setActiveTab] = useState<TabType>('syllabus')
   const [sessionSearch, setSessionSearch] = useState('')
   const [downloadingSession, setDownloadingSession] = useState<number | null>(null)
+
+  // Inline editing state
+  const [editingCard, setEditingCard] = useState<EditingCard>(null)
+  const [editHeaderName, setEditHeaderName] = useState('')
+  const [editHeaderCode, setEditHeaderCode] = useState('')
+  const [editHeaderDegree, setEditHeaderDegree] = useState('')
+  const [editHeaderSemester, setEditHeaderSemester] = useState<number>(1)
+  const [editHeaderCredits, setEditHeaderCredits] = useState<number>(3)
+  const [editHeaderTimeAlloc, setEditHeaderTimeAlloc] = useState('')
+  const [editHeaderPrereqs, setEditHeaderPrereqs] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editStudentTasks, setEditStudentTasks] = useState<string[]>([])
+  const [editTools, setEditTools] = useState<string[]>([])
+  const [editLearningOutcomes, setEditLearningOutcomes] = useState<any[]>([])
+  const [editAssessments, setEditAssessments] = useState<any[]>([])
+  const [editClos, setEditClos] = useState<any[]>([])
+  const [editSessions, setEditSessions] = useState<any[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+
 
   // Handles download for both Cloudinary (fl_attachment) and Google Drive URLs.
   // Google Drive's virus-scan redirect breaks <a download>, so we fetch as blob.
@@ -52,7 +73,7 @@ export function AdminSubjectDetail() {
     }
   }, [])
 
-  useEffect(() => {
+   useEffect(() => {
     if (!id) return
     setLoading(true)
     api.getSubjects(1, 1000)
@@ -61,29 +82,26 @@ export function AdminSubjectDetail() {
         if (found) {
           setSubject(found)
         } else {
-          const staticSyllabus = getStaticSyllabus(id)
           setSubject({
             id: id,
             code: id.toUpperCase(),
-            name: staticSyllabus?.name || 'Course Subject',
-            description: staticSyllabus?.description || ''
+            name: 'Course Subject',
+            description: ''
           })
         }
       })
       .catch(() => {
-        const staticSyllabus = getStaticSyllabus(id)
         setSubject({
           id: id,
           code: id.toUpperCase(),
-          name: staticSyllabus?.name || 'Course Subject',
-          description: staticSyllabus?.description || ''
+          name: 'Course Subject',
+          description: ''
         })
       })
       .finally(() => setLoading(false))
   }, [id])
 
   const hasSyllabusData = useMemo(() => {
-    const codeUpper = (subject?.code || id || '').toUpperCase()
     if (subject?.syllabusData) {
       try {
         const parsed = typeof subject.syllabusData === 'string' ? JSON.parse(subject.syllabusData) : subject.syllabusData
@@ -92,11 +110,10 @@ export function AdminSubjectDetail() {
         // ignore
       }
     }
-    return !!getStaticSyllabus(codeUpper)
-  }, [subject, id])
+    return false
+  }, [subject])
 
   const rawSyllabus = useMemo(() => {
-    const codeUpper = (subject?.code || id || '').toUpperCase()
     if (subject?.syllabusData) {
       try {
         const parsed = typeof subject.syllabusData === 'string' ? JSON.parse(subject.syllabusData) : subject.syllabusData
@@ -105,8 +122,34 @@ export function AdminSubjectDetail() {
         // ignore
       }
     }
-    return getStaticSyllabus(codeUpper)
-  }, [subject, id])
+    return null
+  }, [subject])
+
+  // Centralized save helper: merges updated fields into rawSyllabus, persists via API, and updates local state
+  const saveSyllabusData = useCallback(async (updatedFields: Record<string, any>) => {
+    if (!subject || !rawSyllabus) return
+    setIsSaving(true)
+    try {
+      const updatedSyllabus = { ...rawSyllabus, ...updatedFields }
+      const syllabusJson = JSON.stringify(updatedSyllabus)
+      await api.updateSubject(subject.id, {
+        code: subject.code,
+        name: subject.name,
+        description: updatedSyllabus.description ?? subject.description,
+        syllabusData: syllabusJson,
+      })
+      setSubject(prev => prev ? {
+        ...prev,
+        syllabusData: syllabusJson,
+        description: updatedSyllabus.description ?? prev.description,
+      } : prev)
+      setEditingCard(null)
+    } catch (e) {
+      console.error('Save failed', e)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [subject, rawSyllabus])
 
   const syllabus = useMemo(() => {
     if (!rawSyllabus) return null
@@ -205,6 +248,56 @@ export function AdminSubjectDetail() {
       sessions
     }
   }, [rawSyllabus, subject])
+
+  // Sync header edit states whenever syllabus loads/changes — must be AFTER syllabus useMemo
+  useEffect(() => {
+    if (!syllabus) return
+    setEditHeaderName(syllabus.name)
+    setEditHeaderCode(syllabus.code)
+    setEditHeaderDegree(syllabus.degreeLevel)
+    setEditHeaderCredits(syllabus.credits)
+    setEditHeaderTimeAlloc(syllabus.timeAllocation)
+    setEditHeaderPrereqs(syllabus.prerequisites)
+  }, [syllabus?.code, syllabus?.name]) // only re-sync when course changes, not on every keystroke
+
+  // Computed live total of editAssessments
+  const editAssessmentTotal = useMemo(() => {
+    return editAssessments.reduce((acc, a) => acc + (Number(a.weightPercent) || 0), 0)
+  }, [editAssessments])
+
+  const isAssessmentTotalValid = useMemo(() => {
+    return Math.abs(editAssessmentTotal - 100) < 0.01
+  }, [editAssessmentTotal])
+
+  // Handle single assessment weight change with automatic adjustment of the last item
+  const handleAssessmentWeightChange = useCallback((index: number, newWeight: number) => {
+    setEditAssessments(prev => {
+      if (prev.length === 0) return prev
+      const updated = prev.map((item, i) => i === index ? { ...item, weightPercent: newWeight } : { ...item })
+      const lastIdx = updated.length - 1
+      // If changing any item except the last one, auto-balance the last item so the sum equals 100%
+      if (index !== lastIdx && lastIdx > 0) {
+        const otherSum = updated
+          .slice(0, lastIdx)
+          .reduce((sum, item) => sum + (Number(item.weightPercent) || 0), 0)
+        const remainder = Math.max(0, Math.round((100 - otherSum) * 10) / 10)
+        updated[lastIdx].weightPercent = remainder
+      }
+      return updated
+    })
+  }, [])
+
+  // Auto balance all assessment weights so the total equals 100%
+  const handleAutoBalanceAssessments = useCallback(() => {
+    setEditAssessments(prev => {
+      if (prev.length === 0) return prev
+      const lastIdx = prev.length - 1
+      const updated = prev.map(item => ({ ...item }))
+      const otherSum = updated.slice(0, lastIdx).reduce((sum, item) => sum + (Number(item.weightPercent) || 0), 0)
+      updated[lastIdx].weightPercent = Math.max(0, Math.round((100 - otherSum) * 10) / 10)
+      return updated
+    })
+  }, [])
 
   const filteredSessions = useMemo(() => {
     if (!syllabus || !sessionSearch.trim()) return syllabus?.sessions || []
@@ -312,94 +405,195 @@ export function AdminSubjectDetail() {
         </div>
       </div>
 
-      {/* Hero Banner Header - Slate Dark Background */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#121629] text-white p-6 sm:p-8 shadow-xl border border-slate-800">
+      {/* Hero Banner Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 via-slate-50 to-slate-100 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-900 p-6 sm:p-8 border border-brand-100 dark:border-slate-700/60 shadow-sm">
         <div className="relative z-10 space-y-4">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3 py-1 rounded-md text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30">
-              Subject Code: {syllabus.code}
-            </span>
-            <span className="px-3 py-1 rounded-md text-xs font-bold bg-white/10 text-slate-200 border border-white/15">
-              Degree Level: {syllabus.degreeLevel}
-            </span>
-            <span className="px-3 py-1 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              Semester: {subject?.semester ? (String(subject.semester).toLowerCase().startsWith('semester') ? subject.semester : `Semester ${subject.semester}`) : 'Semester 1'}
-            </span>
-            <span className="px-3 py-1 rounded-md text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Credits: {syllabus.credits}
-            </span>
+
+          {/* Badges row + edit/save button */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
+              {editingCard === 'header' ? (
+                <>
+                  <input
+                    value={editHeaderCode}
+                    onChange={e => setEditHeaderCode(e.target.value)}
+                    className="px-3 py-1 rounded-md text-xs font-bold bg-white dark:bg-slate-700 border border-brand-200 dark:border-slate-600 text-brand-700 dark:text-brand-300 w-28 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all"
+                    placeholder="Code"
+                  />
+                  <input
+                    value={editHeaderDegree}
+                    onChange={e => setEditHeaderDegree(e.target.value)}
+                    className="px-3 py-1 rounded-md text-xs font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 w-28 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all"
+                    placeholder="Degree Level"
+                  />
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white dark:bg-slate-700 border border-emerald-200 dark:border-slate-600">
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Sem</span>
+                    <input
+                      type="number"
+                      value={editHeaderSemester}
+                      onChange={e => setEditHeaderSemester(Number(e.target.value) || 1)}
+                      className="text-xs font-bold bg-transparent text-emerald-700 dark:text-emerald-300 w-8 focus:outline-none text-center"
+                      min={1} max={10}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white dark:bg-slate-700 border border-amber-200 dark:border-slate-600">
+                    <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">Credits</span>
+                    <input
+                      type="number"
+                      value={editHeaderCredits}
+                      onChange={e => setEditHeaderCredits(Number(e.target.value) || 3)}
+                      className="text-xs font-bold bg-transparent text-amber-700 dark:text-amber-300 w-8 focus:outline-none text-center"
+                      min={1} max={10}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="px-3 py-1 rounded-md text-xs font-bold bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/20">
+                    {syllabus.code}
+                  </span>
+                  <span className="px-3 py-1 rounded-md text-xs font-bold bg-slate-200/80 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300">
+                    {syllabus.degreeLevel}
+                  </span>
+                  <span className="px-3 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                    Semester {subject?.semester || 1}
+                  </span>
+                  <span className="px-3 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    {syllabus.credits} Credits
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Pencil → Save/Cancel khi edit */}
+            {editingCard === 'header' ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={isSaving}
+                  onClick={() => setEditingCard(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all"
+                  title="Hủy"
+                >
+                  <X size={16} />
+                </button>
+                <button
+                  disabled={isSaving}
+                  onClick={async () => {
+                    await saveSyllabusData({
+                      code: editHeaderCode,
+                      name: editHeaderName,
+                      degreeLevel: editHeaderDegree,
+                      credits: editHeaderCredits,
+                      timeAllocation: editHeaderTimeAlloc,
+                      prerequisites: editHeaderPrereqs,
+                    })
+                    if (subject) {
+                      setSubject(prev => prev ? {
+                        ...prev,
+                        code: editHeaderCode,
+                        name: editHeaderName,
+                        semester: editHeaderSemester,
+                      } : prev)
+                    }
+                  }}
+                  className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                  title="Lưu"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditHeaderName(syllabus.name)
+                  setEditHeaderCode(syllabus.code)
+                  setEditHeaderDegree(syllabus.degreeLevel)
+                  setEditHeaderSemester(subject?.semester ? Number(subject.semester) : 1)
+                  setEditHeaderCredits(syllabus.credits)
+                  setEditHeaderTimeAlloc(syllabus.timeAllocation)
+                  setEditHeaderPrereqs(syllabus.prerequisites)
+                  setEditingCard('header')
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all"
+                title="Chỉnh sửa"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            {syllabus.name}
-          </h1>
+          {/* Subject name */}
+          {editingCard === 'header' ? (
+            <input
+              value={editHeaderName}
+              onChange={e => setEditHeaderName(e.target.value)}
+              className="text-2xl sm:text-3xl font-extrabold tracking-tight w-full bg-white dark:bg-slate-700 text-slate-900 dark:text-white px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 focus:border-brand-400 dark:focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500/20 transition-all"
+              placeholder="Subject Name"
+            />
+          ) : (
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              {syllabus.name}
+            </h1>
+          )}
 
-          <p className="text-slate-300 text-sm leading-relaxed max-w-2xl font-normal">
-            Detailed course syllabus, Learning Outcomes (CLO/ABET), 60-session schedule, and assessment scheme.
+          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-2xl">
+            Detailed course syllabus, Learning Outcomes (CLO/ABET), session schedule, and assessment scheme.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-slate-300 border-t border-slate-800/80">
-            <div className="flex items-center gap-2">
-              <Clock size={16} className="text-brand-400" />
-              <span>Time Allocation: <strong className="text-white font-semibold">{syllabus.timeAllocation}</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Award size={16} className="text-emerald-400" />
-              <span>Prerequisites: <strong className="text-white font-semibold">{syllabus.prerequisites}</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ListOrdered size={16} className="text-purple-400" />
-              <span>Total Sessions: <strong className="text-white font-semibold">{syllabus.sessions.length} sessions</strong></span>
-            </div>
+          {/* Time & Prerequisites */}
+          <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500 dark:text-slate-400 border-t border-brand-100 dark:border-slate-700/60">
+            {editingCard === 'header' ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold shrink-0">Time:</span>
+                  <input
+                    value={editHeaderTimeAlloc}
+                    onChange={e => setEditHeaderTimeAlloc(e.target.value)}
+                    className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 text-xs w-72 focus:outline-none focus:border-brand-500 text-slate-700 dark:text-slate-200 transition-all"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <span className="font-semibold shrink-0">Prerequisites:</span>
+                  <input
+                    value={editHeaderPrereqs}
+                    onChange={e => setEditHeaderPrereqs(e.target.value)}
+                    className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 text-xs w-full max-w-xs focus:outline-none focus:border-brand-500 text-slate-700 dark:text-slate-200 transition-all"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <span>Time: <strong className="text-slate-700 dark:text-slate-200">{syllabus.timeAllocation}</strong></span>
+                <span>Prerequisites: <strong className="text-slate-700 dark:text-slate-200">{syllabus.prerequisites}</strong></span>
+              </>
+            )}
+            <span className="text-slate-400 dark:text-slate-500">
+              Sessions: <strong className="text-slate-600 dark:text-slate-300">{syllabus.sessions.length}</strong>
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Navigation Pill Buttons Bar */}
-      <div className="flex flex-wrap items-center gap-2.5 p-2 bg-white dark:bg-[#151821] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs w-fit">
-        <button
-          onClick={() => setActiveTab('syllabus')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'syllabus'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileText size={16} /> 📄 Syllabus Overview
-        </button>
-
-        <button
-          onClick={() => setActiveTab('clos')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'clos'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <ShieldCheck size={16} /> 🎯 CLO List ({syllabus.clos.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('sessions')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'sessions'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Calendar size={16} /> 📅 60-Session Schedule ({syllabus.sessions.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('assessment')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'assessment'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Award size={16} /> 📊 Assessment Scheme ({syllabus.assessments.length})
-        </button>
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700/50 w-fit">
+        {[
+          { key: 'syllabus' as TabType, label: 'Syllabus Overview' },
+          { key: 'clos' as TabType, label: `CLO List (${syllabus.clos.length})` },
+          { key: 'sessions' as TabType, label: `Sessions (${syllabus.sessions.length})` },
+          { key: 'assessment' as TabType, label: `Assessment (${syllabus.assessments.length})` },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+              activeTab === tab.key
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* TAB 1: OVERVIEW */}
@@ -407,113 +601,408 @@ export function AdminSubjectDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* Description Card */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-              <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-100 font-extrabold text-lg">
-                <FileText className="text-brand-500" size={20} />
-                <h3>Course Description</h3>
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Description</h3>
+                {editingCard === 'description' ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => { setEditingCard(null) }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => {
+                        await saveSyllabusData({ description: editDescription })
+                      }}
+                      className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                      title="Lưu"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setEditDescription(syllabus.description); setEditingCard('description') }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                    title="Chỉnh sửa nội dung"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
               </div>
-              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">
-                {syllabus.description}
-              </p>
+              {editingCard === 'description' ? (
+                <textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="w-full min-h-[180px] p-3 rounded-xl text-sm leading-relaxed font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-all resize-y"
+                />
+              ) : (
+                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">
+                  {syllabus.description}
+                </p>
+              )}
             </div>
 
             {/* ABET Course Learning Outcomes Card */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-extrabold text-lg">
-                  <ShieldCheck size={20} className="text-emerald-600 dark:text-emerald-400" />
-                  <h3>Course Learning Outcomes (ABET)</h3>
-                </div>
-                <span className="text-xs font-semibold text-slate-400">Upon completing the course</span>
-              </div>
-
-              <div className="space-y-6">
-                {syllabus.learningOutcomes.map((section: any, idx: number) => (
-                  <div key={idx} className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                        {section.category}
-                      </h4>
-                      <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold rounded">
-                        {section.code}
-                      </span>
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Learning Outcomes (ABET)</h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400">Upon completing the course</span>
+                  {editingCard === 'learningOutcomes' ? (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        disabled={isSaving}
+                        onClick={() => { setEditingCard(null) }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                        title="Hủy"
+                      >
+                        <X size={16} />
+                      </button>
+                      <button
+                        disabled={isSaving}
+                        onClick={async () => {
+                          await saveSyllabusData({ learningOutcomes: editLearningOutcomes })
+                        }}
+                        className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                        title="Lưu"
+                      >
+                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      </button>
                     </div>
-
-                    <ul className="space-y-2 pl-1">
-                      {section.items.map((item: string, i: number) => (
-                        <li key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                  ) : (
+                    <button
+                      onClick={() => { setEditLearningOutcomes(JSON.parse(JSON.stringify(syllabus.learningOutcomes))); setEditingCard('learningOutcomes') }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                      title="Chỉnh sửa nội dung"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {editingCard === 'learningOutcomes' ? (
+                <div className="space-y-6">
+                  {editLearningOutcomes.map((section: any, idx: number) => (
+                    <div key={idx} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                          {section.category}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold rounded">
+                          {section.code}
+                        </span>
+                      </div>
+                      <div className="space-y-2 pl-1">
+                        {section.items.map((item: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-3" />
+                            <input
+                              type="text"
+                              value={item}
+                              onChange={e => {
+                                const newOutcomes = [...editLearningOutcomes]
+                                newOutcomes[idx] = { ...newOutcomes[idx], items: [...newOutcomes[idx].items] }
+                                newOutcomes[idx].items[i] = e.target.value
+                                setEditLearningOutcomes(newOutcomes)
+                              }}
+                              className="flex-1 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-brand-500 transition-all"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {syllabus.learningOutcomes.map((section: any, idx: number) => (
+                    <div key={idx} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                          {section.category}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold rounded">
+                          {section.code}
+                        </span>
+                      </div>
+
+                      <ul className="space-y-2 pl-1">
+                        {section.items.map((item: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Student Tasks Card */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-              <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-100 font-extrabold text-lg">
-                <Check className="text-emerald-500" size={20} />
-                <h3>Student Tasks</h3>
-              </div>
-              <div className="space-y-3">
-                {syllabus.studentTasksList.map((task, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50/60 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/80">
-                    <div className="w-5 h-5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check size={12} strokeWidth={3} />
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                      {task}
-                    </p>
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Student Tasks</h3>
+                {editingCard === 'studentTasks' ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => { setEditingCard(null) }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => {
+                        await saveSyllabusData({ studentTasks: editStudentTasks })
+                      }}
+                      className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                      title="Lưu"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  <button
+                    onClick={() => { setEditStudentTasks([...syllabus.studentTasksList]); setEditingCard('studentTasks') }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                    title="Chỉnh sửa nội dung"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
               </div>
+              {editingCard === 'studentTasks' ? (
+                <div className="space-y-3">
+                  {editStudentTasks.map((task, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                      <span className="text-xs font-mono font-bold text-slate-400 shrink-0 mt-2">{idx + 1}.</span>
+                      <textarea
+                        value={task}
+                        onChange={e => {
+                          const newTasks = [...editStudentTasks]
+                          newTasks[idx] = e.target.value
+                          setEditStudentTasks(newTasks)
+                        }}
+                        className="flex-1 min-h-[40px] px-2.5 py-1.5 rounded-lg text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-brand-500 transition-all resize-y leading-relaxed font-medium"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {syllabus.studentTasksList.map((task, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                      <span className="text-xs font-mono font-bold text-slate-400 shrink-0 mt-0.5">{idx + 1}.</span>
+                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {task}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right Column (1/3 width) */}
           <div className="space-y-6">
             {/* Tools Card */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-100 font-extrabold text-base">
-                  <Wrench className="text-amber-500" size={18} />
-                  <h3>Tools & Software</h3>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                {syllabus.tools.map((t: string, i: number) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-semibold border border-amber-500/20">
-                    <Key size={14} className="text-amber-500 shrink-0" />
-                    <span>{t}</span>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Tools & Software</h3>
+                {editingCard === 'tools' ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => { setEditingCard(null) }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => {
+                        await saveSyllabusData({ tools: editTools })
+                      }}
+                      className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                      title="Lưu"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    </button>
                   </div>
-                ))}
+                ) : (
+                  <button
+                    onClick={() => { setEditTools([...syllabus.tools]); setEditingCard('tools') }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                    title="Chỉnh sửa nội dung"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
               </div>
+              {editingCard === 'tools' ? (
+                <div className="flex flex-col gap-2">
+                  {editTools.map((t: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/50">
+                      <span className="text-xs font-mono text-slate-400 shrink-0">{i + 1}.</span>
+                      <input
+                        type="text"
+                        value={t}
+                        onChange={e => {
+                          const newTools = [...editTools]
+                          newTools[i] = e.target.value
+                          setEditTools(newTools)
+                        }}
+                        className="flex-1 bg-transparent text-slate-700 dark:text-slate-300 text-xs font-medium focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {syllabus.tools.map((t: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700/50">
+                      <span className="text-xs font-mono text-slate-400 shrink-0">•</span>
+                      <span>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Assessment Summary Box */}
-            <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-100 font-extrabold text-base">
-                  <Award className="text-indigo-500" size={18} />
-                  <h3>Assessment Weight Distribution</h3>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Assessment Weight</h3>
+                <div className="flex items-center gap-2">
+                  {editingCard === 'assessments' ? (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        disabled={isSaving}
+                        onClick={() => { setEditingCard(null) }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                        title="Hủy"
+                      >
+                        <X size={16} />
+                      </button>
+                      <button
+                        disabled={isSaving || !isAssessmentTotalValid}
+                        onClick={async () => {
+                          await saveSyllabusData({ assessments: editAssessments })
+                        }}
+                        className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={!isAssessmentTotalValid ? 'Tổng trọng số phải đúng 100%' : 'Lưu'}
+                      >
+                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={() => setActiveTab('assessment')} className="text-xs text-brand-600 dark:text-brand-400 font-bold hover:underline">
+                        View Details
+                      </button>
+                      <button
+                        onClick={() => { setEditAssessments(JSON.parse(JSON.stringify(syllabus.assessments))); setEditingCard('assessments') }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                        title="Chỉnh sửa nội dung"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
-                <button onClick={() => setActiveTab('assessment')} className="text-xs text-brand-600 dark:text-brand-400 font-bold hover:underline">
-                  View Details
-                </button>
               </div>
-              <div className="space-y-2.5">
-                {syllabus.assessments.map((a: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{a.category}</span>
-                    <span className="font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950 px-2 py-0.5 rounded-lg">
-                      {a.weightPercent}%
-                    </span>
+              {editingCard === 'assessments' ? (
+                <div className="space-y-3">
+                  {/* Alert banner for non-100% total */}
+                  {!isAssessmentTotalValid ? (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle size={15} className="shrink-0 text-amber-500" />
+                        <span>
+                          {editAssessmentTotal > 100
+                            ? `Tổng hiện tại ${editAssessmentTotal.toFixed(1)}% (vượt 100%)`
+                            : `Tổng hiện tại ${editAssessmentTotal.toFixed(1)}% (chưa đủ 100%)`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAutoBalanceAssessments}
+                        className="px-2 py-0.5 rounded-md bg-amber-500 text-white hover:bg-amber-600 text-[11px] font-bold transition-all shrink-0 shadow-xs"
+                      >
+                        Cân bằng 100%
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                      <Check size={14} className="shrink-0 text-emerald-500" strokeWidth={3} />
+                      <span>Tổng trọng số đạt đúng 100%</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {editAssessments.map((a: any, idx: number) => {
+                      const isLast = idx === editAssessments.length - 1
+                      return (
+                        <div key={idx} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs">
+                          <input
+                            type="text"
+                            value={a.category}
+                            onChange={e => {
+                              const newAssessments = [...editAssessments]
+                              newAssessments[idx] = { ...newAssessments[idx], category: e.target.value }
+                              setEditAssessments(newAssessments)
+                            }}
+                            className="flex-1 font-semibold text-slate-700 dark:text-slate-300 bg-transparent focus:outline-none border-b border-transparent focus:border-brand-500 transition-all"
+                            placeholder="Tên thành phần ĐG"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={a.weightPercent}
+                              onChange={e => {
+                                const val = parseFloat(e.target.value) || 0
+                                handleAssessmentWeightChange(idx, val)
+                              }}
+                              className="w-14 text-right font-bold text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                            />
+                            <span className="font-bold text-brand-600 dark:text-brand-400">%</span>
+                            {isLast && (
+                              <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1 py-0.5 rounded" title="Tự động cân bằng phần còn lại">
+                                Auto
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {syllabus.assessments.map((a: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-xs">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{a.category}</span>
+                      <span className="font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950 px-2 py-0.5 rounded-lg">
+                        {a.weightPercent}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -522,131 +1011,324 @@ export function AdminSubjectDetail() {
       {/* TAB 2: CLOS */}
       {activeTab === 'clos' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <ShieldCheck className="text-brand-500" size={20} />
-                Course Learning Outcomes (CLO List)
+          <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
+                CLO List
               </h3>
-              <span className="text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950 px-3 py-1 rounded-full">
-                Total: {syllabus.clos.length} CLOs
-              </span>
-            </div>
-
-            {/* Stacked vertical cards */}
-            <div className="space-y-4">
-              {syllabus.clos.map((clo: any, idx: number) => (
-                <div key={idx} className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3 hover:border-brand-500 transition-all shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-lg text-xs font-black bg-brand-600 text-white uppercase tracking-wider">
-                      {clo.code}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500 bg-slate-200/70 dark:bg-slate-800 px-2.5 py-0.5 rounded-md">
-                      {clo.loDetails || clo.code.replace('CLO', 'LO')}
-                    </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950 px-3 py-1 rounded-full">
+                  Total: {syllabus.clos.length} CLOs
+                </span>
+                {editingCard === 'clos' ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => setEditingCard(null)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      disabled={isSaving}
+                      onClick={async () => {
+                        await saveSyllabusData({ clos: editClos })
+                      }}
+                      className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                      title="Lưu"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    </button>
                   </div>
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                    {clo.details}
-                  </p>
-                </div>
-              ))}
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditClos(JSON.parse(JSON.stringify(syllabus.clos)))
+                      setEditingCard('clos')
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                    title="Chỉnh sửa CLO List"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
+            {editingCard === 'clos' ? (
+              <div className="space-y-3">
+                {editClos.map((clo: any, idx: number) => (
+                  <div key={idx} className="flex flex-col sm:flex-row gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                    <input
+                      type="text"
+                      value={clo.code}
+                      onChange={e => {
+                        const updated = [...editClos]
+                        updated[idx] = { ...updated[idx], code: e.target.value }
+                        setEditClos(updated)
+                      }}
+                      className="w-full sm:w-28 font-bold px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-brand-600 focus:outline-none focus:border-brand-500"
+                      placeholder="Mã CLO"
+                    />
+                    <input
+                      type="text"
+                      value={clo.loDetails}
+                      onChange={e => {
+                        const updated = [...editClos]
+                        updated[idx] = { ...updated[idx], loDetails: e.target.value }
+                        setEditClos(updated)
+                      }}
+                      className="w-full sm:w-32 font-medium px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-600 focus:outline-none focus:border-brand-500"
+                      placeholder="LO Mapping"
+                    />
+                    <input
+                      type="text"
+                      value={clo.details}
+                      onChange={e => {
+                        const updated = [...editClos]
+                        updated[idx] = { ...updated[idx], details: e.target.value }
+                        setEditClos(updated)
+                      }}
+                      className="flex-1 font-medium px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500"
+                      placeholder="Mô tả chuẩn đầu ra"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
+                    <tr>
+                      <th className="p-3 w-24 text-center font-semibold">Code</th>
+                      <th className="p-3 w-28 font-semibold">LO Mapping</th>
+                      <th className="p-3 font-semibold">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
+                    {syllabus.clos.map((clo: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="p-3 text-center font-semibold text-brand-600 dark:text-brand-400 font-mono text-xs">
+                          {clo.code}
+                        </td>
+                        <td className="p-3 text-slate-500 dark:text-slate-400 text-xs">
+                          {clo.loDetails || clo.code.replace('CLO', 'LO')}
+                        </td>
+                        <td className="p-3 text-slate-700 dark:text-slate-200 leading-relaxed">
+                          {clo.details}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* TAB 3: 60 SESSIONS SCHEDULE */}
       {activeTab === 'sessions' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700/50">
             <div>
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Calendar className="text-brand-500" size={20} />
-                60-Session Teaching Schedule
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
+                Session Schedule
               </h3>
-              <p className="text-xs text-slate-500 mt-1">Complete session list with lecture topics, delivery types, and student tasks.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lecture topics, delivery types, and student tasks.</p>
             </div>
             
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search session, topic..."
-                value={sessionSearch}
-                onChange={e => setSessionSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-brand-500 transition-all"
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search session, topic..."
+                  value={sessionSearch}
+                  onChange={e => setSessionSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-brand-500 transition-all"
+                />
+              </div>
+              {editingCard === 'sessions' ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    disabled={isSaving}
+                    onClick={() => setEditingCard(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    title="Hủy"
+                  >
+                    <X size={16} />
+                  </button>
+                  <button
+                    disabled={isSaving}
+                    onClick={async () => {
+                      await saveSyllabusData({ sessions: editSessions })
+                    }}
+                    className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
+                    title="Lưu"
+                  >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setEditSessions(JSON.parse(JSON.stringify(syllabus.sessions)))
+                    setEditingCard('sessions')
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all shrink-0"
+                  title="Chỉnh sửa Lịch trình"
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200/80 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                 <tr>
-                  <th className="p-3 w-16 text-center">Session</th>
-                  <th className="p-3">Topic / Lesson Content</th>
-                  <th className="p-3 w-24 text-center">Type</th>
-                  <th className="p-3 w-24 text-center">CLO</th>
-                  <th className="p-3 w-16 text-center">ITU</th>
-                  <th className="p-3">Student Tasks</th>
-                  <th className="p-3 w-36 text-center">Materials & Downloads</th>
+                  <th className="p-3 w-16 text-center font-semibold">No.</th>
+                  <th className="p-3 font-semibold">Topic</th>
+                  <th className="p-3 w-20 text-center font-semibold">Type</th>
+                  <th className="p-3 w-20 text-center font-semibold">CLO</th>
+                  <th className="p-3 w-14 text-center font-semibold">ITU</th>
+                  <th className="p-3 font-semibold">Student Tasks</th>
+                  <th className="p-3 w-32 text-center font-semibold">Materials</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-600 dark:text-slate-300">
-                {filteredSessions.map((session: any, idx: number) => (
-                  <tr key={`session-${session.sessionNo}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors">
-                    <td className="p-3 text-center font-extrabold text-brand-600 dark:text-brand-400 bg-slate-50/50 dark:bg-slate-900/20">
-                      #{session.sessionNo}
-                    </td>
-                    <td className="p-3 font-semibold text-slate-800 dark:text-slate-200">
-                      {session.topic}
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                        session.type === 'Online' 
-                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                          : session.type === 'Offline'
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                      }`}>
-                        {session.type}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
-                      <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
-                        {session.clo}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center font-bold text-indigo-600 dark:text-indigo-400">
-                      {session.itu}
-                    </td>
-                    <td className="p-3 leading-relaxed">
-                      {session.studentTasks || 'N/A'}
-                    </td>
-                    <td className="p-3 text-center">
-                      {session.materialsDownloadUrl ? (
-                        <button
-                          onClick={() => handleDownload(
-                            session.materialsDownloadUrl!,
-                            session.sDownload || 'download',
-                            session.sessionNo
-                          )}
-                          disabled={downloadingSession === session.sessionNo}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-400 hover:bg-brand-100 font-bold transition-all text-xs disabled:opacity-60 disabled:cursor-wait"
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
+                {editingCard === 'sessions' ? (
+                  editSessions.map((session: any, idx: number) => (
+                    <tr key={`edit-session-${idx}`} className="bg-white dark:bg-slate-900/60">
+                      <td className="p-2 text-center font-bold text-brand-600">
+                        {idx + 1}
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={session.topic}
+                          onChange={e => {
+                            const updated = [...editSessions]
+                            updated[idx] = { ...updated[idx], topic: e.target.value }
+                            setEditSessions(updated)
+                          }}
+                          className="w-full px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent focus:outline-none focus:border-brand-500 font-medium"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <select
+                          value={session.type}
+                          onChange={e => {
+                            const updated = [...editSessions]
+                            updated[idx] = { ...updated[idx], type: e.target.value }
+                            setEditSessions(updated)
+                          }}
+                          className="px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent focus:outline-none focus:border-brand-500 font-bold"
                         >
-                          {downloadingSession === session.sessionNo
-                            ? <Loader2 size={14} className="animate-spin" />
-                            : <Download size={14} />
-                          }
-                          {session.sDownload || 'Slide PDF'}
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">Textbook</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          <option value="Offline">Offline</option>
+                          <option value="Online">Online</option>
+                          <option value="Exam">Exam</option>
+                        </select>
+                      </td>
+                      <td className="p-2 text-center">
+                        <input
+                          type="text"
+                          value={session.clo}
+                          onChange={e => {
+                            const updated = [...editSessions]
+                            updated[idx] = { ...updated[idx], clo: e.target.value }
+                            setEditSessions(updated)
+                          }}
+                          className="w-16 text-center px-1.5 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent font-mono font-bold"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <input
+                          type="text"
+                          value={session.itu}
+                          onChange={e => {
+                            const updated = [...editSessions]
+                            updated[idx] = { ...updated[idx], itu: e.target.value }
+                            setEditSessions(updated)
+                          }}
+                          className="w-14 text-center px-1 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent font-bold text-indigo-600"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={session.studentTasks}
+                          onChange={e => {
+                            const updated = [...editSessions]
+                            updated[idx] = { ...updated[idx], studentTasks: e.target.value }
+                            setEditSessions(updated)
+                          }}
+                          className="w-full px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-700 bg-transparent focus:outline-none focus:border-brand-500"
+                        />
+                      </td>
+                      <td className="p-2 text-center text-[11px] text-slate-400 font-medium">
+                        Auto
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  filteredSessions.map((session: any, idx: number) => (
+                    <tr key={`session-${session.sessionNo}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors">
+                      <td className="p-3 text-center font-extrabold text-brand-600 dark:text-brand-400 bg-slate-50/50 dark:bg-slate-900/20">
+                        {idx + 1}
+                      </td>
+                      <td className="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                        {session.topic}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                          session.type === 'Online' 
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                            : session.type === 'Offline'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                        }`}>
+                          {session.type}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
+                          {session.clo}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-bold text-indigo-600 dark:text-indigo-400">
+                        {session.itu}
+                      </td>
+                      <td className="p-3 leading-relaxed">
+                        {session.studentTasks || 'N/A'}
+                      </td>
+                      <td className="p-3 text-center">
+                        {session.materialsDownloadUrl ? (
+                          <button
+                            onClick={() => handleDownload(
+                              session.materialsDownloadUrl!,
+                              session.sDownload || 'download',
+                              session.sessionNo
+                            )}
+                            disabled={downloadingSession === session.sessionNo}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-400 hover:bg-brand-100 font-bold transition-all text-xs disabled:opacity-60 disabled:cursor-wait"
+                          >
+                            {downloadingSession === session.sessionNo
+                              ? <Loader2 size={14} className="animate-spin" />
+                              : <Download size={14} />
+                            }
+                            {session.sDownload || 'Slide PDF'}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] italic">Textbook</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -656,20 +1338,86 @@ export function AdminSubjectDetail() {
       {/* TAB 4: ASSESSMENT SCHEME */}
       {activeTab === 'assessment' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-2xl bg-white dark:bg-[#151821] border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Award className="text-brand-500" size={20} />
+          <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
+              <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
                 Assessment Scheme & Weight Distribution
               </h3>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-3 py-1 rounded-full">
-                Total: {syllabus.totalAssessmentWeight.toFixed(1)}%
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                  editingCard === 'assessments'
+                    ? (isAssessmentTotalValid ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950' : 'text-amber-600 bg-amber-50 dark:bg-amber-950')
+                    : 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950'
+                }`}>
+                  Total: {(editingCard === 'assessments' ? editAssessmentTotal : syllabus.totalAssessmentWeight).toFixed(1)}%
+                </span>
+                {editingCard === 'assessments' ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={isSaving}
+                      onClick={() => setEditingCard(null)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                    <button
+                      disabled={isSaving || !isAssessmentTotalValid}
+                      onClick={async () => {
+                        await saveSyllabusData({ assessments: editAssessments })
+                      }}
+                      className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={!isAssessmentTotalValid ? 'Tổng trọng số phải đúng 100%' : 'Lưu'}
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditAssessments(JSON.parse(JSON.stringify(syllabus.assessments)))
+                      setEditingCard('assessments')
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
+                    title="Chỉnh sửa trọng số"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Alert banner when editing */}
+            {editingCard === 'assessments' && (
+              !isAssessmentTotalValid ? (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0 text-amber-500" />
+                    <span>
+                      {editAssessmentTotal > 100
+                        ? `Tổng trọng số hiện tại là ${editAssessmentTotal.toFixed(1)}% (vượt quá 100%). Vui lòng cân bằng lại!`
+                        : `Tổng trọng số hiện tại là ${editAssessmentTotal.toFixed(1)}% (chưa đủ 100%). Vui lòng cân bằng lại!`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoBalanceAssessments}
+                    className="px-3 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-bold transition-all shrink-0 shadow-xs"
+                  >
+                    Tự cân bằng 100%
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <Check size={16} className="shrink-0 text-emerald-500" strokeWidth={3} />
+                  <span>Tổng trọng số đạt đúng 100% chuẩn khung chương trình.</span>
+                </div>
+              )
+            )}
 
             {/* Individual Progress Bars */}
             <div className="space-y-5">
-              {syllabus.assessments.map((a: any, idx: number) => {
+              {(editingCard === 'assessments' ? editAssessments : syllabus.assessments).map((a: any, idx: number) => {
                 const colors = [
                   { bg: 'bg-brand-500', text: 'text-brand-600 dark:text-brand-400' },
                   { bg: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
@@ -678,16 +1426,54 @@ export function AdminSubjectDetail() {
                   { bg: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
                 ]
                 const color = colors[idx % colors.length]
+                const isLast = idx === (editingCard === 'assessments' ? editAssessments : syllabus.assessments).length - 1
+
                 return (
                   <div key={idx} className="space-y-2 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{a.category}</span>
-                      <span className={`font-extrabold text-sm ${color.text}`}>{a.weightPercent}%</span>
+                    <div className="flex items-center justify-between text-sm gap-4">
+                      {editingCard === 'assessments' ? (
+                        <input
+                          type="text"
+                          value={a.category}
+                          onChange={e => {
+                            const newAssessments = [...editAssessments]
+                            newAssessments[idx] = { ...newAssessments[idx], category: e.target.value }
+                            setEditAssessments(newAssessments)
+                          }}
+                          className="font-bold text-slate-800 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-brand-500 focus:outline-none transition-all flex-1"
+                        />
+                      ) : (
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{a.category}</span>
+                      )}
+
+                      {editingCard === 'assessments' ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={a.weightPercent}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value) || 0
+                              handleAssessmentWeightChange(idx, val)
+                            }}
+                            className="w-16 text-right font-extrabold text-sm text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                          />
+                          <span className={`font-extrabold text-sm ${color.text}`}>%</span>
+                          {isLast && (
+                            <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1.5 py-0.5 rounded" title="Tự động tính phần còn lại">
+                              Auto
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className={`font-extrabold text-sm ${color.text}`}>{a.weightPercent}%</span>
+                      )}
                     </div>
                     <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className={`h-full ${color.bg} transition-all duration-500 rounded-full`}
-                        style={{ width: `${a.weightPercent}%` }}
+                        className={`h-full ${color.bg} transition-all duration-300 rounded-full`}
+                        style={{ width: `${Math.min(100, Math.max(0, a.weightPercent))}%` }}
                       />
                     </div>
                   </div>
@@ -699,25 +1485,37 @@ export function AdminSubjectDetail() {
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between text-sm font-extrabold text-slate-800 dark:text-slate-100">
                 <span>Total Assessment Weight</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-base">{syllabus.totalAssessmentWeight.toFixed(1)}%</span>
+                <span className={`${
+                  editingCard === 'assessments' && !isAssessmentTotalValid
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                } text-base`}>
+                  {(editingCard === 'assessments' ? editAssessmentTotal : syllabus.totalAssessmentWeight).toFixed(1)}%
+                </span>
               </div>
               <div className="w-full h-4 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex">
-                {syllabus.assessments.map((a: any, idx: number) => {
+                {(editingCard === 'assessments' ? editAssessments : syllabus.assessments).map((a: any, idx: number) => {
                   const colors = ['bg-brand-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-emerald-500']
                   return (
                     <div
                       key={idx}
                       className={`h-full ${colors[idx % colors.length]}`}
-                      style={{ width: `${a.weightPercent}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, a.weightPercent))}%` }}
                       title={`${a.category}: ${a.weightPercent}%`}
                     />
                   )
                 })}
               </div>
 
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 pt-1">
-                <Check size={14} strokeWidth={3} /> Achieved {syllabus.totalAssessmentWeight.toFixed(1)}% total assessment weight according to curriculum standard.
-              </p>
+              {(editingCard === 'assessments' ? isAssessmentTotalValid : true) ? (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 pt-1">
+                  <Check size={14} strokeWidth={3} /> Achieved {(editingCard === 'assessments' ? editAssessmentTotal : syllabus.totalAssessmentWeight).toFixed(1)}% total assessment weight according to curriculum standard.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1.5 pt-1">
+                  <AlertCircle size={14} /> Total assessment weight is {(editingCard === 'assessments' ? editAssessmentTotal : syllabus.totalAssessmentWeight).toFixed(1)}% (must equal 100%).
+                </p>
+              )}
             </div>
           </div>
         </div>

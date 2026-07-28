@@ -23,6 +23,7 @@ export class UpdateSubjectUseCase implements IUseCase<{ id: string; dto: Subject
       subjectName: params.dto.data.name,
       description: params.dto.data.description,
       semester: params.dto.data.semester,
+      syllabusData: params.dto.data.syllabusData,
     })
 
     await this.subjectRepo.save(subject)

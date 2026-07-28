@@ -5,6 +5,7 @@ export const SubjectSchema = z.object({
   name: z.string().min(2, 'Tên môn học phải có ít nhất 2 ký tự'),
   description: z.string().optional(),
   semester: z.number().int().min(1).max(9).optional(),
+  syllabusData: z.string().optional(),
 })
 
 export type SubjectRequestDtoType = z.infer<typeof SubjectSchema>
@@ -27,7 +28,8 @@ export class SubjectResponseDto {
     public readonly status: string,
     public readonly semester: number | null,
     public readonly credit?: number | null,
-    public readonly syllabusData?: string | null
+    public readonly syllabusData?: string | null,
+    public readonly seasons?: string[]
   ) {}
 
   static from(subject: any): SubjectResponseDto {
@@ -42,7 +44,8 @@ export class SubjectResponseDto {
       status,
       subject.Semester !== undefined ? subject.Semester : (subject.semester ?? null),
       subject.Credit !== undefined ? subject.Credit : (subject.credit ?? null),
-      subject.SyllabusData !== undefined ? subject.SyllabusData : (subject.syllabusData ?? null)
+      subject.SyllabusData !== undefined ? subject.SyllabusData : (subject.syllabusData ?? null),
+      Array.isArray(subject._seasons) ? subject._seasons : []
     )
   }
 }

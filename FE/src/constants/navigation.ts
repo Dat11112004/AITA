@@ -15,9 +15,9 @@ export const ADMIN_NAV: NavItem[] = [
 export const LECTURER_NAV: NavItem[] = [
   { id: 'overview', label: 'Tổng quan', path: '/lecturer', icon: 'LayoutDashboard', category: 'Chung' },
   { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen', category: 'Đào tạo' },
+  { id: 'subjects', label: 'Môn học', path: '/lecturer/subjects', icon: 'Library', category: 'Đào tạo' },
   { id: 'grading-assignments', label: 'Quản lý Bài tập', path: '/lecturer/grading/assignments', icon: 'FileCheck', category: 'Học liệu' },
   { id: 'prompts', label: 'Quản lý gợi ý prompt', path: '/lecturer/prompts', icon: 'Bot', category: 'Học liệu' },
-  { id: 'teamwork', label: 'Đánh giá Nhóm', path: '/lecturer/grading/teamwork', icon: 'Users', category: 'Chấm điểm' },
   { id: 'settings', label: 'Cài đặt', path: '/lecturer/profile', icon: 'Settings', category: 'Hệ thống' },
 ]
 

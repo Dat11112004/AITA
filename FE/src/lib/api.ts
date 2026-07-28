@@ -250,7 +250,7 @@ export const api = {
 
   // Student Portal
   getStudentDashboard: () => request<any>('/student-portal/dashboard'),
-  getStudentSubjects: () => request<any[]>('/student-portal/subjects'),
+  getStudentSubjects: (semester?: string) => request<any[]>(`/student-portal/subjects${semester ? `?semester=${encodeURIComponent(semester)}` : ''}`),
   getStudentClassDetail: (classId: string) => request<any>(`/student-portal/classes/${classId}`),
   getStudentAiHint: (submissionId: string, ruleScoreId: string) => request<any>(`/submissions/${submissionId}/ai-feedback?ruleScoreId=${ruleScoreId}`),
 
@@ -670,6 +670,7 @@ export interface SubjectRow {
   semester?: number
   credit?: number | null
   syllabusData?: string | null
+  seasons?: string[]  // active seasons teaching this subject, e.g. ["Spring", "Fall"]
 }
 
 export interface CreateSubjectBody {
@@ -677,6 +678,7 @@ export interface CreateSubjectBody {
   name: string
   description?: string
   semester?: number
+  syllabusData?: string
 }
 
 export interface SemesterRow {

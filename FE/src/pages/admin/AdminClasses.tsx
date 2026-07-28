@@ -868,16 +868,16 @@ export function AdminClasses() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Số thứ tự</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">MSSV</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Họ tên</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Email</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {classStudents.map((s) => (
+                  {classStudents.map((s, index) => (
                     <tr key={s.studentId} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                      <td className="px-4 py-3 text-slate-400">{classStudents.indexOf(s) + 1}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-semibold">{index + 1}</td>
                       <td className="px-4 py-3 font-mono font-semibold text-slate-800 dark:text-slate-200">{s.studentId || '—'}</td>
                       <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{s.name || '—'}</td>
                       <td className="px-4 py-3 text-slate-500">{s.email}</td>

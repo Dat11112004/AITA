@@ -281,7 +281,7 @@ export function SubjectWorkspace() {
               <table className="w-full text-sm text-left">
                 <thead className="text-[13px] text-slate-500 border-t border-b border-slate-100 bg-[#FAFAFC]">
                   <tr>
-                    <th className="px-6 py-4 font-semibold w-12 text-center">#</th>
+                    <th className="px-6 py-4 font-semibold w-12 text-center">No.</th>
                     <th className="px-6 py-4 font-semibold">Sinh viên</th>
                     {exams.map((exam: any) => (
                       <th key={exam.id} className="px-6 py-4 font-semibold text-center leading-relaxed">

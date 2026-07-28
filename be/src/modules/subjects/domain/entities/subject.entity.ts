@@ -120,10 +120,12 @@ export class Subject extends AggregateRoot {
     subjectName?: string
     description?: string
     semester?: number
+    syllabusData?: string
   }): void {
     if (params.subjectCode !== undefined) this.subjectCode = params.subjectCode
     if (params.subjectName !== undefined) this.subjectName = params.subjectName
     if (params.description !== undefined) this.description = params.description
     if (params.semester !== undefined) this.semester = params.semester
+    if (params.syllabusData !== undefined) this.syllabusData = params.syllabusData
   }
 }

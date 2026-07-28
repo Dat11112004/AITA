@@ -36,7 +36,7 @@ export function StudentSubjects() {
     if (showLoader) setLoading(true)
     
     Promise.all([
-      api.getStudentSubjects().catch(() => []),
+      api.getStudentSubjects(selectedSemester).catch(() => []),
       api.getAssignments().catch(() => []),
       api.getSubmissions().catch(() => [])
     ]).then(([subjectsRes, assignmentsRes, submissionsRes]) => {
@@ -71,7 +71,7 @@ export function StudentSubjects() {
     }).finally(() => { if (alive && showLoader) setLoading(false) })
     
     return () => { alive = false }
-  }, [])
+  }, [selectedSemester])
 
   useEffect(() => {
     const cleanup = loadData(true)

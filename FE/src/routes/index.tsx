@@ -42,6 +42,8 @@ import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
 import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
 import { SubjectWorkspace } from '@/pages/lecturer/SubjectWorkspace'
+import { LecturerSubjects } from '@/pages/lecturer/LecturerSubjects'
+import { LecturerSubjectDetail } from '@/pages/lecturer/LecturerSubjectDetail'
 import { PromptSubjectsList } from '@/pages/lecturer/prompt/PromptSubjectsList'
 import { PromptListBySubject } from '@/pages/lecturer/prompt/PromptListBySubject'
 import { PromptCreateEdit } from '@/pages/lecturer/prompt/PromptCreateEdit'
@@ -54,6 +56,7 @@ import { StudentSubjects } from '@/pages/student/StudentSubjects'
 import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentClasses } from '@/pages/student/StudentClasses'
 import { StudentClassDetail } from '@/pages/student/StudentClassDetail'
+import { StudentSubjectDetail } from '@/pages/student/StudentSubjectDetail'
 import { StudentNotifications } from '@/pages/student/StudentNotifications'
 
 export function AppRoutes() {
@@ -115,6 +118,8 @@ export function AppRoutes() {
         <Route index element={<LecturerOverview />} />
         <Route path="classes" element={<LecturerClasses />} />
         <Route path="classes/:id" element={<LecturerClassDetail />} />
+        <Route path="subjects" element={<LecturerSubjects />} />
+        <Route path="subjects/:code" element={<LecturerSubjectDetail />} />
         <Route path="subjects/:id/workspace" element={<SubjectWorkspace />} />
         <Route path="prompts" element={<PromptSubjectsList />} />
         <Route path="prompts/:subjectId" element={<PromptListBySubject />} />
@@ -157,6 +162,7 @@ export function AppRoutes() {
       >
         <Route index element={<StudentOverview />} />
         <Route path="courses" element={<StudentCourses />} />
+        <Route path="courses/:code" element={<StudentSubjectDetail />} />
         <Route path="classes" element={<StudentClasses />} />
         <Route path="subjects" element={<StudentSubjects />} />
         <Route path="classes/:id" element={<StudentClassDetail />} />

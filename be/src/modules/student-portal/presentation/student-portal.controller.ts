@@ -59,6 +59,7 @@ export class StudentPortalController extends BaseController {
       },
       include: {
         Subject: true,
+        Semester: true,
         InstructorClass: {
           include: { User: true }
         }
@@ -82,6 +83,16 @@ export class StudentPortalController extends BaseController {
           code: c.Subject?.SubjectCode,
           name: c.Subject?.SubjectName
         },
+        semester: c.Semester ? {
+          id: c.Semester.Id,
+          season: c.Semester.Season,
+          code: c.Semester.Code,
+          isActive: c.Semester.IsActive,
+          // Normalize season for SemesterSelector: "Spring 2026" -> "SPRING2026"
+          label: c.Semester.Season
+            ? c.Semester.Season.toUpperCase().replace(/\s+/g, '')
+            : null
+        } : null,
         lecturers: c.InstructorClass.map(ic => ({
           id: ic.User.Id,
           name: ic.User.FullName
@@ -97,6 +108,9 @@ export class StudentPortalController extends BaseController {
     const studentId = req.user!.id
     this.logger.debug(`Fetching student subjects for ${studentId}`)
 
+    // Optional season filter: ?semester=SUMMER2026 (normalized season name without spaces)
+    const seasonFilter = req.query.semester as string | undefined
+
     // Find all classes the student is enrolled in, then map to unique subjects
     const enrolledClasses = await prisma.class.findMany({
       where: {
@@ -106,29 +120,70 @@ export class StudentPortalController extends BaseController {
       },
       include: {
         Subject: true,
+        Semester: true,
         InstructorClass: {
           include: { User: true }
         }
       }
     })
 
+    // Filter by season if provided (match normalized season: "Spring 2026" -> "SPRING2026")
+    const filtered = seasonFilter
+      ? enrolledClasses.filter(c => {
+          if (!c.Semester || !c.Semester.Season) return false
+          const normalizedSeason = c.Semester.Season.toUpperCase().replace(/\s+/g, '')
+          return normalizedSeason === seasonFilter.toUpperCase()
+        })
+      : enrolledClasses
+
+    // Each class row = one enrollment; subjects can appear in multiple semesters
+    // Key by subjectId so same subject shows once per season
     const subjectsMap = new Map<string, any>()
-    for (const c of enrolledClasses) {
-      if (c.Subject && !subjectsMap.has(c.Subject.Id)) {
-        // Collect lecturers from InstructorClass
+    for (const c of filtered) {
+      if (!c.Subject) continue
+
+      const semesterLabel = c.Semester?.Season
+        ? c.Semester.Season.toUpperCase().replace(/\s+/g, '')
+        : null
+
+      const mapKey = c.Subject.Id
+
+      if (!subjectsMap.has(mapKey)) {
         const lecturers = c.InstructorClass.map(ic => ({
           id: ic.User.Id,
           name: ic.User.FullName,
           avatar: ic.User.Avatar || null,
         }))
 
-        subjectsMap.set(c.Subject.Id, {
+        subjectsMap.set(mapKey, {
           id: c.Subject.Id,
           code: c.Subject.SubjectCode,
           name: c.Subject.SubjectName,
           description: c.Subject.Description,
           lecturers,
+          semester: c.Semester ? {
+            id: c.Semester.Id,
+            season: c.Semester.Season,
+            code: c.Semester.Code,
+            isActive: c.Semester.IsActive,
+            label: semesterLabel,
+          } : null,
+          classId: c.Id,
+          classCode: c.ClassCode,
         })
+      } else {
+        // Merge lecturers if same subject appears in multiple classes of same season
+        const existing = subjectsMap.get(mapKey)
+        const existingLecturerIds = new Set(existing.lecturers.map((l: any) => l.id))
+        for (const ic of c.InstructorClass) {
+          if (!existingLecturerIds.has(ic.User.Id)) {
+            existing.lecturers.push({
+              id: ic.User.Id,
+              name: ic.User.FullName,
+              avatar: ic.User.Avatar || null,
+            })
+          }
+        }
       }
     }
 

@@ -29,53 +29,53 @@ export function SemesterSelector({
   const [semesters, setSemesters] = useState<SemesterItem[]>(INITIAL_SEMESTERS)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Dynamically load ONLY real Admin-created semesters from DB API
+  // Load unique Seasons from Admin-created semesters (group by Season, ignore Code)
   useEffect(() => {
     let alive = true
     
-    Promise.all([
-      api.getSemesters().catch(() => []),
-      api.getStudentDashboard().catch(() => null)
-    ]).then(([semestersRes, dashboardRes]) => {
-      if (!alive) return
+    api.getSemesters()
+      .then((semestersRes) => {
+        if (!alive) return
 
-      const foundSeasons = new Map<string, SemesterItem>()
-      
-      // 1. Check DB Semesters table
-      if (Array.isArray(semestersRes) && semestersRes.length > 0) {
-        semestersRes.forEach((s: any, idx: number) => {
-          const rawStr = String(s?.season || s?.Season || s?.code || s?.Code || s?.name || s?.title || '').trim()
-          if (rawStr && !/^KỲ/i.test(rawStr) && !/^KY/i.test(rawStr)) {
-            const val = rawStr.toUpperCase()
-            foundSeasons.set(val, {
-              value: val,
-              label: val,
-              isCurrent: s.isActive ?? s.isCurrent ?? s.IsCurrent ?? (idx === 0)
-            })
-          }
-        })
-      }
-
-      // 2. Check enrolled classes for semester tags
-      if (dashboardRes?.enrolledClasses && Array.isArray(dashboardRes.enrolledClasses)) {
-        dashboardRes.enrolledClasses.forEach((cls: any) => {
-          const semCode = cls?.semester || cls?.Semester?.Code || cls?.semesterCode
-          if (semCode && typeof semCode === 'string' && !/^KỲ/i.test(semCode)) {
-            const val = semCode.toUpperCase()
-            if (!foundSeasons.has(val)) {
-              foundSeasons.set(val, { value: val, label: val, isCurrent: false })
+        const foundSeasons = new Map<string, SemesterItem>()
+        
+        if (Array.isArray(semestersRes) && semestersRes.length > 0) {
+          semestersRes.forEach((s: any) => {
+            // Only use Season (e.g., "Spring 2026", "Summer 2026")
+            // Ignore Code (1, 2, 3...9) because students choose by Season, not by specific semester
+            const season = String(s?.season || '').trim()
+            
+            if (season) {
+              const label = season.toUpperCase().replace(/\s+/g, '') // "SPRING2026", "SUMMER2026"
+              
+              if (!foundSeasons.has(label)) {
+                foundSeasons.set(label, {
+                  value: label,
+                  label: label,
+                  isCurrent: s.isActive ?? false
+                })
+              } else {
+                // If multiple semesters with same season, mark as active if any is active
+                const existing = foundSeasons.get(label)!
+                if (s.isActive) {
+                  existing.isCurrent = true
+                }
+              }
             }
-          }
-        })
-      }
+          })
+        }
 
-      // If no valid seasons found in DB yet, fallback to SUMMER2026
-      if (foundSeasons.size === 0) {
-        foundSeasons.set('SUMMER2026', { value: 'SUMMER2026', label: 'SUMMER2026', isCurrent: true })
-      }
+        // Fallback if no semesters found
+        if (foundSeasons.size === 0) {
+          foundSeasons.set('SUMMER2026', { value: 'SUMMER2026', label: 'SUMMER2026', isCurrent: true })
+        }
 
-      setSemesters(Array.from(foundSeasons.values()))
-    }).catch(() => {})
+        setSemesters(Array.from(foundSeasons.values()))
+      })
+      .catch(() => {
+        // On error, use fallback
+        setSemesters([{ value: 'SUMMER2026', label: 'SUMMER2026', isCurrent: true }])
+      })
 
     return () => { alive = false }
   }, [])

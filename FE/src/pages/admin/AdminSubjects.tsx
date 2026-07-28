@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
 import { api, type SubjectRow } from '@/lib/api'
-import { getStaticSyllabus } from '@/data/syllabi'
+
 import { 
   Plus, Library, TableProperties, Loader2, X, AlertTriangle, 
   CheckSquare, ArrowUpDown, ArrowUp, ArrowDown, BookOpen, Edit2, 
@@ -61,6 +61,13 @@ export function AdminSubjects() {
 
   useEffect(() => {
     load()
+  }, [load])
+
+  // Refetch khi tab được focus lại — đảm bảo data đồng bộ realtime
+  useEffect(() => {
+    const onFocus = () => { load() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [load])
 
   // Filtered & Sorted Subjects
@@ -729,12 +736,12 @@ function SubjectModal({
   const [sessionSearch, setSessionSearch] = useState('')
 
   const syllabus = useMemo(() => {
-    if (!subject.syllabusData) return getStaticSyllabus(subject.code)
+    if (!subject.syllabusData) return null
     try {
       if (typeof subject.syllabusData === 'object') return subject.syllabusData
       return JSON.parse(subject.syllabusData)
     } catch {
-      return getStaticSyllabus(subject.code)
+      return null
     }
   }, [subject])
 

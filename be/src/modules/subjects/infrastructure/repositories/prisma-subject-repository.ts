@@ -19,7 +19,16 @@ export class PrismaSubjectRepository implements ISubjectRepository {
 
   async findMany(filter?: SubjectFilter): Promise<Subject[]> {
     const rawList = await this.client.subject.findMany({
-      where: this.mapFilterToWhere(filter)
+      where: this.mapFilterToWhere(filter),
+      include: {
+        SemesterSubject: {
+          include: {
+            Semester: {
+              select: { Season: true, IsActive: true }
+            }
+          }
+        }
+      }
     })
     const sorted = rawList.sort((a: any, b: any) => {
       const semA = a.Semester != null ? Number(a.Semester) : 999
