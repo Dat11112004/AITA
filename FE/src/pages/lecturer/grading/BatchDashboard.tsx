@@ -246,21 +246,21 @@ export default function BatchDashboard() {
 
                 <div className="mb-6 animate-fade-in">
                     <h1 className="text-[28px] font-black text-slate-900 dark:text-white mb-2 tracking-tight">
-                        Nộp bài sinh viên để chấm điểm
+                        Upload student submissions for grading
                     </h1>
                     <p className="text-[15px] text-slate-500 dark:text-slate-400 mb-5">
-                        Tải lên các bài nộp của sinh viên dưới dạng file .zip. AI sẽ tự động đánh giá trong nền.
+                        Upload student submissions as a .zip file. The AI grades them in the background.
                     </p>
                     {assignmentId && (
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-lg font-bold text-[14px] border border-emerald-100 dark:border-emerald-500/20 shadow-sm">
-                            <CheckCircle2 size={18} /> Đang xác thực với: {assignmentTitle}
+                            <CheckCircle2 size={18} /> Validating against: {assignmentTitle}
                         </div>
                     )}
                 </div>
                 <MultiFileUpload onUpload={handleUpload} isUploading={isUploading} />
                 {error && (
                     <div className="mt-8 p-4 dark:bg-red-500/10 bg-red-50 border dark:border-red-500/30 border-red-200 rounded-lg dark:text-red-400 text-red-600 text-center max-w-3xl mx-auto">
-                        <p className="font-semibold">Lỗi nộp bài</p>
+                        <p className="font-semibold">Upload failed</p>
                         <p className="text-sm mt-1">{error}</p>
                     </div>
                 )}
@@ -338,7 +338,7 @@ export default function BatchDashboard() {
                                 </div>
                             </div>
                             <div className="text-xs font-bold text-slate-600 dark:text-slate-400 text-center uppercase tracking-wide">
-                                Tiến độ tổng thể
+                                Overall progress
                             </div>
                         </div>
 
@@ -366,7 +366,7 @@ export default function BatchDashboard() {
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase">Đang chấm hiện tại</span>
+                                                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase">Currently grading</span>
                                                     <span className="text-xs bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-full font-medium">Current student</span>
                                                 </div>
                                                 <div className="font-bold text-slate-900 dark:text-white">{currentProcessingJob.studentName}</div>
@@ -384,7 +384,7 @@ export default function BatchDashboard() {
                                     
                                     <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-3 gap-2">
                                         <div className="flex items-center gap-1">
-                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">Bước hiện tại</span>
+                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">Current step</span>
                                             <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{currentProcessingJob.currentTask}</span>
                                         </div>
                                         <div className="text-sm font-bold text-slate-900 dark:text-white mr-1">{currentProcessingJob.progressPercent}%</div>
@@ -494,7 +494,7 @@ export default function BatchDashboard() {
                                         </div>
                                         <div className="min-w-0">
                                             <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{job.studentName}</div>
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Đang phân tích...</div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Analysing...</div>
                                         </div>
                                     </div>
                                     <div className="font-bold text-brand-600 dark:text-brand-400 text-sm shrink-0">{job.progressPercent}%</div>
@@ -523,7 +523,7 @@ export default function BatchDashboard() {
                                     <div className="min-w-0">
                                         <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{job.studentName}</div>
                                         <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                                            {job.state === 'completed' ? 'Hoàn thành' : 'Failed to grade'}
+                                            {job.state === 'completed' ? 'Completed' : 'Failed to grade'}
                                         </div>
                                     </div>
                                 </div>

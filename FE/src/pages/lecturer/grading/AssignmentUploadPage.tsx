@@ -20,7 +20,7 @@ export interface PromptTemplate {
     temperature?: number;
 }
 
-const CustomDropdown = ({ value, onChange, options, placeholder = "Chọn...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
+const CustomDropdown = ({ value, onChange, options, placeholder = "Select...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
@@ -254,8 +254,8 @@ export default function AssignmentUploadPage() {
 
     const handleGenerateContent = async () => {
         const newErrors: { semester?: string, subjectCode?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
-        if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
+        if (!selectedSemester) newErrors.semester = "Please select a semester.";
+        if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -270,8 +270,8 @@ export default function AssignmentUploadPage() {
 
     const handleFileUpload = async (file: File) => {
         const newErrors: { semester?: string, subjectCode?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
-        if (!subjectCode) newErrors.subjectCode = "Vui lòng chọn Mã môn học.";
+        if (!selectedSemester) newErrors.semester = "Please select a semester.";
+        if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -294,17 +294,17 @@ export default function AssignmentUploadPage() {
         if (!rubric || !blueprint) return;
 
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Vui lòng chọn Học kỳ.";
-        if (selectedClasses.length === 0) newErrors.classes = "Vui lòng chọn ít nhất 1 lớp để giao bài tập.";
+        if (!selectedSemester) newErrors.semester = "Please select a semester.";
+        if (selectedClasses.length === 0) newErrors.classes = "Select at least one class to assign this to.";
         if (!metadata.dueDate) {
-            newErrors.dueDate = "Vui lòng chọn Hạn nộp (Due Date).";
+            newErrors.dueDate = "Please choose a due date.";
         } else if (new Date(metadata.dueDate) < new Date()) {
-            newErrors.dueDate = "Hạn nộp không được ở trong quá khứ.";
+            newErrors.dueDate = "The due date cannot be in the past.";
         }
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
-            setError("Vui lòng điền đầy đủ các thông tin bắt buộc.");
+            setError("Please fill in all required fields.");
             return;
         }
 
@@ -322,13 +322,13 @@ export default function AssignmentUploadPage() {
         }
 
         if (existingTotalWeight + (metadata.weightPercentage || 0) > 70) {
-            setError(`Tổng tỷ trọng điểm các bài Assignment/Lab không được vượt quá 70%. Tổng hiện tại là ${existingTotalWeight}%.`);
+            setError(`The combined weight of Assignment/Lab items cannot exceed 70%. It is currently ${existingTotalWeight}%.`);
             return;
         }
 
         const totalScore = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
         if (Math.abs(totalScore - 10) > 0.01) {
-            setError(`Tổng điểm hiện tại là ${totalScore.toFixed(2)}. Hệ thống yêu cầu tổng điểm phải bằng chính xác 10.0.`);
+            setError(`The total is currently ${totalScore.toFixed(2)}. It must add up to exactly 10.0.`);
             return;
         }
 
@@ -380,7 +380,7 @@ export default function AssignmentUploadPage() {
 
     const getSemesterLabel = (s: any) => {
         const parts = [s.season, s.code].filter(v => v && v !== 'undefined');
-        return parts.length > 0 ? parts.join(' - ') : 'Kỳ học khác';
+        return parts.length > 0 ? parts.join(' - ') : 'Other semester';
     };
 
     return (
@@ -411,7 +411,7 @@ export default function AssignmentUploadPage() {
                                     <h1 className="text-3xl font-black text-slate-900 mb-1 tracking-tight">
                                         AI assignment creator
                                     </h1>
-                                    <p className="text-slate-500 font-medium text-base">Tạo bài tập thông minh với AI</p>
+                                    <p className="text-slate-500 font-medium text-base">Create assignments intelligently with AI</p>
                                 </div>
                             </div>
 
@@ -449,12 +449,12 @@ export default function AssignmentUploadPage() {
                         <div className="flex flex-col items-center justify-center p-20 border border-slate-200 rounded-2xl bg-slate-50 text-center">
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-600 mb-6"></div>
                             <h2 className="text-2xl text-slate-800 font-bold mb-2">{loadingMsg}</h2>
-                            <p className="text-slate-500 mb-6">Vui lòng chờ AI xử lý yêu cầu của bạn...</p>
+                            <p className="text-slate-500 mb-6">Please wait while the AI processes your request...</p>
                             <button
                                 onClick={handleCancelGeneration}
                                 className="px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors shadow-sm"
                             >
-                                Hủy quá trình
+                                Cancel
                             </button>
                         </div>
                     ) : (
@@ -483,8 +483,8 @@ export default function AssignmentUploadPage() {
                                                 <Type size={isDrawerOpen ? 22 : 28} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'text' ? "text-brand-600" : "text-slate-900")}>Viết prompt</h3>
-                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Mô tả yêu cầu bài tập bằng ngôn ngữ tự nhiên để AI tạo nội dung.</p>}
+                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'text' ? "text-brand-600" : "text-slate-900")}>Write a prompt</h3>
+                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Describe the assignment in plain language and let the AI draft it.</p>}
                                             </div>
                                             <div className={classNames(
                                                 "rounded-full flex items-center justify-center shrink-0 transition-colors shadow-sm",
@@ -514,8 +514,8 @@ export default function AssignmentUploadPage() {
                                                 <UploadCloud size={isDrawerOpen ? 22 : 28} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'file' ? "text-brand-600" : "text-slate-900")}>Tải lên tệp</h3>
-                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Tải lên tài liệu (PDF, Word, TXT) để AI phân tích và tạo bài tập.</p>}
+                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'file' ? "text-brand-600" : "text-slate-900")}>Upload a file</h3>
+                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Upload a document (PDF, Word, TXT) for the AI to analyse and build an assignment from.</p>}
                                             </div>
                                             <div className={classNames(
                                                 "rounded-full flex items-center justify-center shrink-0 transition-colors shadow-sm",
@@ -534,7 +534,7 @@ export default function AssignmentUploadPage() {
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
                                                             <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-                                                                Học kỳ <span className="text-rose-500">*</span>
+                                                                Semester <span className="text-rose-500">*</span>
                                                             </div>
                                                             <div className="relative">
                                                                 <CustomDropdown
@@ -547,7 +547,7 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, semester: undefined }));
                                                                     }}
                                                                     options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                                    placeholder="Chọn học kỳ..."
+                                                                    placeholder="Select a semester..."
                                                                     className="w-56"
                                                                     hasError={!!validationErrors.semester}
                                                                 />
@@ -559,7 +559,7 @@ export default function AssignmentUploadPage() {
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
-                                                                Mã môn học <span className="text-rose-500">*</span>
+                                                                Subject code <span className="text-rose-500">*</span>
                                                             </div>
                                                             <div className="relative">
                                                                 <CustomDropdown
@@ -571,7 +571,7 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
                                                                     }}
                                                                     options={availableSubjectsForInput as string[]}
-                                                                    placeholder="Chọn môn học..."
+                                                                    placeholder="Select a subject..."
                                                                     hasError={!!validationErrors.subjectCode}
                                                                 />
                                                                 {validationErrors.subjectCode && (
@@ -586,11 +586,11 @@ export default function AssignmentUploadPage() {
                                                             onClick={() => setIsDrawerOpen(true)}
                                                             className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-lg text-sm font-bold transition-colors"
                                                         >
-                                                            <Lightbulb size={16} /> Gợi ý prompt
+                                                            <Lightbulb size={16} /> Prompt suggestions
                                                         </button>
                                                     </div>
                                                     <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-                                                        Mô tả yêu cầu bài tập
+                                                        Describe the assignment
                                                         <Info size={16} className="text-slate-400" />
                                                     </div>
                                                 </div>
@@ -598,7 +598,7 @@ export default function AssignmentUploadPage() {
                                                 <div className="relative flex-1 flex flex-col rounded-xl border border-slate-200 bg-white">
                                                     <textarea
                                                         className="w-full flex-1 bg-transparent p-4 pb-10 text-slate-700 placeholder-slate-400 outline-none resize-none text-[15px] leading-relaxed rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                                                        placeholder="Nhập yêu cầu của bạn tại đây...&#10;&#10;Ví dụ: Tạo bài tập React và Node.js toàn diện, yêu cầu sinh viên xây dựng giỏ hàng.&#10;Bao gồm xác thực JWT, cơ sở dữ liệu PostgreSQL và trang thanh toán."
+                                                        placeholder="Type your requirements here...&#10;&#10;Example: Create a full React and Node.js assignment where students build a shopping cart.&#10;Include JWT authentication, a PostgreSQL database and a checkout page."
                                                         value={textPrompt}
                                                         onChange={(e) => setTextPrompt(e.target.value)}
                                                     />
@@ -614,7 +614,7 @@ export default function AssignmentUploadPage() {
                                                     disabled={!textPrompt || textPrompt.length === 0}
                                                     className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all text-sm"
                                                 >
-                                                    <Sparkles size={16} /> Tạo nội dung <ArrowRight size={16} />
+                                                    <Sparkles size={16} /> Generate content <ArrowRight size={16} />
                                                 </button>
                                             </div>
                                         </>
@@ -622,7 +622,7 @@ export default function AssignmentUploadPage() {
                                         <div className="border border-slate-200 rounded-[24px] p-6 bg-white flex flex-col flex-1 min-h-[450px]">
                                             <div className="flex items-center gap-4 mb-6">
                                                 <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-                                                    Học kỳ <span className="text-rose-500">*</span>
+                                                    Semester <span className="text-rose-500">*</span>
                                                 </div>
                                                 <div className="relative">
                                                     <CustomDropdown
@@ -635,7 +635,7 @@ export default function AssignmentUploadPage() {
                                                             setValidationErrors(prev => ({ ...prev, semester: undefined }));
                                                         }}
                                                         options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                        placeholder="Chọn học kỳ..."
+                                                        placeholder="Select a semester..."
                                                         className="w-56"
                                                         hasError={!!validationErrors.semester}
                                                     />
@@ -647,7 +647,7 @@ export default function AssignmentUploadPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
-                                                    Mã môn học <span className="text-rose-500">*</span>
+                                                    Subject code <span className="text-rose-500">*</span>
                                                 </div>
                                                 <div className="relative">
                                                     <CustomDropdown
@@ -659,7 +659,7 @@ export default function AssignmentUploadPage() {
                                                             setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
                                                         }}
                                                         options={availableSubjectsForInput as string[]}
-                                                        placeholder="Chọn môn học..."
+                                                        placeholder="Select a subject..."
                                                         hasError={!!validationErrors.subjectCode}
                                                     />
                                                     {validationErrors.subjectCode && (
@@ -672,7 +672,7 @@ export default function AssignmentUploadPage() {
                                             </div>
                                             <div className="flex-1 flex items-center justify-center border border-slate-200 border-dashed rounded-xl bg-slate-50 p-4">
                                                 <div className="w-full max-w-xl">
-                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx" errorMessage="Chỉ hỗ trợ PDF hoặc DOCX" />
+                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx" errorMessage="Only PDF or DOCX is supported" />
                                                 </div>
                                             </div>
                                         </div>
@@ -698,7 +698,7 @@ export default function AssignmentUploadPage() {
                                         </div>
                                     </div>
                                     <div className="mt-6 flex justify-between">
-                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Quay lại</button>
+                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Back</button>
                                         <button
                                             onClick={handleParseRubric}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all"
@@ -720,7 +720,7 @@ export default function AssignmentUploadPage() {
 
                                         <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-4">
                                             <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code (Môn học)</label>
+                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code</label>
                                                 <CustomDropdown
                                                     value={metadata.subject || ''}
                                                     onChange={(v) => {
@@ -729,7 +729,7 @@ export default function AssignmentUploadPage() {
                                                     }}
                                                     options={teacherSubjects}
                                                     className="w-full"
-                                                    placeholder="Chọn môn học..."
+                                                    placeholder="Select a subject..."
                                                 />
                                             </div>
                                             <div className="col-span-1">
@@ -763,22 +763,22 @@ export default function AssignmentUploadPage() {
                                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
                                             <div className="grid grid-cols-4 gap-6">
                                                 <div className="col-span-1 border-r border-slate-200 pr-6">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Học kỳ (Semester)</label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Semester</label>
                                                     <CustomDropdown
                                                         value={selectedSemester}
                                                         onChange={(val) => setSelectedSemester(val)}
                                                         options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                        placeholder="Chọn học kỳ..."
+                                                        placeholder="Select a semester..."
                                                         className="w-full"
                                                     />
                                                 </div>
                                                 <div className="col-span-2 border-r border-slate-200 pr-6">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Giao bài tập cho các lớp</label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assign to classes</label>
                                                     <div className="flex flex-wrap gap-2">
                                                         {(() => {
                                                             const availableClasses = allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code === metadata.subject);
-                                                            if (!metadata.subject) return <div className="text-sm text-slate-500 mt-2 italic">Vui lòng chọn Môn học (Subject code) ở trên trước.</div>;
-                                                            if (availableClasses.length === 0) return <div className="text-sm text-slate-500 mt-2 italic">Không tìm thấy lớp học nào cho môn và kỳ này.</div>;
+                                                            if (!metadata.subject) return <div className="text-sm text-slate-500 mt-2 italic">Please pick a subject code above first.</div>;
+                                                            if (availableClasses.length === 0) return <div className="text-sm text-slate-500 mt-2 italic">No classes found for this subject and semester.</div>;
                                                             return availableClasses.map((c: any) => (
                                                                 <button
                                                                     key={c.id}
@@ -805,7 +805,7 @@ export default function AssignmentUploadPage() {
                                                     )}
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Hạn nộp (Due Date) <span className="text-rose-500">*</span></label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Due date <span className="text-rose-500">*</span></label>
                                                     <DateTimePicker
                                                         value={metadata.dueDate || ''}
                                                         onChange={(val) => {
@@ -870,7 +870,7 @@ export default function AssignmentUploadPage() {
                                                             onClick={() => handleDeleteRule(index)}
                                                             className="text-xs text-rose-500 hover:text-rose-600 font-bold mt-2"
                                                         >
-                                                            Xóa tiêu chí
+                                                            Remove criterion
                                                         </button>
                                                     </div>
                                                 </div>
@@ -976,7 +976,7 @@ export default function AssignmentUploadPage() {
                                             onClick={handlePublish}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all"
                                         >
-                                            <CheckCircle size={20} /> Phát hành bài tập
+                                            <CheckCircle size={20} /> Publish assignment
                                         </button>
                                     </div>
                                 </div>
@@ -991,7 +991,7 @@ export default function AssignmentUploadPage() {
                                     <Info size={20} />
                                 </div>
                                 <div className="flex-1">
-                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Thiếu thông tin</h4>
+                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Missing information</h4>
                                     <p className="text-sm text-slate-600 mt-1">{error}</p>
                                 </div>
                                 <button
@@ -1023,7 +1023,7 @@ export default function AssignmentUploadPage() {
 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
-                        <h2 className="text-[22px] font-black text-slate-900 tracking-tight">Gợi ý prompt</h2>
+                        <h2 className="text-[22px] font-black text-slate-900 tracking-tight">Prompt suggestions</h2>
                         <button onClick={() => setIsDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 transition-colors p-1 rounded-full">
                             <X size={20} />
                         </button>
@@ -1035,7 +1035,7 @@ export default function AssignmentUploadPage() {
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Tìm kiếm template..."
+                                placeholder="Search templates..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-sm placeholder:font-normal"
@@ -1049,7 +1049,7 @@ export default function AssignmentUploadPage() {
                     <div className="flex-1 flex border-t border-slate-100 min-h-0 overflow-hidden">
                         {/* LEFT COLUMN: Subjects */}
                         <div className="w-1/3 border-r border-slate-100 overflow-y-auto bg-white p-6 flex flex-col gap-4">
-                            <h3 className="font-bold text-[18px] text-slate-900 mb-2">Danh mục môn học</h3>
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-2">Subject categories</h3>
                             <div className="flex flex-col gap-3">
                                 {teacherSubjects.map(subj => {
                                     const isSelected = subj === drawerSubjectCode;
@@ -1080,7 +1080,7 @@ export default function AssignmentUploadPage() {
                                 })}
                                 {teacherSubjects.length === 0 && (
                                     <div className="text-slate-400 text-sm text-center py-4">
-                                        Không có môn học
+                                        No subjects
                                     </div>
                                 )}
                             </div>
@@ -1088,7 +1088,7 @@ export default function AssignmentUploadPage() {
 
                         {/* RIGHT COLUMN: Content */}
                         <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6 relative">
-                            <h3 className="font-bold text-[18px] text-slate-900 mb-4">Nội dung gợi ý</h3>
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-4">Suggested content</h3>
                             {(() => {
                                 const filtered = drawerPromptTemplates.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -1098,8 +1098,8 @@ export default function AssignmentUploadPage() {
                                             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
                                                 <Search className="text-slate-400" size={24} />
                                             </div>
-                                            <p className="text-slate-600 font-bold mb-1">Chưa có template nào</p>
-                                            <p className="text-slate-400 text-xs">Hãy tạo template mới trong mục Quản lý gợi ý prompt.</p>
+                                            <p className="text-slate-600 font-bold mb-1">No templates yet</p>
+                                            <p className="text-slate-400 text-xs">Create one under Manage Prompts.</p>
                                         </div>
                                     );
                                 }
@@ -1128,7 +1128,7 @@ export default function AssignmentUploadPage() {
                                                 <div className="flex items-end justify-between mt-auto">
                                                     <div className="flex flex-col gap-1 text-[13px] text-slate-600 font-medium">
                                                         {/* Matching the layout placeholders from the design if needed */}
-                                                        {prompt.category && <div>Dạng: {prompt.category}</div>}
+                                                        {prompt.category && <div>Type: {prompt.category}</div>}
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button
@@ -1138,7 +1138,7 @@ export default function AssignmentUploadPage() {
                                                             }}
                                                             className="px-4 py-2.5 text-[13px] font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-xl shadow-sm transition-colors shrink-0"
                                                         >
-                                                            Xem chi tiết
+                                                            View details
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -1156,7 +1156,7 @@ export default function AssignmentUploadPage() {
                                                             }}
                                                             className="px-6 py-2.5 text-[14px] font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-colors shrink-0"
                                                         >
-                                                            Áp dụng
+                                                            Apply
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1172,7 +1172,7 @@ export default function AssignmentUploadPage() {
                     <div className="bg-indigo-50/50 p-4 px-6 flex items-start gap-3 shrink-0 border-t border-indigo-100">
                         <Lightbulb size={16} className="text-brand-500 shrink-0 mt-0.5" />
                         <p className="text-indigo-800 text-[13px] font-medium leading-relaxed">
-                            Mẹo: Chọn template phù hợp và chỉnh sửa để tạo prompt hiệu quả hơn.
+                            Tip: pick a suitable template and edit it to get a better prompt.
                         </p>
                     </div>
                 </div>
@@ -1203,20 +1203,20 @@ export default function AssignmentUploadPage() {
                             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
                                 <div>
                                     <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                                        Nội dung Prompt (Có thể chỉnh sửa)
+                                        Prompt content (editable)
                                     </h3>
                                     <textarea
                                         className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-700 text-[14px] leading-relaxed resize-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-sans"
                                         value={previewContent}
                                         onChange={(e) => setPreviewContent(e.target.value)}
-                                        placeholder="Chỉnh sửa nội dung prompt tại đây trước khi áp dụng..."
+                                        placeholder="Edit the prompt here before applying it..."
                                     />
                                 </div>
                             </div>
 
                             <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
                                 <button onClick={() => setPreviewTemplateId(null)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors text-sm">
-                                    Đóng
+                                    Close
                                 </button>
                                 <button
                                     onClick={() => {
@@ -1235,7 +1235,7 @@ export default function AssignmentUploadPage() {
                                     }}
                                     className="px-6 py-2.5 rounded-xl font-bold text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition-colors flex items-center gap-2 text-sm"
                                 >
-                                    Sử dụng Template <ArrowRight size={16} />
+                                    Use template <ArrowRight size={16} />
                                 </button>
                             </div>
                         </div>

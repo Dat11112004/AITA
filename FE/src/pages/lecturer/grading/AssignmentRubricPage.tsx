@@ -52,7 +52,7 @@ export default function AssignmentRubricPage() {
 
         {(assignment.metadata as any)?.content || assignment.metadata?.description ? (
           <div className="p-8 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">Chi tiết bài tập</h2>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">Assignment details</h2>
             <div 
                 className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: (assignment.metadata as any).content || assignment.metadata.description }}
