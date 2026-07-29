@@ -105,6 +105,9 @@ export function AdminUsers() {
   const [bulkEditing, setBulkEditing] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  // Kept separate from `error`, which every panel renders — a delete failure used
+  // to surface inside whichever import panel happened to be open.
+  const [bulkDeleteResult, setBulkDeleteResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [showLecturerImport, setShowLecturerImport] = useState(false)
   const [showAssignmentImport, setShowAssignmentImport] = useState(false)
@@ -345,12 +348,22 @@ export function AdminUsers() {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return
     setBulkDeleting(true)
-    setError('')
+    setBulkDeleteResult(null)
     setConfirmBulkDelete(false)
     try {
-      await Promise.all(Array.from(selectedIds).map(id => api.deleteUser(id)))
+      // Single request: the server walks the ids sequentially, so the per-user
+      // delete transactions no longer deadlock against each other, and ids that
+      // were already removed come back as `skipped` instead of failing the batch.
+      const result = await api.bulkDeleteUsers(Array.from(selectedIds))
+      const parts = [`Deleted ${result.deleted.length} account(s)`]
+      if (result.skipped.length > 0) parts.push(`${result.skipped.length} were already removed`)
+      if (result.failed.length > 0) parts.push(`${result.failed.length} could not be deleted`)
+      setBulkDeleteResult({
+        tone: result.failed.length > 0 ? 'error' : 'success',
+        text: parts.join(' · ') + (result.failed.length > 0 ? `\n${result.failed.map(f => f.reason).join('\n')}` : ''),
+      })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Bulk delete failed')
+      setBulkDeleteResult({ tone: 'error', text: e instanceof Error ? e.message : 'Bulk delete failed' })
     } finally {
       setBulkDeleting(false)
       setSelectedIds(new Set())
@@ -582,6 +595,23 @@ export function AdminUsers() {
           </div>
         }
       />
+
+      {bulkDeleteResult && (
+        <div
+          className={`flex items-start gap-3 text-sm rounded-xl p-4 border ${bulkDeleteResult.tone === 'error'
+            ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-200/60 dark:border-red-900/50'
+            : 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/50'
+            }`}
+        >
+          {bulkDeleteResult.tone === 'error'
+            ? <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            : <CheckSquare className="w-5 h-5 shrink-0 mt-0.5" />}
+          <div className="whitespace-pre-wrap flex-1">{bulkDeleteResult.text}</div>
+          <button type="button" onClick={() => setBulkDeleteResult(null)} className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {showBulkEditForm && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">

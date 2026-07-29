@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../../../../database/prisma.js'
 import bcrypt from 'bcryptjs'
 import * as xlsx from 'xlsx'
 import crypto from 'crypto'
@@ -8,7 +8,6 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
 
-const prisma = new PrismaClient()
 
 type ImportStudentRow = Record<string, unknown>
 
@@ -491,11 +490,17 @@ export class ImportStudentsExcelUseCase {
                         const retakeClassCode = (pe as any).RetakeClassCode as string | null
                         const targetClassCodeToFind = retakeClassCode || classCode // Format 1 dùng lớp khai báo, Format 2 dùng lớp chính
 
-                        // Bước 2: Tìm kiếm lớp trên hệ thống dựa vào ClassCode và SubjectId (không giới hạn kỳ)
+                        // Bước 2: Tìm kiếm lớp trên hệ thống dựa vào ClassCode và SubjectId.
+                        // KHÔNG giới hạn theo KỲ (môn nợ thuộc kỳ trước), nhưng BẮT BUỘC giới hạn
+                        // theo MÙA đang import. Trước đây query này không lọc SemesterId nên nó
+                        // vớ luôn lớp của mùa khác: import cùng một file vào 2 mùa thì mùa nào
+                        // import trước sẽ tạo lớp nợ môn, mùa import sau dùng ké lớp đó và không
+                        // tạo lớp nào -> số lớp giữa 2 mùa lệch nhau dù nội dung file y hệt.
                         let cls = await prisma.class.findFirst({
                             where: {
                                 ClassCode: targetClassCodeToFind,
                                 SubjectId: retakeSubj.Id,
+                                SemesterId: { in: Array.from(targetSemesterIds) }
                             },
                             select: { Id: true, SemesterId: true }
                         })
@@ -504,8 +509,10 @@ export class ImportStudentsExcelUseCase {
                             classesToEnroll.push(cls.Id)
                             if (!retakeClassCode) console.log(`[Import][Retake-Auto] Tìm thấy class cho môn '${pe.SubjectCode}': ${cls.Id}`)
                         } else if (retakeClassCode) {
-                            // Bước 3: Nếu khai báo (Format 1) mà không có lớp trên hệ thống, tự động đi kiếm kì nào chứa môn đó để tạo
-                            let semSubj = await (prisma as any).semesterSubject.findFirst({
+                            // Bước 3: Nếu khai báo (Format 1) mà không có lớp trên hệ thống, tự động đi kiếm kì nào chứa môn đó để tạo.
+                            // Chỉ tìm trong các kỳ thuộc MÙA đang import — không có fallback sang mùa khác,
+                            // vì tạo lớp trong mùa khác sẽ làm sai số lớp của cả hai mùa.
+                            const semSubj = await (prisma as any).semesterSubject.findFirst({
                                 where: {
                                     SubjectId: retakeSubj.Id,
                                     SemesterId: { in: Array.from(targetSemesterIds) }
@@ -513,15 +520,7 @@ export class ImportStudentsExcelUseCase {
                             })
 
                             if (!semSubj) {
-                                // Fallback phòng hờ dùng kỳ cũ nếu season này chưa link
-                                semSubj = await (prisma as any).semesterSubject.findFirst({
-                                    where: { SubjectId: retakeSubj.Id },
-                                    orderBy: { AssignedAt: 'desc' }
-                                })
-                            }
-
-                            if (!semSubj) {
-                                console.warn(`[Import][Retake] Không tìm thấy Semester chứa môn '${pe.SubjectCode}' — bỏ qua`)
+                                console.warn(`[Import][Retake] Mùa '${detectedSeasonInfo.formatted}' không có kỳ nào chứa môn '${pe.SubjectCode}' — bỏ qua`)
                                 continue
                             }
 
@@ -769,6 +768,11 @@ export class ImportStudentsExcelUseCase {
                             }
                             if (lookupSemesterId) {
                                 clsParams.SemesterId = lookupSemesterId
+                            } else {
+                                // Lớp nợ môn: không khoá theo 1 kỳ cụ thể, nhưng vẫn phải nằm trong
+                                // mùa đang import — nếu không, sync-deletion sẽ đá nhầm sinh viên
+                                // ra khỏi lớp của mùa khác.
+                                clsParams.SemesterId = { in: Array.from(targetSemesterIds) }
                             }
 
                             const cls = await prisma.class.findFirst({

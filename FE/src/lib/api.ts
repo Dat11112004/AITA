@@ -270,6 +270,10 @@ export const api = {
     request<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteUser: (id: string) =>
     request<void>(`/users/${id}`, { method: 'DELETE' }),
+  // One request for the whole selection — the server deletes sequentially so the
+  // per-user transactions cannot deadlock against each other.
+  bulkDeleteUsers: (ids: string[]) =>
+    request<BulkDeleteUsersResult>(`/users/bulk-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
   toggleUserLock: (id: string, locked: boolean) =>
     request<UserRow>(`/users/${id}/lock`, { method: 'PATCH', body: JSON.stringify({ locked }) }),
   importUsers: (body: { users: ImportUserRow[] } | FormData) =>
@@ -475,6 +479,15 @@ export interface UserRow {
   phone?: string
   avatar?: string
   lastLoginAt?: string
+}
+
+export interface BulkDeleteUsersResult {
+  deleted: string[]
+  /** Ids that were already gone — not an error, a repeated attempt is harmless. */
+  skipped: string[]
+  failed: Array<{ id: string; reason: string }>
+  success: boolean
+  message: string
 }
 
 export interface ImportUserRow {
