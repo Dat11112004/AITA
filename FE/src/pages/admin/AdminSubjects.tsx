@@ -6,6 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
+import { DropdownMenu } from '@/components/ui/DropdownMenu'
 import { api, type SubjectRow } from '@/lib/api'
 
 import { 
@@ -50,7 +51,7 @@ export function AdminSubjects() {
       const data = await api.getSubjects()
       setSubjects(data || [])
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách môn học'
+      const msg = err instanceof Error ? err.message : 'Failed to load subjects list'
       setLoadError(msg)
       setSubjects([])
       console.error('Failed to load subjects:', err)
@@ -63,7 +64,7 @@ export function AdminSubjects() {
     load()
   }, [load])
 
-  // Refetch khi tab được focus lại — đảm bảo data đồng bộ realtime
+  // Refetch when tab gets focus — ensures data stays in sync
   useEffect(() => {
     const onFocus = () => { load() }
     window.addEventListener('focus', onFocus)
@@ -181,7 +182,7 @@ export function AdminSubjects() {
       load()
     } catch (error) {
       console.error(error)
-      alert(error instanceof Error ? error.message : 'Tạo môn học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to create subject')
     } finally {
       setIsSubmitting(false)
     }
@@ -200,31 +201,31 @@ export function AdminSubjects() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xoá môn học này?')) return
+    if (!confirm('Are you sure you want to delete this subject?')) return
     try {
       await api.deleteSubject(id)
       setSubjects(prev => prev.filter(s => s.id !== id))
       load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá thất bại')
+      alert(error instanceof Error ? error.message : 'Delete failed')
     }
   }
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return
-    if (!confirm(`Bạn có chắc chắn muốn xoá ${selectedIds.size} môn học đã chọn?`)) return
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} selected subjects?`)) return
     setIsDeleting(true)
     try {
       const results = await Promise.allSettled(Array.from(selectedIds).map(id => api.deleteSubject(id)))
       const failed = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
       if (failed.length > 0) {
-        alert(failed.map(f => f.reason.message || 'Lỗi').join('\n'))
+        alert(failed.map(f => f.reason.message || 'Error').join('\n'))
       }
       setSubjects(prev => prev.filter(s => !selectedIds.has(s.id)))
       setSelectedIds(new Set())
       load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá hàng loạt thất bại')
+      alert(error instanceof Error ? error.message : 'Bulk delete failed')
     } finally {
       setIsDeleting(false)
     }
@@ -233,8 +234,8 @@ export function AdminSubjects() {
   return (
     <div className="space-y-8 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <PageHeader
-        title="Quản lý Danh mục Môn học"
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Môn học' }]}
+        title="Subject Management"
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Subjects' }]}
         actions={
           <div className="flex gap-2">
             <Button
@@ -248,7 +249,7 @@ export function AdminSubjects() {
                 }
               }}
             >
-              <CheckSquare size={16} className="mr-2" /> {selectionMode ? 'Hủy chọn' : 'Chọn nhiều'}
+              <CheckSquare size={16} className="mr-2" /> {selectionMode ? 'Deselect' : 'Select Multiple'}
             </Button>
             {selectionMode && (
               <Button
@@ -263,7 +264,7 @@ export function AdminSubjects() {
                   }
                 }}
               >
-                {selectedIds.size === subjects.length && subjects.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                {selectedIds.size === subjects.length && subjects.length > 0 ? 'Deselect All' : 'Select All'}
               </Button>
             )}
             <Button
@@ -281,7 +282,7 @@ export function AdminSubjects() {
               className="shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 rounded-xl"
             >
               {showForm ? <X size={16} /> : <Plus size={16} />}
-              {showForm ? 'Đóng' : 'Tạo môn học mới'}
+              {showForm ? 'Close' : 'Create Subject'}
             </Button>
           </div>
         }
@@ -294,7 +295,7 @@ export function AdminSubjects() {
             <BookOpen size={26} />
           </div>
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">TỔNG SỐ MÔN HỌC</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">TOTAL SUBJECTS</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">{stats.total}</h3>
           </div>
         </Card>
@@ -304,7 +305,7 @@ export function AdminSubjects() {
             <CheckCircle size={26} />
           </div>
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">MÔN HỌC HOẠT ĐỘNG</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">ACTIVE SUBJECTS</p>
             <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{stats.active}</h3>
           </div>
         </Card>
@@ -314,8 +315,8 @@ export function AdminSubjects() {
             <Layers size={26} />
           </div>
           <div>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">SỐ KỲ HỌC</p>
-            <h3 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{stats.semestersCount || 9} Kỳ</h3>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">TOTAL SEMESTERS</p>
+            <h3 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{stats.semestersCount || 9} Semesters</h3>
           </div>
         </Card>
       </div>
@@ -326,23 +327,23 @@ export function AdminSubjects() {
             <div className="p-2 rounded-xl bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400">
               <Library size={20} />
             </div>
-            <CardHeader title={editingSubject ? `Chỉnh sửa môn học: ${editingSubject.code}` : "Tạo môn học mới"} />
+            <CardHeader title={editingSubject ? `Edit Subject: ${editingSubject.code}` : "Create Subject"} />
           </div>
 
           <div className="p-6 sm:p-8">
             <div className="grid gap-6 sm:grid-cols-2">
-              <Input label="Mã môn" placeholder="Ví dụ: PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              <Input label="Tên môn học" placeholder="Ví dụ: Java Web Application Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input label="Code" placeholder="E.g. PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              <Input label="Subject Name" placeholder="E.g. Java Web Application Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <Select 
-                label="Kỳ học (1-9)"
+                label="Semester (1-9)"
                 value={form.semester.toString()}
                 onChange={(e) => setForm({ ...form, semester: e.target.value ? Number(e.target.value) : '' })}
                 options={[
-                  { label: 'Chọn kỳ học', value: '' },
-                  ...Array.from({ length: 9 }, (_, i) => ({ label: `Kỳ ${i + 1}`, value: String(i + 1) }))
+                  { label: 'Select semester', value: '' },
+                  ...Array.from({ length: 9 }, (_, i) => ({ label: `Semester ${i + 1}`, value: String(i + 1) }))
                 ]}
               />
-              <Input label="Mô tả môn học" placeholder="Nhập mô tả ngắn gọn về môn học..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <Input label="Subject Description" placeholder="Enter a brief description..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
             <div className="mt-8 flex justify-end border-t border-slate-100 dark:border-slate-800 pt-5">
@@ -354,10 +355,10 @@ export function AdminSubjects() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang lưu...
+                    Saving...
                   </>
                 ) : (
-                  'Lưu môn học'
+                  'Save Subject'
                 )}
               </Button>
             </div>
@@ -372,7 +373,7 @@ export function AdminSubjects() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Tìm theo Mã môn, Tên môn học..."
+              placeholder="Search by Code, Subject Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 text-xs font-semibold rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all shadow-xs"
@@ -384,9 +385,9 @@ export function AdminSubjects() {
             onChange={(e) => setFilterSemester(e.target.value)}
             className="px-4 py-2.5 text-xs font-bold rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-xs"
           >
-            <option value="ALL">Tất cả các kỳ</option>
+            <option value="ALL">All Semesters</option>
             {Array.from({ length: 9 }, (_, i) => (
-              <option key={i + 1} value={String(i + 1)}>Kỳ {i + 1}</option>
+              <option key={i + 1} value={String(i + 1)}>Semester {i + 1}</option>
             ))}
           </select>
         </div>
@@ -395,11 +396,11 @@ export function AdminSubjects() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-extrabold text-brand-700 bg-brand-50 px-3.5 py-1.5 rounded-full border border-brand-200">
-                Đã chọn {selectedIds.size}
+                Selected {selectedIds.size}
               </span>
               <Button size="sm" onClick={handleBulkDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700 text-white border-none shadow-sm text-xs rounded-xl">
                 {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 size={13} className="mr-1" />}
-                Xoá mục đã chọn
+                Delete selected
               </Button>
             </div>
           )}
@@ -408,18 +409,18 @@ export function AdminSubjects() {
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-              title="Giao diện Lưới"
+              title="Grid View"
             >
               <LayoutGrid size={16} />
-              <span className="hidden sm:inline">Lưới</span>
+              <span className="hidden sm:inline">Grid</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
               className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${viewMode === 'table' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-              title="Giao diện Bảng"
+              title="Table View"
             >
               <TableProperties size={16} />
-              <span className="hidden sm:inline">Bảng</span>
+              <span className="hidden sm:inline">Table</span>
             </button>
           </div>
         </div>
@@ -430,7 +431,7 @@ export function AdminSubjects() {
         <Card className="flex items-center justify-center p-14 border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl">
           <div className="text-center">
             <Loader2 className="w-10 h-10 animate-spin text-brand-600 mx-auto mb-3" />
-            <p className="text-slate-600 dark:text-slate-400 font-bold text-sm">Đang tải danh sách môn học...</p>
+            <p className="text-slate-600 dark:text-slate-400 font-bold text-sm">Loading subjects...</p>
           </div>
         </Card>
       )}
@@ -441,11 +442,11 @@ export function AdminSubjects() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="text-red-600 dark:text-red-400 w-5 h-5 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-bold text-red-800 dark:text-red-300">Lỗi khi tải dữ liệu</p>
+              <p className="font-bold text-red-800 dark:text-red-300">Error loading data</p>
               <p className="text-sm text-red-600 dark:text-red-400 mt-1">{loadError}</p>
             </div>
             <button onClick={load} className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-bold text-xs">
-              Thử lại
+              Retry
             </button>
           </div>
         </Card>
@@ -457,7 +458,7 @@ export function AdminSubjects() {
           {filteredAndSortedSubjects.length === 0 ? (
             <Card className="p-14 text-center text-slate-500 border border-slate-200 dark:border-slate-800 rounded-3xl">
               <BookOpen size={44} className="mx-auto mb-3 opacity-30" />
-              <p className="font-bold text-base">Không tìm thấy môn học nào</p>
+              <p className="font-bold text-base">No subjects found</p>
             </Card>
           ) : viewMode === 'grid' ? (
             /* Grid View UI */
@@ -506,8 +507,8 @@ export function AdminSubjects() {
                           )}
                           <span className="px-3.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-brand-100 to-indigo-100 text-brand-800 dark:from-brand-950 dark:to-indigo-950 dark:text-brand-300 border border-brand-200/60 dark:border-brand-800">
                             {subj.semester ? (
-                              /^k[yỳ]/i.test(String(subj.semester)) ? `Kỳ ${String(subj.semester).replace(/\D/g, '')}` : `Kỳ ${subj.semester}`
-                            ) : 'Chưa phân kỳ'}
+                              /^k[yỳ]/i.test(String(subj.semester)) ? `Semester ${String(subj.semester).replace(/\D/g, '')}` : `Semester ${subj.semester}`
+                            ) : 'Unassigned'}
                           </span>
                         </div>
 
@@ -516,7 +517,7 @@ export function AdminSubjects() {
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60'
                             : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                         }`}>
-                          {subj.status === 'active' || !subj.status ? 'Hoạt động' : 'Tạm ngưng'}
+                          {subj.status === 'active' || !subj.status ? 'Active' : 'Inactive'}
                         </span>
                       </div>
 
@@ -531,35 +532,17 @@ export function AdminSubjects() {
                       </div>
 
                       <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed h-8">
-                        {subj.description || 'Chưa có mô tả chi tiết cho môn học này.'}
+                        {subj.description || 'No detailed description available for this subject.'}
                       </p>
 
-                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDetailSubject(subj)
-                          }}
-                          className="font-extrabold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1.5"
-                        >
-                          <BookOpen size={14} /> Đề cương nhanh
-                        </button>
-
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => handleEdit(subj)}
-                            className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-xl transition-colors"
-                            title="Chỉnh sửa"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(subj.id)}
-                            className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-xl transition-colors"
-                            title="Xoá"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end text-xs">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu
+                            items={[
+                              { id: 'edit', label: 'Edit', icon: <Edit2 size={14} />, onClick: () => handleEdit(subj) },
+                              { id: 'delete', label: 'Delete', icon: <Trash2 size={14} />, onClick: () => handleDelete(subj.id), isDanger: true }
+                            ]}
+                          />
                         </div>
                       </div>
                     </div>
@@ -599,7 +582,7 @@ export function AdminSubjects() {
                     }] : []),
                     {
                       key: 'code',
-                      header: renderHeader('Mã môn', 'code'),
+                      header: renderHeader('Code', 'code'),
                       render: (r: SubjectRow) => (
                         <span
                           onClick={(e) => {
@@ -614,7 +597,7 @@ export function AdminSubjects() {
                     },
                     { 
                       key: 'name', 
-                      header: renderHeader('Tên môn học', 'name'),
+                      header: renderHeader('Subject Name', 'name'),
                       render: (r: SubjectRow) => (
                         <span 
                           onClick={(e) => {
@@ -629,51 +612,40 @@ export function AdminSubjects() {
                     },
                     {
                       key: 'semester',
-                      header: renderHeader('Kỳ học', 'semester'),
+                      header: renderHeader('Semester', 'semester'),
                       render: (r: SubjectRow) => r.semester ? (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                          {/^k[yỳ]/i.test(String(r.semester)) ? `Kỳ ${String(r.semester).replace(/\D/g, '')}` : `Kỳ ${r.semester}`}
+                          {/^k[yỳ]/i.test(String(r.semester)) ? `Semester ${String(r.semester).replace(/\D/g, '')}` : `Semester ${r.semester}`}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-xs italic">Chưa phân kỳ</span>
+                        <span className="text-slate-400 text-xs italic">Unassigned</span>
                       )
                     },
                     {
                       key: 'status',
-                      header: renderHeader('Trạng thái', 'status'),
+                      header: renderHeader('Status', 'status'),
                       render: (r: SubjectRow) => {
                         const status = r.status
                         const isActive = status === 'active' || status === '1' || status === 'true' || !status
                         return (
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400'}`}>
-                            {isActive ? 'Hoạt động' : 'Tạm ngưng'}
+                            {isActive ? 'Active' : 'Inactive'}
                           </span>
                         )
                       }
                     },
                     {
                       key: 'actions',
-                      header: '',
+                      header: 'Actions',
+                      className: 'w-24 text-center',
                       render: (r: SubjectRow) => (
-                        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-                          <Button size="sm" variant="ghost" className="text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-xl" onClick={(e) => {
-                            e.stopPropagation()
-                            setDetailSubject(r)
-                          }}>
-                            Đề cương
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl" onClick={(e) => {
-                            e.stopPropagation()
-                            handleEdit(r)
-                          }}>
-                            Chỉnh sửa
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl" onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(r.id)
-                          }}>
-                            Xoá
-                          </Button>
+                        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu
+                            items={[
+                              { id: 'edit', label: 'Edit', icon: <Edit2 size={14} />, onClick: () => handleEdit(r) },
+                              { id: 'delete', label: 'Delete', icon: <Trash2 size={14} />, onClick: () => handleDelete(r.id), isDanger: true }
+                            ]}
+                          />
                         </div>
                       )
                     }
@@ -779,12 +751,12 @@ function SubjectModal({
               <div className="flex items-center gap-2 mb-1">
                 <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-white">
                   {subject.semester ? (
-                    /^k[yỳ]/i.test(String(subject.semester)) ? `Kỳ ${String(subject.semester).replace(/\D/g, '')}` : `Kỳ ${subject.semester}`
-                  ) : 'Chưa phân kỳ'}
+                    /^k[yỳ]/i.test(String(subject.semester)) ? `Semester ${String(subject.semester).replace(/\D/g, '')}` : `Semester ${subject.semester}`
+                  ) : 'Unassigned'}
                 </span>
                 {syllabus?.noCredit && (
                   <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white">
-                    {syllabus.noCredit} Tín chỉ
+                    {syllabus.noCredit} Credits
                   </span>
                 )}
               </div>
@@ -803,7 +775,7 @@ function SubjectModal({
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Thông tin & Mô tả
+            Information & Description
           </button>
           <button
             onClick={() => setModalTab('sessions')}
@@ -813,7 +785,7 @@ function SubjectModal({
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Lộ trình ({syllabus?.sessions?.length || 0} Buổi)
+            Roadmap ({syllabus?.sessions?.length || 0} Session)
           </button>
           <button
             onClick={() => setModalTab('clos')}
@@ -823,7 +795,7 @@ function SubjectModal({
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            Danh sách CLO ({syllabus?.clos?.length || 0})
+            CLO List ({syllabus?.clos?.length || 0})
           </button>
         </div>
 
@@ -833,28 +805,28 @@ function SubjectModal({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Mã môn</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Code</label>
                   <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-base">{subject.code}</span>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Trạng thái</label>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Status</label>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 mt-0.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Hoạt động
+                    Active
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">Mô tả môn học</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">Subject Description</label>
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                  {syllabus?.description || subject.description || <span className="italic text-slate-400">Chưa có mô tả chi tiết.</span>}
+                  {syllabus?.description || subject.description || <span className="italic text-slate-400">No detailed description.</span>}
                 </div>
               </div>
 
               {syllabus?.tools && (
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">Công cụ & Phần mềm</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">Tools & Software</label>
                   <div className="flex flex-wrap gap-2">
                     {syllabus.tools.map((t: string, i: number) => (
                       <span key={i} className="px-3 py-1 bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-300 rounded-lg border border-brand-200 dark:border-brand-800 text-xs font-bold">
@@ -873,7 +845,7 @@ function SubjectModal({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Tìm chủ đề, bài học..."
+                  placeholder="Search topics, lessons..."
                   value={sessionSearch}
                   onChange={(e) => setSessionSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
@@ -886,7 +858,7 @@ function SubjectModal({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950 px-2 py-0.5 rounded">
-                          Buổi {s.session}
+                          Session {s.session}
                         </span>
                         <span className="font-bold text-slate-900 dark:text-white">{s.topic}</span>
                       </div>
@@ -933,7 +905,7 @@ function SubjectModal({
             onClick={onViewFullPage}
             className="text-brand-600 dark:text-brand-400 hover:bg-brand-50 text-xs font-bold"
           >
-            Mở trang đề cương chi tiết →
+            Open detailed syllabus page →
           </Button>
 
           <div className="flex items-center gap-2">
@@ -943,14 +915,14 @@ function SubjectModal({
               onClick={onClose}
               className="text-slate-700 dark:text-slate-300"
             >
-              Đóng
+              Close
             </Button>
             <Button
               size="sm"
               onClick={onEdit}
               className="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-1.5 shadow-sm"
             >
-              <Edit2 size={14} /> Chỉnh sửa
+              <Edit2 size={14} /> Edit
             </Button>
           </div>
         </div>

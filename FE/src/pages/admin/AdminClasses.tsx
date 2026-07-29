@@ -72,7 +72,7 @@ export function AdminClasses() {
       setSemesters(semData || [])
       setSubjects(subData || [])
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể tải dữ liệu'
+      const msg = err instanceof Error ? err.message : 'Failed to load data'
       setLoadError(msg)
       setClasses([])
       setSemesters([])
@@ -102,7 +102,7 @@ export function AdminClasses() {
         })
       } else {
         if (!semesterForm.season) {
-          throw new Error('Tên mùa học là bắt buộc')
+          throw new Error('Season name is required')
         }
         await api.createSeason({
           season: semesterForm.season.trim(),
@@ -115,7 +115,7 @@ export function AdminClasses() {
       setShowSemesterForm(false)
       await load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Tạo mùa/kỳ học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to create semester')
     } finally {
       setIsSubmitting(false)
     }
@@ -139,7 +139,7 @@ export function AdminClasses() {
         // Create class(es) at the current level
         if (level === 'class' && selectedSemester && selectedSubject) {
           const validClasses = multiClassForm.filter(c => c.code.trim() !== '')
-          if (validClasses.length === 0) throw new Error('Vui lòng nhập ít nhất một mã lớp')
+          if (validClasses.length === 0) throw new Error('Please enter at least one class code')
 
           await Promise.all(validClasses.map(c =>
             api.createClass({
@@ -152,7 +152,7 @@ export function AdminClasses() {
             })
           ))
         } else {
-          throw new Error('Vui lòng chọn Kỳ + Môn trước khi tạo lớp')
+          throw new Error('Please select Semester + Subject before creating a class')
         }
       }
       setClassForm({ code: '', name: '', subjectId: '', subjectIds: [], semesterId: '', campus: '', lecturerId: '' })
@@ -165,7 +165,7 @@ export function AdminClasses() {
         loadSubjectClasses(selectedSemester.id, selectedSubject.id)
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Tạo lớp thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to create class')
     } finally {
       setIsSubmitting(false)
     }
@@ -185,7 +185,7 @@ export function AdminClasses() {
       }
       await load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá mùa học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to delete season')
     } finally {
       setIsDeleting(false)
     }
@@ -194,7 +194,7 @@ export function AdminClasses() {
   // ─── Delete Class ───
   const handleDeleteClass = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Bạn có chắc chắn muốn xoá lớp học này?')) return
+    if (!confirm('Are you sure you want to delete this class?')) return
     try {
       await api.deleteClass(id)
       await load()
@@ -202,7 +202,7 @@ export function AdminClasses() {
         loadSubjectClasses(selectedSemester.id, selectedSubject.id)
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to delete')
     }
   }
 
@@ -290,7 +290,7 @@ export function AdminClasses() {
       setShowAddSubjectModal(false)
       setSelectedSubjectIdsToAdd(new Set())
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Thêm môn học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to add subjects')
     } finally {
       setIsSubmitting(false)
     }
@@ -298,13 +298,13 @@ export function AdminClasses() {
 
   const handleRemoveSemesterSubject = async (subjectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!selectedSemester || !confirm('Bạn có chắc chắn muốn xoá môn học này khỏi kỳ?')) return
+    if (!selectedSemester || !confirm('Are you sure you want to remove this subject from the semester?')) return
     setIsSubmitting(true)
     try {
       await api.removeSemesterSubject(selectedSemester.id, subjectId)
       setSemesterSubjects(prev => prev.filter(s => s.id !== subjectId))
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Xoá môn học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to remove subject')
     } finally {
       setIsSubmitting(false)
     }
@@ -323,7 +323,7 @@ export function AdminClasses() {
   const handleSaveSubject = async () => {
     if (!editingSubject || isSubmitting) return
     if (!subjectForm.code.trim() || !subjectForm.name.trim()) {
-      alert('Mã môn và tên môn không được để trống')
+      alert('Subject code and name cannot be empty')
       return
     }
     setIsSubmitting(true)
@@ -350,7 +350,7 @@ export function AdminClasses() {
       setEditingSubject(null)
       setSubjectForm({ code: '', name: '', description: '' })
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Cập nhật môn học thất bại')
+      alert(error instanceof Error ? error.message : 'Failed to update subject')
     } finally {
       setIsSubmitting(false)
     }
@@ -405,7 +405,7 @@ export function AdminClasses() {
 
   // ─── Derived Data ───
   const groupedSeasons = semesters.reduce((acc, sem) => {
-    const s = sem.season || 'Chưa phân loại'
+    const s = sem.season || 'Unclassified'
     if (!acc[s]) acc[s] = []
     acc[s].push(sem)
     return acc
@@ -423,9 +423,9 @@ export function AdminClasses() {
     const crumbs = [{ label: 'Admin', path: '/admin' }]
 
     if (level === 'season') {
-      crumbs.push({ label: 'Quản lý Mùa học', path: '' })
+      crumbs.push({ label: 'Manage Seasons', path: '' })
     } else {
-      crumbs.push({ label: 'Quản lý Mùa học', onClick: () => navigateToLevel('season') } as never)
+      crumbs.push({ label: 'Manage Seasons', onClick: () => navigateToLevel('season') } as never)
 
       if (selectedSeason) {
         if (level === 'semester') {
@@ -459,7 +459,7 @@ export function AdminClasses() {
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <PageHeader
-        title="Quản lý Phân cấp Lớp học"
+        title="Manage Class Hierarchy"
         breadcrumbs={getBreadcrumbs()}
         actions={
           <div className="flex gap-2">
@@ -479,7 +479,7 @@ export function AdminClasses() {
                 className="shadow-sm transition-all duration-200 flex items-center gap-2"
               >
                 {showSemesterForm ? <X size={16} /> : <Plus size={16} />}
-                {showSemesterForm ? 'Đóng' : 'Tạo Mùa học mới'}
+                {showSemesterForm ? 'Close' : 'Create New Season'}
               </Button>
             )}
             {level === 'class' && (
@@ -499,7 +499,7 @@ export function AdminClasses() {
                 className="shadow-sm transition-all duration-200 flex items-center gap-2"
               >
                 {showClassForm ? <X size={16} /> : <Plus size={16} />}
-                {showClassForm ? 'Đóng' : 'Tạo Lớp mới'}
+                {showClassForm ? 'Close' : 'Create New Class'}
               </Button>
             )}
           </div>
@@ -520,13 +520,13 @@ export function AdminClasses() {
               else if (level === 'students') navigateToLevel('class')
             }}
           >
-            <ArrowLeft size={16} /> Quay lại
+            <ArrowLeft size={16} /> Back
           </Button>
           <div className="text-sm text-slate-500 font-medium">
-            {level === 'semester' && `Mùa: ${selectedSeason}`}
+            {level === 'semester' && `Season: ${selectedSeason}`}
             {level === 'subject' && `${selectedSeason} > ${selectedSemester?.code}`}
             {level === 'class' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code || selectedSubject?.name}`}
-            {level === 'students' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code} > Lớp ${selectedClass?.code}`}
+            {level === 'students' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code} > Class ${selectedClass?.code}`}
           </div>
         </div>
       )}
@@ -535,22 +535,22 @@ export function AdminClasses() {
       {showSemesterForm && (
         <Card className="p-6 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/10 mb-6 animate-in slide-in-from-top-4">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-            <CalendarDays size={20} /> {editingSemester ? `Chỉnh sửa Kỳ học: ${editingSemester.code}` : 'Tạo Mùa học mới'}
+            <CalendarDays size={20} /> {editingSemester ? `Edit Semester: ${editingSemester.code}` : 'Create New Season'}
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {editingSemester && (
-              <Input label="Tên/Mã Kỳ học" placeholder="Ví dụ: Kỳ 1" value={semesterForm.code} onChange={(e) => setSemesterForm({ ...semesterForm, code: e.target.value })} />
+              <Input label="Semester Code" placeholder="e.g. Term 1" value={semesterForm.code} onChange={(e) => setSemesterForm({ ...semesterForm, code: e.target.value })} />
             )}
-            <Input label={editingSemester ? "Mùa (Tuỳ chọn)" : "Tên Mùa học (*)"} placeholder="Ví dụ: Fall 2026" value={semesterForm.season} onChange={(e) => setSemesterForm({ ...semesterForm, season: e.target.value })} />
-            <Input type="date" label="Ngày bắt đầu" value={semesterForm.startDate} onChange={(e) => setSemesterForm({ ...semesterForm, startDate: e.target.value })} />
-            <Input type="date" label="Ngày kết thúc" value={semesterForm.endDate} onChange={(e) => setSemesterForm({ ...semesterForm, endDate: e.target.value })} />
+            <Input label={editingSemester ? "Season (Optional)" : "Season Name (*)"} placeholder="e.g. Fall 2026" value={semesterForm.season} onChange={(e) => setSemesterForm({ ...semesterForm, season: e.target.value })} />
+            <Input type="date" label="Start Date" value={semesterForm.startDate} onChange={(e) => setSemesterForm({ ...semesterForm, startDate: e.target.value })} />
+            <Input type="date" label="End Date" value={semesterForm.endDate} onChange={(e) => setSemesterForm({ ...semesterForm, endDate: e.target.value })} />
           </div>
           {!editingSemester && (
-            <p className="text-xs text-slate-500 mt-2">Hệ thống sẽ tự động tạo 9 kỳ (Kỳ 1 → Kỳ 9) và gán môn học mặc định theo chương trình đào tạo.</p>
+            <p className="text-xs text-slate-500 mt-2">The system will automatically create 9 terms (Term 1 → Term 9) and assign default subjects according to the curriculum.</p>
           )}
           <div className="mt-4 flex justify-end">
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleCreateSemester} disabled={isSubmitting || (editingSemester ? !semesterForm.code : !semesterForm.season)}>
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingSemester ? 'Lưu Kỳ học' : 'Tạo Mùa học'}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingSemester ? 'Save Semester' : 'Create Season'}
             </Button>
           </div>
         </Card>
@@ -560,24 +560,24 @@ export function AdminClasses() {
       {showClassForm && level === 'class' && selectedSemester && selectedSubject && (
         <Card className="p-6 border border-slate-200 dark:border-slate-700 mb-6 animate-in slide-in-from-top-4">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <GraduationCap size={20} /> {editingClass ? `Chỉnh sửa Lớp: ${editingClass.code}` : `Tạo Lớp mới cho ${selectedSubject.code}`}
+            <GraduationCap size={20} /> {editingClass ? `Edit Class: ${editingClass.code}` : `Create New Class for ${selectedSubject.code}`}
           </h3>
           {editingClass ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Input label="Mã lớp" value={classForm.code} onChange={e => setClassForm({ ...classForm, code: e.target.value })} />
-              <Select label="Giảng viên" options={lecturerOptions} value={classForm.lecturerId} onChange={e => setClassForm({ ...classForm, lecturerId: e.target.value })} />
+              <Input label="Class Code" value={classForm.code} onChange={e => setClassForm({ ...classForm, code: e.target.value })} />
+              <Select label="Lecturer" options={lecturerOptions} value={classForm.lecturerId} onChange={e => setClassForm({ ...classForm, lecturerId: e.target.value })} />
             </div>
           ) : (
             <div className="space-y-3">
               {multiClassForm.map((row, idx) => (
                 <div key={idx} className="flex gap-3 items-end">
                   <div className="flex-1">
-                    <Input label={idx === 0 ? "Mã lớp" : ""} placeholder={`Lớp ${idx + 1}`} value={row.code} onChange={e => {
+                    <Input label={idx === 0 ? "Class Code" : ""} placeholder={`Class ${idx + 1}`} value={row.code} onChange={e => {
                       const updated = [...multiClassForm]; updated[idx].code = e.target.value; setMultiClassForm(updated)
                     }} />
                   </div>
                   <div className="flex-1">
-                    <Select label={idx === 0 ? "Giảng viên" : ""} options={lecturerOptions} value={row.lecturerId} onChange={e => {
+                    <Select label={idx === 0 ? "Lecturer" : ""} options={lecturerOptions} value={row.lecturerId} onChange={e => {
                       const updated = [...multiClassForm]; updated[idx].lecturerId = e.target.value; setMultiClassForm(updated)
                     }} />
                   </div>
@@ -589,20 +589,20 @@ export function AdminClasses() {
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={() => setMultiClassForm([...multiClassForm, { code: '', lecturerId: '' }])}>
-                <Plus size={14} className="mr-1" /> Thêm lớp
+                <Plus size={14} className="mr-1" /> Add Class
               </Button>
             </div>
           )}
           <div className="mt-4 flex justify-end">
             <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleCreateClass} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingClass ? 'Lưu' : 'Tạo Lớp'}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={16} className="mr-2" />} {editingClass ? 'Save' : 'Create Class'}
             </Button>
           </div>
         </Card>
       )}
 
       {/* Loading / Error */}
-      {loading && <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-brand-500" /><p className="text-sm text-slate-500 mt-3">Đang tải dữ liệu...</p></div>}
+      {loading && <div className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-brand-500" /><p className="text-sm text-slate-500 mt-3">Loading data...</p></div>}
       {loadError && <div className="text-center py-8 text-red-500">{loadError}</div>}
 
       {/* ═══════════════════════ LEVEL 1: SEASONS ═══════════════════════ */}
@@ -611,8 +611,8 @@ export function AdminClasses() {
           {Object.entries(groupedSeasons).length === 0 && (
             <div className="col-span-full text-center py-16 text-slate-400">
               <CalendarDays size={48} className="mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">Chưa có mùa học nào</p>
-              <p className="text-sm">Nhấn "Tạo Mùa học mới" để bắt đầu</p>
+              <p className="text-lg font-medium">No seasons yet</p>
+              <p className="text-sm">Click "Create New Season" to start</p>
             </div>
           )}
           {Object.entries(groupedSeasons).map(([season, sems]) => {
@@ -647,15 +647,15 @@ export function AdminClasses() {
                 <div className="p-4 flex gap-6">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">{sems.length}</p>
-                    <p className="text-xs text-slate-500">Kỳ học</p>
+                    <p className="text-xs text-slate-500">Semesters</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totalSubjects}</p>
-                    <p className="text-xs text-slate-500">Môn học</p>
+                    <p className="text-xs text-slate-500">Subjects</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{totalClasses}</p>
-                    <p className="text-xs text-slate-500">Lớp</p>
+                    <p className="text-xs text-slate-500">Classes</p>
                   </div>
                 </div>
               </Card>
@@ -668,7 +668,7 @@ export function AdminClasses() {
       {!loading && level === 'semester' && selectedSeason && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-            Các kỳ trong mùa <span className="text-brand-600 dark:text-brand-400">{selectedSeason}</span>
+            Semesters in season <span className="text-brand-600 dark:text-brand-400">{selectedSeason}</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {semestersInSeason.map(sem => (
@@ -688,11 +688,11 @@ export function AdminClasses() {
                 <div className="flex gap-4 text-sm">
                   <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                     <BookOpen size={14} className="text-indigo-500" />
-                    <span>{sem.subjectCount || 0} môn</span>
+                    <span>{sem.subjectCount || 0} subjects</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                     <GraduationCap size={14} className="text-emerald-500" />
-                    <span>{sem.classCount || 0} lớp</span>
+                    <span>{sem.classCount || 0} classes</span>
                   </div>
                 </div>
               </Card>
@@ -706,10 +706,10 @@ export function AdminClasses() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-              Môn học trong <span className="text-brand-600 dark:text-brand-400">{selectedSemester.code}</span>
+              Subjects in <span className="text-brand-600 dark:text-brand-400">{selectedSemester.code}</span>
             </h2>
             <Button size="sm" onClick={() => { setShowAddSubjectModal(true); setSelectedSubjectIdsToAdd(new Set()) }}>
-              <Plus size={16} className="mr-1" /> Thêm môn học
+              <Plus size={16} className="mr-1" /> Add Subject
             </Button>
           </div>
 
@@ -718,18 +718,18 @@ export function AdminClasses() {
           ) : semesterSubjects.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <Library size={40} className="mx-auto mb-2 opacity-50" />
-              <p>Chưa có môn học nào trong kỳ này</p>
-              <p className="text-sm">Nhấn "Thêm môn học" hoặc kiểm tra cấu hình Subject.Semester</p>
+              <p>No subjects in this term yet</p>
+              <p className="text-sm">Click "Add Subject" or check Subject.Semester configuration</p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã môn</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Tên môn</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mô tả môn học</th>
-                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Hành động</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Code</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Name</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Description</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -747,13 +747,13 @@ export function AdminClasses() {
                           items={[
                             {
                               id: 'edit',
-                              label: 'Chỉnh sửa',
+                              label: 'Edit',
                               icon: <Edit3 size={14} />,
                               onClick: (e) => { e.stopPropagation(); handleEditSubject(sub) },
                             },
                             {
                               id: 'delete',
-                              label: 'Xoá',
+                              label: 'Delete',
                               icon: <Trash2 size={14} />,
                               onClick: (e) => handleRemoveSemesterSubject(sub.id, e),
                               isDanger: true,
@@ -774,7 +774,7 @@ export function AdminClasses() {
       {!loading && level === 'class' && selectedSemester && selectedSubject && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-            Lớp học: <span className="text-brand-600 dark:text-brand-400">{selectedSubject.code}</span> — {selectedSemester.code}
+            Classes: <span className="text-brand-600 dark:text-brand-400">{selectedSubject.code}</span> — {selectedSemester.code}
           </h2>
 
           {loadingSubjectClasses ? (
@@ -782,19 +782,19 @@ export function AdminClasses() {
           ) : subjectClasses.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <GraduationCap size={40} className="mx-auto mb-2 opacity-50" />
-              <p>Chưa có lớp nào</p>
-              <p className="text-sm">Nhấn "Tạo Lớp mới" để thêm</p>
+              <p>No classes yet</p>
+              <p className="text-sm">Click "Create New Class" to add</p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Mã lớp</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Giảng viên</th>
-                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Sinh viên</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Trạng thái</th>
-                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Hành động</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Class Code</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Lecturer</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Students</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Status</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -821,19 +821,19 @@ export function AdminClasses() {
                           items={[
                             {
                               id: 'edit',
-                              label: 'Chỉnh sửa',
+                              label: 'Edit',
                               icon: <Edit3 size={14} />,
                               onClick: (e) => handleEditClass(cls, e),
                             },
                             {
                               id: 'note',
-                              label: 'Ghi chú',
+                              label: 'Note',
                               icon: <StickyNote size={14} />,
                               onClick: (e) => { e.stopPropagation(); openNote(cls) },
                             },
                             {
                               id: 'delete',
-                              label: 'Xoá',
+                              label: 'Delete',
                               icon: <Trash2 size={14} />,
                               onClick: (e) => handleDeleteClass(cls.id, e),
                               isDanger: true,
@@ -854,23 +854,23 @@ export function AdminClasses() {
       {!loading && level === 'students' && selectedClass && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-            Sinh viên Lớp <span className="text-brand-600 dark:text-brand-400">{selectedClass.code}</span>
+            Students in class <span className="text-brand-600 dark:text-brand-400">{selectedClass.code}</span>
           </h2>
           {loadingStudents ? (
             <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" /></div>
           ) : classStudents.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <Users size={40} className="mx-auto mb-2 opacity-50" />
-              <p>Chưa có sinh viên nào trong lớp</p>
+              <p>No students in this class</p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Số thứ tự</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">MSSV</th>
-                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Họ tên</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Student ID</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Name</th>
                     <th className="text-left px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">Email</th>
                   </tr>
                 </thead>
@@ -900,13 +900,13 @@ export function AdminClasses() {
               <div className="mx-auto w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-3">
                 <ShieldAlert className="text-red-600 dark:text-red-400" size={24} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Xoá mùa "{confirmDeleteSeason}"?</h3>
-              <p className="text-sm text-slate-500 mt-2">Toàn bộ 9 kỳ, môn học và lớp trong mùa này sẽ bị xoá vĩnh viễn.</p>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Delete season "{confirmDeleteSeason}"?</h3>
+              <p className="text-sm text-slate-500 mt-2">All 9 terms, subjects and classes in this season will be permanently deleted.</p>
             </div>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setConfirmDeleteSeason(null)}>Huỷ</Button>
+              <Button variant="outline" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Button>
               <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => handleDeleteSeason(confirmDeleteSeason)} disabled={isDeleting}>
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />} Xoá
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 size={14} className="mr-2" />} Delete
               </Button>
             </div>
           </div>
@@ -919,7 +919,7 @@ export function AdminClasses() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAddSubjectModal(false)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <Library size={20} /> Thêm môn học vào {selectedSemester.code}
+              <Library size={20} /> Add subjects to {selectedSemester.code}
             </h3>
             <div className="space-y-2 max-h-[50vh] overflow-y-auto">
               {subjects
@@ -939,17 +939,17 @@ export function AdminClasses() {
                     <div>
                       <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200">{sub.code}</span>
                       <span className="text-sm text-slate-500 ml-2">{sub.name}</span>
-                      {sub.semester && <span className="text-xs text-indigo-500 ml-2">(Kỳ {sub.semester})</span>}
+                      {sub.semester && <span className="text-xs text-indigo-500 ml-2">(Term {sub.semester})</span>}
                     </div>
                   </label>
                 ))
               }
             </div>
             <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Button variant="outline" onClick={() => setShowAddSubjectModal(false)}>Huỷ</Button>
+              <Button variant="outline" onClick={() => setShowAddSubjectModal(false)}>Cancel</Button>
               <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleAddSemesterSubjects} disabled={isSubmitting || selectedSubjectIdsToAdd.size === 0}>
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus size={14} className="mr-2" />}
-                Thêm {selectedSubjectIdsToAdd.size > 0 ? `(${selectedSubjectIdsToAdd.size})` : ''}
+                Add {selectedSubjectIdsToAdd.size > 0 ? `(${selectedSubjectIdsToAdd.size})` : ''}
               </Button>
             </div>
           </div>
@@ -962,33 +962,33 @@ export function AdminClasses() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setEditingSubject(null)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <Edit3 size={20} /> Chỉnh sửa môn học
+              <Edit3 size={20} /> Edit subject
             </h3>
             <div className="space-y-3">
               <Input
-                label="Mã môn (*)"
-                placeholder="Ví dụ: PRN222"
+                label="Subject Code (*)"
+                placeholder="e.g. PRN222"
                 value={subjectForm.code}
                 onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
               />
               <Input
-                label="Tên môn (*)"
-                placeholder="Ví dụ: Object-Oriented Programming"
+                label="Subject Name (*)"
+                placeholder="e.g. Object-Oriented Programming"
                 value={subjectForm.name}
                 onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
               />
               <Textarea
-                label="Mô tả môn học"
-                placeholder="Nhập mô tả chi tiết về môn học..."
+                label="Subject Description"
+                placeholder="Enter details..."
                 value={subjectForm.description}
                 onChange={(e) => setSubjectForm({ ...subjectForm, description: e.target.value })}
                 className="min-h-[100px]"
               />
             </div>
             <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Button variant="outline" onClick={() => setEditingSubject(null)}>Huỷ</Button>
+              <Button variant="outline" onClick={() => setEditingSubject(null)}>Cancel</Button>
               <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleSaveSubject} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Lưu thay đổi
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Save Changes
               </Button>
             </div>
           </div>
@@ -1001,18 +1001,18 @@ export function AdminClasses() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setNoteClassId(null)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <StickyNote size={18} /> Ghi chú nội bộ
+              <StickyNote size={18} /> Internal Notes
             </h3>
             <Textarea
               value={noteDraft}
               onChange={e => setNoteDraft(e.target.value)}
-              placeholder="Nhập ghi chú..."
+              placeholder="Enter notes..."
               className="min-h-[120px]"
             />
             <div className="flex gap-3 justify-end mt-4">
-              <Button variant="outline" onClick={() => setNoteClassId(null)}>Đóng</Button>
+              <Button variant="outline" onClick={() => setNoteClassId(null)}>Close</Button>
               <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={saveNote} disabled={savingNote}>
-                {savingNote ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Lưu
+                {savingNote ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save size={14} className="mr-2" />} Save
               </Button>
             </div>
           </div>

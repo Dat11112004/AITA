@@ -1,15 +1,15 @@
 import type { NavItem } from '@/types'
 
 export const ADMIN_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/admin', icon: 'LayoutDashboard', category: 'Chung' },
-  { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'Users', category: 'Quản lý Đào tạo' },
-  { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'BookOpen', category: 'Quản lý Đào tạo' },
-  { id: 'subjects', label: 'Môn học', path: '/admin/subjects', icon: 'Library', category: 'Quản lý Đào tạo' },
-  { id: 'exams', label: 'Kỳ thi', path: '/admin/exams', icon: 'FileSignature', category: 'Quản lý Đào tạo' },
-  { id: 'reports', label: 'Báo cáo', path: '/admin/reports', icon: 'BarChart3', category: 'Phân tích & Báo cáo' },
-  { id: 'audit-logs', label: 'Nhật ký', path: '/admin/audit-logs', icon: 'FileText', category: 'Phân tích & Báo cáo' },
-  { id: 'ai-config', label: 'Cấu hình AI', path: '/admin/ai-config', icon: 'Bot', category: 'Hệ thống' },
-  { id: 'settings', label: 'Cài đặt', path: '/admin/settings', icon: 'Settings', category: 'Hệ thống' },
+  { id: 'overview', label: 'Overview', path: '/admin', icon: 'LayoutDashboard', category: 'General' },
+  { id: 'users', label: 'Users', path: '/admin/users', icon: 'Users', category: 'Training Management' },
+  { id: 'classes', label: 'Classes', path: '/admin/classes', icon: 'BookOpen', category: 'Training Management' },
+  { id: 'subjects', label: 'Subjects', path: '/admin/subjects', icon: 'Library', category: 'Training Management' },
+  { id: 'exams', label: 'Exams', path: '/admin/exams', icon: 'FileSignature', category: 'Training Management' },
+  { id: 'reports', label: 'Reports', path: '/admin/reports', icon: 'BarChart3', category: 'Analytics & Reports' },
+  { id: 'audit-logs', label: 'Audit Logs', path: '/admin/audit-logs', icon: 'FileText', category: 'Analytics & Reports' },
+  { id: 'ai-config', label: 'AI Config', path: '/admin/ai-config', icon: 'Bot', category: 'System' },
+  { id: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', category: 'System' },
 ]
 
 export const LECTURER_NAV: NavItem[] = [

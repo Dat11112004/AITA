@@ -472,7 +472,7 @@ export function AdminSubjectDetail() {
                   disabled={isSaving}
                   onClick={() => setEditingCard(null)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all"
-                  title="Hủy"
+                  title="Cancel"
                 >
                   <X size={16} />
                 </button>
@@ -497,7 +497,7 @@ export function AdminSubjectDetail() {
                     }
                   }}
                   className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                  title="Lưu"
+                  title="Save"
                 >
                   {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 </button>
@@ -610,7 +610,7 @@ export function AdminSubjectDetail() {
                       disabled={isSaving}
                       onClick={() => { setEditingCard(null) }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Hủy"
+                      title="Cancel"
                     >
                       <X size={16} />
                     </button>
@@ -620,7 +620,7 @@ export function AdminSubjectDetail() {
                         await saveSyllabusData({ description: editDescription })
                       }}
                       className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                      title="Lưu"
+                      title="Save"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     </button>
@@ -629,7 +629,7 @@ export function AdminSubjectDetail() {
                   <button
                     onClick={() => { setEditDescription(syllabus.description); setEditingCard('description') }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                    title="Chỉnh sửa nội dung"
+                    title="Edit content"
                   >
                     <Pencil size={16} />
                   </button>
@@ -660,7 +660,7 @@ export function AdminSubjectDetail() {
                         disabled={isSaving}
                         onClick={() => { setEditingCard(null) }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                        title="Hủy"
+                        title="Cancel"
                       >
                         <X size={16} />
                       </button>
@@ -670,7 +670,7 @@ export function AdminSubjectDetail() {
                           await saveSyllabusData({ learningOutcomes: editLearningOutcomes })
                         }}
                         className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                        title="Lưu"
+                        title="Save"
                       >
                         {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       </button>
@@ -679,7 +679,7 @@ export function AdminSubjectDetail() {
                     <button
                       onClick={() => { setEditLearningOutcomes(JSON.parse(JSON.stringify(syllabus.learningOutcomes))); setEditingCard('learningOutcomes') }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                      title="Chỉnh sửa nội dung"
+                      title="Edit content"
                     >
                       <Pencil size={16} />
                     </button>
@@ -757,7 +757,7 @@ export function AdminSubjectDetail() {
                       disabled={isSaving}
                       onClick={() => { setEditingCard(null) }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Hủy"
+                      title="Cancel"
                     >
                       <X size={16} />
                     </button>
@@ -767,7 +767,7 @@ export function AdminSubjectDetail() {
                         await saveSyllabusData({ studentTasks: editStudentTasks })
                       }}
                       className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                      title="Lưu"
+                      title="Save"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     </button>
@@ -776,7 +776,7 @@ export function AdminSubjectDetail() {
                   <button
                     onClick={() => { setEditStudentTasks([...syllabus.studentTasksList]); setEditingCard('studentTasks') }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                    title="Chỉnh sửa nội dung"
+                    title="Edit content"
                   >
                     <Pencil size={16} />
                   </button>
@@ -826,7 +826,7 @@ export function AdminSubjectDetail() {
                       disabled={isSaving}
                       onClick={() => { setEditingCard(null) }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Hủy"
+                      title="Cancel"
                     >
                       <X size={16} />
                     </button>
@@ -836,7 +836,7 @@ export function AdminSubjectDetail() {
                         await saveSyllabusData({ tools: editTools })
                       }}
                       className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                      title="Lưu"
+                      title="Save"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     </button>
@@ -845,7 +845,7 @@ export function AdminSubjectDetail() {
                   <button
                     onClick={() => { setEditTools([...syllabus.tools]); setEditingCard('tools') }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                    title="Chỉnh sửa nội dung"
+                    title="Edit content"
                   >
                     <Pencil size={16} />
                   </button>
@@ -892,7 +892,7 @@ export function AdminSubjectDetail() {
                         disabled={isSaving}
                         onClick={() => { setEditingCard(null) }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                        title="Hủy"
+                        title="Cancel"
                       >
                         <X size={16} />
                       </button>
@@ -902,7 +902,7 @@ export function AdminSubjectDetail() {
                           await saveSyllabusData({ assessments: editAssessments })
                         }}
                         className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={!isAssessmentTotalValid ? 'Tổng trọng số phải đúng 100%' : 'Lưu'}
+                        title={!isAssessmentTotalValid ? 'Total weight must be exactly 100%' : 'Save'}
                       >
                         {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       </button>
@@ -915,7 +915,7 @@ export function AdminSubjectDetail() {
                       <button
                         onClick={() => { setEditAssessments(JSON.parse(JSON.stringify(syllabus.assessments))); setEditingCard('assessments') }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                        title="Chỉnh sửa nội dung"
+                        title="Edit content"
                       >
                         <Pencil size={16} />
                       </button>
@@ -932,8 +932,8 @@ export function AdminSubjectDetail() {
                         <AlertCircle size={15} className="shrink-0 text-amber-500" />
                         <span>
                           {editAssessmentTotal > 100
-                            ? `Tổng hiện tại ${editAssessmentTotal.toFixed(1)}% (vượt 100%)`
-                            : `Tổng hiện tại ${editAssessmentTotal.toFixed(1)}% (chưa đủ 100%)`}
+                            ? `Current total is ${editAssessmentTotal.toFixed(1)}% (exceeds 100%)`
+                            : `Current total is ${editAssessmentTotal.toFixed(1)}% (under 100%)`}
                         </span>
                       </div>
                       <button
@@ -941,13 +941,13 @@ export function AdminSubjectDetail() {
                         onClick={handleAutoBalanceAssessments}
                         className="px-2 py-0.5 rounded-md bg-amber-500 text-white hover:bg-amber-600 text-[11px] font-bold transition-all shrink-0 shadow-xs"
                       >
-                        Cân bằng 100%
+                        Balance 100%
                       </button>
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
                       <Check size={14} className="shrink-0 text-emerald-500" strokeWidth={3} />
-                      <span>Tổng trọng số đạt đúng 100%</span>
+                      <span>Total weight perfectly matches 100%</span>
                     </div>
                   )}
 
@@ -965,7 +965,7 @@ export function AdminSubjectDetail() {
                               setEditAssessments(newAssessments)
                             }}
                             className="flex-1 font-semibold text-slate-700 dark:text-slate-300 bg-transparent focus:outline-none border-b border-transparent focus:border-brand-500 transition-all"
-                            placeholder="Tên thành phần ĐG"
+                            placeholder="Assessment component name"
                           />
                           <div className="flex items-center gap-1.5">
                             <input
@@ -981,7 +981,7 @@ export function AdminSubjectDetail() {
                             />
                             <span className="font-bold text-brand-600 dark:text-brand-400">%</span>
                             {isLast && (
-                              <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1 py-0.5 rounded" title="Tự động cân bằng phần còn lại">
+                              <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1 py-0.5 rounded" title="Auto-balance remaining">
                                 Auto
                               </span>
                             )}
@@ -1026,7 +1026,7 @@ export function AdminSubjectDetail() {
                       disabled={isSaving}
                       onClick={() => setEditingCard(null)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Hủy"
+                      title="Cancel"
                     >
                       <X size={16} />
                     </button>
@@ -1036,7 +1036,7 @@ export function AdminSubjectDetail() {
                         await saveSyllabusData({ clos: editClos })
                       }}
                       className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                      title="Lưu"
+                      title="Save"
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     </button>
@@ -1048,7 +1048,7 @@ export function AdminSubjectDetail() {
                       setEditingCard('clos')
                     }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                    title="Chỉnh sửa CLO List"
+                    title="Edit CLO List"
                   >
                     <Pencil size={16} />
                   </button>
@@ -1069,7 +1069,7 @@ export function AdminSubjectDetail() {
                         setEditClos(updated)
                       }}
                       className="w-full sm:w-28 font-bold px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-brand-600 focus:outline-none focus:border-brand-500"
-                      placeholder="Mã CLO"
+                      placeholder="CLO Code"
                     />
                     <input
                       type="text"
@@ -1091,7 +1091,7 @@ export function AdminSubjectDetail() {
                         setEditClos(updated)
                       }}
                       className="flex-1 font-medium px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-brand-500"
-                      placeholder="Mô tả chuẩn đầu ra"
+                      placeholder="CLO Description"
                     />
                   </div>
                 ))}
@@ -1156,7 +1156,7 @@ export function AdminSubjectDetail() {
                     disabled={isSaving}
                     onClick={() => setEditingCard(null)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                    title="Hủy"
+                    title="Cancel"
                   >
                     <X size={16} />
                   </button>
@@ -1166,7 +1166,7 @@ export function AdminSubjectDetail() {
                       await saveSyllabusData({ sessions: editSessions })
                     }}
                     className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-50"
-                    title="Lưu"
+                    title="Save"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   </button>
@@ -1178,7 +1178,7 @@ export function AdminSubjectDetail() {
                     setEditingCard('sessions')
                   }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all shrink-0"
-                  title="Chỉnh sửa Lịch trình"
+                  title="Edit Schedule"
                 >
                   <Pencil size={16} />
                 </button>
@@ -1357,7 +1357,7 @@ export function AdminSubjectDetail() {
                       disabled={isSaving}
                       onClick={() => setEditingCard(null)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Hủy"
+                      title="Cancel"
                     >
                       <X size={16} />
                     </button>
@@ -1367,7 +1367,7 @@ export function AdminSubjectDetail() {
                         await saveSyllabusData({ assessments: editAssessments })
                       }}
                       className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={!isAssessmentTotalValid ? 'Tổng trọng số phải đúng 100%' : 'Lưu'}
+                      title={!isAssessmentTotalValid ? 'Total weight must be exactly 100%' : 'Save'}
                     >
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     </button>
@@ -1379,7 +1379,7 @@ export function AdminSubjectDetail() {
                       setEditingCard('assessments')
                     }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950 transition-all"
-                    title="Chỉnh sửa trọng số"
+                    title="Edit weights"
                   >
                     <Pencil size={16} />
                   </button>
@@ -1395,8 +1395,8 @@ export function AdminSubjectDetail() {
                     <AlertCircle size={16} className="shrink-0 text-amber-500" />
                     <span>
                       {editAssessmentTotal > 100
-                        ? `Tổng trọng số hiện tại là ${editAssessmentTotal.toFixed(1)}% (vượt quá 100%). Vui lòng cân bằng lại!`
-                        : `Tổng trọng số hiện tại là ${editAssessmentTotal.toFixed(1)}% (chưa đủ 100%). Vui lòng cân bằng lại!`}
+                        ? `Current total weight is ${editAssessmentTotal.toFixed(1)}% (exceeds 100%). Please rebalance!`
+                        : `Current total weight is ${editAssessmentTotal.toFixed(1)}% (under 100%). Vui lòng cân bằng lại!`}
                     </span>
                   </div>
                   <button
@@ -1404,13 +1404,13 @@ export function AdminSubjectDetail() {
                     onClick={handleAutoBalanceAssessments}
                     className="px-3 py-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-xs font-bold transition-all shrink-0 shadow-xs"
                   >
-                    Tự cân bằng 100%
+                    Auto-balance 100%
                   </button>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
                   <Check size={16} className="shrink-0 text-emerald-500" strokeWidth={3} />
-                  <span>Tổng trọng số đạt đúng 100% chuẩn khung chương trình.</span>
+                  <span>Total weight perfectly matches 100% chuẩn khung chương trình.</span>
                 </div>
               )
             )}
@@ -1461,7 +1461,7 @@ export function AdminSubjectDetail() {
                           />
                           <span className={`font-extrabold text-sm ${color.text}`}>%</span>
                           {isLast && (
-                            <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1.5 py-0.5 rounded" title="Tự động tính phần còn lại">
+                            <span className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-950 px-1.5 py-0.5 rounded" title="Auto-calculate remaining">
                               Auto
                             </span>
                           )}

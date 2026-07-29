@@ -31,18 +31,18 @@ export function AdminOverview() {
   if (error) return <APIError error={error} onRetry={loadData} />
 
   const statCards: StatMetric[] = [
-    { id: 'users', label: 'Tổng người dùng', value: stats.users ?? '—', icon: Users, trend: 'up', trendLabel: 'Đang hoạt động' },
-    { id: 'classes', label: 'Lớp học', value: stats.classes ?? '—', icon: BookOpen, trend: 'up', trendLabel: 'Kỳ hiện tại' },
-    { id: 'subjects', label: 'Môn học', value: stats.subjects ?? '—', icon: Library, trend: 'up', trendLabel: 'Chương trình chuẩn' },
-    { id: 'exams', label: 'Kỳ thi', value: stats.exams ?? '—', icon: GraduationCap, trend: 'up', trendLabel: 'Hệ thống ổn định' },
+    { id: 'users', label: 'Total Users', value: stats.users ?? '—', icon: Users, trend: 'up', trendLabel: 'Active' },
+    { id: 'classes', label: 'Classes', value: stats.classes ?? '—', icon: BookOpen, trend: 'up', trendLabel: 'Current Semester' },
+    { id: 'subjects', label: 'Subjects', value: stats.subjects ?? '—', icon: Library, trend: 'up', trendLabel: 'Standard Curriculum' },
+    { id: 'exams', label: 'Exams', value: stats.exams ?? '—', icon: GraduationCap, trend: 'up', trendLabel: 'System Stable' },
   ]
 
   const quickActions = [
-    { label: 'Người dùng', path: '/admin/users', icon: Users, cls: 'text-blue-700 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/20' },
-    { label: 'Lớp học', path: '/admin/classes', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
-    { label: 'Môn học', path: '/admin/subjects', icon: Library, cls: 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
-    { label: 'Kỳ thi', path: '/admin/exams', icon: GraduationCap, cls: 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20' },
-    { label: 'Cấu hình', path: '/admin/settings', icon: Server, cls: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-400 dark:bg-slate-500/10 dark:border-slate-500/20' },
+    { label: 'Users', path: '/admin/users', icon: Users, cls: 'text-blue-700 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/20' },
+    { label: 'Classes', path: '/admin/classes', icon: BookOpen, cls: 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
+    { label: 'Subjects', path: '/admin/subjects', icon: Library, cls: 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
+    { label: 'Exams', path: '/admin/exams', icon: GraduationCap, cls: 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20' },
+    { label: 'Settings', path: '/admin/settings', icon: Server, cls: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-400 dark:bg-slate-500/10 dark:border-slate-500/20' },
   ]
 
   return (
@@ -50,9 +50,9 @@ export function AdminOverview() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <PageHeader
-          title="Tổng quan hệ thống"
-          description="Theo dõi người dùng, trạng thái dịch vụ và module AI."
-          breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Tổng quan' }]}
+          title="System Overview"
+          description="Monitor users, service status, and AI modules."
+          breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Overview' }]}
         />
       </div>
 
@@ -68,7 +68,7 @@ export function AdminOverview() {
       {/* Quick access */}
       <div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">
-          Truy cập nhanh
+          Quick Access
         </p>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {quickActions.map((a) => (
@@ -95,18 +95,18 @@ export function AdminOverview() {
               <div className="bg-brand-50 dark:bg-brand-500/10 p-1.5 rounded-lg text-brand-600 dark:text-brand-400">
                 <Activity size={16} />
               </div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Lưu lượng hệ thống (7 ngày)</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">System Traffic (7 Days)</h3>
             </div>
           </div>
           <div className="h-56 flex items-end justify-between gap-2 px-2 pb-2">
             {[
-              { day: 'T2', value: 45 },
-              { day: 'T3', value: 52 },
-              { day: 'T4', value: 38 },
-              { day: 'T5', value: 65 },
-              { day: 'T6', value: 48 },
-              { day: 'T7', value: 25 },
-              { day: 'CN', value: 12 },
+              { day: 'Mon', value: 45 },
+              { day: 'Tue', value: 52 },
+              { day: 'Wed', value: 38 },
+              { day: 'Thu', value: 65 },
+              { day: 'Fri', value: 48 },
+              { day: 'Sat', value: 25 },
+              { day: 'Sun', value: 12 },
             ].map((d, i, arr) => {
               const maxVal = Math.max(...arr.map(x => x.value));
               return (
@@ -140,14 +140,14 @@ export function AdminOverview() {
               <div className="bg-purple-50 dark:bg-purple-500/10 p-1.5 rounded-lg text-purple-600 dark:text-purple-400">
                 <Users size={16} />
               </div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Phân bổ người dùng</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">User Distribution</h3>
             </div>
           </div>
           <div className="flex flex-col justify-center gap-6 h-56">
             {[
-              { label: 'Sinh viên', val: 78, color: 'bg-emerald-500' },
-              { label: 'Giảng viên', val: 18, color: 'bg-brand-500' },
-              { label: 'Quản trị viên', val: 4, color: 'bg-rose-500' },
+              { label: 'Students', val: 78, color: 'bg-emerald-500' },
+              { label: 'Lecturers', val: 18, color: 'bg-brand-500' },
+              { label: 'Administrators', val: 4, color: 'bg-rose-500' },
             ].map((d, i) => (
               <div key={i} className="space-y-2 group cursor-pointer">
                 <div className="flex justify-between text-sm transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-400">
@@ -172,11 +172,11 @@ export function AdminOverview() {
               <div className="bg-brand-50 dark:bg-brand-500/10 p-1.5 rounded-lg text-brand-600 dark:text-brand-400">
                 <BookOpen size={16} />
               </div>
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Tuyển sinh & Mở lớp</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Enrollment & Classes</span>
             </div>
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-brand-500 shadow-sm" /> Học viên (x100)</div>
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400 shadow-sm" /> Lớp mở</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-brand-500 shadow-sm" /> Students (x100)</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-400 shadow-sm" /> Opened Classes</div>
             </div>
           </div>
           <div className="p-6 space-y-8">
@@ -192,7 +192,7 @@ export function AdminOverview() {
                   <div className="flex items-end justify-center gap-1.5 w-full h-44 relative">
                     {/* Tooltip */}
                     <div className="absolute -top-10 bg-slate-800 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all pointer-events-none z-10 dark:bg-white dark:text-slate-900 shadow-xl whitespace-nowrap">
-                      {d.students}00 HV / {d.classes} Lớp
+                      {d.students}00 Students / {d.classes} Classes
                     </div>
                     {/* Students Bar */}
                     <div className="w-1/3 max-w-[20px] bg-brand-500 rounded-t shadow-[0_0_8px_rgba(var(--color-brand-500),0.3)] transition-all duration-300 group-hover:bg-brand-400" style={{ height: `${(d.students / 125) * 100}%` }} />
@@ -206,14 +206,14 @@ export function AdminOverview() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng Lớp (SP25)</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Classes (SP25)</p>
                 <div className="flex items-end gap-2 mt-2">
                   <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">62</span>
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md mb-0.5 shadow-sm border border-emerald-100 dark:border-emerald-500/20">+12%</span>
                 </div>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tỷ lệ Lấp đầy</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fill Rate</p>
                 <div className="flex items-end gap-2 mt-2">
                   <span className="text-3xl font-black text-slate-900 dark:text-white leading-none">94<span className="text-xl">%</span></span>
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md mb-0.5 shadow-sm border border-emerald-100 dark:border-emerald-500/20">+2%</span>
@@ -230,7 +230,7 @@ export function AdminOverview() {
               <div className="bg-amber-50 dark:bg-amber-500/10 p-1.5 rounded-lg text-amber-600 dark:text-amber-400">
                 <Library size={16} />
               </div>
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Cơ cấu Ngành học</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Major Distribution</span>
             </div>
           </div>
           
@@ -248,16 +248,16 @@ export function AdminOverview() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-4xl font-black text-slate-900 dark:text-white">4</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Chuyên ngành</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Majors</span>
               </div>
             </div>
 
             <div className="w-full grid grid-cols-2 gap-x-4 gap-y-3">
               {[
-                { label: 'Kỹ thuật Phần mềm', percent: 45, color: 'bg-emerald-500' },
-                { label: 'Trí tuệ Nhân tạo', percent: 25, color: 'bg-amber-500' },
-                { label: 'Thiết kế Đồ họa', percent: 20, color: 'bg-blue-500' },
-                { label: 'An toàn Thông tin', percent: 10, color: 'bg-rose-500' },
+                { label: 'Software Engineering', percent: 45, color: 'bg-emerald-500' },
+                { label: 'Artificial Intelligence', percent: 25, color: 'bg-amber-500' },
+                { label: 'Graphic Design', percent: 20, color: 'bg-blue-500' },
+                { label: 'Information Assurance', percent: 10, color: 'bg-rose-500' },
               ].map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50">
                   <div className="flex items-center gap-3">

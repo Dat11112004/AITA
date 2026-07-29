@@ -29,7 +29,7 @@ export function AdminAIConfig() {
         setConfig((prev) => ({ ...prev, ...data }))
       }
     } catch (e: any) {
-      setError(e.message || 'Lỗi tải cấu hình AI')
+      setError(e.message || 'Error loading AI config')
     } finally {
       setLoading(false)
     }
@@ -43,9 +43,9 @@ export function AdminAIConfig() {
     setSaving(true)
     try {
       await api.updateAIConfig(config)
-      alert('Cập nhật cấu hình AI thành công!')
+      alert('AI config updated successfully!')
     } catch (e: any) {
-      alert(e.message || 'Lỗi khi lưu cấu hình AI')
+      alert(e.message || 'Error saving AI config')
     } finally {
       setSaving(false)
     }
@@ -57,12 +57,12 @@ export function AdminAIConfig() {
   return (
     <div className="space-y-8 p-1 sm:p-4 max-w-4xl mx-auto animate-in fade-in">
       <PageHeader 
-        title="Cấu hình AI" 
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Cấu hình AI' }]} 
+        title="AI Configuration" 
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'AI Configuration' }]} 
         actions={
           <Button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-700 text-white flex items-center gap-2 px-6">
             <Save size={16} />
-            {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
+            {saving ? 'Saving...' : 'Save Configuration'}
           </Button>
         }
       />
@@ -70,17 +70,17 @@ export function AdminAIConfig() {
       <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
           <Settings2 className="text-slate-500 w-5 h-5 ml-1" />
-          <CardHeader title="Tham số Hệ thống Trí tuệ Nhân tạo" />
+          <CardHeader title="Artificial Intelligence System Parameters" />
         </div>
 
         <div className="p-6 space-y-8">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h4 className="font-bold flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-                <Bot size={18} /> Model Ngôn ngữ
+                <Bot size={18} /> Language Model
               </h4>
               <Select 
-                label="Mô hình AI sử dụng"
+                label="AI Model used"
                 options={[
                   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
                   { value: 'gpt-4-turbo', label: 'OpenAI GPT-4 Turbo' },
@@ -95,7 +95,7 @@ export function AdminAIConfig() {
               <Input 
                 label="API Key" 
                 type="password"
-                placeholder="Nhập khóa API bí mật..."
+                placeholder="Enter secret API key..."
                 value={config.apiKey}
                 onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
               />
@@ -103,7 +103,7 @@ export function AdminAIConfig() {
 
             <div className="space-y-4">
               <h4 className="font-bold flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                <Settings2 size={18} /> Tham số Sinh văn bản
+                <Settings2 size={18} /> Text Generation Parameters
               </h4>
               
               <Input 
@@ -139,8 +139,8 @@ export function AdminAIConfig() {
                 <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${config.autoGradeEnabled ? 'transform translate-x-6' : ''}`}></div>
               </div>
               <div>
-                <div className="font-bold text-slate-900 dark:text-white">Cho phép AI chấm điểm tự động</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">Hệ thống sẽ tự động gọi AI để chấm sơ bộ khi sinh viên nộp bài</div>
+                <div className="font-bold text-slate-900 dark:text-white">Enable AI auto-grading</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">The system will automatically call AI for preliminary grading when students submit assignments</div>
               </div>
             </label>
           </div>

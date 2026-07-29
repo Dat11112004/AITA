@@ -102,15 +102,20 @@ export function LoginPage() {
 
       {/* ══ LEFT PANEL ══════════════════════════════════════════ */}
       <div className="hidden lg:flex lg:w-[480px] xl:w-[520px] flex-col relative overflow-hidden">
-        {/* Background ảnh campus */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/fpt-campus.jpg)' }}
+        {/* Frog mascot — full background chiếm hết panel */}
+        <img
+          src="/frog.png"
+          alt="AITA Frog Mascot"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none z-[1]"
+          style={{ opacity: 0.45 }}
+          draggable={false}
         />
-        {/* Overlay cam đậm để text dễ đọc */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#e65c00]/80 via-[#F37021]/70 to-[#fb8c00]/60" />
-        {/* Overlay tối phía dưới để text nổi */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+        {/* Solid orange base behind frog for color consistency */}
+        <div className="absolute inset-0 bg-[#e65c00] z-[0]" />
+        {/* Overlay gradient cam đậm trên frog để text nổi bật */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#e65c00]/75 via-[#F37021]/55 to-[#fb8c00]/45 z-[2]" />
+        {/* Overlay tối phía dưới để text nổi hơn */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-black/30 z-[3]" />
 
         <div className="relative z-10 flex flex-col h-full px-10 py-12">
           {/* Logo */}

@@ -29,11 +29,11 @@ export function LecturerSubjectDetail() {
         if (found) {
           setSubject(found)
         } else {
-          setSubject({ id: code, code: code.toUpperCase(), name: 'Môn học', description: '' })
+          setSubject({ id: code, code: code.toUpperCase(), name: 'Subject', description: '' })
         }
       })
       .catch(() => {
-        setSubject({ id: code, code: code.toUpperCase(), name: 'Môn học', description: '' })
+        setSubject({ id: code, code: code.toUpperCase(), name: 'Subject', description: '' })
       })
       .finally(() => setLoading(false))
   }, [code])
@@ -164,7 +164,7 @@ export function LecturerSubjectDetail() {
 
     return {
       code: s.code || subject?.code || 'N/A',
-      name: s.name || subject?.name || 'Môn học',
+      name: s.name || subject?.name || 'Subject',
       description,
       credits,
       degreeLevel,
@@ -191,17 +191,17 @@ export function LecturerSubjectDetail() {
   }, [syllabus, sessionSearch])
 
   const tabs: { key: TabType; label: string; icon: any; count?: number }[] = [
-    { key: 'syllabus', label: 'Tổng quan', icon: BookOpen },
-    { key: 'clos', label: 'CLO', icon: GraduationCap, count: syllabus?.clos.length },
-    { key: 'sessions', label: 'Lịch trình', icon: ClipboardList, count: syllabus?.sessions.length },
-    { key: 'assessment', label: 'Đánh giá', icon: BarChart3, count: syllabus?.assessments.length },
+    { key: 'syllabus', label: 'Syllabus Overview', icon: BookOpen },
+    { key: 'clos', label: 'CLO List', icon: GraduationCap, count: syllabus?.clos.length },
+    { key: 'sessions', label: 'Sessions', icon: ClipboardList, count: syllabus?.sessions.length },
+    { key: 'assessment', label: 'Assessment', icon: BarChart3, count: syllabus?.assessments.length },
   ]
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-4" />
-        <p className="text-sm text-slate-500 font-medium">Đang tải thông tin môn học...</p>
+        <p className="text-sm text-slate-500 font-medium">Loading subject details...</p>
       </div>
     )
   }
@@ -214,12 +214,12 @@ export function LecturerSubjectDetail() {
             onClick={() => navigate('/lecturer/subjects')}
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           >
-            <ArrowLeft size={16} /> Quay lại danh sách
+            <ArrowLeft size={16} /> Back to Subjects
           </button>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <Link to="/lecturer" className="hover:underline">Giảng viên</Link>
+            <Link to="/lecturer" className="hover:underline">Lecturer</Link>
             <ChevronRight size={12} />
-            <Link to="/lecturer/subjects" className="hover:underline">Môn học</Link>
+            <Link to="/lecturer/subjects" className="hover:underline">Subjects</Link>
             <ChevronRight size={12} />
             <span className="text-slate-700 dark:text-slate-200 font-bold">{subject?.code || code}</span>
           </div>
@@ -235,7 +235,7 @@ export function LecturerSubjectDetail() {
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              {subject?.name || 'Môn học'}
+              {subject?.name || 'Subject'}
             </h1>
           </div>
         </div>
@@ -247,10 +247,10 @@ export function LecturerSubjectDetail() {
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
             <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-              Chưa có Syllabus
+              Syllabus Not Provided Yet
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
-              Syllabus chi tiết cho <strong className="text-slate-700 dark:text-slate-200 font-semibold">{subject?.code || code} - {subject?.name}</strong> chưa được cung cấp. Vui lòng liên hệ Admin để cập nhật.
+              Detailed syllabus content for <strong className="text-slate-700 dark:text-slate-200 font-semibold">{subject?.code || code} - {subject?.name}</strong> has not been provided yet. Please contact the administrator to update.
             </p>
           </div>
           <div className="pt-2">
@@ -258,7 +258,7 @@ export function LecturerSubjectDetail() {
               onClick={() => navigate('/lecturer/subjects')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all"
             >
-              <ArrowLeft size={14} /> Quay lại danh sách Môn học
+              <ArrowLeft size={14} /> Back to Subjects
             </button>
           </div>
         </div>
@@ -275,12 +275,12 @@ export function LecturerSubjectDetail() {
           onClick={() => navigate('/lecturer/subjects')}
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
         >
-          <ArrowLeft size={16} /> Quay lại danh sách
+          <ArrowLeft size={16} /> Back to Subjects
         </button>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-          <Link to="/lecturer" className="hover:underline">Giảng viên</Link>
+          <Link to="/lecturer" className="hover:underline">Lecturer</Link>
           <ChevronRight size={12} />
-          <Link to="/lecturer/subjects" className="hover:underline">Môn học</Link>
+          <Link to="/lecturer/subjects" className="hover:underline">Subjects</Link>
           <ChevronRight size={12} />
           <span className="text-slate-700 dark:text-slate-200 font-bold">{syllabus.code}</span>
         </div>
@@ -313,7 +313,7 @@ export function LecturerSubjectDetail() {
           </h1>
 
           <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-2xl">
-            Syllabus chi tiết, CLO/ABET, lịch trình buổi học và phân bổ đánh giá.
+            Detailed course syllabus, Learning Outcomes (CLO/ABET), session schedule, and assessment scheme.
           </p>
 
           <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500 dark:text-slate-400 border-t border-emerald-100 dark:border-slate-700/60">
@@ -356,13 +356,13 @@ export function LecturerSubjectDetail() {
         })}
       </div>
 
-      {/* TAB 1: OVERVIEW — section headers Vietnamese, content data English */}
+      {/* TAB 1: SYLLABUS OVERVIEW */}
       {activeTab === 'syllabus' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* Description */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Mô tả môn học</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Description</h3>
               <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">
                 {syllabus.description}
               </p>
@@ -371,8 +371,8 @@ export function LecturerSubjectDetail() {
             {/* Learning Outcomes */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
-                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Chuẩn đầu ra (ABET)</h3>
-                <span className="text-xs font-semibold text-slate-400">Sau khi hoàn thành môn học</span>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Learning Outcomes (ABET)</h3>
+                <span className="text-xs font-semibold text-slate-400">Upon completing the course</span>
               </div>
 
               <div className="space-y-6">
@@ -402,7 +402,7 @@ export function LecturerSubjectDetail() {
 
             {/* Student Tasks */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Nhiệm vụ sinh viên</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Student Tasks</h3>
               <div className="space-y-2">
                 {syllabus.studentTasksList.map((task: string, idx: number) => (
                   <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
@@ -420,7 +420,7 @@ export function LecturerSubjectDetail() {
           <div className="space-y-6">
             {/* Tools */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Công cụ & Phần mềm</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Tools & Software</h3>
               <div className="flex flex-col gap-2">
                 {syllabus.tools.map((t: string, i: number) => (
                   <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700/50">
@@ -434,9 +434,9 @@ export function LecturerSubjectDetail() {
             {/* Assessment Summary */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Phân bổ đánh giá</h3>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Assessment Weight</h3>
                 <button onClick={() => setActiveTab('assessment')} className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
-                  Chi tiết →
+                  View Details
                 </button>
               </div>
               <div className="space-y-2.5">
@@ -453,23 +453,23 @@ export function LecturerSubjectDetail() {
 
             {/* Quick Stats */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-slate-800/80 dark:to-slate-900 border border-emerald-100 dark:border-slate-700/50 space-y-3">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-sm">Thống kê nhanh</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-sm">Quick Stats</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
                   <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.credits}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Tín chỉ</div>
+                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Credits</div>
                 </div>
                 <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
                   <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.sessions.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Buổi học</div>
+                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Sessions</div>
                 </div>
                 <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
                   <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.clos.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">CLO</div>
+                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">CLOs</div>
                 </div>
                 <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
                   <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.assessments.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Đánh giá</div>
+                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Assessments</div>
                 </div>
               </div>
             </div>
@@ -483,10 +483,10 @@ export function LecturerSubjectDetail() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                Danh sách CLO
+                CLO List
               </h3>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-3 py-1 rounded-full">
-                Tổng: {syllabus.clos.length} CLOs
+                Total: {syllabus.clos.length} CLOs
               </span>
             </div>
 
@@ -494,9 +494,9 @@ export function LecturerSubjectDetail() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                   <tr>
-                    <th className="p-3 w-24 text-center font-semibold">Mã CLO</th>
+                    <th className="p-3 w-24 text-center font-semibold">Code</th>
                     <th className="p-3 w-28 font-semibold">LO Mapping</th>
-                    <th className="p-3 font-semibold">Mô tả</th>
+                    <th className="p-3 font-semibold">Description</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
@@ -526,9 +526,9 @@ export function LecturerSubjectDetail() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700/50">
             <div>
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                Lịch trình giảng dạy
+                Session Schedule
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Chủ đề, hình thức, và nhiệm vụ sinh viên theo từng buổi.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lecture topics, delivery types, and student tasks.</p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -536,7 +536,7 @@ export function LecturerSubjectDetail() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   type="text"
-                  placeholder="Tìm buổi học, chủ đề..."
+                  placeholder="Search session, topic..."
                   value={sessionSearch}
                   onChange={e => setSessionSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-emerald-500 transition-all"
@@ -550,12 +550,12 @@ export function LecturerSubjectDetail() {
               <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                 <tr>
                   <th className="p-3 w-16 text-center font-semibold">No.</th>
-                  <th className="p-3 font-semibold">Chủ đề</th>
-                  <th className="p-3 w-20 text-center font-semibold">Hình thức</th>
+                  <th className="p-3 font-semibold">Topic</th>
+                  <th className="p-3 w-20 text-center font-semibold">Type</th>
                   <th className="p-3 w-20 text-center font-semibold">CLO</th>
                   <th className="p-3 w-14 text-center font-semibold">ITU</th>
-                  <th className="p-3 font-semibold">Nhiệm vụ SV</th>
-                  <th className="p-3 w-32 text-center font-semibold">Tài liệu</th>
+                  <th className="p-3 font-semibold">Student Tasks</th>
+                  <th className="p-3 w-32 text-center font-semibold">Materials</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
@@ -624,10 +624,10 @@ export function LecturerSubjectDetail() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                Phân bổ đánh giá & Trọng số
+                Assessment Scheme & Weight Distribution
               </h3>
               <span className="text-xs font-bold px-3 py-1 rounded-full text-emerald-600 bg-emerald-50 dark:bg-emerald-950">
-                Tổng: {syllabus.totalAssessmentWeight.toFixed(1)}%
+                Total: {syllabus.totalAssessmentWeight.toFixed(1)}%
               </span>
             </div>
 
@@ -661,7 +661,7 @@ export function LecturerSubjectDetail() {
 
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                <span>Tổng trọng số đánh giá</span>
+                <span>Total Assessment Weight</span>
                 <span className="text-emerald-600 dark:text-emerald-400 text-base">
                   {syllabus.totalAssessmentWeight.toFixed(1)}%
                 </span>
@@ -681,7 +681,7 @@ export function LecturerSubjectDetail() {
               </div>
 
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 pt-1">
-                Đạt {syllabus.totalAssessmentWeight.toFixed(1)}% tổng trọng số đánh giá theo chuẩn chương trình.
+                Achieved {syllabus.totalAssessmentWeight.toFixed(1)}% total assessment weight according to curriculum standard.
               </p>
             </div>
           </div>

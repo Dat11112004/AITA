@@ -11,9 +11,9 @@ import { api, type UserRow } from '@/lib/api'
 import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical } from 'lucide-react'
 
 const ROLE_TABS = [
-  { id: 'all', label: 'Tất cả' },
-  { id: 'lecturer', label: 'Giảng viên' },
-  { id: 'student', label: 'Sinh viên' },
+  { id: 'all', label: 'All' },
+  { id: 'lecturer', label: 'Lecturer' },
+  { id: 'student', label: 'Student' },
 ]
 
 const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) => {
@@ -70,13 +70,13 @@ const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
               onClick={(e) => { e.preventDefault(); setOpen(false); onEdit(); }}
             >
-              <Pencil size={14} className="text-slate-400" /> Sửa thông tin
+              <Pencil size={14} className="text-slate-400" /> Edit Info
             </button>
             <button
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
               onClick={(e) => { e.preventDefault(); setOpen(false); onDelete(); }}
             >
-              <Trash2 size={14} /> Xóa tài khoản
+              <Trash2 size={14} /> Delete Account
             </button>
           </div>
         </div>,
@@ -168,7 +168,7 @@ export function AdminUsers() {
       setUsers(data || [])
       setSelectedIds(new Set())
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không thể tải danh sách người dùng'
+      const msg = err instanceof Error ? err.message : 'Unable to load user list'
       setLoadError(msg)
       setUsers([])
     } finally {
@@ -246,7 +246,7 @@ export function AdminUsers() {
       const data = await api.getUser(id)
       setSelectedUserDetail(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi tải chi tiết người dùng')
+      setError(e instanceof Error ? e.message : 'Error loading user details')
     }
   }
 
@@ -255,15 +255,15 @@ export function AdminUsers() {
     setError('')
 
     if (!form.fullName || form.fullName.trim().length < 2) {
-      setError('Họ tên phải có ít nhất 2 ký tự')
+      setError('Full name must be at least 2 characters')
       return
     }
     if (!form.email || !form.email.includes('@')) {
-      setError('Email định dạng không hợp lệ')
+      setError('Invalid email format')
       return
     }
     if (!editingUser && (!form.password || form.password.length < 6)) {
-      setError('Mật khẩu bắt buộc và phải từ 6 ký tự trở lên')
+      setError('Password is required and must be at least 6 characters')
       return
     }
 
@@ -302,7 +302,7 @@ export function AdminUsers() {
       resetForm()
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Thao tác lưu thất bại')
+      setError(e instanceof Error ? e.message : 'Operation failed')
     } finally {
       setSaving(false)
     }
@@ -313,11 +313,10 @@ export function AdminUsers() {
     setUsers(prev => prev.filter(u => u.id !== id))
     try {
       await api.deleteUser(id)
-      // Chạy ngầm load để đảm bảo đồng bộ hoàn toàn, nhưng không await để UI mượt
       api.getUsers(activeTab, 1, 100, search).then(data => setUsers(data || []))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Xóa tài khoản thất bại')
-      load() // Phục hồi dữ liệu nếu lỗi
+      setError(e instanceof Error ? e.message : 'Delete failed')
+      load()
     }
   }
 
@@ -347,17 +346,15 @@ export function AdminUsers() {
     if (selectedIds.size === 0) return
     setBulkDeleting(true)
     setError('')
-    // Close modal immediately so user sees main list
     setConfirmBulkDelete(false)
     try {
       await Promise.all(Array.from(selectedIds).map(id => api.deleteUser(id)))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Xóa hàng loạt thất bại')
+      setError(e instanceof Error ? e.message : 'Bulk delete failed')
     } finally {
       setBulkDeleting(false)
       setSelectedIds(new Set())
       setIsSelectionMode(false)
-      // Reload fresh data from server
       load()
     }
   }
@@ -374,7 +371,7 @@ export function AdminUsers() {
       setIsSelectionMode(false)
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Cập nhật hàng loạt thất bại')
+      setError(e instanceof Error ? e.message : 'Bulk update failed')
     } finally {
       setBulkEditing(false)
     }
@@ -382,7 +379,7 @@ export function AdminUsers() {
 
   const handleImport = async () => {
     if (!importFile) {
-      setError('Vui lòng chọn file Excel')
+      setError('Please select an Excel file')
       return
     }
 
@@ -396,19 +393,19 @@ export function AdminUsers() {
       const res = await api.importStudentsExcel(formData)
       
       if (res.errorCount > 0) {
-        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+          msg += `\nFirst error detail: ${res.errors[0]}`
         }
         setError(msg)
       } else {
-        setImportSuccess(`Đã import thành công ${res.successCount} sinh viên.`)
+        setImportSuccess(`Successfully imported ${res.successCount} students.`)
         setImportFile(null)
       }
 
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import thất bại')
+      setError(e instanceof Error ? e.message : 'Import failed')
     } finally {
       setImporting(false)
     }
@@ -416,7 +413,7 @@ export function AdminUsers() {
 
   const handleLecturerImport = async () => {
     if (!importLecturerFile) {
-      setError('Vui lòng chọn file Excel')
+      setError('Please select an Excel file')
       return
     }
 
@@ -430,19 +427,19 @@ export function AdminUsers() {
       const res = await api.importLecturersExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+          msg += `\nFirst error detail: ${res.errors[0]}`
         }
         setError(msg)
       } else {
-        setImportSuccess(`Đã import thành công ${res.successCount} giảng viên. Emails phân công đã được gửi.`)
+        setImportSuccess(`Successfully imported ${res.successCount} lecturers. Notification emails have been sent.`)
         setImportLecturerFile(null)
       }
 
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import thất bại')
+      setError(e instanceof Error ? e.message : 'Import failed')
     } finally {
       setImportingLecturer(false)
     }
@@ -450,7 +447,7 @@ export function AdminUsers() {
 
   const handleAssignmentImport = async () => {
     if (!importAssignmentFile) {
-      setError('Vui lòng chọn file Excel')
+      setError('Please select an Excel file')
       return
     }
 
@@ -464,19 +461,19 @@ export function AdminUsers() {
       const res = await api.importTeachingAssignmentsExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Khong the import\nThành công: ${res.successCount}\nLỗi: ${res.errorCount}.`
+        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nChi tiết lỗi đầu tiên: ${res.errors[0]}`
+          msg += `\nFirst error detail: ${res.errors[0]}`
         }
         setError(msg)
       } else {
-        setImportSuccess(`Đã import thành công phân công giảng dạy.`)
+        setImportSuccess(`Successfully imported teaching assignments.`)
         setImportAssignmentFile(null)
       }
 
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Import thất bại')
+      setError(e instanceof Error ? e.message : 'Import failed')
     } finally {
       setImportingAssignment(false)
     }
@@ -486,11 +483,10 @@ export function AdminUsers() {
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
-      {/* Page Header */}
       <PageHeader
-        title="Quản lý người dùng"
-        description="Quản trị phân quyền, thiết lập trạng thái vận hành tài khoản giảng viên, sinh viên và nhân sự quản trị."
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Người dùng' }]}
+        title="User Management"
+        description="Manage permissions and status of lecturers, students, and admins."
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Users' }]}
         actions={
           <div className="flex gap-2 items-center flex-wrap">
             <Button
@@ -499,7 +495,7 @@ export function AdminUsers() {
               className={isSelectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
               onClick={toggleSelectionMode}
             >
-              <CheckSquare size={16} className="mr-2" /> {isSelectionMode ? 'Hủy chọn' : 'Chọn'}
+              <CheckSquare size={16} className="mr-2" /> {isSelectionMode ? 'Deselect' : 'Select'}
             </Button>
             {isSelectionMode && (
               <Button
@@ -508,7 +504,7 @@ export function AdminUsers() {
                 className="text-brand-700 border-brand-200 hover:bg-brand-50"
                 onClick={toggleSelectAll}
               >
-                {selectedIds.size === filteredUsers.length && filteredUsers.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                {selectedIds.size === filteredUsers.length && filteredUsers.length > 0 ? 'Deselect All' : 'Select All'}
               </Button>
             )}
             {isSelectionMode && selectedIds.size > 0 && (
@@ -531,7 +527,7 @@ export function AdminUsers() {
                   }}
                 >
                   <Pencil size={16} />
-                  Sửa {selectedIds.size} đã chọn
+                  Edit {selectedIds.size} selected
                 </Button>
                 <Button
                   size="sm"
@@ -540,7 +536,7 @@ export function AdminUsers() {
                   onClick={() => setConfirmBulkDelete(true)}
                 >
                   <Trash2 size={16} />
-                  Xóa {selectedIds.size} đã chọn
+                  Delete {selectedIds.size} selected
                 </Button>
               </>
             )}
@@ -553,7 +549,7 @@ export function AdminUsers() {
                   onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
-                  Import Giảng viên
+                  Import Lecturer
                 </Button>
                 <Button
                   size="sm"
@@ -562,7 +558,7 @@ export function AdminUsers() {
                   onClick={() => { setShowAssignmentImport(true); setShowLecturerImport(false); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
-                  Import Phân công
+                  Import Assignment
                 </Button>
                 <Button
                   size="sm"
@@ -571,7 +567,7 @@ export function AdminUsers() {
                   onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
                 >
                   <Upload size={16} />
-                  Import Sinh viên
+                  Import Student
                 </Button>
                 <Button
                   size="sm"
@@ -579,7 +575,7 @@ export function AdminUsers() {
                   onClick={handleOpenCreate}
                 >
                   <Plus size={16} />
-                  Thêm người dùng mới
+                  Add New User
                 </Button>
               </>
             )}
@@ -587,39 +583,38 @@ export function AdminUsers() {
         }
       />
 
-      {/* Bulk Edit Form Modal */}
       {showBulkEditForm && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <Card className="w-full max-w-md shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
             <form onSubmit={handleBulkEdit}>
               <div className="p-6">
                 <div className="text-center space-y-2 mb-6">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Thay đổi vai trò hàng loạt</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bulk Change Role</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Chọn vai trò mới cho <span className="font-bold text-blue-600">{selectedIds.size}</span> tài khoản đã chọn.
+                    Select a new role for <span className="font-bold text-blue-600">{selectedIds.size}</span> selected accounts.
                   </p>
                 </div>
                 <div className="space-y-4 mb-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Vai trò mới</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">New Role</label>
                     <Select
                       value={bulkEditRole}
                       onChange={(e) => setBulkEditRole(e.target.value)}
                       options={[
-                        { value: 'student', label: 'Sinh viên' },
-                        { value: 'lecturer', label: 'Giảng viên' },
-                        { value: 'admin', label: 'Quản trị viên' }
+                        { value: 'student', label: 'Student' },
+                        { value: 'lecturer', label: 'Lecturer' },
+                        { value: 'admin', label: 'Admin' }
                       ]}
                     />
                   </div>
                 </div>
                 <div className="flex gap-3 justify-end">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setShowBulkEditForm(false)} disabled={bulkEditing}>
-                    Hủy bỏ
+                    Cancel
                   </Button>
                   <Button type="submit" disabled={bulkEditing} className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center justify-center">
                     {bulkEditing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    {bulkEditing ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    {bulkEditing ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </div>
@@ -629,7 +624,6 @@ export function AdminUsers() {
         document.body
       )}
 
-      {/* Bulk Delete Confirmation Modal */}
       {confirmBulkDelete && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
@@ -638,18 +632,18 @@ export function AdminUsers() {
                 <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
               </div>
               <div className="text-center space-y-2 mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Xác nhận xóa hàng loạt?</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Confirm Bulk Delete?</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Bạn đang chuẩn bị xóa vĩnh viễn <span className="font-bold text-red-600">{selectedIds.size}</span> tài khoản. Hành động này không thể hoàn tác.
+                  You are about to permanently delete <span className="font-bold text-red-600">{selectedIds.size}</span> accounts. This action cannot be undone.
                 </p>
               </div>
               <div className="flex gap-3 justify-end">
                 <Button variant="outline" className="flex-1" onClick={() => setConfirmBulkDelete(false)} disabled={bulkDeleting}>
-                  Hủy bỏ
+                  Cancel
                 </Button>
                 <Button onClick={handleBulkDelete} disabled={bulkDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium flex items-center justify-center">
                   {bulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  {bulkDeleting ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+                  {bulkDeleting ? 'Deleting...' : 'Permanently Delete'}
                 </Button>
               </div>
             </div>
@@ -658,7 +652,6 @@ export function AdminUsers() {
         document.body
       )}
 
-      {/* Delete Confirmation Modal */}
       {confirmDelete && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <Card className="w-full max-w-md border-red-200 dark:border-red-900/40 shadow-xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200">
@@ -667,17 +660,17 @@ export function AdminUsers() {
                 <ShieldAlert className="text-red-600 dark:text-red-400 w-6 h-6 animate-pulse" />
               </div>
               <div className="text-center space-y-2 mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bạn có chắc chắn muốn xóa tài khoản này?</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Are you sure you want to delete this account?</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Hành động này sẽ xóa vĩnh viễn tài khoản khỏi cơ sở dữ liệu. Mọi thông tin định danh, lịch sử làm bài nộp sẽ bị hủy bỏ hoàn toàn và không thể khôi phục.
+                  This action will permanently delete the account from the database. All identity information and submission history will be completely destroyed and cannot be recovered.
                 </p>
               </div>
               <div className="flex gap-3 justify-end">
                 <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>
-                  Hủy bỏ
+                  Cancel
                 </Button>
                 <Button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium">
-                  Xóa vĩnh viễn
+                  Permanently Delete
                 </Button>
               </div>
             </div>
@@ -686,12 +679,11 @@ export function AdminUsers() {
         document.body
       )}
 
-      {/* User Detail Modal */}
       {selectedUserDetail && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl bg-white dark:bg-slate-900 animate-in zoom-in-95 duration-200 border-slate-200 dark:border-slate-800">
             <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-10 border-b border-slate-100 dark:border-slate-800 p-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Chi tiết tài khoản</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Account Details</h3>
               <button onClick={() => setSelectedUserDetail(null)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                 <X size={20} />
               </button>
@@ -710,17 +702,17 @@ export function AdminUsers() {
                   <p className="text-slate-500 dark:text-slate-400 font-medium mb-3">{selectedUserDetail.email}</p>
                   <div className="flex gap-2">
                     <Badge variant={selectedUserDetail.role === 'admin' ? 'info' : selectedUserDetail.role === 'lecturer' ? 'warning' : 'success'}>
-                      {selectedUserDetail.role === 'admin' ? 'Quản trị viên' : selectedUserDetail.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'}
+                      {selectedUserDetail.role === 'admin' ? 'Admin' : selectedUserDetail.role === 'lecturer' ? 'Lecturer' : 'Student'}
                     </Badge>
                     {selectedUserDetail.status !== 'active' ? (
-                      <Badge variant="danger">Đã khóa</Badge>
+                      <Badge variant="danger">Locked</Badge>
                     ) : (
                       (() => {
                         const online = selectedUserDetail.lastLoginAt ? (new Date().getTime() - new Date(selectedUserDetail.lastLoginAt).getTime()) < 30 * 60 * 1000 : false;
                         return (
                           <Badge variant={online ? 'success' : 'neutral'} className={online ? "flex items-center gap-1.5 border-green-200" : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"}>
                             {online && <span className="w-1.5 h-1.5 rounded-full bg-green-100 animate-pulse" />}
-                            {online ? 'Đang hoạt động' : 'Không hoạt động'}
+                            {online ? 'Active' : 'Inactive'}
                           </Badge>
                         );
                       })()
@@ -731,41 +723,41 @@ export function AdminUsers() {
 
               <div className="grid sm:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Mã định danh (MSSV/MSGV)</p>
-                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.studentCode || selectedUserDetail.lecturerCode || 'Không có'}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">ID (Student/Lecturer)</p>
+                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.studentCode || selectedUserDetail.lecturerCode || 'None'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">{selectedUserDetail.role === 'lecturer' ? 'Môn giảng dạy' : 'Lớp'}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">{selectedUserDetail.role === 'lecturer' ? 'Teaching Subjects' : 'Class'}</p>
                   <p className="text-slate-900 dark:text-slate-200 font-medium">
                     {Array.from(new Set([
                       ...(selectedUserDetail.enrolledClasses || []).map((c: any) => c.classCode),
                       ...(selectedUserDetail.instructingClasses || []).map((c: any) => c.subjectCode)
-                    ])).filter(Boolean).join(', ') || 'Không có'}
+                    ])).filter(Boolean).join(', ') || 'None'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Số điện thoại</p>
-                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.phone || 'Không có'}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Phone Number</p>
+                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.phone || 'None'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Lần đăng nhập cuối</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Last Login</p>
                   <p className="text-slate-900 dark:text-slate-200 font-medium">
-                    {selectedUserDetail.lastLoginAt ? new Date(selectedUserDetail.lastLoginAt).toLocaleString('vi-VN') : 'Chưa từng đăng nhập'}
+                    {selectedUserDetail.lastLoginAt ? new Date(selectedUserDetail.lastLoginAt).toLocaleString('en-US') : 'Never logged in'}
                   </p>
                 </div>
               </div>
 
               {selectedUserDetail.role === 'student' && selectedUserDetail.enrolledClasses && selectedUserDetail.enrolledClasses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Danh sách môn học theo học kỳ</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Subject list by semester</h4>
                   <div className="space-y-3">
                     {Object.entries(
                       selectedUserDetail.enrolledClasses.reduce((acc: any, c: any) => {
                         const semMatch = c.semesterCode?.match(/\d+/);
-                        const semKey = semMatch ? `Kỳ ${semMatch[0]}` : (c.semesterCode || 'Khác');
+                        const semKey = semMatch ? `Semester ${semMatch[0]}` : (c.semesterCode || 'Other');
                         if (!acc[semKey]) acc[semKey] = {};
 
-                        const classKey = c.classCode || 'Chưa xếp lớp';
+                        const classKey = c.classCode || 'Not assigned';
                         if (!acc[semKey][classKey]) acc[semKey][classKey] = [];
 
                         acc[semKey][classKey].push(c);
@@ -781,7 +773,7 @@ export function AdminUsers() {
                         <summary className="bg-slate-50 dark:bg-slate-800/80 p-4 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer select-none flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                           <span className="flex items-center gap-2">
                             {semester}
-                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} lớp</Badge>
+                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} classes</Badge>
                           </span>
                           <span className="text-slate-400 group-open/sem:rotate-180 transition-transform duration-200 shrink-0 ml-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -793,7 +785,7 @@ export function AdminUsers() {
                               <summary className="bg-slate-50/50 dark:bg-slate-800/30 p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex justify-between items-start hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                                 <span className="flex-1 pr-4 leading-relaxed">{classCode}</span>
                                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} môn</Badge>
+                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} subjects</Badge>
                                   <span className="text-slate-400 group-open/sub:rotate-180 transition-transform duration-200">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                                   </span>
@@ -825,15 +817,15 @@ export function AdminUsers() {
 
               {selectedUserDetail.role === 'lecturer' && selectedUserDetail.instructingClasses && selectedUserDetail.instructingClasses.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Danh sách giảng dạy theo học kỳ</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Teaching list by semester</h4>
                   <div className="space-y-3">
                     {Object.entries(
                       selectedUserDetail.instructingClasses.reduce((acc: any, c: any) => {
                         const semMatch = c.semesterCode?.match(/\d+/);
-                        const semKey = semMatch ? `Kỳ ${semMatch[0]}` : (c.semesterCode || 'Khác');
+                        const semKey = semMatch ? `Semester ${semMatch[0]}` : (c.semesterCode || 'Other');
                         if (!acc[semKey]) acc[semKey] = {};
 
-                        const classKey = c.classCode || 'Chưa xếp lớp';
+                        const classKey = c.classCode || 'Not assigned';
                         if (!acc[semKey][classKey]) acc[semKey][classKey] = [];
 
                         acc[semKey][classKey].push(c);
@@ -849,7 +841,7 @@ export function AdminUsers() {
                         <summary className="bg-slate-50 dark:bg-slate-800/80 p-4 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer select-none flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                           <span className="flex items-center gap-2">
                             {semester}
-                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} lớp</Badge>
+                            <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal shrink-0">{Object.keys(classes).length} classes</Badge>
                           </span>
                           <span className="text-slate-400 group-open/sem:rotate-180 transition-transform duration-200 shrink-0 ml-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -861,7 +853,7 @@ export function AdminUsers() {
                               <summary className="bg-slate-50/50 dark:bg-slate-800/30 p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none flex justify-between items-start hover:bg-slate-100 dark:hover:bg-slate-800 transition list-none [&::-webkit-details-marker]:hidden">
                                 <span className="flex-1 pr-4 leading-relaxed">{classCode}</span>
                                 <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} môn</Badge>
+                                  <Badge variant="outline" className="text-xs bg-white dark:bg-slate-900 font-normal">{classItems.length} subjects</Badge>
                                   <span className="text-slate-400 group-open/sub:rotate-180 transition-transform duration-200">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                                   </span>
@@ -886,20 +878,19 @@ export function AdminUsers() {
               )}
             </div>
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex justify-end gap-3 rounded-b-xl">
-              <Button variant="outline" onClick={() => setSelectedUserDetail(null)}>Đóng</Button>
+              <Button variant="outline" onClick={() => setSelectedUserDetail(null)}>Close</Button>
             </div>
           </Card>
         </div>,
         document.body
       )}
 
-      {/* Import Form */}
       {showImport && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader
-              title="Import Danh sách Sinh viên (Excel)"
-              description="Tải lên file Excel theo chuẩn template quy định."
+              title="Import Student List (Excel)"
+              description="Upload an Excel file following the standard template."
             />
             <button type="button" onClick={() => setShowImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
               <X size={18} />
@@ -909,7 +900,7 @@ export function AdminUsers() {
           {error && (
             <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Error:</span> {error}</div>
             </div>
           )}
 
@@ -918,19 +909,19 @@ export function AdminUsers() {
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
                 <CheckSquare className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Done!</h3>
               <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
               <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowImport(false)}>
-                Quay lại
+                Back
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
                 <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  MSSV | Họ và tên | Email | môn đã học vượt thành công | Số điện thoại | Kỳ học | Lớp học | Môn khác kì hiện tại (nợ/học vượt) | Hình ảnh{'\n'}
-                  QE180097 | Nguyễn Văn A | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
+                  RollNumber | Full Name | Email | Passed Subjects | Phone Number | Semester | Class | Other Subjects (Re-study/Over) | Avatar{'\n'}
+                  QE180097 | Full Name | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
                 </pre>
               </div>
 
@@ -944,10 +935,10 @@ export function AdminUsers() {
               </div>
 
               <div className="flex justify-end gap-3 mt-4">
-                <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Hủy bỏ</Button>
+                <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Cancel</Button>
                 <Button onClick={handleImport} disabled={importing} className="bg-brand-600 hover:bg-brand-700 text-white">
                   {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
-                  {importing ? 'Đang Import...' : 'Tiến hành Import'}
+                  {importing ? 'Importing...' : 'Perform Import'}
                 </Button>
               </div>
             </div>
@@ -955,13 +946,12 @@ export function AdminUsers() {
         </Card>
       )}
 
-      {/* Import Lecturer Modal */}
       {showLecturerImport && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader
-              title="Import Danh sách Giảng viên (Excel)"
-              description="Tải lên file Excel theo chuẩn template quy định."
+              title="Import Lecturer List (Excel)"
+              description="Upload an Excel file following the standard template."
             />
             <button type="button" onClick={() => setShowLecturerImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
               <X size={18} />
@@ -971,7 +961,7 @@ export function AdminUsers() {
           {error && (
             <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Error:</span> {error}</div>
             </div>
           )}
 
@@ -980,20 +970,20 @@ export function AdminUsers() {
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
                 <CheckSquare className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Done!</h3>
               <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
               <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowLecturerImport(false)}>
-                Quay lại
+                Back
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
                 <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  MSSV/GV | Họ và tên | Email | Số điện thoại | Hình ảnh{'\n'}
-                  GV0001 | Nguyễn Văn A | nva@fpt.edu.vn | 0912345678 | https://example.com/avatar.jpg{'\n'}
-                  GV0002 | Trần Thị B | ttb@fpt.edu.vn | 0987654321 | https://example.com/avatar2.jpg
+                  ID | Full Name | Email | Phone Number | Avatar{'\n'}
+                  GV0001 | Nguyen Van A | nva@fpt.edu.vn | 0912345678 | https://example.com/avatar.jpg{'\n'}
+                  GV0002 | Tran Thi B | ttb@fpt.edu.vn | 0987654321 | https://example.com/avatar2.jpg
                 </pre>
               </div>
 
@@ -1007,10 +997,10 @@ export function AdminUsers() {
               </div>
 
               <div className="flex justify-end gap-3 mt-4">
-                <Button type="button" variant="ghost" onClick={() => setShowLecturerImport(false)}>Hủy bỏ</Button>
+                <Button type="button" variant="ghost" onClick={() => setShowLecturerImport(false)}>Cancel</Button>
                 <Button onClick={handleLecturerImport} disabled={importingLecturer} className="bg-brand-600 hover:bg-brand-700 text-white">
                   {importingLecturer ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
-                  {importingLecturer ? 'Đang Import...' : 'Tiến hành Import'}
+                  {importingLecturer ? 'Importing...' : 'Perform Import'}
                 </Button>
               </div>
             </div>
@@ -1018,13 +1008,12 @@ export function AdminUsers() {
         </Card>
       )}
 
-      {/* Import Teaching Assignments Modal */}
       {showAssignmentImport && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader
-              title="Import Phân công Giảng dạy (Excel)"
-              description="Tải lên file Excel để phân công lớp/môn cho giảng viên."
+              title="Import Teaching Assignments (Excel)"
+              description="Upload an Excel file to assign subjects/classes to lecturers."
             />
             <button type="button" onClick={() => setShowAssignmentImport(false)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
               <X size={18} />
@@ -1034,7 +1023,7 @@ export function AdminUsers() {
           {error && (
             <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div className="whitespace-pre-wrap"><span className="font-semibold">Lỗi:</span> {error}</div>
+              <div className="whitespace-pre-wrap"><span className="font-semibold">Error:</span> {error}</div>
             </div>
           )}
 
@@ -1043,20 +1032,20 @@ export function AdminUsers() {
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-2">
                 <CheckSquare className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Hoàn tất!</h3>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Done!</h3>
               <p className="text-center text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{importSuccess}</p>
               <Button className="mt-4 bg-brand-600 hover:bg-brand-700 text-white min-w-[120px]" onClick={() => setShowAssignmentImport(false)}>
-                Quay lại
+                Back
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Template Excel gồm các cột:</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
                 <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  Mã GV | Họ và tên | Môn dạy | Lớp dạy{'\n'}
-                  GV0001 | Nguyễn Văn A | DBI201 | SE18C01{'\n'}
-                  GV0002 | Trần Thị B | CSD201 | SE18C03
+                  Lecturer ID | Full Name | Subject | Class{'\n'}
+                  GV0001 | Nguyen Van A | DBI201 | SE18C01{'\n'}
+                  GV0002 | Tran Thi B | CSD201 | SE18C03
                 </pre>
               </div>
 
@@ -1070,10 +1059,10 @@ export function AdminUsers() {
               </div>
 
               <div className="flex justify-end gap-3 mt-4">
-                <Button type="button" variant="ghost" onClick={() => setShowAssignmentImport(false)}>Hủy bỏ</Button>
+                <Button type="button" variant="ghost" onClick={() => setShowAssignmentImport(false)}>Cancel</Button>
                 <Button onClick={handleAssignmentImport} disabled={importingAssignment} className="bg-brand-600 hover:bg-brand-700 text-white">
                   {importingAssignment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
-                  {importingAssignment ? 'Đang Import...' : 'Tiến hành Import'}
+                  {importingAssignment ? 'Importing...' : 'Perform Import'}
                 </Button>
               </div>
             </div>
@@ -1081,13 +1070,12 @@ export function AdminUsers() {
         </Card>
       )}
 
-      {/* Form */}
       {showForm && (
         <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md bg-white dark:bg-slate-900 p-6 animate-in slide-in-from-top-4 duration-300">
           <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-6 flex justify-between items-center">
             <CardHeader
-              title={editingUser ? `Cập nhật tài khoản: ${editingUser.name}` : 'Đăng ký tài khoản hệ thống mới'}
-              description={editingUser ? 'Cập nhật phân quyền hoặc đổi email. Để trống ô mật khẩu nếu muốn giữ nguyên.' : 'Cấp quyền truy cập trực tiếp cho các phân hệ chức năng.'}
+              title={editingUser ? `Update account: ${editingUser.name}` : 'Register New System Account'}
+              description={editingUser ? 'Update permissions or change email. Leave password empty to keep existing one.' : 'Grant system access for specific functional modules.'}
             />
             <button type="button" onClick={resetForm} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
               <X size={18} />
@@ -1097,46 +1085,46 @@ export function AdminUsers() {
           {error && (
             <div className="mb-6 flex items-start gap-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/50 rounded-xl p-4 animate-in slide-in-from-top-2">
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <div><span className="font-semibold">Lỗi xác thực form:</span> {error}</div>
+              <div><span className="font-semibold">Validation error:</span> {error}</div>
             </div>
           )}
 
           <form onSubmit={handleSave} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <Input
-                label="Họ và tên thành viên"
+                label="Full Name"
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholder="Example: Nguyen Van A"
                 required
-                hint="Độ dài tối thiểu 2 ký tự chữ"
+                hint="Minimum 2 characters"
               />
               <Input
-                label="Địa chỉ Email định danh"
+                label="Email Address"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="user@fpt.edu.vn"
                 required
                 disabled={!!editingUser}
-                hint={editingUser ? "Không thể thay đổi email sau khi tạo" : ""}
+                hint={editingUser ? "Email cannot be changed after creation" : ""}
               />
               <Input
-                label={editingUser ? 'Mật khẩu (Không thể đổi qua form này)' : 'Mật khẩu khởi tạo'}
+                label={editingUser ? 'Password (Cannot be changed through this form)' : 'Temporary Password'}
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="••••••"
                 required={!editingUser}
                 disabled={!!editingUser}
-                hint={!editingUser ? "Độ dài chuỗi an toàn tối thiểu 6 ký tự" : ""}
+                hint={!editingUser ? "Minimum 6 characters" : ""}
               />
               <Select
-                label="Phân quyền vai trò hệ thống"
+                label="System Role"
                 options={[
-                  { value: 'lecturer', label: 'Giảng viên (Lecturer)' },
-                  { value: 'student', label: 'Sinh viên (Student)' },
-                  { value: 'admin', label: 'Quản trị viên (Site Admin)' },
+                  { value: 'lecturer', label: 'Lecturer' },
+                  { value: 'student', label: 'Student' },
+                  { value: 'admin', label: 'Admin' },
                 ]}
                 value={form.role}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm({ ...form, role: e.target.value })}
@@ -1145,10 +1133,10 @@ export function AdminUsers() {
               />
               {!editingUser && (
                 <Input
-                  label="Mã định danh nội bộ (External ID / RollNumber)"
+                  label="Internal ID (RollNumber/StaffCode)"
                   value={form.externalId}
                   onChange={(e) => setForm({ ...form, externalId: e.target.value })}
-                  placeholder="Ví dụ: GV021 hoặc HE180123"
+                  placeholder="Example: GV021 or HE180123"
                 />
               )}
             </div>
@@ -1156,14 +1144,14 @@ export function AdminUsers() {
             {editingUser && editingUserClasses.length > 0 && (
               <div className="col-span-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Quản lý Lớp học / Môn học</h4>
+                  <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">Class / Subject Management</h4>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">Lọc theo kỳ:</span>
+                    <span className="text-sm text-slate-500">Filter by semester:</span>
                     <Select
                       value={semesterFilter}
                       onChange={(e) => setSemesterFilter(e.target.value)}
                       options={[
-                        { value: '', label: 'Chọn kỳ học...' },
+                        { value: '', label: 'Select semester...' },
                         ...allSemesters
                           .filter((sem: any) => {
                             const code = sem.code || sem.Code || sem.id;
@@ -1174,7 +1162,7 @@ export function AdminUsers() {
                             const codeB = String(b.code || b.Code || b.id);
                             const numA = parseInt(codeA.match(/\d+/)?.[0] || '0', 10);
                             const numB = parseInt(codeB.match(/\d+/)?.[0] || '0', 10);
-                            return numB - numA; // Giảm dần (Kỳ mới nhất ở trên)
+                            return numB - numA;
                           })
                           .map((sem: any) => {
                             const code = sem.code || sem.Code || sem.id;
@@ -1192,9 +1180,9 @@ export function AdminUsers() {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
                       <tr>
-                        <th className="px-4 py-3 font-medium w-28">Kỳ học</th>
-                        <th className="px-4 py-3 font-medium">Môn học</th>
-                        <th className="px-4 py-3 font-medium">Lớp</th>
+                        <th className="px-4 py-3 font-medium w-28">Semester</th>
+                        <th className="px-4 py-3 font-medium">Subject</th>
+                        <th className="px-4 py-3 font-medium">Class</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1247,7 +1235,7 @@ export function AdminUsers() {
                                     setEditingUserClasses(newList);
                                   }}
                                 >
-                                  <option value="">-- Chưa xếp lớp --</option>
+                                  <option value="">-- No class assigned --</option>
                                   {!codes.some((cd: any) => cd.classCode === currentClassCode) && currentClassCode && (
                                     <option key="__current_class__" value={currentClassCode}>{currentClassCode}</option>
                                   )}
@@ -1261,7 +1249,7 @@ export function AdminUsers() {
                         }) : (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-slate-400 text-sm">
-                            {semesterFilter ? 'Không có dữ liệu môn học trong kỳ này.' : 'Vui lòng chọn kỳ học.'}
+                            {semesterFilter ? 'No subject data for this semester.' : 'Please select a semester.'}
                           </td>
                         </tr>
                       )}
@@ -1273,13 +1261,13 @@ export function AdminUsers() {
             )}
 
             <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-              <Button type="button" variant="ghost" className="text-slate-500 hover:bg-slate-50" onClick={resetForm}>Hủy bỏ</Button>
+              <Button type="button" variant="ghost" className="text-slate-500 hover:bg-slate-50" onClick={resetForm}>Cancel</Button>
               <Button
                 type="submit"
                 disabled={saving}
                 className="bg-brand-600 hover:bg-brand-700 text-white px-5 min-w-[120px]"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : editingUser ? 'Cập nhật dữ liệu' : 'Kích hoạt tài khoản'}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : editingUser ? 'Update data' : 'Activate account'}
               </Button>
             </div>
           </form>
@@ -1297,7 +1285,7 @@ export function AdminUsers() {
           <div className="relative max-w-xs w-full sm:ml-auto flex items-center">
             <div className="relative w-full">
               <Input
-                placeholder="Lọc nhanh họ tên | mã SV/GV"
+                placeholder="Quick filter by name | student/lecturer ID"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pr-10"
@@ -1316,11 +1304,11 @@ export function AdminUsers() {
           <div className="flex items-start gap-3 bg-red-50/40 dark:bg-red-950/10 p-4 rounded-xl border border-red-200 dark:border-red-900/40 mb-4">
             <AlertTriangle className="text-red-600 dark:text-red-400 w-5 h-5 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-red-800 dark:text-red-300">Lỗi tải dữ liệu</p>
+              <p className="font-semibold text-red-800 dark:text-red-300">Data loading error</p>
               <p className="text-sm text-red-600 dark:text-red-400 mt-1">{loadError}</p>
             </div>
             <button onClick={load} className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm">
-              Thử lại
+              Retry
             </button>
           </div>
         )}
@@ -1345,7 +1333,7 @@ export function AdminUsers() {
                 }] : []),
                 {
                   key: 'id',
-                  header: 'Mã số hệ thống',
+                  header: 'System ID',
                   render: (r) => {
                     const u = r as UserRow
                     const code = u.studentCode || u.lecturerCode || '-'
@@ -1355,7 +1343,7 @@ export function AdminUsers() {
                 },
                 {
                   key: 'avatar',
-                  header: 'Hình ảnh',
+                  header: 'Avatar',
                   render: (r) => {
                     const u = r as UserRow;
                     const isLocked = u.status !== 'active';
@@ -1389,7 +1377,7 @@ export function AdminUsers() {
                         )}
                         <span 
                           className={`absolute -bottom-1 -right-1 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`} 
-                          title={isLocked ? 'Đã khóa' : isOnline ? 'Đang hoạt động' : 'Không hoạt động'}
+                          title={isLocked ? 'Locked' : isOnline ? 'Active' : 'Inactive'}
                         />
                       </div>
                     );
@@ -1398,21 +1386,21 @@ export function AdminUsers() {
                 },
                 {
                   key: 'name',
-                  header: 'Họ và tên',
+                  header: 'Full Name',
                   render: (r) => <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as UserRow).name}</span>
                 },
                 {
                   key: 'email',
-                  header: 'Địa chỉ Email',
+                  header: 'Email Address',
                   render: (r) => <span className="text-slate-600 dark:text-slate-400 font-medium">{(r as UserRow).email}</span>
                 },
                 {
                   key: 'role',
-                  header: 'Phân quyền',
+                  header: 'Role',
                   render: (r) => {
                     const u = r as UserRow
                     const variant = u.role === 'admin' ? 'info' : u.role === 'lecturer' ? 'warning' : 'success'
-                    const label = u.role === 'admin' ? 'Quản trị' : u.role === 'lecturer' ? 'Giảng viên' : 'Sinh viên'
+                    const label = u.role === 'admin' ? 'Admin' : u.role === 'lecturer' ? 'Lecturer' : 'Student'
                     return <Badge variant={variant} className="px-2.5 py-0.5 rounded-full font-medium text-[11px]">{label}</Badge>
                   },
                   className: 'w-32'
@@ -1421,7 +1409,7 @@ export function AdminUsers() {
 
                 {
                   key: 'actions',
-                  header: 'Hành động',
+                  header: 'Actions',
                   render: (r) => {
                     const u = r as UserRow
                     return (

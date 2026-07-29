@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ChevronRight, Home } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import type { BreadcrumbItem } from '@/types'
 import type { ReactNode } from 'react'
 
@@ -18,12 +18,9 @@ export function PageHeader({ title, description, breadcrumbs, actions }: Props) 
         {/* Breadcrumb */}
         {breadcrumbs && breadcrumbs.length > 0 && (
           <nav className="mb-1 flex flex-wrap items-center gap-1 text-xs text-slate-400 dark:text-slate-600">
-            <Link to="/" className="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-              <Home size={11} />
-            </Link>
             {breadcrumbs.map((item, i) => (
               <span key={i} className="flex items-center gap-1">
-                <ChevronRight size={11} className="text-slate-300 dark:text-slate-700" />
+                {i > 0 && <ChevronRight size={11} className="text-slate-300 dark:text-slate-700" />}
                 {item.path ? (
                   <Link to={item.path} className="font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                     {item.label}

@@ -14,7 +14,7 @@ export function AdminNotifications() {
 
   const handleBroadcast = async () => {
     if (!form.title.trim() || !form.message.trim()) {
-      setErrorMsg('Vui lòng nhập đầy đủ tiêu đề và nội dung.')
+      setErrorMsg('Please enter both title and message.')
       return
     }
     
@@ -24,12 +24,12 @@ export function AdminNotifications() {
     
     try {
       const res = await api.broadcastNotification(form) as any
-      setSuccessMsg(`Gửi thông báo thành công! Đã gửi đến ${res.recipientCount} người dùng.`)
+      setSuccessMsg(`Notification broadcasted successfully! Sent to ${res.recipientCount} users.`)
       setForm({ ...form, title: '', message: '' })
       
       setTimeout(() => setSuccessMsg(''), 5000)
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Không thể gửi thông báo')
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to send notification')
     } finally {
       setIsSubmitting(false)
     }
@@ -38,14 +38,14 @@ export function AdminNotifications() {
   return (
     <div className="space-y-8 p-6 max-w-4xl mx-auto animate-in fade-in duration-500">
       <PageHeader
-        title="Gửi thông báo hệ thống"
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Thông báo' }]}
+        title="Broadcast System Notification"
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Notifications' }]}
       />
 
       <Card className="overflow-hidden border border-slate-100 shadow-md bg-white">
         <div className="border-b border-slate-100 p-4 bg-slate-50/50 flex items-center gap-2">
           <BellRing className="text-brand-500 w-5 h-5 ml-2" />
-          <CardHeader title="Soạn thông báo mới" />
+          <CardHeader title="Compose New Notification" />
         </div>
 
         <div className="p-6 space-y-6">
@@ -65,40 +65,40 @@ export function AdminNotifications() {
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Input 
-                label="Tiêu đề thông báo" 
-                placeholder="Ví dụ: Lịch bảo trì hệ thống" 
+                label="Notification Title" 
+                placeholder="E.g. System Maintenance Schedule" 
                 value={form.title} 
                 onChange={(e) => setForm({ ...form, title: e.target.value })} 
               />
             </div>
             
             <Select 
-              label="Đối tượng nhận" 
+              label="Recipients" 
               options={[
-                { value: 'ALL', label: 'Tất cả mọi người' },
-                { value: 'LECTURER', label: 'Chỉ Giảng viên' },
-                { value: 'STUDENT', label: 'Chỉ Sinh viên' }
+                { value: 'ALL', label: 'Everyone' },
+                { value: 'LECTURER', label: 'Lecturers Only' },
+                { value: 'STUDENT', label: 'Students Only' }
               ]}
               value={form.targetRole} 
               onChange={(e) => setForm({ ...form, targetRole: e.target.value })} 
             />
             
             <Select 
-              label="Loại thông báo" 
+              label="Notification Type" 
               options={[
-                { value: 'SYSTEM', label: 'Thông báo hệ thống' },
-                { value: 'MAINTENANCE', label: 'Bảo trì' },
-                { value: 'REMINDER', label: 'Nhắc nhở' },
-                { value: 'ALERT', label: 'Cảnh báo khẩn cấp' }
+                { value: 'SYSTEM', label: 'System Notification' },
+                { value: 'MAINTENANCE', label: 'Maintenance' },
+                { value: 'REMINDER', label: 'Reminder' },
+                { value: 'ALERT', label: 'Emergency Alert' }
               ]}
               value={form.type} 
               onChange={(e) => setForm({ ...form, type: e.target.value })} 
             />
             
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung chi tiết</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Detailed Message</label>
               <Textarea 
-                placeholder="Nhập nội dung chi tiết của thông báo..." 
+                placeholder="Enter detailed message..." 
                 value={form.message} 
                 onChange={(e) => setForm({ ...form, message: e.target.value })} 
                 rows={6} 
@@ -113,7 +113,7 @@ export function AdminNotifications() {
               onClick={handleBroadcast}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang xử lý...</> : <><Send size={16} /> Gửi thông báo</>}
+              {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><Send size={16} /> Broadcast Notification</>}
             </Button>
           </div>
         </div>
