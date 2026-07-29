@@ -515,7 +515,7 @@ export function AdminSubjectDetail() {
                   setEditingCard('header')
                 }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all"
-                title="Chỉnh sửa"
+                title="Edit"
               >
                 <Pencil size={16} />
               </button>
@@ -1396,7 +1396,7 @@ export function AdminSubjectDetail() {
                     <span>
                       {editAssessmentTotal > 100
                         ? `Current total weight is ${editAssessmentTotal.toFixed(1)}% (exceeds 100%). Please rebalance!`
-                        : `Current total weight is ${editAssessmentTotal.toFixed(1)}% (under 100%). Vui lòng cân bằng lại!`}
+                        : `Current total weight is ${editAssessmentTotal.toFixed(1)}% (under 100%). Please rebalance!`}
                     </span>
                   </div>
                   <button
@@ -1410,7 +1410,7 @@ export function AdminSubjectDetail() {
               ) : (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
                   <Check size={16} className="shrink-0 text-emerald-500" strokeWidth={3} />
-                  <span>Total weight perfectly matches 100% chuẩn khung chương trình.</span>
+                  <span>Total weight perfectly matches the 100% curriculum framework standard.</span>
                 </div>
               )
             )}

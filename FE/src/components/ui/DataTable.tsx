@@ -21,8 +21,8 @@ export function DataTable<T>({
   columns,
   data,
   keyExtractor,
-  emptyTitle = 'Chưa có dữ liệu',
-  emptyDescription = 'Dữ liệu sẽ hiển thị tại đây sau khi bạn kết nối nguồn dữ liệu.',
+  emptyTitle = 'No data yet',
+  emptyDescription = 'Data will appear here once you connect a data source.',
   onRowClick
 }: DataTableProps<T>) {
   if (data.length === 0) {

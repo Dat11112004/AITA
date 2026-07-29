@@ -18,7 +18,7 @@ const sizeClasses = {
 export function LoadingSpinner({ 
   fullScreen = false, 
   size = 'md',
-  text = 'Đang tải...'
+  text = 'Loading...'
 }: LoadingSpinnerProps) {
   const content = (
     <div className="flex flex-col items-center justify-center gap-3">
