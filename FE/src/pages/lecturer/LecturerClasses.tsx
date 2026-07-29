@@ -289,7 +289,11 @@ export function LecturerClasses() {
                                     return (
                                       <React.Fragment key={subject.subjectId}>
                                         <tr
-                                          onClick={() => navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)}
+                                          // Clicking a subject expands its classes in place. It used to jump to
+                                          // /lecturer/subjects/:id/workspace, which threw the user out of Classes
+                                          // and into the Subjects section. The workspace is still reachable from
+                                          // the "..." button on the right.
+                                          onClick={(e) => toggleSubject(subject.subjectId, e)}
                                           className="hover:bg-slate-50/50 group cursor-pointer"
                                         >
                                           <td className="px-6 py-4">
@@ -317,8 +321,12 @@ export function LecturerClasses() {
                                                 {isSubjExpanded ? <ChevronDown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                                               </button>
                                               <button
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)
+                                                }}
                                                 className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition-colors"
+                                                title="Open subject workspace"
                                               >
                                                 <MoreHorizontal className="w-4 h-4" />
                                               </button>
@@ -327,7 +335,8 @@ export function LecturerClasses() {
                                         </tr>
 
                                         {/* Expanded Subject Classes */}
-                                        {isSubjExpanded && subject.classes.length > 1 && (
+                                        {/* Was `> 1`, so a subject with a single class expanded to nothing. */}
+                                        {isSubjExpanded && subject.classes.length > 0 && (
                                           <tr className="bg-slate-50/50">
                                             <td colSpan={5} className="p-0 border-b border-indigo-100">
                                               <div className="px-8 py-4 flex flex-wrap gap-2.5">
@@ -369,7 +378,7 @@ export function LecturerClasses() {
       <div className="mt-8 flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
         <div className="flex items-center gap-2 text-sm text-blue-600">
           <Info className="w-4 h-4" />
-          <span><span className="font-semibold">Tip:</span> Click a semester or the people icon to see the classes inside it.</span>
+          <span><span className="font-semibold">Tip:</span> Click a subject row (or the people icon) to list its classes, then pick a class to open it. The "..." button opens the subject workspace.</span>
         </div>
         <a href="#" className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline">
           User guide <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
