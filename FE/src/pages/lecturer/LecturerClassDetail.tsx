@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type ClassRow, type AssignmentRow } from '@/lib/api'
+import { formatSemesterCode } from '@/utils/semester'
 import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Plus, FileText, Send, MoreVertical, Search, FileEdit } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -120,7 +121,7 @@ export function LecturerClassDetail() {
         <div className="w-full flex justify-between items-end">
           <div>
             <div className="inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1 mb-2">
-              <span className="text-xs font-bold text-brand-700 dark:text-brand-400">{(cls.semester as any)?.code || 'Semester'}</span>
+              <span className="text-xs font-bold text-brand-700 dark:text-brand-400">{formatSemesterCode((cls.semester as any)?.code) || 'Semester'}</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">
               Class {cls.code}

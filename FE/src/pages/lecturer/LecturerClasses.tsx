@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
+import { formatSemesterCode } from '@/utils/semester'
 import {
   Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
   Calendar, ChevronDown, ChevronUp, Book, Code, MoreHorizontal,
@@ -150,7 +151,7 @@ export function LecturerClasses() {
 
   const formatDate = (d?: string) => {
     if (!d) return '';
-    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return new Date(d).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-600" /></div>
@@ -255,7 +256,7 @@ export function LecturerClasses() {
                                 <Calendar className="w-5 h-5" />
                               </div>
                               <div>
-                                <h3 className="text-base font-bold text-slate-800">{semester.semesterCode}</h3>
+                                <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode)}</h3>
                                 {(semester.startDate || semester.endDate) && (
                                   <p className="text-xs text-slate-500 mt-0.5">
                                     {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
