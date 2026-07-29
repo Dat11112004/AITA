@@ -54,16 +54,16 @@ export function PromptListBySubject() {
   }, [subjectId]);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa Prompt "${name}"?`)) return;
+    if (!window.confirm(`Delete the prompt "${name}"?`)) return;
     try {
       setDeletingId(id);
       await api.deletePromptTemplate(id);
       setPrompts((prev) => prev.filter((p) => p.id !== id));
       if (selectedPrompt?.id === id) setSelectedPrompt(null);
-      setToastMessage(`Đã xóa mẫu Prompt "${name}" thành công`);
+      setToastMessage(`Prompt template "${name}" deleted`);
     } catch (err) {
       console.error('Failed to delete prompt:', err);
-      alert('Không thể xóa prompt!');
+      alert('The prompt could not be deleted.');
     } finally {
       setDeletingId(null);
     }
@@ -72,7 +72,7 @@ export function PromptListBySubject() {
   const handleCopyContent = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    setToastMessage('Đã sao chép nội dung Prompt vào bộ nhớ tạm!');
+    setToastMessage('Prompt content copied to the clipboard.');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -107,7 +107,7 @@ export function PromptListBySubject() {
           <button
             onClick={() => navigate('/lecturer/prompts')}
             className="p-2.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-            title="Quay lại danh sách môn học"
+            title="Back to subject list"
           >
             <ArrowLeft size={20} />
           </button>
@@ -115,14 +115,14 @@ export function PromptListBySubject() {
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 font-bold text-xs rounded-lg border border-brand-200 dark:border-brand-800 flex items-center gap-1.5">
                 <BookOpen size={12} />
-                {subject?.code || 'MÔN HỌC'}
+                {subject?.code || 'SUBJECT'}
               </span>
               <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                {prompts.length} mẫu Prompt
+                {prompts.length} prompt templates
               </span>
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {subject?.name || 'Danh sách Prompt'}
+              {subject?.name || 'Prompt list'}
             </h1>
           </div>
         </div>
@@ -132,7 +132,7 @@ export function PromptListBySubject() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Tìm kiếm prompt..."
+              placeholder="Search prompts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-slate-800 dark:text-slate-200"
@@ -150,7 +150,7 @@ export function PromptListBySubject() {
             onClick={() => navigate(`/lecturer/prompts/${subjectId}/create`)}
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-500/15 active:scale-[0.98] transition-all whitespace-nowrap"
           >
-            <Plus size={18} /> Tạo Prompt mới
+            <Plus size={18} /> New prompt
           </button>
         </div>
       </div>
@@ -158,7 +158,7 @@ export function PromptListBySubject() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
           <div className="animate-spin rounded-full h-10 w-10 border-3 border-brand-600 border-t-transparent mb-4"></div>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Đang tải danh sách mẫu Prompt...</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading prompt templates...</p>
         </div>
       ) : filteredPrompts.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center">
@@ -166,19 +166,19 @@ export function PromptListBySubject() {
             <Bot size={32} />
           </div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-            {searchQuery ? 'Không tìm thấy Prompt nào' : 'Chưa có mẫu Prompt nào'}
+            {searchQuery ? 'No prompts found' : 'No prompt templates yet'}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mt-1.5 mb-6">
             {searchQuery
-              ? 'Không có mẫu prompt nào phù hợp với từ khóa tìm kiếm của bạn. Thử tìm kiếm với từ khóa khác.'
-              : 'Hãy tạo mẫu Prompt đầu tiên cho môn học này để chuẩn hóa câu lệnh tạo bài tập hoặc hướng dẫn AI.'}
+              ? 'No prompt template matches your search. Try a different keyword.'
+              : 'Create the first prompt template for this subject to standardise how assignments are generated.'}
           </p>
           {!searchQuery && (
             <button
               onClick={() => navigate(`/lecturer/prompts/${subjectId}/create`)}
               className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all"
             >
-              <Plus size={18} /> Tạo Prompt đầu tiên
+              <Plus size={18} /> Create the first prompt
             </button>
           )}
         </div>
@@ -222,12 +222,12 @@ export function PromptListBySubject() {
                       {prompt.isActive !== false ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/80">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          Khả dụng
+                          Enabled
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
                           <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                          Tắt
+                          Disabled
                         </span>
                       )}
                     </div>
@@ -235,7 +235,7 @@ export function PromptListBySubject() {
 
                   {vars.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Biến:</span>
+                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Variables:</span>
                       {vars.slice(0, 4).map((v, i) => (
                         <span key={i} className="text-[11px] font-mono font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
                           {v}
@@ -260,11 +260,11 @@ export function PromptListBySubject() {
                       >
                         {isCopying ? (
                           <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <Check size={12} /> Đã chép
+                            <Check size={12} /> Copied
                           </span>
                         ) : (
                           <span className="flex items-center gap-1">
-                            <Copy size={12} /> Sao chép
+                            <Copy size={12} /> Copy
                           </span>
                         )}
                       </button>
@@ -278,31 +278,31 @@ export function PromptListBySubject() {
                 <div className="px-5 py-3 bg-slate-50/60 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
                     <Zap size={14} className="text-amber-500" />
-                    <span>Lượt sử dụng: <strong className="text-slate-700 dark:text-slate-200">{prompt.usageCount || 0}</strong></span>
+                    <span>Uses: <strong className="text-slate-700 dark:text-slate-200">{prompt.usageCount || 0}</strong></span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setSelectedPrompt(prompt)}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-brand-200 dark:hover:border-brand-800"
-                      title="Xem chi tiết Prompt"
+                      title="View prompt details"
                     >
                       <Eye size={14} /> Xem
                     </button>
                     <button
                       onClick={() => navigate(`/lecturer/prompts/${subjectId}/edit/${prompt.id}`)}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-brand-200 dark:hover:border-brand-800"
-                      title="Chỉnh sửa Prompt"
+                      title="Edit prompt"
                     >
-                      <Edit3 size={14} /> Sửa
+                      <Edit3 size={14} /> Edit
                     </button>
                     <button
                       onClick={() => handleDelete(prompt.id, prompt.name)}
                       disabled={deletingId === prompt.id}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
-                      title="Xóa Prompt"
+                      title="Delete prompt"
                     >
-                      <Trash2 size={14} /> Xóa
+                      <Trash2 size={14} /> Delete
                     </button>
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export function PromptListBySubject() {
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     <span>{subject?.code}</span>
                     <span>•</span>
-                    <span>Phân loại: {selectedPrompt.category || 'Chung'}</span>
+                    <span>Category: {selectedPrompt.category || 'General'}</span>
                   </div>
                 </div>
               </div>
@@ -343,7 +343,7 @@ export function PromptListBySubject() {
               {extractVariables(selectedPrompt.templateContent).length > 0 && (
                 <div className="space-y-1.5 bg-indigo-50/50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
                   <p className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
-                    <Code2 size={14} /> Danh sách các biến trong Prompt:
+                    <Code2 size={14} /> Variables used in this prompt:
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {extractVariables(selectedPrompt.templateContent).map((v, i) => (
@@ -357,7 +357,7 @@ export function PromptListBySubject() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  <span>Nội dung Prompt đầy đủ</span>
+                  <span>Full prompt content</span>
                   <span>Temp: {selectedPrompt.temperature ?? 0.7}</span>
                 </div>
                 <div className="bg-slate-900 text-slate-100 dark:bg-slate-950 p-4 rounded-xl font-mono text-xs leading-relaxed whitespace-pre-wrap border border-slate-800 max-h-72 overflow-y-auto custom-scrollbar select-all">
@@ -368,7 +368,7 @@ export function PromptListBySubject() {
 
             <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Lượt sử dụng: <strong className="text-slate-700 dark:text-slate-200">{selectedPrompt.usageCount || 0}</strong>
+                Uses: <strong className="text-slate-700 dark:text-slate-200">{selectedPrompt.usageCount || 0}</strong>
               </span>
 
               <div className="flex items-center gap-3">
@@ -376,7 +376,7 @@ export function PromptListBySubject() {
                   onClick={() => handleCopyContent(selectedPrompt.templateContent, selectedPrompt.id)}
                   className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm transition-all"
                 >
-                  <Copy size={16} /> Sao chép
+                  <Copy size={16} /> Copy
                 </button>
                 <button
                   onClick={() => {
@@ -386,7 +386,7 @@ export function PromptListBySubject() {
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-sm shadow-sm transition-all"
                 >
-                  <Edit3 size={16} /> Chỉnh sửa
+                  <Edit3 size={16} /> Edit
                 </button>
               </div>
             </div>

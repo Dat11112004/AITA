@@ -5,6 +5,7 @@ import { ListUsersUseCase } from '../application/use-cases/list-users.use-case.j
 import { CreateUserUseCase } from '../application/use-cases/create-user.use-case.js'
 import { UpdateUserUseCase } from '../application/use-cases/update-user.use-case.js'
 import { DeleteUserUseCase } from '../application/use-cases/delete-user.use-case.js'
+import { BulkDeleteUsersUseCase } from '../application/use-cases/bulk-delete-users.use-case.js'
 import { ToggleLockUseCase } from '../application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../application/use-cases/import-students-excel.use-case.js'
@@ -23,6 +24,7 @@ export class UsersController extends BaseController {
         private readonly createUseCase: CreateUserUseCase,
         private readonly updateUseCase: UpdateUserUseCase,
         private readonly deleteUseCase: DeleteUserUseCase,
+        private readonly bulkDeleteUseCase: BulkDeleteUsersUseCase,
         private readonly toggleLockUseCase: ToggleLockUseCase,
         private readonly importUseCase: ImportUsersUseCase,
         private readonly importStudentsExcelUseCase: ImportStudentsExcelUseCase,
@@ -70,6 +72,13 @@ export class UsersController extends BaseController {
         this.logger.debug(`Received delete user request for ID: ${req.params.id}`)
         const result = await this.deleteUseCase.execute(String(req.params.id))
         this.ok(res, result, MESSAGES.USER_DELETE_SUCCESS)
+    }
+
+    async bulkDelete(req: Request, res: Response): Promise<void> {
+        const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids : []
+        this.logger.debug(`Received bulk delete request for ${ids.length} user(s)`)
+        const result = await this.bulkDeleteUseCase.execute({ ids })
+        this.ok(res, result, result.message)
     }
 
     async toggleLock(req: Request, res: Response): Promise<void> {

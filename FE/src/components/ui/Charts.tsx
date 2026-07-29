@@ -90,7 +90,7 @@ export function BarChart({ data, height = 200, className = '' }: BarChartProps) 
         style={{ height }}
         className="flex items-center justify-center text-slate-400 text-sm font-medium"
       >
-        Chưa có dữ liệu biểu đồ
+        No chart data yet
       </div>
     );
   }

@@ -68,6 +68,7 @@ import { ListUsersUseCase } from '../../modules/users/application/use-cases/list
 import { CreateUserUseCase } from '../../modules/users/application/use-cases/create-user.use-case.js'
 import { UpdateUserUseCase } from '../../modules/users/application/use-cases/update-user.use-case.js'
 import { DeleteUserUseCase } from '../../modules/users/application/use-cases/delete-user.use-case.js'
+import { BulkDeleteUsersUseCase } from '../../modules/users/application/use-cases/bulk-delete-users.use-case.js'
 import { ToggleLockUseCase } from '../../modules/users/application/use-cases/toggle-lock.use-case.js'
 import { ImportUsersUseCase } from '../../modules/users/application/use-cases/import-users.use-case.js'
 import { ImportStudentsExcelUseCase } from '../../modules/users/application/use-cases/import-students-excel.use-case.js'
@@ -375,6 +376,7 @@ export class DIContainer {
       const createUserUseCase = new CreateUserUseCase(userRepo, uow, hashService, logger)
       const updateUserUseCase = new UpdateUserUseCase(userRepo, hashService, logger)
       const deleteUserUseCase = new DeleteUserUseCase(userRepo, logger)
+      const bulkDeleteUsersUseCase = new BulkDeleteUsersUseCase(userRepo, logger)
       const toggleLockUseCase = new ToggleLockUseCase(userRepo, logger)
       const importUsersUseCase = new ImportUsersUseCase()
       const importStudentsExcelUseCase = new ImportStudentsExcelUseCase(emailService)
@@ -389,6 +391,7 @@ export class DIContainer {
         createUserUseCase,
         updateUserUseCase,
         deleteUserUseCase,
+        bulkDeleteUsersUseCase,
         toggleLockUseCase,
         importUsersUseCase,
         importStudentsExcelUseCase,

@@ -22,7 +22,7 @@ const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code',
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-[11px] font-semibold border border-slate-700 shadow-sm"
         >
           {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-          <span>{isCopied ? 'Đã sao chép' : 'Sao chép code'}</span>
+          <span>{isCopied ? 'Copied' : 'Copy code'}</span>
         </button>
       </div>
 
@@ -53,7 +53,7 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
     return (
       <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
         <FileText className="w-10 h-10 mx-auto text-slate-400 mb-2" />
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Giảng viên chưa cung cấp mô tả chi tiết cho bài tập này.</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">The lecturer has not provided a detailed description for this assignment.</p>
       </div>
     );
   }
@@ -222,7 +222,7 @@ const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: 
       const diff = dueTime - now;
 
       if (diff <= 0) {
-        setCountdownText('Đã hết hạn nộp bài');
+        setCountdownText('The submission deadline has passed');
         return;
       }
 
@@ -232,10 +232,10 @@ const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: 
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       const parts = [];
-      if (days > 0) parts.push(`${days} ngày`);
-      parts.push(`${hours.toString().padStart(2, '0')} giờ`);
-      parts.push(`${minutes.toString().padStart(2, '0')} phút`);
-      parts.push(`${seconds.toString().padStart(2, '0')} giây`);
+      if (days > 0) parts.push(`${days}d`);
+      parts.push(`${hours.toString().padStart(2, '0')}h`);
+      parts.push(`${minutes.toString().padStart(2, '0')}m`);
+      parts.push(`${seconds.toString().padStart(2, '0')}s`);
 
       setCountdownText(parts.join(' '));
     };
@@ -245,7 +245,7 @@ const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: 
     return () => clearInterval(timer);
   }, [dueDate]);
 
-  return <span>{countdownText || 'Đang tính...'}</span>;
+  return <span>{countdownText || 'Calculating...'}</span>;
 });
 
 export function StudentAssignmentDetail() {
@@ -392,15 +392,15 @@ export function StudentAssignmentDetail() {
       } catch (e) {}
       setToast({
         message: wasAlreadySubmitted
-          ? 'Đã nộp lại bài thành công! Bài làm đã chuyển sang trạng thái Chờ giảng viên chấm lại.'
-          : 'Nộp bài thành công!',
+          ? 'Resubmitted successfully. Your work is now waiting to be re-graded by the lecturer.'
+          : 'Submitted successfully.',
         type: 'success'
       })
       setFile(null)
       setIsResubmitting(false)
       loadData()
     } catch (e: any) {
-      setToast({ message: e.message || 'Lỗi nộp bài', type: 'error' })
+      setToast({ message: e.message || 'Submission failed', type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
@@ -411,19 +411,19 @@ export function StudentAssignmentDetail() {
     setIsSubmitting(true)
     try {
       await api.submitFeedback(submission.id, appealText)
-      setToast({ message: 'Đã gửi ý kiến phản hồi tới Giảng viên thành công!', type: 'success' })
+      setToast({ message: 'Your feedback has been sent to the lecturer.', type: 'success' })
       setShowAppeal(false)
       setAppealText('')
       // Optionally reload the submission to show the updated feedback state if the backend returns it
     } catch (e: any) {
-      setToast({ message: e.message || 'Lỗi gửi phản hồi', type: 'error' })
+      setToast({ message: e.message || 'Failed to send feedback', type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (loading) return <div className="flex p-20 justify-center text-brand-600">Đang tải dữ liệu...</div>
-  if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Không tìm thấy bài tập</div>
+  if (loading) return <div className="flex p-20 justify-center text-brand-600">Loading data...</div>
+  if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Assignment not found</div>
 
   const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
@@ -441,8 +441,8 @@ export function StudentAssignmentDetail() {
     if (!assignment) return
     const title = assignment.title || (assignment as any)?.metadata?.title || 'Bai_Tap'
     const subjectName = assignment.subjectName || (assignment as any)?.subjectCode || (assignment as any)?.class || 'AITA LMS'
-    const dueStr = dueDate ? new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Không có hạn nộp'
-    const lecturerName = assignment.lecturer || 'Giảng viên môn học'
+    const dueStr = dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'No due date'
+    const lecturerName = assignment.lecturer || 'Subject lecturer'
 
     let formattedBodyHtml = ''
     if (fullContent) {
@@ -571,31 +571,31 @@ export function StudentAssignmentDetail() {
       </head>
       <body>
         <div class="header-banner">
-          <div class="brand-title">HỆ THỐNG QUẢN LÝ HỌC TẬP AITA LMS</div>
+          <div class="brand-title">AITA LMS LEARNING MANAGEMENT SYSTEM</div>
           <div class="doc-main-title">${title}</div>
-          <div style="font-size: 10.5pt; color: #475569;">Môn học: <strong>${subjectName}</strong></div>
+          <div style="font-size: 10.5pt; color: #475569;">Subject: <strong>${subjectName}</strong></div>
         </div>
 
         <table class="meta-table">
           <tr>
-            <td width="50%"><strong>👤 Giảng viên:</strong> ${lecturerName}</td>
-            <td width="50%"><strong>⏰ Hạn nộp bài:</strong> <span style="color: #dc2626; font-weight: bold;">${dueStr}</span></td>
+            <td width="50%"><strong>👤 Lecturer:</strong> ${lecturerName}</td>
+            <td width="50%"><strong>⏰ Due:</strong> <span style="color: #dc2626; font-weight: bold;">${dueStr}</span></td>
           </tr>
         </table>
 
-        <div class="section-heading">I. NỘI DUNG & YÊU CẦU ĐỀ BÀI</div>
+        <div class="section-heading">I. ASSIGNMENT CONTENT & REQUIREMENTS</div>
         <div class="content-box">
           ${formattedBodyHtml}
         </div>
 
         ${rubricsList && rubricsList.length > 0 ? `
-          <div class="section-heading">II. BẢNG TIÊU CHÍ CHẤM ĐIỂM (RUBRIC)</div>
+          <div class="section-heading">II. GRADING RUBRIC</div>
           <table class="rubric-grid">
             <thead>
               <tr>
                 <th width="8%" align="center">STT</th>
-                <th width="72%">Tiêu chí đánh giá</th>
-                <th width="20%" align="center">Điểm tối đa</th>
+                <th width="72%">Criteria</th>
+                <th width="20%" align="center">Max score</th>
               </tr>
             </thead>
             <tbody>
@@ -604,8 +604,8 @@ export function StudentAssignmentDetail() {
                 return `
                 <tr>
                   <td align="center"><strong>${idx + 1}</strong></td>
-                  <td>${r.description || r.title || 'Tiêu chí'}</td>
-                  <td align="center"><strong style="color:#2563eb;">${rPoints} điểm</strong></td>
+                  <td>${r.description || r.title || 'Criterion'}</td>
+                  <td align="center"><strong style="color:#2563eb;">${rPoints} pts</strong></td>
                 </tr>
               `}).join('')}
             </tbody>
@@ -613,7 +613,7 @@ export function StudentAssignmentDetail() {
         ` : ''}
 
         <div class="footer-sign">
-          Đề bài được trích xuất tự động từ hệ thống AITA LMS &bull; Ngày tải về: ${new Date().toLocaleDateString('vi-VN')}
+          Assignment sheet exported automatically from AITA LMS &bull; Downloaded on: ${new Date().toLocaleDateString(undefined)}
         </div>
       </body>
       </html>
@@ -661,7 +661,7 @@ export function StudentAssignmentDetail() {
             <div className="flex items-center gap-2 text-sm text-slate-400 mb-3">
               <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
               <ChevronRight size={14} />
-              <Link to="/student/subjects" className="hover:text-slate-600 cursor-pointer transition-colors">Môn học</Link>
+              <Link to="/student/subjects" className="hover:text-slate-600 cursor-pointer transition-colors">Subject</Link>
               <ChevronRight size={14} />
               <Link to="/student/subjects" state={{ expand: assignment.subjectId }} className="hover:text-slate-600 cursor-pointer transition-colors">{assignment.subjectName ? assignment.subjectName.split(' - ')[0] : 'CSD201'}</Link>
               <ChevronRight size={14} />
@@ -678,13 +678,13 @@ export function StudentAssignmentDetail() {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md font-medium text-sm border border-blue-100 dark:border-blue-800">
                   <FileText size={14} />
-                  {assignment.type === 'Exam' ? 'Đề thi' : 'Bài tập'}
+                  {assignment.type === 'Exam' ? 'Exam' : 'Assignment'}
                 </div>
 
                 {assignment.due && isNearDeadline && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 rounded-md font-medium text-sm border border-amber-100 dark:border-amber-800">
                     <Clock size={14} />
-                    Sắp đến hạn
+                    Due soon
                   </div>
                 )}
 
@@ -695,7 +695,7 @@ export function StudentAssignmentDetail() {
                       : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
                     }`}>
                     <Calendar size={14} />
-                    Hạn nộp: {new Date(assignment.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    Due: {new Date(assignment.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </div>
                 )}
               </div>
@@ -712,20 +712,20 @@ export function StudentAssignmentDetail() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-600 text-white">
-                        BÀI LÀM ĐÃ NỘP
+                        SUBMITTED WORK
                       </span>
                       <span className="text-xs font-semibold">
-                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Due: {new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold">
-                      Bạn đã hoàn thành nộp bài{submission?.submittedAt ? ` lúc ${new Date(submission.submittedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString('vi-VN')}` : ''}. Có thể nộp lại nếu cần chỉnh sửa.
+                      You have submitted your work{submission?.submittedAt ? ` at ${new Date(submission.submittedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString(undefined)}` : ''}. You can resubmit if you need to make changes.
                     </p>
                   </div>
                 </div>
                 <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 flex items-center gap-2 text-xs font-bold">
                   <Check size={16} />
-                  <span>Hoàn thành nộp bài</span>
+                  <span>Submission complete</span>
                 </div>
               </div>
             ) : (
@@ -747,14 +747,14 @@ export function StudentAssignmentDetail() {
                       <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
                         isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
                       }`}>
-                        {isPastDue ? 'ĐÃ HẾT HẠN' : isNearDeadline ? 'CẢNH BÁO DEADLINE' : 'THỜI GIAN LÀM BÀI'}
+                        {isPastDue ? 'CLOSED' : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
                       </span>
                       <span className="text-xs font-semibold">
-                        Hạn nộp: {new Date(dueDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Due: {new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold flex items-center gap-1">
-                      {isPastDue ? 'Bài tập đã đóng lượt nộp chính thức.' : <>Thời gian còn lại: <CountdownDisplay dueDate={dueDate} /></>}
+                      {isPastDue ? 'This assignment is closed for official submissions.' : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
                     </p>
                   </div>
                 </div>
@@ -769,18 +769,18 @@ export function StudentAssignmentDetail() {
             )
           )}
 
-          {/* Card: Chi tiết bài tập (Đề bài chi tiết) */}
+          {/* Card: Assignment details */}
           <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <FileText size={18} className="text-blue-600" /> Chi tiết bài tập
+                <FileText size={18} className="text-blue-600" /> Assignment details
               </h2>
               <button
                 onClick={handleDownloadFormattedDoc}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 text-xs font-bold rounded-lg transition-all border border-blue-200 dark:border-blue-800/60 shadow-sm"
-                title="Tải về đề bài dạng file Word (.docx) được định dạng sẵn"
+                title="Download the assignment as a pre-formatted Word file (.docx)"
               >
-                <Download size={14} /> Tải đề bài (.docx)
+                <Download size={14} /> Download (.docx)
               </button>
             </div>
             <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
@@ -788,12 +788,12 @@ export function StudentAssignmentDetail() {
             </div>
           </Card>
 
-          {/* Card: File đính kèm */}
+          {/* Card: Attachments */}
           {assignment.attachments && assignment.attachments.length > 0 && (
             <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm">
               <div className="px-5 py-2 flex justify-between items-center">
                 <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Paperclip size={18} className="text-blue-600" /> File đính kèm
+                  <Paperclip size={18} className="text-blue-600" /> Attachments
                 </h2>
               </div>
               <div className="px-5 py-2">
@@ -825,7 +825,7 @@ export function StudentAssignmentDetail() {
             <Card className="bg-white dark:bg-[#151821] border border-slate-100 dark:border-slate-800 shadow-sm">
               <div className="px-5 py-2 flex justify-between items-center">
                 <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Award size={18} className="text-blue-600" /> Tiêu chí chấm điểm (Rubric)
+                  <Award size={18} className="text-blue-600" /> Grading criteria (rubric)
                 </h2>
               </div>
               <div className="px-5 py-2">
@@ -834,8 +834,8 @@ export function StudentAssignmentDetail() {
                     const rulePoints = rule.weight ?? rule.maxPoints ?? rule.maxScore ?? rule.points ?? rule.score;
                     const hasValidPoints = rulePoints != null && !isNaN(Number(rulePoints)) && Number(rulePoints) > 0;
                     const displayPoints = hasValidPoints
-                      ? `${Number(rulePoints)} điểm`
-                      : (rule.criteria?.length ? `${rule.criteria.reduce((s: number, c: any) => s + (Number(c.weight ?? c.maxPoints ?? c.maxScore ?? 0) || 0), 0)} điểm` : 'Tiêu chí');
+                      ? `${Number(rulePoints)} pts`
+                      : (rule.criteria?.length ? `${rule.criteria.reduce((s: number, c: any) => s + (Number(c.weight ?? c.maxPoints ?? c.maxScore ?? 0) || 0), 0)} pts` : 'Criterion');
 
                     return (
                       <div key={rule.id || index} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
@@ -848,7 +848,7 @@ export function StudentAssignmentDetail() {
                               {rule.title && (
                                 <span className="font-bold text-slate-900 dark:text-white block mb-1">{rule.title}</span>
                               )}
-                              <FormattedText text={rule.description || rule.title || 'Tiêu chí'} />
+                              <FormattedText text={rule.description || rule.title || 'Criterion'} />
                             </div>
                           </div>
                           <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-900/60 px-3 py-1.5 rounded-lg shrink-0 mt-0.5 border border-blue-200 dark:border-blue-700 shadow-sm whitespace-nowrap">
@@ -879,7 +879,7 @@ export function StudentAssignmentDetail() {
                           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                             {rule.criteria.map((c: any, cIdx: number) => {
                               const cPoints = c.weight ?? c.maxPoints ?? c.maxScore ?? c.points ?? c.score;
-                              const cDisplay = cPoints != null && !isNaN(Number(cPoints)) && Number(cPoints) > 0 ? `${Number(cPoints)} điểm` : '';
+                              const cDisplay = cPoints != null && !isNaN(Number(cPoints)) && Number(cPoints) > 0 ? `${Number(cPoints)} pts` : '';
                               return (
                                 <li key={c.id || cIdx} className="p-3 flex justify-between items-start gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
                                   <FormattedText className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed" text={typeof c.description === 'string' ? c.description : JSON.stringify(c.description)} />
@@ -909,11 +909,11 @@ export function StudentAssignmentDetail() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base text-amber-900 dark:text-amber-100 mb-1">
-                      ⌛ Bài làm đang được Giảng viên chấm & xét duyệt điểm
+                      ⌛ Your submission is being graded and reviewed by the lecturer
                     </h3>
                     <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-                      Bài làm của bạn đã được hệ thống AI phân tích và lưu kết quả. 
-                      Giảng viên đang tiến hành xem xét điểm số và đánh giá chi tiết. Kết quả và điểm số chính thức sẽ hiển thị ngay khi Giảng viên duyệt & bấm <strong>Công bố kết quả</strong>.
+                      Your submission has been analysed by the AI and the result saved. 
+                      The lecturer is reviewing the score and detailed assessment. The official result appears as soon as the lecturer approves it and presses <strong>Publish result</strong>.
                     </p>
                   </div>
                 </div>
@@ -921,7 +921,7 @@ export function StudentAssignmentDetail() {
                 <div className="p-5 space-y-4">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
                     <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                      <CheckCircle2 size={18} className="text-emerald-500" /> Kết quả & Nhận xét từ AI
+                      <CheckCircle2 size={18} className="text-emerald-500" /> AI result and feedback
                     </h2>
                   </div>
 
@@ -933,7 +933,7 @@ export function StudentAssignmentDetail() {
                         </div>
                         <div>
                           <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Overall assessment and improvement plan</p>
                         </div>
                       </div>
                       <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
@@ -943,7 +943,7 @@ export function StudentAssignmentDetail() {
                   ) : (
                     <div className="mb-6">
                       <p className="text-sm text-slate-600 dark:text-slate-400 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 text-center italic">
-                        Không có nhận xét tự động.
+                        No automated feedback.
                       </p>
                     </div>
                   )}
@@ -951,21 +951,21 @@ export function StudentAssignmentDetail() {
                   <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
                     {!showAppeal ? (
                       <button onClick={() => setShowAppeal(true)} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:underline">
-                        Bạn có thắc mắc về điểm số?
+                        Have a question about your score?
                       </button>
                     ) : (
                       <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
-                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Gửi khiếu nại / ý kiến tới giảng viên</h4>
+                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Send an appeal or comment to your lecturer</h4>
                         <div className="flex items-end gap-2">
                           <div className="flex-1">
                             <Input
-                              placeholder="Nhập nội dung thắc mắc..."
+                              placeholder="Type your question..."
                               value={appealText}
                               onChange={(e) => setAppealText(e.target.value)}
                             />
                           </div>
                           <Button onClick={handleSendAppeal} className="bg-brand-600 hover:bg-brand-700 text-white mb-1">
-                            <Send size={16} className="mr-2" /> Gửi
+                            <Send size={16} className="mr-2" /> Send
                           </Button>
                         </div>
                       </div>
@@ -983,7 +983,7 @@ export function StudentAssignmentDetail() {
           <Card className="bg-slate-50 dark:bg-[#1a1d27] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-2">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">
-                Bài làm của bạn
+                Your submission
               </h3>
             </div>
             <div className="px-5 py-2 space-y-4">
@@ -991,12 +991,12 @@ export function StudentAssignmentDetail() {
                 <div className="space-y-4">
                   <div className="border-2 border-dashed border-emerald-200 rounded-xl p-5 text-center dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10">
                     <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
-                    <p className="font-bold text-emerald-800 dark:text-emerald-500">Đã nộp thành công</p>
+                    <p className="font-bold text-emerald-800 dark:text-emerald-500">Submitted successfully</p>
                     <p className="text-xs text-emerald-600 dark:text-emerald-600/80 mt-1 mb-3">
-                      Lúc: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                      At: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
                       {(submission as any).attemptNumber && (submission as any).attemptNumber > 1 && (
                         <span className="ml-2 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded font-semibold text-[11px]">
-                          Lần #{(submission as any).attemptNumber}
+                          Attempt #{(submission as any).attemptNumber}
                         </span>
                       )}
                     </p>
@@ -1011,7 +1011,7 @@ export function StudentAssignmentDetail() {
                         <div className="flex items-center gap-3 overflow-hidden">
                           <FileText size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-800 dark:group-hover:text-emerald-200 truncate">
-                            {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || 'File bài nộp')}
+                            {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || 'Submission file')}
                           </span>
                         </div>
                         <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-300 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-700 transition-all shrink-0 ml-2">
@@ -1030,12 +1030,12 @@ export function StudentAssignmentDetail() {
                         className="w-full border-2 border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/80 dark:bg-blue-950/30 dark:hover:bg-blue-900/50 font-bold py-2.5 h-auto rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
                       >
                         <RotateCcw size={16} className="text-blue-600 dark:text-blue-400" />
-                        <span>Nộp lại bài làm</span>
+                        <span>Resubmit</span>
                       </Button>
                     ) : (
                       <div className="border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 bg-blue-50/50 dark:bg-slate-900/50 space-y-3 animate-in fade-in duration-300">
                         <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                          <strong>⚠️ Chú ý:</strong> Nộp lại bài làm sẽ cập nhật file bài tập mới nhất và chuyển trạng thái bài về <strong>Chờ chấm lại</strong> để Giảng viên chấm lại.
+                          <strong>⚠️ Note:</strong> Resubmitting replaces your latest file and moves the submission back to <strong>Awaiting re-grading</strong> so the lecturer can grade it again.
                         </div>
 
                         <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-white dark:bg-slate-900 relative cursor-pointer group">
@@ -1045,14 +1045,14 @@ export function StudentAssignmentDetail() {
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
                           />
                           <UploadCloud size={24} className="mb-1 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Chọn file bài làm mới</p>
-                          <p className="text-[11px] text-slate-400">PDF, DOCX, ZIP (Tối đa 10MB)</p>
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Choose a new submission file</p>
+                          <p className="text-[11px] text-slate-400">PDF, DOCX, ZIP (max 10MB)</p>
                         </div>
 
                         {file && (
                           <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                             <span className="text-xs font-medium truncate pr-2 text-slate-700 dark:text-slate-300">{file.name}</span>
-                            <button onClick={() => setFile(null)} className="text-red-500 text-xs font-bold hover:underline shrink-0">Xóa</button>
+                            <button onClick={() => setFile(null)} className="text-red-500 text-xs font-bold hover:underline shrink-0">Remove</button>
                           </div>
                         )}
 
@@ -1063,7 +1063,7 @@ export function StudentAssignmentDetail() {
                             disabled={isSubmitting || !file}
                           >
                             {isSubmitting ? <Loader2 className="animate-spin w-3.5 h-3.5 mr-1" /> : <Send size={14} className="mr-1" />}
-                            Xác nhận nộp lại
+                            Confirm resubmission
                           </Button>
                           <Button
                             variant="outline"
@@ -1071,22 +1071,22 @@ export function StudentAssignmentDetail() {
                             onClick={() => { setIsResubmitting(false); setFile(null); }}
                             disabled={isSubmitting}
                           >
-                            Hủy
+                            Cancel
                           </Button>
                         </div>
                       </div>
                     )
                   ) : (
                     <div className="p-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-lg text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      🔒 Đã hết hạn nộp bài — Không thể nộp lại.
+                      🔒 Deadline passed - resubmission is not available.
                     </div>
                   )}
                 </div>
               ) : isLocked ? (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center dark:bg-red-900/10 dark:border-red-900/30">
                   <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
-                  <p className="font-bold text-red-800 dark:text-red-500">Đã hết hạn nộp bài</p>
-                  <p className="text-sm text-red-600 dark:text-red-600/80 mt-1">Hệ thống đã khóa tính năng nộp bài.</p>
+                  <p className="font-bold text-red-800 dark:text-red-500">The submission deadline has passed</p>
+                  <p className="text-sm text-red-600 dark:text-red-600/80 mt-1">Submission has been locked by the system.</p>
                 </div>
               ) : (
                 <>
@@ -1097,15 +1097,15 @@ export function StudentAssignmentDetail() {
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
                     <UploadCloud size={28} className="mb-2 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Kéo & thả file vào đây</p>
-                    <p className="text-xs text-slate-400 mt-0.5 mb-3">hoặc chọn file từ máy</p>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Hỗ trợ: PDF, DOCX, ZIP (Tối đa 10MB)</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Drag and drop your file here</p>
+                    <p className="text-xs text-slate-400 mt-0.5 mb-3">or choose a file from your computer</p>
+                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Supported: PDF, DOCX, ZIP (max 10MB)</p>
                   </div>
 
                   {file && (
                     <div className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg flex items-center justify-between mb-4 mt-4">
                       <span className="text-sm font-medium truncate pr-4 text-slate-700 dark:text-slate-300">{file.name}</span>
-                      <button onClick={() => setFile(null)} className="text-red-500 text-sm font-bold hover:underline shrink-0">Xóa</button>
+                      <button onClick={() => setFile(null)} className="text-red-500 text-sm font-bold hover:underline shrink-0">Remove</button>
                     </div>
                   )}
 
@@ -1115,47 +1115,47 @@ export function StudentAssignmentDetail() {
                     disabled={isSubmitting || !file}
                   >
                     {isSubmitting ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Send size={16} className="mr-2" />}
-                    Nộp bài
+                    Submit
                   </Button>
                 </>
               )}
             </div>
           </Card>
 
-          {/* Thông tin bài tập Card */}
+          {/* Assignment information Card */}
           <Card className="bg-slate-50 dark:bg-[#1a1d27] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-2">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">
-                Thông tin bài tập
+                Assignment information
               </h3>
             </div>
             <div className="px-5 py-2 space-y-4 text-sm">
               <div className="flex justify-between items-start gap-4">
-                <span className="text-slate-500 shrink-0 mt-0.5">Môn học</span>
+                <span className="text-slate-500 shrink-0 mt-0.5">Subject</span>
                 <span className="font-medium text-slate-700 dark:text-slate-300 text-right">{assignment.subjectName || 'CSD201 - Mobile Application Dev'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Giảng viên</span>
+                <span className="text-slate-500">Lecturer</span>
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden shrink-0">
                     <img src={assignment.lecturerAvatar || "https://i.pravatar.cc/100?img=5"} alt="Lecturer" className="w-full h-full object-cover" />
                   </div>
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Giảng viên'}</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Lecturer'}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Hạn nộp</span>
-                <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                <span className="text-slate-500">Due date</span>
+                <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Trạng thái</span>
-                <span className={`font-medium ${isSubmitted ? 'text-emerald-500' : 'text-amber-500'}`}>{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
+                <span className="text-slate-500">Status</span>
+                <span className={`font-medium ${isSubmitted ? 'text-emerald-500' : 'text-amber-500'}`}>{isSubmitted ? 'Submitted' : 'Not submitted'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Điểm</span>
+                <span className="text-slate-500">Score</span>
                 {displayScore != null ? (
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${Number(displayScore) >= 8 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : Number(displayScore) >= 5 ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-                    {Number(displayScore).toLocaleString('vi-VN')}
+                    {Number(displayScore).toLocaleString(undefined)}
                   </span>
                 ) : (
                   <span className="font-medium text-slate-700 dark:text-slate-300">—</span>
@@ -1164,11 +1164,11 @@ export function StudentAssignmentDetail() {
             </div>
           </Card>
 
-          {/* Tiến trình Card */}
+          {/* Progress Card */}
           <Card className="bg-slate-50 dark:bg-[#1a1d27] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-2">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">
-                Tiến trình
+                Progress
               </h3>
             </div>
             <div className="px-5 py-2 relative">
@@ -1180,8 +1180,8 @@ export function StudentAssignmentDetail() {
                     <Check size={12} className="text-white" />
                   </div>
                   <div className="flex-1 flex justify-between">
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Đã giao</span>
-                    <span className="text-xs text-slate-400">{assignment.createdAt ? new Date(assignment.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Assigned</span>
+                    <span className="text-xs text-slate-400">{assignment.createdAt ? new Date(assignment.createdAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
                   </div>
                 </div>
 
@@ -1190,8 +1190,8 @@ export function StudentAssignmentDetail() {
                     {isSubmitted ? <Check size={12} className="text-white" /> : <Minus size={12} className="text-white" />}
                   </div>
                   <div className="flex-1 flex justify-between">
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isSubmitted ? 'Đã nộp' : 'Chưa nộp'}</span>
-                    <span className="text-xs text-slate-400">{isSubmitted && submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isSubmitted ? 'Submitted' : 'Not submitted'}</span>
+                    <span className="text-xs text-slate-400">{isSubmitted && submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
                   </div>
                 </div>
 
@@ -1200,8 +1200,8 @@ export function StudentAssignmentDetail() {
                     {isGraded && <Check size={12} className="text-white" />}
                   </div>
                   <div className="flex-1 flex justify-between">
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isGraded ? 'Đã chấm' : 'Chưa chấm'}</span>
-                    <span className="text-xs text-slate-400">{isGraded && gradedDate ? new Date(gradedDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{isGraded ? 'Graded' : 'Not graded'}</span>
+                    <span className="text-xs text-slate-400">{isGraded && gradedDate ? new Date(gradedDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
                   </div>
                 </div>
               </div>
@@ -1214,7 +1214,7 @@ export function StudentAssignmentDetail() {
               className="w-full bg-brand-600 hover:bg-brand-700 text-white shadow-sm font-medium rounded-lg py-3 h-auto transition-all"
             >
               <Award size={18} className="mr-2" />
-              Xem chi tiết chấm Rubric
+              View rubric grading details
             </Button>
           )}
 

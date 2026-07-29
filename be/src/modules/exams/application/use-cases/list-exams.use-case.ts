@@ -16,7 +16,13 @@ export class ListExamsUseCase implements IUseCase<{ user: AuthUser; params: any 
 
     // Base filter
     const filter: any = {}
-    if (classId) filter.subjectId = classId
+    if (classId) {
+      filter.classId = classId
+      try {
+        const cls = await this.uow.resolve<any>(Symbol.for('ClassRepository')).findById(classId)
+        if (cls?.subjectId) filter.subjectId = cls.subjectId
+      } catch (e) {}
+    }
     if (type) filter.examType = String(type) as ExamTypeValue
     if (status) filter.status = String(status) as ExamStatusValue
 

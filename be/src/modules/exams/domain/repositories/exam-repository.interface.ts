@@ -2,6 +2,7 @@ import type { Exam, ExamStatusValue, ExamTypeValue } from '../entities/exam.enti
 
 export interface ExamFilter {
   subjectId?: string
+  classId?: string
   status?: ExamStatusValue
   examType?: ExamTypeValue
   instructorId?: string

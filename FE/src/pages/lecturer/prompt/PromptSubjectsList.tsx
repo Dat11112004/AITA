@@ -49,7 +49,7 @@ export function PromptSubjectsList() {
                     id: sub.id || sub.code,
                     code: sub.code,
                     name: sub.name || sub.code,
-                    description: sub.description || 'Chưa có mô tả môn học.',
+                    description: sub.description || 'No subject description yet.',
                     semester: sub.semester
                   });
                 }
@@ -94,8 +94,8 @@ export function PromptSubjectsList() {
             <Bot size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Quản lý Gợi ý Prompt</h1>
-            <p className="text-slate-500 text-sm">Chọn môn học để xem, chỉnh sửa hoặc tạo mới các mẫu Prompt AI</p>
+            <h1 className="text-2xl font-bold text-slate-900">Manage Prompt Suggestions</h1>
+            <p className="text-slate-500 text-sm">Pick a subject to view, edit or create AI prompt templates</p>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export function PromptSubjectsList() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Tìm kiếm môn học..."
+            placeholder="Search subjects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:bg-white transition-all"
@@ -114,14 +114,14 @@ export function PromptSubjectsList() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-600 border-t-transparent mb-4"></div>
-          <p className="text-slate-500 font-medium">Đang tải danh sách môn học...</p>
+          <p className="text-slate-500 font-medium">Loading subjects...</p>
         </div>
       ) : filteredSubjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200 text-center">
           <Folder size={48} className="text-slate-300 mb-3" />
-          <h3 className="text-lg font-bold text-slate-800">Không tìm thấy môn học nào</h3>
+          <h3 className="text-lg font-bold text-slate-800">No subjects found</h3>
           <p className="text-slate-500 text-sm max-w-md mt-1">
-            {searchQuery ? 'Không có môn học nào phù hợp với từ khóa tìm kiếm.' : 'Bạn chưa được phân công giảng dạy môn học nào hoặc không tìm thấy môn học tương ứng.'}
+            {searchQuery ? 'No subject matches your search.' : 'You have not been assigned to teach any subject, or none was found.'}
           </p>
         </div>
       ) : (
@@ -143,12 +143,12 @@ export function PromptSubjectsList() {
                   {subject.name}
                 </h3>
                 <p className="text-slate-500 text-sm mt-1 line-clamp-2 min-h-[40px]">
-                  {subject.description || 'Chưa có mô tả môn học.'}
+                  {subject.description || 'No subject description yet.'}
                 </p>
               </div>
 
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-brand-600 group-hover:text-brand-700">
-                <span>Quản lý Prompt</span>
+                <span>Manage prompts</span>
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </div>
             </div>

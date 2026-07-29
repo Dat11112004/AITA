@@ -156,10 +156,10 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
           `}
         >
           <Home size={18} className="shrink-0 transition-transform group-hover:scale-105" />
-          {!collapsed && <span>Trang chủ</span>}
+          {!collapsed && <span>Home</span>}
           {collapsed && (
             <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-              Trang chủ
+              Home
               <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-slate-900" />
             </div>
           )}
@@ -175,7 +175,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
             ${collapsed ? 'justify-center px-3' : ''}
           `}
         >
-          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Thu gọn</span></>}
+          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Collapse</span></>}
         </button>
       </div>
     </aside>

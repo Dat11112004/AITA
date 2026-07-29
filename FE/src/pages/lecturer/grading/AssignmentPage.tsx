@@ -217,7 +217,7 @@ export default function AssignmentPage() {
       }
     } catch (err: any) {
       console.error('Failed to delete history', err);
-      setError('Lỗi khi xóa kết quả chấm điểm');
+      setError('Failed to delete the grading result');
     }
   };
 
@@ -269,7 +269,7 @@ export default function AssignmentPage() {
 
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
-        setError("Không có bài tập nào hợp lệ để chấm (chưa nộp hoặc đã chấm xong).");
+        setError("No submissions are eligible for grading (not submitted, or already graded).");
       }
     } catch (err) {
       console.error("Failed to batch grade", err);
@@ -316,7 +316,7 @@ export default function AssignmentPage() {
 
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
-        setError("Trong các sinh viên được chọn, không có bài tập nào hợp lệ để chấm.");
+        setError("None of the selected students have a submission eligible for grading.");
       }
     } catch (err) {
       console.error("Failed to grade selected", err);
@@ -345,12 +345,12 @@ export default function AssignmentPage() {
     if (item.status === 'Graded') {
       navigate(`/lecturer/grading/result/${item.id}`);
     } else if (item.status === 'Submitted') {
-      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} đã nộp bài nhưng chưa có kết quả chấm điểm. Vui lòng nhấn "Chấm".`);
+      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} has submitted but has no grading result yet. Press "Grade".`);
       setTimeout(() => setError(null), 4000);
     } else if (item.status === 'Grading') {
       navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
     } else {
-      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} chưa nộp bài, không có dữ liệu để hiển thị.`);
+      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} has not submitted, so there is nothing to show.`);
       setTimeout(() => setError(null), 4000);
     }
   };
@@ -390,7 +390,7 @@ export default function AssignmentPage() {
     if (newDueDate) {
       const startDate = (assignment as any)?.stats?.createdAt;
       if (startDate && new Date(newDueDate) < new Date(startDate)) {
-        setDeadlineModalError("Hạn nộp không được sớm hơn ngày tạo bài tập.");
+        setDeadlineModalError("The due date cannot be earlier than the assignment creation date.");
         return;
       }
     }
@@ -428,7 +428,7 @@ export default function AssignmentPage() {
       }));
     } catch (err: any) {
       console.error(err);
-      setDeadlineModalError(err.message || "Lỗi khi cập nhật hạn nộp.");
+      setDeadlineModalError(err.message || "Failed to update the due date.");
     } finally {
       setSavingDeadline(false);
     }
@@ -463,7 +463,7 @@ export default function AssignmentPage() {
 
   // Calendar helpers for embedded modal calendar
   const selectedDateObj = newDueDate ? new Date(newDueDate) : null;
-  const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   const handlePrevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
   const handleNextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
@@ -513,10 +513,10 @@ export default function AssignmentPage() {
               <button
                 onClick={() => setIsGradingSettingsModalOpen(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                title="Cấu hình phương thức chấm ngầm / dồn bài chấm"
+                title="Configure background / batch grading"
               >
                 <Settings size={20} className="text-slate-500 dark:text-slate-400" />
-                <span>Cài đặt chấm</span>
+                <span>Grading settings</span>
               </button>
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
@@ -547,7 +547,7 @@ export default function AssignmentPage() {
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    Chấm tất cả
+                    Grade all
                   </>
                 )}
               </button>
@@ -586,11 +586,11 @@ export default function AssignmentPage() {
                   <Calendar size={18} />
                 </div>
                 <span>
-                  Hạn nộp:{' '}
+                  Due:{' '}
                   <strong className="text-brand-600 dark:text-brand-400 font-bold ml-1">
                     {(assignment as any)?.stats?.dueDate
                       ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-                      : 'Chưa thiết lập'}
+                      : 'Not set'}
                   </strong>
                 </span>
               </div>
@@ -600,7 +600,7 @@ export default function AssignmentPage() {
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-sm font-semibold transition-all border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-600 shadow-sm whitespace-nowrap"
               >
                 <Clock size={16} className="text-brand-500" />
-                <span>Điều chỉnh hạn nộp</span>
+                <span>Adjust due date</span>
               </button>
             </div>
           </div>
@@ -627,7 +627,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.totalStudents}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Sinh viên <br /><span className="font-normal opacity-80">Tổng số</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Students <br /><span className="font-normal opacity-80">Total</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -636,7 +636,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.submitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đã nộp <br /><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Submitted <br /><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -645,7 +645,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.notSubmitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Chưa nộp <br /><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Not submitted <br /><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -654,7 +654,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.grading}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Đang chấm <br /><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Grading <br /><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -663,7 +663,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.averageScore}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Điểm trung bình <br /><span className="font-normal opacity-80">/10</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Average score <br /><span className="font-normal opacity-80">/10</span></div>
               </div>
             </div>
           </div>
@@ -680,7 +680,7 @@ export default function AssignmentPage() {
             </div>
             <input
               type="text"
-              placeholder="Tìm kiếm sinh viên, mã SV..."
+              placeholder="Search students or student IDs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 w-full border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:text-slate-200"
@@ -689,50 +689,50 @@ export default function AssignmentPage() {
 
           <div className="flex items-center gap-4">
             <CustomSelect
-              label="Trạng thái:"
+              label="Status:"
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: 'ALL', label: 'Tất cả' },
-                { value: 'NotSubmitted', label: 'Chưa nộp' },
-                { value: 'Submitted', label: 'Đã nộp' },
-                { value: 'Grading', label: 'Đang chấm' },
-                { value: 'Graded', label: 'Đã chấm' }
+                { value: 'ALL', label: 'All' },
+                { value: 'NotSubmitted', label: 'Not submitted' },
+                { value: 'Submitted', label: 'Submitted' },
+                { value: 'Grading', label: 'Grading' },
+                { value: 'Graded', label: 'Graded' }
               ]}
             />
             <CustomSelect
-              label="Khoảng điểm:"
+              label="Score range:"
               value={scoreRangeFilter}
               onChange={setScoreRangeFilter}
               options={[
-                { value: 'ALL', label: 'Tất cả' },
-                { value: '9-10', label: '9 - 10 điểm' },
-                { value: '8-9', label: '8 - 8.9 điểm' },
-                { value: '7-8', label: '7 - 7.9 điểm' },
-                { value: '5-7', label: '5 - 6.9 điểm' },
-                { value: '<5', label: 'Dưới 5 điểm' }
+                { value: 'ALL', label: 'All' },
+                { value: '9-10', label: '9 - 10' },
+                { value: '8-9', label: '8 - 8.9' },
+                { value: '7-8', label: '7 - 7.9' },
+                { value: '5-7', label: '5 - 6.9' },
+                { value: '<5', label: 'Below 5' }
               ]}
             />
             <CustomSelect
-              label="Sắp xếp:"
+              label="Sort:"
               value={sortOrder}
               onChange={setSortOrder}
               options={[
-                { value: 'score_desc', label: 'Điểm cao → thấp' },
-                { value: 'score_asc', label: 'Điểm thấp → cao' },
-                { value: 'name_asc', label: 'Tên A → Z' },
-                { value: 'time_desc', label: 'Nộp gần đây' }
+                { value: 'score_desc', label: 'Score high → low' },
+                { value: 'score_asc', label: 'Score low → high' },
+                { value: 'name_asc', label: 'Name A → Z' },
+                { value: 'time_desc', label: 'Recently submitted' }
               ]}
             />
             <CustomSelect
-              label="Lớp:"
+              label="Class:"
               value={classFilter}
               onChange={(v) => {
                 setClassFilter(v);
                 setPage(1);
               }}
               options={[
-                { value: 'ALL', label: 'Tất cả lớp' },
+                { value: 'ALL', label: 'All classes' },
                 ...classList.map(c => ({ value: c.id, label: c.className || c.classCode }))
               ]}
             />
@@ -745,26 +745,26 @@ export default function AssignmentPage() {
             className={classNames("flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors", viewMode === 'table' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-            Bảng
+            Table
           </button>
           <button
             onClick={() => setViewMode('card')}
             className={classNames("flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors", viewMode === 'card' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            Thẻ
+            Cards
           </button>
         </div>
       </div>
 
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 rounded-lg p-3 mb-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
-          <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">Đã chọn {selectedIds.size} sinh viên</span>
+          <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">{selectedIds.size} students selected</span>
           <button
             onClick={() => handleGradeSelected()}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <Hourglass size={16} /> Chấm {selectedIds.size} bài
+            <Hourglass size={16} /> Grade {selectedIds.size} submissions
           </button>
         </div>
       )}
@@ -793,14 +793,14 @@ export default function AssignmentPage() {
                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                   />
                 </th>
-                <th className="py-4 px-4">Sinh viên</th>
-                <th className="py-4 px-4">Mã sinh viên</th>
-                <th className="py-4 px-4">Lớp</th>
-                <th className="py-4 px-4">Thời gian nộp</th>
-                <th className="py-4 px-4 min-w-[120px]">Điểm</th>
-                <th className="py-4 px-4 text-center">Xếp loại</th>
-                <th className="py-4 px-4 text-center">Trạng thái</th>
-                <th className="py-4 px-4 text-center">Thao tác</th>
+                <th className="py-4 px-4">Student</th>
+                <th className="py-4 px-4">Student ID</th>
+                <th className="py-4 px-4">Class</th>
+                <th className="py-4 px-4">Submitted at</th>
+                <th className="py-4 px-4 min-w-[120px]">Score</th>
+                <th className="py-4 px-4 text-center">Grade</th>
+                <th className="py-4 px-4 text-center">Status</th>
+                <th className="py-4 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -851,7 +851,7 @@ export default function AssignmentPage() {
                       ) : (
                         <>
                           <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400">(Đúng hạn)</div>
+                          <div className="text-xs text-emerald-600 dark:text-emerald-400">(On time)</div>
                         </>
                       )}
                     </td>
@@ -877,25 +877,25 @@ export default function AssignmentPage() {
                       {item.status === 'Graded' && (
                         <div className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          Đã chấm
+                          Graded
                         </div>
                       )}
                       {item.status === 'Grading' && (
                         <div className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-medium">
                           <Hourglass size={16} className="animate-pulse" />
-                          Đang chấm
+                          Grading
                         </div>
                       )}
                       {item.status === 'Submitted' && (
                         <div className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 text-sm font-medium">
                           <CheckCircle2 size={16} />
-                          Đã nộp
+                          Submitted
                         </div>
                       )}
                       {item.status === 'NotSubmitted' && (
                         <div className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-sm font-medium">
                           <Clock size={16} />
-                          Chưa nộp
+                          Not submitted
                         </div>
                       )}
                     </td>
@@ -915,10 +915,10 @@ export default function AssignmentPage() {
                             navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
                           }}
                           className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
-                          title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                          title="Click to watch background grading in real time"
                         >
                           <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                          Đang chấm...
+                          Grading...
                         </button>
                       )}
                       {item.status === 'Submitted' && (
@@ -927,7 +927,7 @@ export default function AssignmentPage() {
                           className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 rounded-lg text-sm font-semibold transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                          Chấm
+                          Grade
                         </button>
                       )}
                       {item.status === 'NotSubmitted' && (
@@ -981,11 +981,11 @@ export default function AssignmentPage() {
                         </div>
                         {item.status !== 'NotSubmitted' ? (
                           <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            Nộp lúc: {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            Submitted: {new Date(item.assessedAt).toLocaleDateString()} {new Date(item.assessedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         ) : (
                           <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5">
-                            Chưa nộp bài
+                            Not submitted
                           </p>
                         )}
                       </div>
@@ -994,12 +994,12 @@ export default function AssignmentPage() {
 
                   <div>
                     <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex justify-between">
-                      <span>ĐIỂM CUỐI CÙNG</span>
+                      <span>FINAL SCORE</span>
                       <span className="normal-case tracking-normal">
-                        {item.status === 'Graded' && <span className="text-emerald-500">Đã chấm</span>}
-                        {item.status === 'Grading' && <span className="text-amber-500">Đang chấm</span>}
-                        {item.status === 'Submitted' && <span className="text-blue-500">Đã nộp</span>}
-                        {item.status === 'NotSubmitted' && <span className="text-slate-400">Chưa nộp</span>}
+                        {item.status === 'Graded' && <span className="text-emerald-500">Graded</span>}
+                        {item.status === 'Grading' && <span className="text-amber-500">Grading</span>}
+                        {item.status === 'Submitted' && <span className="text-blue-500">Submitted</span>}
+                        {item.status === 'NotSubmitted' && <span className="text-slate-400">Not submitted</span>}
                       </span>
                     </div>
                     {item.status === 'Graded' ? (
@@ -1024,7 +1024,7 @@ export default function AssignmentPage() {
                       onClick={() => handleViewHistory(item.id)}
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
                     >
-                      <Eye size={16} /> Xem kết quả
+                      <Eye size={16} /> View result
                     </button>
                   )}
                   {item.status === 'Grading' && (
@@ -1034,10 +1034,10 @@ export default function AssignmentPage() {
                         navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
                       }}
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
-                      title="Bấm vào để xem tiến trình chấm ngầm realtime"
+                      title="Click to watch background grading in real time"
                     >
                       <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                      Đang chấm...
+                      Grading...
                     </button>
                   )}
                   {item.status === 'Submitted' && (
@@ -1046,7 +1046,7 @@ export default function AssignmentPage() {
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                      Chấm điểm
+                      Grade
                     </button>
                   )}
                   {item.status === 'NotSubmitted' && (
@@ -1066,7 +1066,7 @@ export default function AssignmentPage() {
       {totalPages > 0 && history.length > 0 && (
         <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4 mt-4">
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            Hiển thị <span className="font-medium text-slate-900 dark:text-white">{Math.min((page - 1) * limit + 1, totalItems)}</span> - <span className="font-medium text-slate-900 dark:text-white">{Math.min(page * limit, totalItems)}</span> trong <span className="font-medium text-slate-900 dark:text-white">{totalItems}</span> sinh viên
+            Showing <span className="font-medium text-slate-900 dark:text-white">{Math.min((page - 1) * limit + 1, totalItems)}</span> - <span className="font-medium text-slate-900 dark:text-white">{Math.min(page * limit, totalItems)}</span> of <span className="font-medium text-slate-900 dark:text-white">{totalItems}</span> students
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -1115,9 +1115,9 @@ export default function AssignmentPage() {
               <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
                 <AlertCircle size={24} strokeWidth={2.5} />
               </div>
-              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Xác nhận xóa</h3>
+              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Confirm deletion</h3>
               <p className="text-center text-slate-500 dark:text-slate-400 text-sm">
-                Bạn có chắc chắn muốn xóa {deleteModalId === 'BULK' ? `${selectedIds.size} kết quả chấm điểm` : 'kết quả chấm điểm này'} không? Thao tác này không thể hoàn tác.
+                Delete {deleteModalId === 'BULK' ? `${selectedIds.size} grading results` : 'this grading result'}? This cannot be undone.
               </p>
             </div>
             <div className="flex border-t border-slate-100 dark:border-slate-700/50">
@@ -1125,14 +1125,14 @@ export default function AssignmentPage() {
                 onClick={() => setDeleteModalId(null)}
                 className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               >
-                Hủy bỏ
+                Cancel
               </button>
               <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
               <button
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               >
-                Xóa ngay
+                Delete
               </button>
             </div>
           </div>
@@ -1153,10 +1153,10 @@ export default function AssignmentPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Điều chỉnh hạn nộp bài
+                    Adjust the due date
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] font-medium">
-                    {assignment?.metadata?.title || 'Bài tập'}
+                    {assignment?.metadata?.title || 'Assignment'}
                   </p>
                 </div>
               </div>
@@ -1181,26 +1181,26 @@ export default function AssignmentPage() {
               <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
                   <Calendar size={15} className="text-slate-400" />
-                  <span>Hạn nộp hiện tại:</span>
+                  <span>Current due date:</span>
                 </div>
                 <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
                   {(assignment as any)?.stats?.dueDate
                     ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-                    : 'Chưa thiết lập'}
+                    : 'Not set'}
                 </span>
               </div>
 
               {/* Quick Extension Chips */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                  Gia hạn nhanh
+                  Quick extend
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[
-                    { label: '+1 ngày', days: 1 },
-                    { label: '+3 ngày', days: 3 },
-                    { label: '+7 ngày', days: 7 },
-                    { label: '+14 ngày', days: 14 }
+                    { label: '+1 day', days: 1 },
+                    { label: '+3 days', days: 3 },
+                    { label: '+7 days', days: 7 },
+                    { label: '+14 days', days: 14 }
                   ].map(preset => (
                     <button
                       key={preset.label}
@@ -1280,12 +1280,12 @@ export default function AssignmentPage() {
 
               {/* Result Preview Banner */}
               <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Hạn nộp mới:</span>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">New due date:</span>
                 <span className="font-bold text-brand-600 dark:text-brand-400">
                   {selectedDateObj ? (
                     `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} 23:59`
                   ) : (
-                    'Chưa chọn ngày'
+                    'No date selected'
                   )}
                 </span>
               </div>
@@ -1300,7 +1300,7 @@ export default function AssignmentPage() {
                 disabled={savingDeadline}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
               >
-                Hủy bỏ
+                Cancel
               </button>
               <button
                 type="button"
@@ -1313,7 +1313,7 @@ export default function AssignmentPage() {
                 ) : (
                   <Save size={16} />
                 )}
-                <span>Cập nhật hạn nộp</span>
+                <span>Update due date</span>
               </button>
             </div>
 
@@ -1335,10 +1335,10 @@ export default function AssignmentPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Cấu hình phương thức chấm bài
+                    Grading mode settings
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px] font-medium">
-                    {assignment?.metadata?.title || 'Bài tập'}
+                    {assignment?.metadata?.title || 'Assignment'}
                   </p>
                 </div>
               </div>
@@ -1353,7 +1353,7 @@ export default function AssignmentPage() {
             {/* Modal Body */}
             <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
 
-              {/* Option 1: Continuous Queue (Chấm ngầm) */}
+              {/* Option 1: Continuous queue (background grading) */}
               <div
                 onClick={() => !savingStrategy && handleSaveGradingStrategy('CONTINUOUS_QUEUE')}
                 className={classNames(
@@ -1375,30 +1375,30 @@ export default function AssignmentPage() {
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        ⚡ Chấm ngầm theo hàng đợi
+                        ⚡ Background queue grading
                       </h4>
                       {selectedGradingStrategy === 'CONTINUOUS_QUEUE' && (
                         <span className="px-2.5 py-0.5 bg-emerald-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
-                          Đang dùng
+                          In use
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Học sinh nộp bài đến đâu, hệ thống tự động đưa vào hàng đợi FIFO và kích hoạt AI/Autograder chấm ngầm ngay lập tức.
+                      Each submission enters a FIFO queue as it arrives and the AI autograder starts on it immediately.
                     </p>
                     <div className="pt-2 flex items-center gap-2">
                       <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg border border-emerald-200/60 dark:border-emerald-500/20">
-                        🚀 Nộp trước chấm trước
+                        🚀 First in, first graded
                       </span>
                       <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
-                        Tự động hóa 100%
+                        Fully automated
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Option 2: Batch Post-Deadline (Dồn bài chấm 1 lần) */}
+              {/* Option 2: Batch after deadline */}
               <div
                 onClick={() => !savingStrategy && handleSaveGradingStrategy('BATCH_POST_DEADLINE')}
                 className={classNames(
@@ -1420,23 +1420,23 @@ export default function AssignmentPage() {
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        📦 Dồn bài chấm 1 lần
+                        📦 Batch grade once
                       </h4>
                       {selectedGradingStrategy === 'BATCH_POST_DEADLINE' && (
                         <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
-                          Đang dùng
+                          In use
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Bài nộp của học sinh sẽ ở trạng thái chờ. Hệ thống chỉ bắt đầu dồn lại chấm hàng loạt khi Giảng viên bấm nút Chấm tất cả.
+                      Submissions stay pending. Batch grading starts only when the lecturer presses Grade all.
                     </p>
                     <div className="pt-2 flex items-center gap-2">
                       <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold rounded-lg border border-amber-200/60 dark:border-amber-500/20">
-                        ⚖️ Chủ động kích hoạt
+                        ⚖️ Triggered manually
                       </span>
                       <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
-                        Chấm hàng loạt khi Giảng viên bấm Chấm tất cả
+                        Batch grades when the lecturer presses Grade all
                       </span>
                     </div>
                   </div>
@@ -1448,14 +1448,14 @@ export default function AssignmentPage() {
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between shrink-0">
               <span className="text-xs text-slate-400 font-medium">
-                {savingStrategy ? 'Đang lưu cấu hình...' : 'Nhấp vào chế độ để áp dụng ngay'}
+                {savingStrategy ? 'Saving settings...' : 'Click a mode to apply it'}
               </span>
               <button
                 type="button"
                 onClick={() => setIsGradingSettingsModalOpen(false)}
                 className="px-5 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
               >
-                Đóng
+                Close
               </button>
             </div>
 

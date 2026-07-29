@@ -13,7 +13,7 @@ interface ErrorStateProps {
  * Error state display component
  */
 export function ErrorState({
-  title = 'Có lỗi xảy ra',
+  title = 'Something went wrong',
   message,
   onRetry,
   icon,
@@ -33,7 +33,7 @@ export function ErrorState({
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
           >
             <RefreshCw className="h-4 w-4" />
-            Thử lại
+            Try again
           </button>
         )}
       </div>
@@ -56,11 +56,11 @@ export function APIError({
   const message =
     error instanceof Error
       ? error.message
-      : 'Không xác định được lỗi. Vui lòng thử lại.'
+      : 'The error could not be identified. Please try again.'
 
   return (
     <ErrorState
-      title="Lỗi tải dữ liệu"
+      title="Failed to load data"
       message={message}
       onRetry={onRetry}
       className="my-4"

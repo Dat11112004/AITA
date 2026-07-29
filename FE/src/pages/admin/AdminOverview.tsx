@@ -88,7 +88,7 @@ export function AdminOverview() {
 
       {/* Charts & Graphs */}
       <div className="grid gap-5 lg:grid-cols-3">
-        {/* Biểu đồ hoạt động */}
+        {/* Activity chart */}
         <Card className="col-span-full lg:col-span-2 p-5" padding="none">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
             <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export function AdminOverview() {
           </div>
         </Card>
 
-        {/* Biểu đồ phân bổ */}
+        {/* Distribution chart */}
         <Card className="p-5" padding="none">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
             <div className="flex items-center gap-2">
@@ -237,13 +237,13 @@ export function AdminOverview() {
           <div className="p-6 flex-1 flex flex-col justify-center items-center gap-8">
             <div className="relative w-56 h-56 shrink-0">
               <svg className="w-full h-full transform -rotate-90 filter drop-shadow-lg" viewBox="0 0 100 100">
-                {/* 45% Kỹ thuật Phần mềm (SE) - Green */}
+                {/* 45% Software Engineering (SE) - Green */}
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="16" strokeDasharray="113 251.2" strokeDashoffset="0" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
-                {/* 25% Trí tuệ Nhân tạo (AI) - Orange */}
+                {/* 25% Artificial Intelligence (AI) - Orange */}
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f59e0b" strokeWidth="16" strokeDasharray="63 251.2" strokeDashoffset="-113" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
-                {/* 20% Đồ họa (GD) - Blue */}
+                {/* 20% Graphic Design (GD) - Blue */}
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#3b82f6" strokeWidth="16" strokeDasharray="50 251.2" strokeDashoffset="-176" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
-                {/* 10% An toàn TT (IA) - Rose */}
+                {/* 10% Information Assurance (IA) - Rose */}
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f43f5e" strokeWidth="16" strokeDasharray="25 251.2" strokeDashoffset="-226" className="hover:stroke-[20px] transition-all duration-300 cursor-pointer" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">

@@ -20,7 +20,7 @@ function generateConfiguredPrompt(params: {
 }) {
   const langText = params.language === 'vi' ? 'Tiếng Việt' : 'Tiếng Anh';
   const typeText = params.templateType === 'quiz' ? 'Trắc nghiệm' : 'Tự luận / Lập trình';
-  const code = params.subjectCode || 'MÔN HỌC';
+  const code = params.subjectCode || 'SUBJECT';
   const topicText = params.topic.trim() || 'Tổng hợp kiến thức môn học';
 
   if (params.templateType === 'quiz') {
@@ -118,7 +118,7 @@ export function PromptCreateEdit() {
         }
       } catch (err) {
         console.error('Failed to fetch prompt details:', err);
-        setError('Không thể tải thông tin.');
+        setError('Failed to load the data.');
       } finally {
         setIsLoading(false);
       }
@@ -146,7 +146,7 @@ export function PromptCreateEdit() {
   const handleExecuteGenerate = async () => {
     setShowTemplateModal(false);
     setError(null);
-    const code = subject?.code || subjectId || 'MÔN HỌC';
+    const code = subject?.code || subjectId || 'SUBJECT';
     const fallbackPrompt = generateConfiguredPrompt({
       templateType,
       questionCount,
@@ -174,7 +174,7 @@ export function PromptCreateEdit() {
 
   const handleAiRefine = async () => {
     if (!formData.templateContent.trim()) {
-      setError('Vui lòng nhập nội dung prompt trước khi yêu cầu AI chỉnh sửa.');
+      setError('Enter prompt content before asking the AI to revise it.');
       return;
     }
     setError(null);
@@ -190,7 +190,7 @@ export function PromptCreateEdit() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.templateContent.trim()) {
-      setError('Vui lòng nhập tên prompt và nội dung prompt system.');
+      setError('Enter a prompt name and the system prompt content.');
       return;
     }
 
@@ -213,7 +213,7 @@ export function PromptCreateEdit() {
       navigate(`/lecturer/prompts/${subjectId}`);
     } catch (err: any) {
       console.error('Failed to save prompt:', err);
-      setError(err?.response?.data?.error || err?.message || 'Lỗi khi lưu Prompt.');
+      setError(err?.response?.data?.error || err?.message || 'Failed to save the prompt.');
     } finally {
       setIsSaving(false);
     }
@@ -223,12 +223,12 @@ export function PromptCreateEdit() {
     return (
       <div className="p-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-3 border-brand-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Đang tải thông tin...</p>
+        <p className="text-slate-500 font-medium">Loading...</p>
       </div>
     );
   }
 
-  const codeLabel = subject?.code || subjectId || 'Môn học';
+  const codeLabel = subject?.code || subjectId || 'Subject';
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
@@ -238,21 +238,21 @@ export function PromptCreateEdit() {
           onClick={() => { promptGenerationStore.reset(); navigate(`/lecturer/prompts/${subjectId}`); }}
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 transition-colors font-medium"
         >
-          <ArrowLeft size={16} /> Trở về trang thư viện Prompt
+          <ArrowLeft size={16} /> Back to the prompt library
         </button>
         
         <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span>Giảng viên</span>
+          <span>Lecturer</span>
           <ChevronRight size={12} />
-          <span>Gợi ý prompt</span>
+          <span>Prompt suggestions</span>
           <ChevronRight size={12} />
           <span className="font-semibold text-slate-600">{codeLabel}</span>
           <ChevronRight size={12} />
-          <span>{isEditing ? 'Chỉnh sửa' : 'Tạo mới'}</span>
+          <span>{isEditing ? 'Edit' : 'Create'}</span>
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white pt-1">
-          Gợi ý Prompt: {codeLabel}
+          Prompt suggestions: {codeLabel}
         </h1>
       </div>
 
@@ -280,10 +280,10 @@ export function PromptCreateEdit() {
           </div>
           <div>
             <h2 className="font-bold text-slate-900 dark:text-white text-base">
-              {isEditing ? `Chỉnh sửa Prompt: ${codeLabel}` : `Tạo mới Prompt: ${codeLabel}`}
+              {isEditing ? `Edit prompt: ${codeLabel}` : `Create prompt: ${codeLabel}`}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-              Thiết lập cấu hình system prompt cho AI
+              Configure the system prompt for the AI
             </p>
           </div>
         </div>
@@ -291,11 +291,11 @@ export function PromptCreateEdit() {
         {/* Form Body matching Image 2 */}
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* TÊN PROMPT */}
+          {/* PROMPT NAME */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
-              TÊN PROMPT <span className="text-rose-500">*</span>
+              PROMPT NAME <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <Edit3 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -327,7 +327,7 @@ export function PromptCreateEdit() {
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl font-bold text-xs border border-indigo-200/80 dark:border-indigo-800/80 transition-all shadow-xs"
                 >
                   <Wand2 size={14} className={isAiGenerating ? 'animate-spin' : ''} />
-                  {isAiGenerating ? 'Đang tạo...' : 'Tự động tạo bằng AI'}
+                  {isAiGenerating ? 'Generating...' : 'Generate with AI'}
                 </button>
 
                 <button
@@ -337,7 +337,7 @@ export function PromptCreateEdit() {
                   className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-xl font-bold text-xs border border-amber-200/80 dark:border-amber-800/80 transition-all shadow-xs"
                 >
                   <Sparkles size={14} />
-                  AI Chỉnh sửa
+                  AI revise
                 </button>
               </div>
             </div>
@@ -357,7 +357,7 @@ export function PromptCreateEdit() {
               {/* Code Editor Textarea */}
               <textarea
                 rows={12}
-                placeholder="Nhập Prompt tạo đề thi/bài tập... Hoặc bấm 'Tự động tạo bằng AI'"
+                placeholder="Type the prompt for generating exams/assignments... or press 'Generate with AI'"
                 value={formData.templateContent}
                 onChange={(e) => setFormData({ ...formData, templateContent: e.target.value })}
                 className="w-full p-5 bg-slate-50/70 dark:bg-slate-950/80 text-slate-800 dark:text-slate-200 text-xs font-mono outline-none resize-y leading-relaxed"
@@ -373,7 +373,7 @@ export function PromptCreateEdit() {
               onClick={() => navigate(`/lecturer/prompts/${subjectId}`)}
               className="px-6 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 transition-all shadow-xs"
             >
-              Huỷ bỏ
+              Cancel
             </button>
             <button
               type="submit"
@@ -381,7 +381,7 @@ export function PromptCreateEdit() {
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
             >
               <Save size={16} />
-              {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              {isSaving ? 'Saving...' : 'Save changes'}
             </button>
           </div>
 
@@ -401,10 +401,10 @@ export function PromptCreateEdit() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Cấu Hình Sinh Prompt AI Tự Động
+                    Automatic AI Prompt Generation
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Môn học: <strong className="text-indigo-600 dark:text-indigo-400">{codeLabel}</strong>
+                    Subject: <strong className="text-indigo-600 dark:text-indigo-400">{codeLabel}</strong>
                   </p>
                 </div>
               </div>
@@ -419,11 +419,11 @@ export function PromptCreateEdit() {
             {/* Modal Body */}
             <div className="p-6 space-y-5">
               
-              {/* 1. Select Template Format (Chỉ có 2 lựa chọn: Trắc nghiệm / Tự luận) */}
+              {/* 1. Select template format (quiz or essay/coding) */}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <FileCode size={14} className="text-indigo-600 dark:text-indigo-400" />
-                  CHỌN DẠNG ĐỀ BÀI <span className="text-rose-500">*</span>
+                  CHOOSE A FORMAT <span className="text-rose-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div
@@ -440,8 +440,8 @@ export function PromptCreateEdit() {
                       <CheckSquare size={16} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold">Trắc nghiệm</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">4 lựa chọn A, B, C, D</p>
+                      <h4 className="text-sm font-bold">Multiple choice</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">4 options: A, B, C, D</p>
                     </div>
                   </div>
 
@@ -459,19 +459,19 @@ export function PromptCreateEdit() {
                       <FileCode size={16} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold">Tự luận / Coding</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">Bài tập & Test Cases</p>
+                      <h4 className="text-sm font-bold">Essay / coding</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">Exercises & test cases</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* 2. Grid Parameters: Số câu - Độ khó - Ngôn ngữ */}
+              {/* 2. Grid parameters: count - difficulty - language */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Số lượng câu */}
+                {/* Question count */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Hash size={13} className="text-indigo-600" /> Số lượng câu
+                    <Hash size={13} className="text-indigo-600" /> Number of questions
                   </label>
                   <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800/80">
                     <button
@@ -499,60 +499,60 @@ export function PromptCreateEdit() {
                   </div>
                 </div>
 
-                {/* Độ khó */}
+                {/* Difficulty */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Sliders size={13} className="text-amber-500" /> Mức độ khó
+                    <Sliders size={13} className="text-amber-500" /> Difficulty
                   </label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
-                    <option value="Dễ">Dễ</option>
-                    <option value="Trung bình">Trung bình</option>
-                    <option value="Khó">Khó</option>
+                    <option value="Dễ">Easy</option>
+                    <option value="Trung bình">Medium</option>
+                    <option value="Khó">Hard</option>
                   </select>
                 </div>
 
-                {/* Ngôn ngữ */}
+                {/* Language */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Globe size={13} className="text-emerald-500" /> Ngôn ngữ
+                    <Globe size={13} className="text-emerald-500" /> Language
                   </label>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as 'vi' | 'en')}
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
-                    <option value="vi">🇻🇳 Tiếng Việt</option>
-                    <option value="en">🇬🇧 Tiếng Anh</option>
+                    <option value="vi">🇻🇳 Vietnamese</option>
+                    <option value="en">🇬🇧 English</option>
                   </select>
                 </div>
               </div>
 
-              {/* 3. Chủ đề */}
+              {/* 3. Topic */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <AlignLeft size={13} className="text-indigo-600" /> Yêu cầu chủ đề bài tập / câu hỏi <span className="text-rose-500">*</span>
+                  <AlignLeft size={13} className="text-indigo-600" /> Topic for the exercises / questions <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: binarytree, REST API Express, Thuật toán Sắp xếp..."
+                  placeholder="e.g. binary tree, REST API with Express, sorting algorithms..."
                   value={topicInput}
                   onChange={(e) => setTopicInput(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
                 />
               </div>
 
-              {/* 4. Mô tả chi tiết ở dưới */}
+              {/* 4. Detailed description */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Mô tả chi tiết / Yêu cầu bổ sung:
+                  Detailed description / extra requirements:
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Nhập thêm ghi chú hoặc hướng dẫn cụ thể cho AI (ví dụ: Tập trung vào xử lý trường hợp con rỗng, các trường hợp biên...)"
+                  placeholder="Add notes or specific guidance for the AI (e.g. focus on empty-input handling and edge cases...)"
                   value={descriptionInput}
                   onChange={(e) => setDescriptionInput(e.target.value)}
                   className="w-full p-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 leading-relaxed resize-y"
@@ -568,7 +568,7 @@ export function PromptCreateEdit() {
                 onClick={() => setShowTemplateModal(false)}
                 className="px-5 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 text-xs font-bold"
               >
-                Đóng
+                Close
               </button>
               <button
                 type="button"
@@ -578,11 +578,11 @@ export function PromptCreateEdit() {
               >
                 {isAiGenerating ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Đang sinh Prompt...
+                    <Loader2 size={16} className="animate-spin" /> Generating prompt...
                   </>
                 ) : (
                   <>
-                    <Sparkles size={16} /> Sinh Prompt với AI <ArrowRight size={14} />
+                    <Sparkles size={16} /> Generate prompt with AI <ArrowRight size={14} />
                   </>
                 )}
               </button>

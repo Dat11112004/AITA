@@ -17,7 +17,7 @@ const getProjectTypeInfo = (type: string = '') => {
   if (t.includes('ai') || t.includes('algorithm')) return { icon: Cpu, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500', lightBg: 'bg-orange-50 dark:bg-orange-900/30', border: 'border-orange-200 dark:border-orange-800', tag: 'AI & DATA' };
   if (t.includes('backend')) return { icon: LayoutGrid, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-800', tag: 'BACKEND' };
   if (t.includes('fullstack')) return { icon: LayoutGrid, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-600', lightBg: 'bg-purple-50 dark:bg-purple-900/30', border: 'border-purple-200 dark:border-purple-800', tag: 'FULLSTACK' };
-  return { icon: FileText, color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-400', lightBg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700', tag: 'KHÁC' };
+  return { icon: FileText, color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-400', lightBg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700', tag: 'OTHER' };
 };
 
 // -- Components --
@@ -59,7 +59,7 @@ export default function AssignmentsListPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('Tất cả');
+  const [activeTab, setActiveTab] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
@@ -76,7 +76,7 @@ export default function AssignmentsListPage() {
       setAssignments(prev => prev.filter(a => a.id !== deletingAssignment.id));
       setDeletingAssignment(null);
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa bài tập này');
+      alert(err.message || 'This assignment could not be deleted');
     } finally {
       setIsDeleting(false);
     }
@@ -113,7 +113,7 @@ export default function AssignmentsListPage() {
 
   // Derive Tabs from subjects
   const tabs = useMemo(() => {
-    const counts: Record<string, number> = { 'Tất cả': assignments.length };
+    const counts: Record<string, number> = { 'All': assignments.length };
 
     // Initialize all lecturer's subjects to 0
     subjects.forEach(sub => {
@@ -130,17 +130,17 @@ export default function AssignmentsListPage() {
           counts[sub] = 1;
         }
       } else {
-        const fallback = 'Khác';
+        const fallback = 'Other';
         counts[fallback] = (counts[fallback] || 0) + 1;
       }
     });
 
-    // Sort logic to ensure 'Tất cả' is first, 'Khác' is last
+    // Sort logic to ensure 'All' is first, 'Other' is last
     return Object.entries(counts).sort((a, b) => {
-      if (a[0] === 'Tất cả') return -1;
-      if (b[0] === 'Tất cả') return 1;
-      if (a[0] === 'Khác') return 1;
-      if (b[0] === 'Khác') return -1;
+      if (a[0] === 'All') return -1;
+      if (b[0] === 'All') return 1;
+      if (a[0] === 'Other') return 1;
+      if (b[0] === 'Other') return -1;
       return a[0].localeCompare(b[0]);
     });
   }, [assignments, subjects]);
@@ -149,9 +149,9 @@ export default function AssignmentsListPage() {
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
       // Tab filter
-      const sub = (a.metadata as any)?.subject || 'Khác';
+      const sub = (a.metadata as any)?.subject || 'Other';
 
-      if (activeTab !== 'Tất cả' && sub !== activeTab) return false;
+      if (activeTab !== 'All' && sub !== activeTab) return false;
 
       // Search filter
       if (searchQuery) {
@@ -184,8 +184,8 @@ export default function AssignmentsListPage() {
             <ListTodo size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold dark:text-white text-slate-900">Quản lý bài tập</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Quản lý và đánh giá bài tập theo môn học một cách dễ dàng.</p>
+            <h1 className="text-2xl font-bold dark:text-white text-slate-900">Manage Assignments</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage and grade assignments by subject.</p>
           </div>
         </div>
         <button
@@ -193,7 +193,7 @@ export default function AssignmentsListPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap"
         >
           <Plus size={18} />
-          Tạo bài tập mới
+          New assignment
         </button>
       </div>
 
@@ -201,7 +201,7 @@ export default function AssignmentsListPage() {
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
         <div className="relative w-full md:w-64">
           <select className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-10 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all font-medium text-sm">
-            <option>Tất cả môn học</option>
+            <option>All subjects</option>
           </select>
           <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -213,7 +213,7 @@ export default function AssignmentsListPage() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm bài tập..."
+            placeholder="Search assignments..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-full pl-10 pr-4 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all text-sm shadow-sm"
@@ -256,8 +256,8 @@ export default function AssignmentsListPage() {
       {!loading && filteredAssignments.length === 0 && !error && (
         <div className="text-center py-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
           <ListTodo size={48} className="mx-auto mb-4 dark:text-slate-600 text-slate-300" />
-          <h3 className="text-xl font-medium dark:text-slate-300 text-slate-600 mb-2">Không tìm thấy bài tập nào</h3>
-          <p className="dark:text-slate-500 text-slate-400 text-sm">Thử thay đổi bộ lọc hoặc tạo bài tập mới.</p>
+          <h3 className="text-xl font-medium dark:text-slate-300 text-slate-600 mb-2">No assignments found</h3>
+          <p className="dark:text-slate-500 text-slate-400 text-sm">Try changing the filter or create a new assignment.</p>
         </div>
       )}
 
@@ -277,7 +277,7 @@ export default function AssignmentsListPage() {
           const createdStr = new Date(stats.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
           const deadlineStr = stats.dueDate
             ? new Date(stats.dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : 'Chưa thiết lập';
+            : 'Not set';
 
           return (
             <div
@@ -308,15 +308,15 @@ export default function AssignmentsListPage() {
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-slate-500 dark:text-slate-400 font-medium">
                   <div className="flex items-center gap-1.5">
                     <Calendar size={14} className="text-slate-400" />
-                    <span>Tạo: {createdStr}</span>
+                    <span>Created: {createdStr}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock size={14} className="text-slate-400" />
-                    <span>Hạn nộp: {deadlineStr}</span>
+                    <span>Due: {deadlineStr}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Users size={14} className="text-slate-400" />
-                    <span>{stats.totalStudents} sinh viên</span>
+                    <span>{stats.totalStudents} students</span>
                   </div>
                 </div>
               </div>
@@ -329,14 +329,14 @@ export default function AssignmentsListPage() {
                       {stats.submitted}/{stats.totalStudents}
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-0.5">
-                      Đã nộp
+                      Submitted
                     </div>
                   </div>
 
                   <div className="text-center flex flex-col items-center">
                     <CircularProgress value={stats.percentage} />
                     <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-1">
-                      Hoàn thành
+                      Completed
                     </div>
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export default function AssignmentsListPage() {
                     setDeletingAssignment(assignment);
                   }}
                   className="p-2.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50"
-                  title="Xóa bài tập"
+                  title="Delete assignment"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -363,7 +363,7 @@ export default function AssignmentsListPage() {
       {!loading && filteredAssignments.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            Hiển thị <span className="font-medium text-slate-700 dark:text-slate-300">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-medium text-slate-700 dark:text-slate-300">{Math.min(currentPage * itemsPerPage, filteredAssignments.length)}</span> trong <span className="font-medium text-slate-700 dark:text-slate-300">{filteredAssignments.length}</span> bài tập
+            Showing <span className="font-medium text-slate-700 dark:text-slate-300">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-medium text-slate-700 dark:text-slate-300">{Math.min(currentPage * itemsPerPage, filteredAssignments.length)}</span> of <span className="font-medium text-slate-700 dark:text-slate-300">{filteredAssignments.length}</span> assignments
           </div>
 
           <div className="flex items-center gap-1">
@@ -411,8 +411,8 @@ export default function AssignmentsListPage() {
                   <Trash2 size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Xác nhận xóa bài tập</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Hành động này không thể hoàn tác</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirm assignment deletion</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">This action cannot be undone</p>
                 </div>
               </div>
               <button
@@ -426,10 +426,10 @@ export default function AssignmentsListPage() {
             {/* Body */}
             <div className="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
               <p>
-                Bạn có chắc chắn muốn xóa bài tập <strong className="text-slate-900 dark:text-white">{deletingAssignment.metadata?.title || 'Bài tập'}</strong>?
+                Delete the assignment <strong className="text-slate-900 dark:text-white">{deletingAssignment.metadata?.title || 'assignment'}</strong>?
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-rose-50/60 dark:bg-rose-950/30 p-3 rounded-xl border border-rose-100 dark:border-rose-900/40">
-                ⚠️ Toàn bộ dữ liệu đề bài, rubric và tất cả các bài làm của sinh viên đã nộp thuộc bài tập này cũng sẽ bị xóa vĩnh viễn khỏi hệ thống.
+                ⚠️ The brief, the rubric and every student submission for this assignment will also be permanently deleted.
               </p>
             </div>
 
@@ -441,7 +441,7 @@ export default function AssignmentsListPage() {
                 disabled={isDeleting}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
               >
-                Hủy bỏ
+                Cancel
               </button>
               <button
                 type="button"
@@ -454,7 +454,7 @@ export default function AssignmentsListPage() {
                 ) : (
                   <Trash2 size={16} />
                 )}
-                <span>{isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}</span>
+                <span>{isDeleting ? 'Deleting...' : 'Confirm delete'}</span>
               </button>
             </div>
 

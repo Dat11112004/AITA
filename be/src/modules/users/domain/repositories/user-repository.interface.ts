@@ -22,6 +22,13 @@ export interface RoleInfo {
   name: string
 }
 
+/** Outcome of a bulk delete: ids already gone are skipped, not failures. */
+export interface BulkDeleteResult {
+  deleted: string[]
+  skipped: string[]
+  failed: Array<{ id: string; reason: string }>
+}
+
 export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>
   findById(id: string): Promise<User | null>
@@ -29,6 +36,7 @@ export interface IUserRepository {
   save(user: User): Promise<void>
   create(user: User): Promise<void>
   delete(id: string): Promise<void>
+  deleteMany(ids: string[]): Promise<BulkDeleteResult>
   count(filter?: UserFilter): Promise<number>
   findRoleByName(name: string): Promise<RoleInfo | null>
   assignRole(userId: string, roleId: string): Promise<void>

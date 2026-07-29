@@ -7,6 +7,8 @@ import {
   Search, Download
 } from 'lucide-react'
 
+import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+
 type TabType = 'syllabus' | 'clos' | 'sessions' | 'assessment'
 
 export function StudentSubjectDetail() {
@@ -96,7 +98,7 @@ export function StudentSubjectDetail() {
     const degreeLevel = s.degreeLevel || 'Bachelor'
     const timeAllocation = s.timeAllocation || 'Study hour (150h) = 45h contact hours + 1h final exam + 104h self-study'
     const prerequisites = s.prerequisites || s.preRequisite || 'None'
-    const description = s.description || subject?.description || ''
+    const description = getCleanSubjectDescription(subject?.code, s.description || subject?.description)
 
     const studentTasksList: string[] = Array.isArray(s.studentTasks)
       ? s.studentTasks

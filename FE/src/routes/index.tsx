@@ -36,14 +36,11 @@ import { Profile } from '@/pages/profile/Profile'
 import { LecturerOverview } from '@/pages/lecturer/LecturerOverview'
 import { LecturerClasses } from '@/pages/lecturer/LecturerClasses'
 import { LecturerClassDetail } from '@/pages/lecturer/LecturerClassDetail'
-import { LecturerAssignments } from '@/pages/lecturer/LecturerAssignments'
 import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
-import { LecturerAIGenerator } from '@/pages/lecturer/LecturerAIGenerator'
-import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
-import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
-import { SubjectWorkspace } from '@/pages/lecturer/SubjectWorkspace'
 import { LecturerSubjects } from '@/pages/lecturer/LecturerSubjects'
 import { LecturerSubjectDetail } from '@/pages/lecturer/LecturerSubjectDetail'
+import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
+import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
 import { PromptSubjectsList } from '@/pages/lecturer/prompt/PromptSubjectsList'
 import { PromptListBySubject } from '@/pages/lecturer/prompt/PromptListBySubject'
 import { PromptCreateEdit } from '@/pages/lecturer/prompt/PromptCreateEdit'
@@ -120,16 +117,11 @@ export function AppRoutes() {
         <Route path="classes/:id" element={<LecturerClassDetail />} />
         <Route path="subjects" element={<LecturerSubjects />} />
         <Route path="subjects/:code" element={<LecturerSubjectDetail />} />
-        <Route path="subjects/:id/workspace" element={<SubjectWorkspace />} />
         <Route path="prompts" element={<PromptSubjectsList />} />
         <Route path="prompts/:subjectId" element={<PromptListBySubject />} />
         <Route path="prompts/:subjectId/create" element={<PromptCreateEdit />} />
         <Route path="prompts/:subjectId/edit/:promptId" element={<PromptCreateEdit />} />
-        <Route path="assignments" element={<LecturerAssignments />} />
         <Route path="assignments/:id/rubric" element={<LecturerAssignmentRubric />} />
-        {/* Nav "Kỳ thi" — chưa có trang riêng, dùng chung trang bài tập (tạo/lọc Đề thi tại đây) */}
-        <Route path="exams" element={<LecturerAssignments />} />
-        <Route path="assignments/ai-generator" element={<LecturerAIGenerator />} />
         <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
         <Route path="profile" element={<Profile />} />
@@ -153,7 +145,7 @@ export function AppRoutes() {
               <DashboardLayout
                 navItems={STUDENT_NAV}
                 role="student"
-                roleLabel="Sinh viên"
+                roleLabel="Student"
                 portalTitle="AITA Student"
               />
             </ErrorBoundary>

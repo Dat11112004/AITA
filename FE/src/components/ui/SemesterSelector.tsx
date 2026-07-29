@@ -130,8 +130,8 @@ export function SemesterSelector({
         {isOpen && (
           <div className="absolute top-full right-0 mt-1 w-56 rounded-2xl bg-white dark:bg-[#1a1d28] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-1.5">
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <span>Danh sách Mùa học</span>
-              <span className="text-[9px] font-semibold text-indigo-500">Tự động đồng bộ</span>
+              <span>Semester list</span>
+              <span className="text-[9px] font-semibold text-indigo-500">Auto-synced</span>
             </div>
             <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
               {semesters.map((opt) => {
@@ -153,7 +153,7 @@ export function SemesterSelector({
                       {opt.label}
                       {opt.isCurrent && (
                         <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                          Hiện tại
+                          Current
                         </span>
                       )}
                     </span>

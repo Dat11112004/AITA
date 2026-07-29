@@ -1,5 +1,4 @@
-import fs from 'fs'
-import type { IUserRepository, UserFilter, Pagination, RoleInfo } from '../../domain/repositories/user-repository.interface.js'
+import type { IUserRepository, UserFilter, Pagination, RoleInfo, BulkDeleteResult } from '../../domain/repositories/user-repository.interface.js'
 import { User } from '../../../auth/domain/entities/user.entity.js'
 import { UserMapper } from '../mappers/user.mapper.js'
 
@@ -89,9 +88,32 @@ export class PrismaUserRepository implements IUserRepository {
     })
   }
 
+  /**
+   * SQL Server aborts one side of a deadlock instead of queueing it, and the
+   * delete transaction below touches ~17 tables, so two deletes running at the
+   * same time collide easily. Retry the whole transaction a few times before
+   * giving up — P2034 is Prisma's "write conflict or deadlock" code.
+   */
+  private async withDeadlockRetry<T>(op: () => Promise<T>, attempts = 3): Promise<T> {
+    let lastError: any
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await op()
+      } catch (e: any) {
+        const isDeadlock =
+          e?.code === 'P2034' ||
+          /write conflict|deadlock/i.test(e?.message ?? '')
+        if (!isDeadlock || attempt === attempts) throw e
+        lastError = e
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt))
+      }
+    }
+    throw lastError
+  }
+
   async delete(id: string): Promise<void> {
-    try {
-      await this.client.$transaction([
+    await this.withDeadlockRetry(() =>
+      this.client.$transaction([
         // Nullify optional foreign keys to avoid P2003 constraint failures
         this.client.exam.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
         this.client.promptTemplate.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
@@ -114,10 +136,37 @@ export class PrismaUserRepository implements IUserRepository {
         this.client.notificationRecipient.deleteMany({ where: { UserId: id } }),
         this.client.user.delete({ where: { Id: id } })
       ])
-    } catch (e: any) {
-      fs.writeFileSync('delete_error.txt', e.stack || e.message)
-      throw e
+    )
+  }
+
+  /**
+   * Deletes users one at a time, never concurrently.
+   *
+   * Callers used to fire N independent delete requests in parallel, which made
+   * the per-user transactions deadlock against each other and left the delete
+   * half-applied. Running them sequentially removes the contention entirely;
+   * ids that are already gone are reported as skipped instead of failing the
+   * whole batch, so a retry after a partial run is harmless.
+   */
+  async deleteMany(ids: string[]): Promise<BulkDeleteResult> {
+    const result: BulkDeleteResult = { deleted: [], skipped: [], failed: [] }
+
+    for (const id of ids) {
+      const existing = await this.client.user.findUnique({ where: { Id: id }, select: { Id: true } })
+      if (!existing) {
+        result.skipped.push(id)
+        continue
+      }
+
+      try {
+        await this.delete(id)
+        result.deleted.push(id)
+      } catch (e: any) {
+        result.failed.push({ id, reason: e?.message ?? 'Unknown error' })
+      }
     }
+
+    return result
   }
 
   async setRequirePasswordChange(userId: string, value: boolean): Promise<void> {

@@ -56,8 +56,8 @@ export function StudentOverview() {
   const subjects = dashboardData?.enrolledClasses?.map((c: any) => ({
     id: c.subject?.id || c.id,
     code: c.subject?.code || c.classCode,
-    name: c.subject?.name || 'Môn học',
-    teacher: c.lecturers?.[0]?.name || 'Chưa phân công',
+    name: c.subject?.name || 'Subject',
+    teacher: c.lecturers?.[0]?.name || 'Not assigned',
   })) || []
 
   // Find most urgent assignment due in next 48 hours
@@ -72,7 +72,7 @@ export function StudentOverview() {
     const diffMs = new Date(urgentAssignment.due).getTime() - new Date().getTime()
     const hours = Math.floor(diffMs / (1000 * 3600))
     const minutes = Math.floor((diffMs % (1000 * 3600)) / (1000 * 60))
-    timeRemainingText = hours > 0 ? `Còn ${hours} giờ ${minutes} phút` : `Còn ${minutes} phút`
+    timeRemainingText = hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`
   }
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
@@ -114,13 +114,13 @@ export function StudentOverview() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="mb-2 inline-flex items-center rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1">
-            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Sinh viên • Mùa học {selectedSemester}</span>
+            <span className="text-xs font-bold text-brand-700 dark:text-brand-400">Student • {selectedSemester} semester</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            Chào bạn, chúc một ngày tốt lành!
+            Hello, have a great day!
           </h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">
-            Bạn có {upcomingTasks.length} bài tập sắp đến hạn trong mùa học này. Hãy hoàn thành sớm nhé.
+            You have {upcomingTasks.length} assignment(s) due this semester. Try to finish them early.
           </p>
         </div>
         <SemesterSelector
@@ -142,16 +142,16 @@ export function StudentOverview() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">CẢNH BÁO SẮP HẾT HẠN</span>
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">DEADLINE APPROACHING</span>
                 <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">{urgentAssignment.title}</h4>
               </div>
               <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-semibold">
-                Hạn nộp: {new Date(urgentAssignment.due).toLocaleString('vi-VN')} ({timeRemainingText})
+                Due: {new Date(urgentAssignment.due).toLocaleString()} ({timeRemainingText})
               </p>
             </div>
           </div>
           <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-red-600/30">
-            Làm bài ngay <ArrowRight size={14} />
+            Start now <ArrowRight size={14} />
           </button>
         </div>
       )}
@@ -162,10 +162,10 @@ export function StudentOverview() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <BookOpen className="text-brand-600" size={20} /> Các môn học hiện tại
+              <BookOpen className="text-brand-600" size={20} /> Current subjects
             </h2>
             <Link to="/student/courses" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 flex items-center gap-1 group">
-              Xem tất cả <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              View all <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
@@ -184,7 +184,7 @@ export function StudentOverview() {
                     {sub.name}
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    GV: {sub.teacher}
+                    Lecturer: {sub.teacher}
                   </p>
                 </div>
               </div>
@@ -195,13 +195,13 @@ export function StudentOverview() {
         {/* Right Column: Upcoming Deadlines */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Clock className="text-amber-500" size={20} /> Việc cần làm
+            <Clock className="text-amber-500" size={20} /> To do
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 text-sm">
-                Sắp đến hạn
+                Due soon
               </h3>
               <span className="bg-white border border-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
                 {upcomingTasks.length}
@@ -212,7 +212,7 @@ export function StudentOverview() {
               {upcomingTasks.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm flex flex-col items-center">
                   <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-                  Bạn đã hoàn thành mọi bài tập!
+                  You have completed every assignment!
                 </div>
               ) : (
                 upcomingTasks.map((item: any) => (
@@ -231,7 +231,7 @@ export function StudentOverview() {
                         </h4>
                         {item.due && (
                           <p className="text-xs font-medium text-red-500 mt-1 flex items-center gap-1">
-                            <Clock size={12} /> Hạn: {new Date(item.due).toLocaleString()}
+                            <Clock size={12} /> Due: {new Date(item.due).toLocaleString()}
                           </p>
                         )}
                       </div>
@@ -242,27 +242,27 @@ export function StudentOverview() {
             </div>
             <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800">
               <Link to="/student/assignments" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                Xem tất cả bài tập
+                View all assignments
               </Link>
             </div>
           </div>
 
           {/* Notifications Widget */}
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 mt-8">
-            <Bell className="text-brand-500" size={20} /> Thông báo
+            <Bell className="text-brand-500" size={20} /> Notifications
           </h2>
 
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
               <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                Mới nhất
+                Latest
               </h3>
               {notifications.some(n => !n.read) && (
                 <button
                   onClick={handleMarkAllAsRead}
                   className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
                 >
-                  Đánh dấu đã đọc tất cả
+                  Mark all as read
                 </button>
               )}
             </div>
@@ -270,7 +270,7 @@ export function StudentOverview() {
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-slate-500 text-sm">
-                  Không có thông báo nào.
+                  No notifications yet.
                 </div>
               ) : (
                 notifications.map((item) => (
@@ -282,7 +282,7 @@ export function StudentOverview() {
                     <div className="flex gap-3">
                       <div className="flex-1 min-w-0">
                         <h4 className={`text-sm ${!item.read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-200'}`}>
-                          {item.title || 'Thông báo mới'}
+                          {item.title || 'New notification'}
                         </h4>
                         <p className="text-xs text-slate-500 mt-1 line-clamp-2">
                           {item.message}
@@ -295,7 +295,7 @@ export function StudentOverview() {
                         <button
                           onClick={(e) => handleMarkAsRead(item.id, e)}
                           className="shrink-0 p-1.5 h-fit rounded-full bg-white border border-slate-200 text-brand-600 shadow-sm hover:bg-brand-50 dark:bg-slate-800 dark:border-slate-700 dark:text-brand-400 dark:hover:bg-brand-900/50"
-                          title="Đánh dấu đã đọc"
+                          title="Mark as read"
                         >
                           <Check size={14} strokeWidth={3} />
                         </button>

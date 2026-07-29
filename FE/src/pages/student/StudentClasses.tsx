@@ -69,9 +69,9 @@ export function StudentClasses() {
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
-          title="Lớp học của tôi"
-          description={`Danh sách các lớp học bạn đang tham gia trong mùa học ${selectedSemester}.`}
-          breadcrumbs={[{ label: 'Sinh viên', path: '/student' }, { label: 'Lớp học' }]}
+          title="My Classes"
+          description={`Classes you are enrolled in for the ${selectedSemester} semester.`}
+          breadcrumbs={[{ label: 'Student', path: '/student' }, { label: 'Classes' }]}
         />
         <SemesterSelector
           selectedSemester={selectedSemester}
@@ -83,7 +83,7 @@ export function StudentClasses() {
       <div className="space-y-6">
         {groupedSubjects.length === 0 ? (
           <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl p-12 text-center text-slate-500 shadow-sm">
-            Bạn chưa đăng ký lớp học nào trong mùa học này.
+            You are not enrolled in any class this semester.
           </div>
         ) : (
           groupedSubjects.map(group => (
@@ -99,7 +99,7 @@ export function StudentClasses() {
                   </span>
                 </div>
                 <div className="text-sm font-medium text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 w-max">
-                  {group.classes.length} Lớp học
+                  {group.classes.length} Classes
                 </div>
               </div>
               
@@ -116,17 +116,17 @@ export function StudentClasses() {
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-900 dark:text-slate-100 text-lg group-hover:text-brand-600 transition-colors">
-                          Mã lớp: {cls.classCode}
+                          Class code: {cls.classCode}
                         </h4>
                         <div className="flex flex-wrap items-center gap-4 mt-2">
                           <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                            <Users size={14}/> Giảng viên: {cls.lecturers?.[0]?.name || 'Chưa phân công'}
+                            <Users size={14}/> Lecturer: {cls.lecturers?.[0]?.name || 'Not assigned'}
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="mt-4 sm:mt-0 flex shrink-0 items-center text-sm font-bold text-brand-600 dark:text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 transform duration-200">
-                      Xem chi tiết lớp <ChevronRight size={16} className="ml-1" />
+                      View class details <ChevronRight size={16} className="ml-1" />
                     </div>
                   </div>
                 ))}
