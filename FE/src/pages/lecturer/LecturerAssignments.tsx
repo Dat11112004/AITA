@@ -11,10 +11,10 @@ import { Calendar, Layers, GraduationCap, Inbox, CheckCircle2, Loader2, Sparkles
 import { APIError } from '@/components/common/ErrorState'
 
 const TYPE_TABS = [
-  { id: 'all', label: 'Tất cả Bài tập' },
-  { id: 'quiz', label: 'Trắc nghiệm' },
-  { id: 'coding', label: 'Lập trình' },
-  { id: 'group', label: 'Bài tập nhóm' },
+  { id: 'all', label: 'All assignments' },
+  { id: 'quiz', label: 'Quiz' },
+  { id: 'coding', label: 'Coding' },
+  { id: 'group', label: 'Group work' },
 ]
 
 export function LecturerAssignments() {
@@ -76,13 +76,13 @@ export function LecturerAssignments() {
 
   const handleGenerateRubric = async () => {
     if (!newTitle && !newFile) {
-      alert('Vui lòng nhập tên bài tập hoặc đính kèm file đề bài để AI phân tích.')
+      alert('Enter an assignment title or attach a brief so the AI can analyse it.')
       return
     }
     setGeneratingRubric(true)
     try {
       const formData = new FormData()
-      formData.append('topic', newTitle || 'Tự động trích xuất từ file')
+      formData.append('topic', newTitle || 'Extracted automatically from the file')
       formData.append('difficulty', 'medium')
       formData.append('totalScore', '10')
       if (newFile) formData.append('file', newFile)
@@ -90,7 +90,7 @@ export function LecturerAssignments() {
       const res = await api.generateRubricAI(formData)
       setAiRubric(typeof res === 'object' ? JSON.stringify(res, null, 2) : String(res))
     } catch (e: any) {
-      alert(e.message || 'Lỗi khi nhờ AI phân tích rubric')
+      alert(e.message || 'The AI failed to analyse the rubric')
     } finally {
       setGeneratingRubric(false)
     }
@@ -102,8 +102,8 @@ export function LecturerAssignments() {
     try {
       // In a real app we might upload the file to get a URL, for now just pass filename if exists
       const finalDesc = newDesc + 
-        (newFile ? `\n\n[File đính kèm: ${newFile.name}]` : '') + 
-        (aiRubric ? `\n\n[Rubric Chấm Điểm AI]\n${aiRubric}` : '')
+        (newFile ? `\n\n[Attachment: ${newFile.name}]` : '') + 
+        (aiRubric ? `\n\n[AI grading rubric]\n${aiRubric}` : '')
 
       const body: any = {
         title: newType === 'Lab' && (!newTitle || newTitle.startsWith('Lab')) ? `Lab ${labNumber}` : newTitle,
@@ -138,13 +138,13 @@ export function LecturerAssignments() {
       await api.createAssignment(payload)
       
       if (sendNotification) {
-        console.log(`[Notification] Đã kích hoạt tính năng thông báo tự động (Backend sẽ xử lý)`)
+        console.log(`[Notification] Automatic notification triggered (handled by the backend)`)
       }
       
       setIsModalOpen(false)
       load()
     } catch (e: any) {
-      alert(e.message || 'Lỗi tạo bài tập')
+      alert(e.message || 'Failed to create the assignment')
     } finally {
       setCreating(false)
     }
@@ -155,9 +155,9 @@ export function LecturerAssignments() {
 
   const formatTypeName = (type: string) => {
     switch (type?.toLowerCase()) {
-      case 'quiz': return 'Trắc nghiệm'
-      case 'coding': return 'Lập trình'
-      case 'group': return 'Bài nhóm'
+      case 'quiz': return 'Quiz'
+      case 'coding': return 'Coding'
+      case 'group': return 'Group work'
       default: return type
     }
   }
@@ -168,8 +168,8 @@ export function LecturerAssignments() {
       {/* Header Section */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <PageHeader 
-          title="Quản lý Bài tập" 
-          breadcrumbs={[{ label: 'Giảng viên', path: '/lecturer' }, { label: 'Bài tập' }]} 
+          title="Manage Assignments" 
+          breadcrumbs={[{ label: 'Lecturer', path: '/lecturer' }, { label: 'Assignments' }]} 
           actions={
             <div className="flex gap-2">
             <Button
@@ -179,7 +179,7 @@ export function LecturerAssignments() {
               onClick={() => navigate('/lecturer/rubric-generator')}
             >
               <Sparkles size={16} />
-              Tạo Rubric AI
+              AI Rubric
             </Button>
             <Button
               size="sm"
@@ -187,7 +187,7 @@ export function LecturerAssignments() {
               onClick={() => navigate('/lecturer/assignments/ai-generator')}
             >
               <Sparkles size={16} />
-              Tạo bài tập AI
+              AI Assignment
             </Button>
             <Button
               size="sm"
@@ -195,7 +195,7 @@ export function LecturerAssignments() {
               onClick={() => setIsModalOpen(true)}
             >
               <Plus size={16} />
-              Tạo Assignment mới
+              New Assignment
             </Button>
           </div>
           }
@@ -206,39 +206,39 @@ export function LecturerAssignments() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tạo mới</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create new</h3>
               <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                 <button 
                   onClick={() => setNewType('Assignment')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${newType === 'Assignment' ? 'bg-white dark:bg-slate-700 shadow text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >Bài tập</button>
+                >Assignment</button>
                 <button 
                   onClick={() => setNewType('Exam')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${newType === 'Exam' ? 'bg-white dark:bg-slate-700 shadow text-amber-600 dark:text-amber-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >Đề thi</button>
+                >Exam</button>
               </div>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
               
               <div className={`p-3 rounded-lg border text-sm ${newType === 'Assignment' ? 'bg-brand-50 border-brand-100 text-brand-800 dark:bg-brand-900/20 dark:border-brand-800/30 dark:text-brand-300' : 'bg-amber-50 border-amber-100 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-300'}`}>
-                <strong>Khác biệt:</strong> {newType === 'Assignment' 
-                  ? 'Dành cho luyện tập. AI sẽ tự động CHẤM ĐIỂM NGẦM ngay khi sinh viên nộp bài. Giảng viên chỉ cần review lại.' 
-                  : 'Đề thi đánh giá quan trọng. Sẽ KHÔNG chấm ngầm, Giảng viên bám sát và bấm chấm toàn bộ (Batch Grade) sau khi thi xong.'}
+                <strong>Difference:</strong> {newType === 'Assignment' 
+                  ? 'For practice. The AI grades in the background as soon as a student submits; the lecturer only reviews.' 
+                  : 'A graded exam. No background grading - the lecturer runs Batch Grade once the exam is over.'}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Tên {newType === 'Exam' ? 'Đề thi' : 'Bài tập'} *</label>
+                <label className="block text-sm font-medium mb-1">{newType === 'Exam' ? 'Exam' : 'Assignment'} name *</label>
                 <input 
                   type="text" 
                   value={newTitle} 
                   onChange={(e) => setNewTitle(e.target.value)} 
                   className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500" 
-                  placeholder="Ví dụ: Bài tập tự luyện OOP"
+                  placeholder="e.g. OOP practice assignment"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Phân loại cụ thể</label>
+                  <label className="block text-sm font-medium mb-1">Category</label>
                   <select 
                     value={newType} 
                     onChange={(e) => {
@@ -250,15 +250,15 @@ export function LecturerAssignments() {
                     }}
                     className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
                   >
-                    <option value="Assignment">Bài tập tự luận</option>
-                    <option value="Lab">Bài thực hành (Lab)</option>
-                    <option value="Quiz">Trắc nghiệm</option>
-                    <option value="Coding">Lập trình (Coding)</option>
-                    <option value="Exam">Đề thi chung</option>
+                    <option value="Assignment">Written assignment</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Quiz">Quiz</option>
+                    <option value="Coding">Coding</option>
+                    <option value="Exam">General exam</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Hạn nộp</label>
+                  <label className="block text-sm font-medium mb-1">Deadline</label>
                   <input 
                     type="date" 
                     value={newDue} 
@@ -271,7 +271,7 @@ export function LecturerAssignments() {
               {newType === 'Lab' && (
                 <div className="grid grid-cols-2 gap-4 bg-brand-50/50 p-3 rounded-lg border border-brand-100 dark:bg-brand-900/10 dark:border-brand-800/30">
                   <div>
-                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Nhập tiếp Lab mấy? *</label>
+                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Which lab number? *</label>
                     <input
                       type="number"
                       min={1}
@@ -289,7 +289,7 @@ export function LecturerAssignments() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Trọng số (% điểm) *</label>
+                    <label className="block text-xs font-bold text-brand-800 dark:text-brand-300 mb-1">Weight (% of score) *</label>
                     <div className="relative">
                       <input
                         type="number"
@@ -306,7 +306,7 @@ export function LecturerAssignments() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Môn học</label>
+                  <label className="block text-sm font-medium mb-1">Subject</label>
                   <select 
                     value={newSubjectId} 
                     onChange={(e) => setNewSubjectId(e.target.value)}
@@ -316,7 +316,7 @@ export function LecturerAssignments() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Áp dụng cho Lớp</label>
+                  <label className="block text-sm font-medium mb-1">Apply to class</label>
                   <select 
                     multiple
                     value={newClassIds} 
@@ -330,23 +330,23 @@ export function LecturerAssignments() {
                     }}
                     className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500 h-24"
                   >
-                    <option value="all">-- Tất cả các lớp --</option>
+                    <option value="all">-- All classes --</option>
                     {classes.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Mô tả chi tiết</label>
+                <label className="block text-sm font-medium mb-1">Detailed description</label>
                 <textarea 
                   value={newDesc} 
                   onChange={(e) => setNewDesc(e.target.value)} 
                   rows={3} 
                   className="w-full p-2 text-sm border rounded bg-white dark:bg-slate-800 dark:border-slate-700 outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder="Mô tả yêu cầu..."
+                  placeholder="Describe the requirements..."
                 ></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Đính kèm File đề bài (Tùy chọn)</label>
+                <label className="block text-sm font-medium mb-1">Attach brief file (optional)</label>
                 <div className="flex gap-2 items-start">
                   <input 
                     type="file" 
@@ -361,7 +361,7 @@ export function LecturerAssignments() {
                     className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1 shrink-0"
                   >
                     {generatingRubric ? <Loader2 size={16} className="animate-spin" /> : <FileCheck2 size={16} />}
-                    Phân tích Rubric AI
+                    Analyse rubric with AI
                   </Button>
                 </div>
               </div>
@@ -388,15 +388,15 @@ export function LecturerAssignments() {
                 />
                 <label htmlFor="notifyStudents" className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
                   <Bell size={16} className="text-brand-500" />
-                  Gửi thông báo ngay cho sinh viên qua Email / App
+                  Notify students now by email / app
                 </label>
               </div>
 
             </div>
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Hủy</Button>
+              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
               <Button className="bg-brand-600 text-white hover:bg-brand-700" onClick={handleCreateAssignment} disabled={creating || !newTitle.trim()}>
-                {creating ? 'Đang tạo...' : `Publish ${newType === 'Exam' ? 'Đề thi' : 'Bài tập'}`}
+                {creating ? 'Creating...' : `Publish ${newType === 'Exam' ? 'exam' : 'assignment'}`}
               </Button>
             </div>
           </div>
@@ -420,9 +420,9 @@ export function LecturerAssignments() {
               <div className="rounded-full bg-slate-50 p-5 dark:bg-slate-800/50">
                 <Layers size={36} className="text-slate-300 dark:text-slate-600" />
               </div>
-              <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-200">Không tìm thấy bài tập</p>
+              <p className="mt-4 text-lg font-bold text-slate-900 dark:text-slate-200">No assignments found</p>
               <p className="mt-2 text-sm max-w-sm text-slate-500 dark:text-slate-400">
-                Danh mục này hiện chưa có bài tập nào được tạo. Nhấp vào "Tạo Đề Thay Thế AI" để bắt đầu.
+                No assignments have been created in this category yet. Use the AI generator to start.
               </p>
             </div>
           ) : (
@@ -430,7 +430,7 @@ export function LecturerAssignments() {
               columns={[
                 {
                   key: 'title',
-                  header: 'Tên bài tập',
+                  header: 'Assignment name',
                   render: (r) => (
                     <div className="py-2 max-w-xs sm:max-w-md">
                       <p className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight transition-colors cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 line-clamp-1">
@@ -444,7 +444,7 @@ export function LecturerAssignments() {
                 },
                 {
                   key: 'type',
-                  header: 'Phân loại',
+                  header: 'Category',
                   render: (r) => (
                     <div className="py-2">
                        <Badge variant="neutral" className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-none shadow-sm rounded-md px-2.5 py-1 text-[11px] uppercase tracking-wider">
@@ -455,7 +455,7 @@ export function LecturerAssignments() {
                 },
                 {
                   key: 'class',
-                  header: 'Lớp áp dụng',
+                  header: 'Applies to',
                   render: (r) => (
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 py-2">
                       <div className="flex h-6 w-6 items-center justify-center rounded bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
@@ -467,7 +467,7 @@ export function LecturerAssignments() {
                 },
                 {
                   key: 'due',
-                  header: 'Hạn nộp bài',
+                  header: 'Deadline',
                   render: (r) => (
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400 py-2">
                       <Calendar size={14} className="text-slate-400 dark:text-slate-500" />
@@ -477,7 +477,7 @@ export function LecturerAssignments() {
                 },
                 {
                   key: 'submitted',
-                  header: 'Bài đã nộp',
+                  header: 'Submitted',
                   render: (r) => (
                     <div className="flex items-center gap-1.5 text-xs py-2">
                       <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 dark:border-slate-700/50 dark:bg-slate-800/50 dark:text-slate-300 font-bold shadow-sm">
@@ -489,12 +489,12 @@ export function LecturerAssignments() {
                 },
                 {
                   key: 'status',
-                  header: 'Trạng thái',
+                  header: 'Status',
                   render: (r) => (
                     <div className="flex items-center justify-end py-2 pr-4">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 size={14} className="text-emerald-500" />
-                        <span>{(r as AssignmentRow).status || 'Đang nhận bài'}</span>
+                        <span>{(r as AssignmentRow).status || 'Accepting submissions'}</span>
                       </div>
                     </div>
                   )
@@ -505,10 +505,10 @@ export function LecturerAssignments() {
                   render: (r) => (
                     <div className="flex justify-end gap-2 pr-4">
                       <Button size="sm" variant="outline" onClick={() => navigate(`/lecturer/assignments/${(r as AssignmentRow).id}/rubric`)}>
-                        Cấu hình Rubric
+                        Configure rubric
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => navigate(`/lecturer/assignments/${(r as AssignmentRow).id}/submissions`)}>
-                        Chấm bài
+                        Grade
                       </Button>
                     </div>
                   )

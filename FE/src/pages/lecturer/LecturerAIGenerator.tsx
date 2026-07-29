@@ -34,7 +34,7 @@ export function LecturerAIGenerator() {
       const res = await api.generateExerciseAI(form)
       setGeneratedContent(res)
     } catch (error: any) {
-      alert(error.message || 'Lỗi khi tạo bài tập tự động')
+      alert(error.message || 'Failed to generate the assignment')
     } finally {
       setIsGenerating(false)
     }
@@ -46,7 +46,7 @@ export function LecturerAIGenerator() {
     try {
       await api.saveAIAssignment({
         classId: selectedClassId === 'all' ? undefined : selectedClassId,
-        title: `AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'}: ${form.topic}`,
+        title: `AI ${examType === 'Exam' ? 'Exam' : 'Assignment'}: ${form.topic}`,
         type: form.type, // Sub-type: quiz, coding, essay
         difficulty: form.difficulty,
         content: generatedContent,
@@ -55,17 +55,17 @@ export function LecturerAIGenerator() {
 
       if (sendNotification) {
         await api.broadcastNotification({
-          title: `Đã tự động tạo: AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'} mới`,
-          message: `Giảng viên vừa publish 1 AI ${examType === 'Exam' ? 'Đề thi' : 'Bài tập'} lên hệ thống. Vui lòng kiểm tra mục Bài tập.`,
+          title: `Auto-created: new AI ${examType === 'Exam' ? 'exam' : 'assignment'}`,
+          message: `Your lecturer published a new AI ${examType === 'Exam' ? 'exam' : 'assignment'}. Please check the Assignments section.`,
           targetRole: 'STUDENT'
         }).catch(() => {})
-        console.log(`[Notification] Đã gửi thông báo cho lớp ${selectedClassId === 'all' ? 'Tất cả' : selectedClassId}`)
+        console.log(`[Notification] Sent to class ${selectedClassId === 'all' ? 'All' : selectedClassId}`)
       }
 
-      alert('Đã lưu thành công!')
+      alert('Saved.')
       navigate('/lecturer/assignments')
     } catch (error: any) {
-      alert(error.message || 'Lỗi khi lưu bài tập')
+      alert(error.message || 'Failed to save the assignment')
     } finally {
       setIsSaving(false)
     }
@@ -78,8 +78,8 @@ export function LecturerAIGenerator() {
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
-          title="Tạo bài tập bằng AI" 
-          breadcrumbs={[{ label: 'Bài tập', path: '/lecturer/assignments' }, { label: 'AI Generator' }]} 
+          title="Generate an assignment with AI" 
+          breadcrumbs={[{ label: 'Assignments', path: '/lecturer/assignments' }, { label: 'AI Generator' }]} 
         />
       </div>
 
@@ -88,23 +88,23 @@ export function LecturerAIGenerator() {
           <Card className="p-5 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-slate-900 border-indigo-100 dark:border-indigo-900/50">
             <div className="flex items-center gap-2 mb-4 text-indigo-700 dark:text-indigo-400">
               <Bot size={20} />
-              <h3 className="font-bold">Tham số sinh bài tập</h3>
+              <h3 className="font-bold">Generation settings</h3>
             </div>
             
             <div className="space-y-4">
               <Input 
-                label="Chủ đề / Yêu cầu" 
-                placeholder="VD: Cây nhị phân tìm kiếm..." 
+                label="Topic / requirements" 
+                placeholder="e.g. Binary search trees..." 
                 value={form.topic}
                 onChange={(e) => setForm({ ...form, topic: e.target.value })}
               />
               
               <Select 
-                label="Mức độ khó"
+                label="Difficulty"
                 options={[
-                  { value: 'easy', label: 'Dễ (Cơ bản)' },
-                  { value: 'medium', label: 'Trung bình (Vận dụng)' },
-                  { value: 'hard', label: 'Khó (Nâng cao)' },
+                  { value: 'easy', label: 'Easy (basic)' },
+                  { value: 'medium', label: 'Medium (applied)' },
+                  { value: 'hard', label: 'Hard (advanced)' },
                 ]}
                 value={form.difficulty}
                 onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
@@ -112,21 +112,21 @@ export function LecturerAIGenerator() {
 
               <div className="grid grid-cols-2 gap-2">
                 <Select 
-                  label="Mục đích"
+                  label="Purpose"
                   options={[
-                    { value: 'Assignment', label: 'Bài tập (Chấm ngầm)' },
-                    { value: 'Exam', label: 'Đề thi (Chấm thủ công)' },
+                    { value: 'Assignment', label: 'Assignment (background grading)' },
+                    { value: 'Exam', label: 'Exam (manual grading)' },
                   ]}
                   value={examType}
                   onChange={(e) => setExamType(e.target.value)}
                 />
                 
                 <Select 
-                  label="Loại hình cụ thể"
+                  label="Specific type"
                   options={[
-                    { value: 'quiz', label: 'Trắc nghiệm' },
-                    { value: 'coding', label: 'Lập trình' },
-                    { value: 'essay', label: 'Tự luận' },
+                    { value: 'quiz', label: 'Quiz' },
+                    { value: 'coding', label: 'Coding' },
+                    { value: 'essay', label: 'Essay' },
                   ]}
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -134,8 +134,8 @@ export function LecturerAIGenerator() {
               </div>
 
               <Select 
-                label="Áp dụng cho Lớp"
-                options={[{value: 'all', label: 'Tất cả các lớp'}, ...classes.map(c => ({ value: c.id, label: c.code }))]}
+                label="Apply to class"
+                options={[{value: 'all', label: 'All classes'}, ...classes.map(c => ({ value: c.id, label: c.code }))]}
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
               />
@@ -149,7 +149,7 @@ export function LecturerAIGenerator() {
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <label htmlFor="notifyStudents" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Gửi thông báo (Email/App) cho sinh viên
+                  Notify students by email / app
                 </label>
               </div>
 
@@ -159,9 +159,9 @@ export function LecturerAIGenerator() {
                 disabled={isGenerating || !form.topic.trim()}
               >
                 {isGenerating ? (
-                  <><Loader2 size={18} className="animate-spin mr-2" /> Đang xử lý...</>
+                  <><Loader2 size={18} className="animate-spin mr-2" /> Processing...</>
                 ) : (
-                  <><Sparkles size={18} className="mr-2" /> Sinh bài tập ngay</>
+                  <><Sparkles size={18} className="mr-2" /> Generate now</>
                 )}
               </Button>
             </div>
@@ -171,10 +171,10 @@ export function LecturerAIGenerator() {
         <div className="md:col-span-2">
           <Card className="h-full min-h-[400px] border border-slate-200 dark:border-slate-800 flex flex-col">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
-              <CardHeader title="Kết quả từ AI" />
+              <CardHeader title="AI result" />
               {generatedContent && (
                 <Button size="sm" onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                  {isSaving ? 'Đang lưu...' : <><Save size={16} className="mr-2"/> Lưu vào hệ thống</>}
+                  {isSaving ? 'Saving...' : <><Save size={16} className="mr-2"/> Save to system</>}
                 </Button>
               )}
             </div>
@@ -183,14 +183,14 @@ export function LecturerAIGenerator() {
               {!generatedContent && !isGenerating && (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
                   <Sparkles size={48} className="mb-4 opacity-20" />
-                  <p>Nhập thông số và nhấn "Sinh bài tập ngay" để AI bắt đầu tạo.</p>
+                  <p>Enter the settings and press "Generate now" to start.</p>
                 </div>
               )}
               
               {isGenerating && (
                 <div className="h-full flex flex-col items-center justify-center text-indigo-500">
                   <Loader2 size={48} className="animate-spin mb-4" />
-                  <p className="font-medium animate-pulse">AI đang phân tích và soạn thảo...</p>
+                  <p className="font-medium animate-pulse">AI is analysing and drafting...</p>
                 </div>
               )}
 

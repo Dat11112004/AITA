@@ -50,10 +50,10 @@ export function LecturerAssignmentRubric() {
       }
 
       await api.saveExamRubric(id, formData)
-      alert('Đã lưu cấu hình Rubric thành công!')
+      alert('Rubric configuration saved.')
       navigate('/lecturer/assignments')
     } catch (error: any) {
-      alert(error.message || 'Lỗi khi lưu rubric')
+      alert(error.message || 'Failed to save rubric')
     } finally {
       setIsSaving(false)
     }
@@ -66,8 +66,8 @@ export function LecturerAssignmentRubric() {
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
-          title="Cấu hình Rubric & Đáp án" 
-          breadcrumbs={[{ label: 'Bài tập', path: '/lecturer/assignments' }, { label: 'Rubric Configuration' }]} 
+          title="Rubric & Answer Key Configuration" 
+          breadcrumbs={[{ label: 'Assignments', path: '/lecturer/assignments' }, { label: 'Rubric Configuration' }]} 
         />
       </div>
 
@@ -75,12 +75,12 @@ export function LecturerAssignmentRubric() {
         <Card className="p-5 border-slate-200">
           <div className="flex items-center gap-2 mb-4 text-brand-700">
             <FileText size={20} />
-            <h3 className="font-bold">1. Tải lên file đáp án (Tuỳ chọn)</h3>
+            <h3 className="font-bold">1. Upload answer key file (optional)</h3>
           </div>
           
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
-              Bạn có thể tải lên file PDF/DOCX đáp án hoặc rubric chi tiết. Hệ thống AI chấm bài sẽ đọc file này để làm cơ sở chấm điểm.
+              You can upload a PDF/DOCX answer key or detailed rubric. The AI grader reads this file and uses it as the basis for scoring.
             </p>
             <input 
               type="file" 
@@ -93,9 +93,9 @@ export function LecturerAssignmentRubric() {
 
         <Card className="p-5 border-slate-200">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-brand-700">2. Tiêu chí chấm điểm chi tiết (Rubric)</h3>
+            <h3 className="font-bold text-brand-700">2. Detailed grading criteria (rubric)</h3>
             <Button size="sm" variant="outline" onClick={handleAddCriterion} className="gap-2">
-              <Plus size={16} /> Thêm tiêu chí
+              <Plus size={16} /> Add criterion
             </Button>
           </div>
 
@@ -104,8 +104,8 @@ export function LecturerAssignmentRubric() {
               <div key={c.id} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex-1">
                   <Input 
-                    label={`Tiêu chí ${idx + 1}`}
-                    placeholder="VD: Cấu trúc thư mục chuẩn Clean Architecture"
+                    label={`Criterion ${idx + 1}`}
+                    placeholder="e.g. Folder structure follows Clean Architecture"
                     value={c.description}
                     onChange={(e) => handleCriterionChange(idx, 'description', e.target.value)}
                   />
@@ -113,7 +113,7 @@ export function LecturerAssignmentRubric() {
                 <div className="w-32">
                   <Input 
                     type="number"
-                    label="Điểm tối đa"
+                    label="Max score"
                     value={c.maxPoints.toString()}
                     onChange={(e) => handleCriterionChange(idx, 'maxPoints', e.target.value)}
                   />
@@ -129,10 +129,10 @@ export function LecturerAssignmentRubric() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={() => navigate('/lecturer/assignments')}>Huỷ bỏ</Button>
+          <Button variant="outline" onClick={() => navigate('/lecturer/assignments')}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white gap-2">
             <Save size={16} />
-            {isSaving ? 'Đang lưu...' : 'Lưu Rubric'}
+            {isSaving ? 'Saving...' : 'Save rubric'}
           </Button>
         </div>
       </div>

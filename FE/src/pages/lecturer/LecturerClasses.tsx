@@ -62,13 +62,13 @@ export function LecturerClasses() {
     const semId = (cls.semester as any)?.id || 'unknown';
     const semesterRecord = semesters.find(s => s.id === semId);
 
-    const seasonName = semesterRecord?.season || 'Các Học Kỳ Khác';
-    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Kỳ Khác';
+    const seasonName = semesterRecord?.season || 'Other semesters';
+    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Other semester';
 
     const subId = (cls.subject as any)?.id || 'unknown';
     const subjectRecord = subjects.find(s => s.id === subId);
-    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Môn Khác';
-    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || 'Chưa rõ tên môn';
+    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Other subject';
+    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || 'Unnamed subject';
 
     if (!groupedData[seasonName]) {
       groupedData[seasonName] = { seasonName, isActive: false, semesters: {} };
@@ -97,8 +97,8 @@ export function LecturerClasses() {
 
   // Calculate averages & sort
   const sortedSeasons = Object.values(groupedData).sort((a, b) => {
-    if (a.seasonName === 'Các Học Kỳ Khác') return 1;
-    if (b.seasonName === 'Các Học Kỳ Khác') return -1;
+    if (a.seasonName === 'Other semesters') return 1;
+    if (b.seasonName === 'Other semesters') return -1;
     return b.seasonName.localeCompare(a.seasonName);
   });
 
@@ -163,10 +163,10 @@ export function LecturerClasses() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Users className="w-7 h-7 text-slate-400" />
-            Tất cả lớp học
+            All classes
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Quản lý hệ thống lớp học theo cấu trúc: Mùa học → Kỳ học → Môn học → Lớp học.
+            Browse classes by structure: Season → Semester → Subject → Class.
           </p>
         </div>
 
@@ -175,7 +175,7 @@ export function LecturerClasses() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Tìm kiếm lớp học..."
+              placeholder="Search classes..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 pr-10 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -192,14 +192,14 @@ export function LecturerClasses() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-base font-bold text-slate-800 mb-4">Danh sách theo cấu trúc đào tạo</h3>
+        <h3 className="text-base font-bold text-slate-800 mb-4">Structured training list</h3>
 
         <div className="space-y-4">
           {sortedSeasons.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 shadow-sm">
               <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h4 className="text-base font-semibold text-slate-700">Chưa có lớp học được phân công</h4>
-              <p className="text-sm text-slate-500 mt-1">Bạn chưa được phân công giảng dạy lớp nào trong các học kỳ hiện tại.</p>
+              <h4 className="text-base font-semibold text-slate-700">No classes assigned yet</h4>
+              <p className="text-sm text-slate-500 mt-1">You have not been assigned to teach any class in the current semesters.</p>
             </div>
           ) : (
             sortedSeasons.map(season => {
@@ -223,13 +223,13 @@ export function LecturerClasses() {
                       <h2 className="text-lg font-bold text-slate-800">{season.seasonName}</h2>
                       {season.isActive && (
                         <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                          Đang diễn ra
+                          In progress
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-slate-500">
-                    <span className="text-sm font-medium text-indigo-600">{semesterCount} kỳ học</span>
+                    <span className="text-sm font-medium text-indigo-600">{semesterCount} semesters</span>
                     {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
                 </div>
@@ -264,7 +264,7 @@ export function LecturerClasses() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4 text-slate-500">
-                              <span className="text-sm font-medium text-indigo-600">{subjectCount} môn học</span>
+                              <span className="text-sm font-medium text-indigo-600">{subjectCount} subjects</span>
                               {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                             </div>
                           </div>
@@ -275,11 +275,11 @@ export function LecturerClasses() {
                               <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
                                   <tr>
-                                    <th className="px-6 py-4 font-medium">Môn học</th>
-                                    <th className="px-6 py-4 font-medium text-center">Mã môn</th>
-                                    <th className="px-6 py-4 font-medium text-center">Số lớp</th>
-                                    <th className="px-6 py-4 font-medium text-center">Sĩ số trung bình</th>
-                                    <th className="px-6 py-4 font-medium text-center">Thao tác</th>
+                                    <th className="px-6 py-4 font-medium">Subject</th>
+                                    <th className="px-6 py-4 font-medium text-center">Subject code</th>
+                                    <th className="px-6 py-4 font-medium text-center">Classes</th>
+                                    <th className="px-6 py-4 font-medium text-center">Average class size</th>
+                                    <th className="px-6 py-4 font-medium text-center">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -303,16 +303,16 @@ export function LecturerClasses() {
                                           <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
                                           <td className="px-6 py-4 text-center">
                                             <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
-                                              {subject.classes.length} lớp
+                                              {subject.classes.length} classes
                                             </span>
                                           </td>
-                                          <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} sinh viên</td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} students</td>
                                           <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
                                               <button
                                                 onClick={(e) => toggleSubject(subject.subjectId, e)}
                                                 className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
-                                                title="Xem danh sách lớp"
+                                                title="View class list"
                                               >
                                                 {isSubjExpanded ? <ChevronDown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                                               </button>
@@ -339,7 +339,7 @@ export function LecturerClasses() {
                                                   >
                                                     <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
                                                     <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
-                                                      Lớp {cls.code}
+                                                      Class {cls.code}
                                                     </span>
                                                   </button>
                                                 ))}
@@ -369,10 +369,10 @@ export function LecturerClasses() {
       <div className="mt-8 flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
         <div className="flex items-center gap-2 text-sm text-blue-600">
           <Info className="w-4 h-4" />
-          <span><span className="font-semibold">Mẹo:</span> Nhấn vào kỳ học hoặc biểu tượng nhóm người để xem chi tiết các lớp học bên trong.</span>
+          <span><span className="font-semibold">Tip:</span> Click a semester or the people icon to see the classes inside it.</span>
         </div>
         <a href="#" className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline">
-          Hướng dẫn sử dụng <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+          User guide <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
         </a>
       </div>
 

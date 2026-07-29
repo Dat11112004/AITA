@@ -52,7 +52,7 @@ export function LecturerSubjects() {
           result.push({
             id: subId,
             code: (cls.subject as any)?.code || 'N/A',
-            name: (cls.subject as any)?.name || 'Môn học',
+            name: (cls.subject as any)?.name || 'Subject',
           })
         }
       }
@@ -88,8 +88,8 @@ export function LecturerSubjects() {
   }
 
   const viewOptions: { value: ViewMode; label: string; desc: string }[] = [
-    { value: 'teaching', label: 'Môn đang dạy', desc: 'Chỉ hiện môn học bạn được phân công' },
-    { value: 'all', label: 'Tất cả môn học', desc: 'Toàn bộ môn học trong hệ thống' },
+    { value: 'teaching', label: 'Subjects I teach', desc: 'Only subjects assigned to you' },
+    { value: 'all', label: 'All subjects', desc: 'Every subject in the system' },
   ]
 
   return (
@@ -102,13 +102,13 @@ export function LecturerSubjects() {
               <Library size={22} />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-              {viewMode === 'teaching' ? 'Quản lý Môn học' : 'Tất cả Môn học'}
+              {viewMode === 'teaching' ? 'Manage Subjects' : 'All Subjects'}
             </h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             {viewMode === 'teaching'
-              ? 'Xem syllabus, CLO, lịch trình và đánh giá cho các môn học bạn đang phụ trách.'
-              : 'Toàn bộ môn học có trong hệ thống AITA.'
+              ? 'View the syllabus, CLOs, schedule and assessments for the subjects you teach.'
+              : 'Every subject available in AITA.'
             }
           </p>
         </div>
@@ -117,7 +117,7 @@ export function LecturerSubjects() {
           <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              {teachingSubjects.length} <span className="font-normal text-emerald-600/70 dark:text-emerald-400/70">môn đang dạy</span>
+              {teachingSubjects.length} <span className="font-normal text-emerald-600/70 dark:text-emerald-400/70">subjects taught</span>
             </span>
           </div>
         </div>
@@ -129,7 +129,7 @@ export function LecturerSubjects() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm kiếm theo tên, mã môn học..."
+            placeholder="Search by subject name or code..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-11 pl-10 pr-4 bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 text-sm"
@@ -188,7 +188,7 @@ export function LecturerSubjects() {
           </div>
 
           <div className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#151821] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm whitespace-nowrap">
-            Tổng: <span className="text-emerald-600 dark:text-emerald-400">{filteredSubjects.length}</span> môn
+            Total: <span className="text-emerald-600 dark:text-emerald-400">{filteredSubjects.length}</span> subjects
           </div>
         </div>
       </div>
@@ -201,13 +201,13 @@ export function LecturerSubjects() {
       ) : filteredSubjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-[#151821]/50 text-center">
           <Library size={40} className="text-slate-400 mb-3" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">Không tìm thấy môn học nào</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">No subjects found</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {search
-              ? 'Thử thay đổi từ khóa tìm kiếm.'
+              ? 'Try a different search keyword.'
               : viewMode === 'teaching'
-                ? 'Bạn chưa được phân công dạy môn học nào.'
-                : 'Hệ thống chưa có môn học nào.'
+                ? 'You have not been assigned to teach any subject.'
+                : 'There are no subjects in the system yet.'
             }
           </p>
         </div>
@@ -238,7 +238,7 @@ export function LecturerSubjects() {
                     )}
                     {!hasSyl && (
                       <span className="text-[10px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-md">
-                        Chưa có syllabus
+                        No syllabus yet
                       </span>
                     )}
                   </div>
@@ -259,13 +259,13 @@ export function LecturerSubjects() {
                     {sub.credit && (
                       <span className="flex items-center gap-1">
                         <GraduationCap size={12} />
-                        {sub.credit} tín chỉ
+                        {sub.credit} credits
                       </span>
                     )}
                     {clsCount > 0 && (
                       <span className="flex items-center gap-1">
                         <Layers size={12} />
-                        {clsCount} lớp
+                        {clsCount} classes
                       </span>
                     )}
                   </div>

@@ -17,7 +17,7 @@ function initials(name?: string) {
 
 const roleLabel: Record<string, string> = {
   admin: 'Administrator',
-  lecturer: 'Giảng viên',
+  lecturer: 'Lecturer',
   student: 'Student',
 }
 

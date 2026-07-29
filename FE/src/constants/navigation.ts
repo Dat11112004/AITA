@@ -13,12 +13,12 @@ export const ADMIN_NAV: NavItem[] = [
 ]
 
 export const LECTURER_NAV: NavItem[] = [
-  { id: 'overview', label: 'Tổng quan', path: '/lecturer', icon: 'LayoutDashboard', category: 'Chung' },
-  { id: 'classes', label: 'Lớp học', path: '/lecturer/classes', icon: 'BookOpen', category: 'Đào tạo' },
-  { id: 'subjects', label: 'Môn học', path: '/lecturer/subjects', icon: 'Library', category: 'Đào tạo' },
-  { id: 'grading-assignments', label: 'Quản lý Bài tập', path: '/lecturer/grading/assignments', icon: 'FileCheck', category: 'Học liệu' },
-  { id: 'prompts', label: 'Quản lý gợi ý prompt', path: '/lecturer/prompts', icon: 'Bot', category: 'Học liệu' },
-  { id: 'settings', label: 'Cài đặt', path: '/lecturer/profile', icon: 'Settings', category: 'Hệ thống' },
+  { id: 'overview', label: 'Overview', path: '/lecturer', icon: 'LayoutDashboard', category: 'General' },
+  { id: 'classes', label: 'Classes', path: '/lecturer/classes', icon: 'BookOpen', category: 'Training' },
+  { id: 'subjects', label: 'Subjects', path: '/lecturer/subjects', icon: 'Library', category: 'Training' },
+  { id: 'grading-assignments', label: 'Manage Assignments', path: '/lecturer/grading/assignments', icon: 'FileCheck', category: 'Materials' },
+  { id: 'prompts', label: 'Manage Prompts', path: '/lecturer/prompts', icon: 'Bot', category: 'Materials' },
+  { id: 'settings', label: 'Settings', path: '/lecturer/profile', icon: 'Settings', category: 'System' },
 ]
 
 export const STUDENT_NAV: NavItem[] = [

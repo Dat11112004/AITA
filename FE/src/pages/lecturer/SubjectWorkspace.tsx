@@ -73,7 +73,7 @@ export function SubjectWorkspace() {
            setTotalPages(res.totalPages || 1)
          }
       } catch (err) {
-         if (!ignore) console.error('Lỗi khi tải sinh viên:', err)
+         if (!ignore) console.error('Failed to load students:', err)
       } finally {
          if (!ignore) setLoadingStudents(false)
       }
@@ -93,7 +93,7 @@ export function SubjectWorkspace() {
       })
       setExams(filteredExams)
     } catch (err) {
-      console.error('Lỗi khi tải exams:', err)
+      console.error('Failed to load exams:', err)
     } finally {
       setLoadingExams(false)
     }
@@ -105,7 +105,7 @@ export function SubjectWorkspace() {
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-brand-600" /></div>
 
-  if (!subject) return <div className="p-8 text-center text-slate-500">Không tìm thấy môn học</div>
+  if (!subject) return <div className="p-8 text-center text-slate-500">Subject not found</div>
 
   const getAvatarInitials = (name: string) => {
     if (!name) return 'SV'
@@ -133,7 +133,7 @@ export function SubjectWorkspace() {
       <div className="mb-2 animate-fade-in">
           <button onClick={() => navigate(`/lecturer/classes`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
               <ArrowLeft size={20} />
-              Trở về danh sách lớp học
+              Back to class list
           </button>
       </div>
 
@@ -149,7 +149,7 @@ export function SubjectWorkspace() {
                <div className="inline-flex items-center bg-white border border-slate-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] rounded-xl overflow-hidden mt-3 text-sm font-semibold transition-all hover:border-slate-300">
                  <div className="flex items-center gap-2 px-4 py-2 text-slate-700">
                    <Calendar size={15} className="text-slate-400" />
-                   {semesterId ? "Kỳ 3 - Summer 2026" : "Học kỳ hiện tại"} 
+                   {semesterId ? "Semester 3 - Summer 2026" : "Current semester"} 
                  </div>
 
                  <div className="w-px h-5 bg-slate-200"></div>
@@ -158,7 +158,7 @@ export function SubjectWorkspace() {
                    {selectedClassId === 'all' ? (
                      <div className="flex items-center gap-2">
                        <Users size={15} className="text-slate-400" />
-                       Tất cả {classes.length} lớp
+                       All {classes.length} classes
                      </div>
                    ) : (
                      <div className="flex items-center gap-2 text-brand-700 font-bold bg-brand-50/50 px-2 py-0.5 rounded-md -ml-2 -my-1">
@@ -166,7 +166,7 @@ export function SubjectWorkspace() {
                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
                          <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-600"></span>
                        </span>
-                       Lớp {classes.find(c => c.id === selectedClassId)?.code}
+                       Class {classes.find(c => c.id === selectedClassId)?.code}
                      </div>
                    )}
                  </div>
@@ -182,10 +182,10 @@ export function SubjectWorkspace() {
           >
             <span className="truncate max-w-[150px]">
               {selectedClassId === 'all' 
-                ? 'Tất cả các lớp' 
+                ? 'All classes' 
                 : classes.find(c => c.id === selectedClassId)?.code 
-                  ? `Lớp ${classes.find(c => c.id === selectedClassId)?.code}`
-                  : 'Tất cả các lớp'}
+                  ? `Class ${classes.find(c => c.id === selectedClassId)?.code}`
+                  : 'All classes'}
             </span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>
               <path d="m6 9 6 6 6-6"/>
@@ -200,7 +200,7 @@ export function SubjectWorkspace() {
                   onClick={() => { setSelectedClassId('all'); setCurrentPage(1); setIsDropdownOpen(false); }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold transition-colors ${selectedClassId === 'all' ? 'bg-brand-50 text-brand-600' : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
-                  Tất cả các lớp
+                  All classes
                   {selectedClassId === 'all' && <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
                 </button>
                 {classes.map(c => (
@@ -209,7 +209,7 @@ export function SubjectWorkspace() {
                     onClick={() => { setSelectedClassId(c.id); setCurrentPage(1); setIsDropdownOpen(false); }}
                     className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-semibold transition-colors ${selectedClassId === c.id ? 'bg-brand-50 text-brand-600' : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'}`}
                   >
-                    Lớp {c.code}
+                    Class {c.code}
                     {selectedClassId === c.id && <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
                   </button>
                 ))}
@@ -222,11 +222,11 @@ export function SubjectWorkspace() {
       {/* Tabs */}
       <div className="flex items-center gap-2 bg-white px-4 rounded-2xl border border-slate-200 shadow-sm mt-8 overflow-x-auto">
         {[
-          { id: 'overview', icon: LayoutGrid, label: 'Tổng quan' },
-          { id: 'assignments', icon: BookOpen, label: 'Bài tập & Đề thi' },
-          { id: 'students', icon: Users, label: 'Sinh viên' },
-          { id: 'announcements', icon: Bell, label: 'Thông báo' },
-          { id: 'prompts', icon: Bot, label: 'Gợi ý Prompt' },
+          { id: 'overview', icon: LayoutGrid, label: 'Overview' },
+          { id: 'assignments', icon: BookOpen, label: 'Assignments & Exams' },
+          { id: 'students', icon: Users, label: 'Students' },
+          { id: 'announcements', icon: Bell, label: 'Announcements' },
+          { id: 'prompts', icon: Bot, label: 'Prompt Suggestions' },
         ].map((tab) => {
           const isActive = activeTab === tab.id
           const Icon = tab.icon
@@ -259,19 +259,19 @@ export function SubjectWorkspace() {
             <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
                 <GraduationCap className="w-6 h-6 text-brand-600" />
-                Bảng điểm tổng hợp
+                Consolidated gradebook
               </h2>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Tìm kiếm sinh viên..." 
+                    placeholder="Search students..." 
                     className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-[250px] focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-shadow"
                   />
                 </div>
                 <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-600 rounded-lg hover:bg-brand-700 shadow-sm transition-colors shrink-0">
-                  <Download className="w-4 h-4" /> Xuất Excel
+                  <Download className="w-4 h-4" /> Export Excel
                 </button>
               </div>
             </div>
@@ -282,16 +282,16 @@ export function SubjectWorkspace() {
                 <thead className="text-[13px] text-slate-500 border-t border-b border-slate-100 bg-[#FAFAFC]">
                   <tr>
                     <th className="px-6 py-4 font-semibold w-12 text-center">No.</th>
-                    <th className="px-6 py-4 font-semibold">Sinh viên</th>
+                    <th className="px-6 py-4 font-semibold">Student</th>
                     {exams.map((exam: any) => (
                       <th key={exam.id} className="px-6 py-4 font-semibold text-center leading-relaxed">
                         {exam.title || exam.examType}
                       </th>
                     ))}
                     <th className="px-6 py-4 font-semibold text-center leading-relaxed text-slate-800">
-                      Tổng kết
+                      Total
                     </th>
-                    <th className="px-6 py-4 font-semibold text-center">Xếp loại</th>
+                    <th className="px-6 py-4 font-semibold text-center">Grade</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -299,12 +299,12 @@ export function SubjectWorkspace() {
                     <tr>
                       <td colSpan={4 + exams.length} className="px-6 py-12 text-center text-slate-500">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-600 mb-2" />
-                        Đang tải dữ liệu...
+                        Loading data...
                       </td>
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={4 + exams.length} className="px-6 py-12 text-center text-slate-500">Không có sinh viên nào.</td>
+                      <td colSpan={4 + exams.length} className="px-6 py-12 text-center text-slate-500">No students.</td>
                     </tr>
                   ) : students.map((s, idx) => (
                     <tr key={s.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -339,7 +339,7 @@ export function SubjectWorkspace() {
             {totalPages > 1 && (
               <div className="p-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-sm text-slate-500">
-                  Hiển thị <span className="font-semibold text-slate-700">{(currentPage - 1) * 10 + 1}</span> đến <span className="font-semibold text-slate-700">{Math.min(currentPage * 10, totalStudents)}</span> trong số <span className="font-semibold text-slate-700">{totalStudents}</span>
+                  Showing <span className="font-semibold text-slate-700">{(currentPage - 1) * 10 + 1}</span> to <span className="font-semibold text-slate-700">{Math.min(currentPage * 10, totalStudents)}</span> of <span className="font-semibold text-slate-700">{totalStudents}</span>
                 </span>
                 <div className="flex items-center gap-1">
                   <button 
@@ -347,7 +347,7 @@ export function SubjectWorkspace() {
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     className="px-3 py-1.5 border border-slate-200 rounded text-sm text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
                   >
-                    Trước
+                    Previous
                   </button>
                   {[...Array(totalPages)].map((_, i) => (
                     <button
@@ -373,7 +373,7 @@ export function SubjectWorkspace() {
             <div className="p-4 border-t border-slate-100 bg-[#FAFAFC] flex items-center gap-2 text-[13px]">
               <Info className="w-4 h-4 shrink-0 text-brand-600" />
               <span className="text-slate-600 font-medium">
-                Bảng điểm danh sách sinh viên và các bài kiểm tra/đề thi của môn học.
+                Gradebook of students and the tests / exams for this subject.
               </span>
             </div>
           </div>
@@ -385,15 +385,15 @@ export function SubjectWorkspace() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-brand-600" />
-                Quản lý Bài tập & Đề thi
+                Manage Assignments & Exams
               </h2>
             </div>
 
             {exams.length === 0 ? (
               <div className="p-12 text-center text-slate-500 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
                 <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h4 className="text-base font-semibold text-slate-700">Chưa có bài tập hoặc đề thi nào</h4>
-                <p className="text-sm text-slate-500 mt-1">Danh sách các bài tập và đề thi được phát cho sinh viên sẽ xuất hiện tại đây.</p>
+                <h4 className="text-base font-semibold text-slate-700">No assignments or exams yet</h4>
+                <p className="text-sm text-slate-500 mt-1">Assignments and exams released to students will appear here.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -405,15 +405,15 @@ export function SubjectWorkspace() {
                           {exam.examType || 'Lab'}
                         </span>
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                          Trọng số {exam.weightPercentage || 10}%
+                          Weight {exam.weightPercentage || 10}%
                         </span>
                       </div>
                       <h4 className="font-bold text-base text-slate-800 mb-1">{exam.title}</h4>
-                      <p className="text-xs text-slate-500 line-clamp-2">{exam.description || 'Không có mô tả'}</p>
+                      <p className="text-xs text-slate-500 line-clamp-2">{exam.description || 'No description'}</p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                      <span>Đã publish</span>
-                      <span className="text-emerald-600 font-semibold">Đang nhận bài</span>
+                      <span>Published</span>
+                      <span className="text-emerald-600 font-semibold">Accepting submissions</span>
                     </div>
                   </div>
                 ))}
@@ -426,18 +426,18 @@ export function SubjectWorkspace() {
         {activeTab === 'students' && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] overflow-hidden">
             <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">Sinh viên</h2>
+              <h2 className="text-xl font-bold text-slate-800">Students</h2>
               <span className="px-3 py-1 bg-brand-50 text-brand-600 font-bold text-xs rounded-full">
-                {totalStudents} sinh viên
+                {totalStudents} students
               </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-[13px] text-slate-500 border-b border-slate-200 bg-[#FAFAFC]">
                   <tr>
-                    <th className="px-8 py-4 font-semibold">Họ và tên</th>
+                    <th className="px-8 py-4 font-semibold">Full name</th>
                     <th className="px-8 py-4 font-semibold">MSSV</th>
-                    <th className="px-8 py-4 font-semibold">Lớp</th>
+                    <th className="px-8 py-4 font-semibold">Class</th>
                     <th className="px-8 py-4 font-semibold">Email</th>
                   </tr>
                 </thead>
@@ -446,12 +446,12 @@ export function SubjectWorkspace() {
                     <tr>
                       <td colSpan={4} className="px-8 py-12 text-center text-slate-500">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-600 mb-2" />
-                        Đang tải danh sách sinh viên...
+                        Loading student list...
                       </td>
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-8 py-12 text-center text-slate-500">Không có sinh viên nào.</td>
+                      <td colSpan={4} className="px-8 py-12 text-center text-slate-500">No students.</td>
                     </tr>
                   ) : students.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
@@ -480,7 +480,7 @@ export function SubjectWorkspace() {
             {totalPages > 1 && (
               <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-[#FAFAFC]">
                 <span className="text-sm text-slate-500">
-                  Hiển thị <span className="font-semibold text-slate-700">{(currentPage - 1) * 10 + 1}</span> đến <span className="font-semibold text-slate-700">{Math.min(currentPage * 10, totalStudents)}</span> trong số <span className="font-semibold text-slate-700">{totalStudents}</span>
+                  Showing <span className="font-semibold text-slate-700">{(currentPage - 1) * 10 + 1}</span> to <span className="font-semibold text-slate-700">{Math.min(currentPage * 10, totalStudents)}</span> of <span className="font-semibold text-slate-700">{totalStudents}</span>
                 </span>
                 <div className="flex items-center gap-1">
                   <button 
@@ -488,7 +488,7 @@ export function SubjectWorkspace() {
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     className="px-3 py-1.5 border border-slate-200 rounded text-sm text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 bg-white"
                   >
-                    Trước
+                    Previous
                   </button>
                   {[...Array(totalPages)].map((_, i) => (
                     <button
@@ -518,10 +518,10 @@ export function SubjectWorkspace() {
             <div className="w-full md:w-[280px] flex-shrink-0">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-brand-600" /> Sắp đến hạn
+                  <Bell className="w-5 h-5 text-brand-600" /> Due soon
                 </h3>
-                <p className="text-sm text-slate-500 italic mb-6">Không có công việc nào sắp đến hạn!</p>
-                <button className="text-sm font-bold text-brand-600 hover:underline focus:outline-none">Xem tất cả bài tập</button>
+                <p className="text-sm text-slate-500 italic mb-6">Nothing is due soon.</p>
+                <button className="text-sm font-bold text-brand-600 hover:underline focus:outline-none">View all assignments</button>
               </div>
             </div>
             
@@ -533,15 +533,15 @@ export function SubjectWorkspace() {
                   </div>
                   <div className="flex-1 space-y-4">
                     <textarea 
-                      placeholder="Thông báo nội dung nào đó cho lớp học của bạn..."
+                      placeholder="Announce something to your class..."
                       className="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm resize-none placeholder-slate-400"
                     ></textarea>
                     <div className="flex justify-end gap-3">
                       <button className="px-5 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                        Hủy
+                        Cancel
                       </button>
                       <button className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors">
-                        <Send className="w-4 h-4" /> Đăng
+                        <Send className="w-4 h-4" /> Post
                       </button>
                     </div>
                   </div>
