@@ -22,12 +22,12 @@ export const LECTURER_NAV: NavItem[] = [
 ]
 
 export const STUDENT_NAV: NavItem[] = [
-  { id: 'overview', label: 'Dashboard', path: '/student', icon: 'LayoutDashboard', category: 'Chung' },
-  { id: 'courses', label: 'Môn học', path: '/student/courses', icon: 'BookOpen', category: 'Học tập' },
-  { id: 'classes', label: 'Lớp học', path: '/student/classes', icon: 'Users', category: 'Học tập' },
-  { id: 'subjects', label: 'Kết quả', path: '/student/subjects', icon: 'GraduationCap', category: 'Học tập' },
-  { id: 'notifications', label: 'Notifications', path: '/student/notifications', icon: 'Bell', category: 'Hệ thống' },
-  { id: 'settings', label: 'Cài đặt', path: '/student/profile', icon: 'Settings', category: 'Hệ thống' },
+  { id: 'overview', label: 'Dashboard', path: '/student', icon: 'LayoutDashboard', category: 'General' },
+  { id: 'courses', label: 'Subjects', path: '/student/courses', icon: 'BookOpen', category: 'Learning' },
+  { id: 'classes', label: 'Classes', path: '/student/classes', icon: 'Users', category: 'Learning' },
+  { id: 'subjects', label: 'Results', path: '/student/subjects', icon: 'GraduationCap', category: 'Learning' },
+  { id: 'notifications', label: 'Notifications', path: '/student/notifications', icon: 'Bell', category: 'System' },
+  { id: 'settings', label: 'Settings', path: '/student/profile', icon: 'Settings', category: 'System' },
 ]
 
 export const PUBLIC_NAV = [

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { DropdownMenu } from '@/components/ui/DropdownMenu'
 import { api, type ClassRow, type SemesterRow, type SubjectRow, type Option, type StudentRow } from '@/lib/api'
+import type { BreadcrumbItem } from '@/types'
+import { formatSemesterCode } from '@/utils/semester'
 import { Plus, GraduationCap, Loader2, X, StickyNote, Save, Users, CalendarDays, Library, ArrowLeft, Edit3, Trash2, ShieldAlert, BookOpen, Layers } from 'lucide-react'
 
 type Level = 'season' | 'semester' | 'subject' | 'class' | 'students'
@@ -420,31 +422,31 @@ export function AdminClasses() {
   const lecturerOptions = lecturers.map(l => ({ value: l.value, label: l.label }))
 
   const getBreadcrumbs = () => {
-    const crumbs = [{ label: 'Admin', path: '/admin' }]
+    const crumbs: BreadcrumbItem[] = [{ label: 'Admin', path: '/admin' }]
 
     if (level === 'season') {
-      crumbs.push({ label: 'Manage Seasons', path: '' })
+      crumbs.push({ label: 'Manage Seasons' })
     } else {
-      crumbs.push({ label: 'Manage Seasons', onClick: () => navigateToLevel('season') } as never)
+      crumbs.push({ label: 'Manage Seasons', onClick: () => navigateToLevel('season') })
 
       if (selectedSeason) {
         if (level === 'semester') {
-          crumbs.push({ label: selectedSeason, path: '' })
+          crumbs.push({ label: selectedSeason })
         } else {
-          crumbs.push({ label: selectedSeason, onClick: () => navigateToLevel('semester') } as never)
+          crumbs.push({ label: selectedSeason, onClick: () => navigateToLevel('semester') })
 
           if (selectedSemester) {
             if (level === 'subject') {
-              crumbs.push({ label: selectedSemester.code, path: '' })
+              crumbs.push({ label: formatSemesterCode(selectedSemester.code) })
             } else {
-              crumbs.push({ label: selectedSemester.code, onClick: () => navigateToLevel('subject') } as never)
+              crumbs.push({ label: formatSemesterCode(selectedSemester.code), onClick: () => navigateToLevel('subject') })
 
               if (selectedSubject) {
                 if (level === 'class') {
-                  crumbs.push({ label: selectedSubject.code || selectedSubject.name, path: '' })
+                  crumbs.push({ label: selectedSubject.code || selectedSubject.name })
                 } else {
-                  crumbs.push({ label: selectedSubject.code || selectedSubject.name, onClick: () => navigateToLevel('class') } as never)
-                  if (selectedClass) crumbs.push({ label: selectedClass.code, path: '' })
+                  crumbs.push({ label: selectedSubject.code || selectedSubject.name, onClick: () => navigateToLevel('class') })
+                  if (selectedClass) crumbs.push({ label: selectedClass.code })
                 }
               }
             }
@@ -524,9 +526,9 @@ export function AdminClasses() {
           </Button>
           <div className="text-sm text-slate-500 font-medium">
             {level === 'semester' && `Season: ${selectedSeason}`}
-            {level === 'subject' && `${selectedSeason} > ${selectedSemester?.code}`}
-            {level === 'class' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code || selectedSubject?.name}`}
-            {level === 'students' && `${selectedSeason} > ${selectedSemester?.code} > ${selectedSubject?.code} > Class ${selectedClass?.code}`}
+            {level === 'subject' && `${selectedSeason} > ${formatSemesterCode(selectedSemester?.code)}`}
+            {level === 'class' && `${selectedSeason} > ${formatSemesterCode(selectedSemester?.code)} > ${selectedSubject?.code || selectedSubject?.name}`}
+            {level === 'students' && `${selectedSeason} > ${formatSemesterCode(selectedSemester?.code)} > ${selectedSubject?.code} > Class ${selectedClass?.code}`}
           </div>
         </div>
       )}
@@ -535,7 +537,7 @@ export function AdminClasses() {
       {showSemesterForm && (
         <Card className="p-6 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/10 mb-6 animate-in slide-in-from-top-4">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
-            <CalendarDays size={20} /> {editingSemester ? `Edit Semester: ${editingSemester.code}` : 'Create New Season'}
+            <CalendarDays size={20} /> {editingSemester ? `Edit Semester: ${formatSemesterCode(editingSemester.code)}` : 'Create New Season'}
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {editingSemester && (
@@ -679,7 +681,7 @@ export function AdminClasses() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <CalendarDays size={18} className="text-indigo-500" /> {sem.code}
+                    <CalendarDays size={18} className="text-indigo-500" /> {formatSemesterCode(sem.code)}
                   </h3>
                   <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${sem.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'}`}>
                     {sem.isActive ? 'Active' : 'Inactive'}
@@ -706,7 +708,7 @@ export function AdminClasses() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-              Subjects in <span className="text-brand-600 dark:text-brand-400">{selectedSemester.code}</span>
+              Subjects in <span className="text-brand-600 dark:text-brand-400">{formatSemesterCode(selectedSemester.code)}</span>
             </h2>
             <Button size="sm" onClick={() => { setShowAddSubjectModal(true); setSelectedSubjectIdsToAdd(new Set()) }}>
               <Plus size={16} className="mr-1" /> Add Subject
@@ -774,7 +776,7 @@ export function AdminClasses() {
       {!loading && level === 'class' && selectedSemester && selectedSubject && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-            Classes: <span className="text-brand-600 dark:text-brand-400">{selectedSubject.code}</span> — {selectedSemester.code}
+            Classes: <span className="text-brand-600 dark:text-brand-400">{selectedSubject.code}</span> — {formatSemesterCode(selectedSemester.code)}
           </h2>
 
           {loadingSubjectClasses ? (
@@ -919,7 +921,7 @@ export function AdminClasses() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAddSubjectModal(false)}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-4 text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <Library size={20} /> Add subjects to {selectedSemester.code}
+              <Library size={20} /> Add subjects to {formatSemesterCode(selectedSemester.code)}
             </h3>
             <div className="space-y-2 max-h-[50vh] overflow-y-auto">
               {subjects

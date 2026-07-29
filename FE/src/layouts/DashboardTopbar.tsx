@@ -18,7 +18,7 @@ function initials(name?: string) {
 const roleLabel: Record<string, string> = {
   admin: 'Administrator',
   lecturer: 'Giảng viên',
-  student: 'Sinh viên',
+  student: 'Student',
 }
 
 /* avatar gradient per role */

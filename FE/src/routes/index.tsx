@@ -153,7 +153,7 @@ export function AppRoutes() {
               <DashboardLayout
                 navItems={STUDENT_NAV}
                 role="student"
-                roleLabel="Sinh viên"
+                roleLabel="Student"
                 portalTitle="AITA Student"
               />
             </ErrorBoundary>

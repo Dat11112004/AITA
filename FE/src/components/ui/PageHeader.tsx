@@ -25,6 +25,16 @@ export function PageHeader({ title, description, breadcrumbs, actions }: Props) 
                   <Link to={item.path} className="font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                     {item.label}
                   </Link>
+                ) : item.onClick ? (
+                  // Drill-down levels live in page state, not the router, so they
+                  // navigate through a callback instead of a link.
+                  <button
+                    type="button"
+                    onClick={item.onClick}
+                    className="font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
                 ) : (
                   <span className="font-medium text-slate-600 dark:text-slate-400">{item.label}</span>
                 )}

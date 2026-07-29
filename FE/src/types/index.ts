@@ -14,6 +14,8 @@ export interface NavItem {
 export interface BreadcrumbItem {
   label: string
   path?: string
+  /** In-page navigation for drill-down views that have no route of their own. */
+  onClick?: () => void
 }
 
 export interface StatMetric {

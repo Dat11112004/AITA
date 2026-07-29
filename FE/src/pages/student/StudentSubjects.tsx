@@ -27,9 +27,9 @@ export function StudentSubjects() {
   const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
   const location = useLocation()
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(location.state?.expand || null)
-  const [activeTab, setActiveTab] = useState('Tất cả')
+  const [activeTab, setActiveTab] = useState('All')
 
-  const tabs = ['Tất cả', 'Bài tập', 'Bài thi', 'Đã chấm']
+  const tabs = ['All', 'Assignments', 'Exams', 'Graded']
 
   const loadData = useCallback((showLoader = false) => {
     let alive = true
@@ -59,7 +59,7 @@ export function StudentSubjects() {
           return a
         })
         
-        // Sắp xếp bài tập từ mới nhất đến cũ nhất dựa theo ngày tạo
+        // Sort assignments from newest to oldest by creation date
         mergedAssignments.sort((a, b) => {
           const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0
           const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0
@@ -173,10 +173,10 @@ export function StudentSubjects() {
                 <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
                   <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
                   <ChevronRight size={14} />
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Kết quả</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Results</span>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Kết quả & Bài tập</h1>
-                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Theo dõi điểm số, kết quả bài tập, bài thi và tiến độ học tập trong mùa học {selectedSemester}.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Results & Assignments</h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Track your scores, assignment and exam results, and learning progress for the {selectedSemester} semester.</p>
               </div>
               <SemesterSelector
                 selectedSemester={selectedSemester}
@@ -202,7 +202,7 @@ export function StudentSubjects() {
           {subjects.length === 0 ? (
             <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-500 shadow-sm flex flex-col items-center">
               <BookOpen size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
-              Bạn chưa đăng ký môn học nào.
+              You are not enrolled in any subject yet.
             </div>
           ) : (
             subjects.map(sub => {
@@ -215,9 +215,9 @@ export function StudentSubjects() {
               const submittedHw = subjectAssignments.filter(a => a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined).length
               const completionRate = subjectAssignments.length > 0 ? Math.round((submittedHw / subjectAssignments.length) * 100) : 0
 
-              const displayAssignments = activeTab === 'Bài tập' ? subjectAssignments.filter(a => a.type !== 'Exam') :
-                                         activeTab === 'Bài thi' ? subjectAssignments.filter(a => a.type === 'Exam') :
-                                         activeTab === 'Đã chấm' ? subjectAssignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined) :
+              const displayAssignments = activeTab === 'Assignments' ? subjectAssignments.filter(a => a.type !== 'Exam') :
+                                         activeTab === 'Exams' ? subjectAssignments.filter(a => a.type === 'Exam') :
+                                         activeTab === 'Graded' ? subjectAssignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined) :
                                          subjectAssignments
 
               return (
@@ -245,17 +245,17 @@ export function StudentSubjects() {
                                     {lec.name?.split(' ').pop()?.[0]?.toUpperCase() || 'G'}
                                   </div>
                                 )}
-                                <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">GV. {lec.name}</span>
+                                <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Lecturer {lec.name}</span>
                               </div>
                             ))}
                           </div>
                         )}
                         <div className="flex items-center gap-2 text-sm text-slate-500 mt-1.5 font-medium">
-                          <span>{hwCount} bài tập</span>
+                          <span>{hwCount} assignments</span>
                           <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span>{examCount} bài thi</span>
+                          <span>{examCount} exams</span>
                           <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span>{completionRate}% hoàn thành</span>
+                          <span>{completionRate}% complete</span>
                         </div>
                       </div>
                     </div>
@@ -274,7 +274,7 @@ export function StudentSubjects() {
                         <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
                         <div className="text-center">
                           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">PE</div>
-                          <div className="text-sm font-medium text-slate-400">Chưa lên lịch</div>
+                          <div className="text-sm font-medium text-slate-400">Not scheduled</div>
                         </div>
                       </div>
                       <div className="text-slate-400 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-colors ml-4 lg:ml-0">
@@ -288,28 +288,28 @@ export function StudentSubjects() {
                       {displayAssignments.length === 0 ? (
                         <div className="text-center p-8 text-slate-500 italic flex flex-col items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
                           <FileText size={32} className="text-slate-300 mb-3" />
-                          Không có dữ liệu phù hợp với bộ lọc.
+                          No data matches this filter.
                         </div>
                       ) : (
                         <div className="space-y-8">
                           {/* Exercises Section */}
-                          {(activeTab === 'Tất cả' || activeTab === 'Bài tập' || activeTab === 'Đã chấm') && displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
+                          {(activeTab === 'All' || activeTab === 'Assignments' || activeTab === 'Graded') && displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
                             <div>
                               <div className="flex items-center justify-between mb-4 px-1">
-                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Bài tập</h4>
+                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Assignments</h4>
                                 <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                                  Xem tất cả bài tập ({displayAssignments.filter(a => a.type !== 'Exam').length})
+                                  View all assignments ({displayAssignments.filter(a => a.type !== 'Exam').length})
                                 </button>
                               </div>
                               <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                                 <table className="w-full text-sm text-left">
                                   <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                     <tr>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Tên bài</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Hạn nộp</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Trạng thái</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Điểm</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Thao tác</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider">Due date</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
@@ -327,12 +327,12 @@ export function StudentSubjects() {
                                             </div>
                                           </td>
                                           <td className="px-5 py-4 text-slate-500 font-medium">
-                                            {a.due ? new Date(a.due).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                            {a.due ? new Date(a.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                                           </td>
                                           <td className="px-5 py-4">
                                             <div className="flex justify-center">
                                               <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'}`}>
-                                                {isSubmitted ? 'Đã nộp' : 'Chưa nộp'}
+                                                {isSubmitted ? 'Submitted' : 'Not submitted'}
                                               </span>
                                             </div>
                                           </td>
@@ -345,7 +345,7 @@ export function StudentSubjects() {
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
                                                 className={`inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow ${!isSubmitted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-transparent dark:border-emerald-800 dark:hover:bg-emerald-900/30'}`}
                                               >
-                                                {!isSubmitted ? 'Nộp bài' : 'Đã nộp'}
+                                                {!isSubmitted ? 'Submit' : 'Submitted'}
                                               </button>
                                             </div>
                                           </td>
@@ -359,23 +359,23 @@ export function StudentSubjects() {
                           )}
 
                           {/* Exams Section */}
-                          {(activeTab === 'Tất cả' || activeTab === 'Bài thi' || activeTab === 'Đã chấm') && displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
+                          {(activeTab === 'All' || activeTab === 'Exams' || activeTab === 'Graded') && displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
                             <div>
                               <div className="flex items-center justify-between mb-4 px-1">
-                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Bài thi</h4>
+                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exams</h4>
                                 <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                                  Xem tất cả bài thi ({displayAssignments.filter(a => a.type === 'Exam').length})
+                                  View all exams ({displayAssignments.filter(a => a.type === 'Exam').length})
                                 </button>
                               </div>
                               <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                                 <table className="w-full text-sm text-left">
                                   <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                     <tr>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Tên bài</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Thời gian</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Trạng thái</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Điểm</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Thao tác</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider">Date</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
+                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
@@ -393,12 +393,12 @@ export function StudentSubjects() {
                                             </div>
                                           </td>
                                           <td className="px-5 py-4 text-slate-500 font-medium">
-                                            {a.due ? new Date(a.due).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                            {a.due ? new Date(a.due).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                                           </td>
                                           <td className="px-5 py-4">
                                             <div className="flex justify-center">
                                               <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                                                {isSubmitted ? 'Đã hoàn thành' : 'Sắp diễn ra'}
+                                                {isSubmitted ? 'Completed' : 'Upcoming'}
                                               </span>
                                             </div>
                                           </td>
@@ -411,7 +411,7 @@ export function StudentSubjects() {
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
                                                 className="inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-slate-700 dark:hover:bg-slate-800"
                                               >
-                                                {isSubmitted ? 'Xem kết quả' : 'Xem chi tiết'}
+                                                {isSubmitted ? 'View result' : 'View details'}
                                               </button>
                                               <button className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                                                 <span className="leading-none text-lg">...</span>
@@ -441,29 +441,29 @@ export function StudentSubjects() {
         <div className="space-y-6">
           {/* Overview */}
           <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">Tổng quan học tập</h3>
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">Learning overview</h3>
             
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-blue-600 mb-1">{stats.total}</div>
-                <div className="text-sm font-medium text-slate-500">Tổng bài tập</div>
+                <div className="text-sm font-medium text-slate-500">Total assignments</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-emerald-600 mb-1">{stats.submitted}</div>
-                <div className="text-sm font-medium text-slate-500">Đã nộp</div>
+                <div className="text-sm font-medium text-slate-500">Submitted</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-orange-500 mb-1">{stats.missing}</div>
-                <div className="text-sm font-medium text-slate-500">Chưa nộp</div>
+                <div className="text-sm font-medium text-slate-500">Not submitted</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-slate-700 dark:text-slate-300 mb-1">{stats.graded}</div>
-                <div className="text-sm font-medium text-slate-500">Đã chấm</div>
+                <div className="text-sm font-medium text-slate-500">Graded</div>
               </div>
             </div>
 
             <div className="mb-6">
-              <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Điểm trung bình</div>
+              <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Average score</div>
               <div className="flex items-end justify-between">
                 <div className="text-[2.5rem] leading-none font-bold text-blue-600">{stats.avgScore}</div>
                 <div className="w-28 h-12 relative text-blue-500">
@@ -476,7 +476,7 @@ export function StudentSubjects() {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
-              <span>Xếp hạng của bạn: <strong className="text-slate-800 dark:text-slate-200">Top 28%</strong></span>
+              <span>Your ranking: <strong className="text-slate-800 dark:text-slate-200">Top 28%</strong></span>
               <Info size={16} className="text-slate-400 ml-auto" />
             </div>
           </div>
@@ -486,9 +486,9 @@ export function StudentSubjects() {
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock size={20} className="text-slate-400" />
-                Bài sắp đến hạn
+                Assignments due soon
               </h3>
-              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">Xem tất cả</button>
+              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
             </div>
             
             <div className="space-y-4">
@@ -504,17 +504,17 @@ export function StudentSubjects() {
                       <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-1 mb-0.5 group-hover:text-blue-600 transition-colors">{a.title}</h4>
                       <div className="text-xs font-medium text-slate-500 mb-1.5">{a.class || (a as any).subjectCode || 'No Subject'}</div>
                       <div className="text-xs text-red-500 font-semibold flex items-center gap-1">
-                        Hạn: {new Date(a.due!).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Due: {new Date(a.due!).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </div>
                     </div>
                     <div className={`text-xs font-bold shrink-0 text-right ${hours >= 24 ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {days > 0 ? `${days} ngày nữa` : 'Hôm nay'}
+                      {days > 0 ? `in ${days} day(s)` : 'Today'}
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-sm font-medium text-slate-400 text-center py-6 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  Không có bài sắp đến hạn
+                  No assignments due soon
                 </div>
               )}
             </div>
@@ -525,9 +525,9 @@ export function StudentSubjects() {
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar size={20} className="text-slate-400" />
-                Lịch thi sắp tới
+                Upcoming exams
               </h3>
-              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">Xem tất cả</button>
+              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
             </div>
             
             <div className="space-y-4">
@@ -542,17 +542,17 @@ export function StudentSubjects() {
                       <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-1 mb-0.5 group-hover:text-blue-600 transition-colors">{a.title}</h4>
                       <div className="text-xs font-medium text-slate-500 mb-1.5">{a.class || (a as any).subjectCode || 'No Subject'}</div>
                       <div className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                        Ngày thi: {new Date(a.due!).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Exam date: {new Date(a.due!).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </div>
                     </div>
                     <div className="text-xs font-bold text-blue-600 shrink-0 text-right">
-                      {days > 0 ? `${days} ngày nữa` : 'Hôm nay'}
+                      {days > 0 ? `in ${days} day(s)` : 'Today'}
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-sm font-medium text-slate-400 text-center py-6 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  Không có lịch thi
+                  No upcoming exams
                 </div>
               )}
             </div>

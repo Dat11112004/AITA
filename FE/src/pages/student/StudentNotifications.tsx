@@ -61,7 +61,7 @@ export function StudentNotifications() {
   }
 
   const handleDeleteAll = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xoá tất cả thông báo không?')) return
+    if (!window.confirm('Are you sure you want to delete all notifications?')) return
     setNotifications([])
     try {
       await api.deleteAllNotifications()
@@ -110,9 +110,9 @@ export function StudentNotifications() {
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
-          title="Thông báo"
-          description="Nhận thông báo bài tập, nhắc nhở deadline và thông báo từ hệ thống."
-          breadcrumbs={[{ label: 'Sinh viên', path: '/student' }, { label: 'Thông báo' }]}
+          title="Notifications"
+          description="Assignment alerts, deadline reminders and system announcements."
+          breadcrumbs={[{ label: 'Student', path: '/student' }, { label: 'Notifications' }]}
         />
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
@@ -121,7 +121,7 @@ export function StudentNotifications() {
               className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm"
             >
               <Check size={16} className="text-brand-500" />
-              Đánh dấu đã đọc tất cả
+              Mark all as read
             </button>
           )}
           {notifications.length > 0 && (
@@ -130,7 +130,7 @@ export function StudentNotifications() {
               className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium text-red-600 dark:text-red-400 shadow-sm"
             >
               <Trash2 size={16} />
-              Xoá tất cả thông báo
+              Delete all notifications
             </button>
           )}
         </div>
@@ -146,7 +146,7 @@ export function StudentNotifications() {
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
           }`}
         >
-          Tất cả
+          All
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
             {notifications.length}
           </span>
@@ -160,7 +160,7 @@ export function StudentNotifications() {
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
           }`}
         >
-          Chưa đọc
+          Unread
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'unread' ? 'bg-white/20 text-white' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 font-extrabold'}`}>
             {unreadCount}
           </span>
@@ -174,7 +174,7 @@ export function StudentNotifications() {
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
           }`}
         >
-          Bài tập mới
+          New assignments
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'assignment' ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'}`}>
             {assignmentCount}
           </span>
@@ -188,7 +188,7 @@ export function StudentNotifications() {
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
           }`}
         >
-          Hạn nộp & Cảnh báo
+          Deadlines & warnings
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'deadline' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300'}`}>
             {deadlineCount}
           </span>
@@ -199,7 +199,7 @@ export function StudentNotifications() {
         {filteredNotifications.length === 0 ? (
           <div className="p-16 text-center text-slate-500 flex flex-col items-center">
             <Bell size={48} className="text-slate-200 dark:text-slate-700 mb-4" />
-            <p>Không có thông báo nào trong mục này.</p>
+            <p>There are no notifications in this tab.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -228,7 +228,7 @@ export function StudentNotifications() {
                         </h4>
                         {targetId && (
                           <span className="text-xs px-2 py-0.5 rounded-md bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                            <ExternalLink size={12} /> Xem bài tập
+                            <ExternalLink size={12} /> View assignment
                           </span>
                         )}
                       </div>
@@ -243,11 +243,11 @@ export function StudentNotifications() {
                   </div>
                   <div className="mt-4 sm:mt-0 flex shrink-0 items-center gap-2">
                     {!n.read && (
-                      <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Đánh dấu đã đọc" className="p-2 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-lg">
+                      <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Mark as read" className="p-2 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-lg">
                         <Check size={18} />
                       </button>
                     )}
-                    <button onClick={(e) => handleDeleteOne(n.id, e)} title="Xoá thông báo" className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                    <button onClick={(e) => handleDeleteOne(n.id, e)} title="Delete notification" className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                       <Trash2 size={18} />
                     </button>
                   </div>
