@@ -10,6 +10,7 @@ export const CreateExamSchema = z.object({
   dueDate: z.string().optional(),
   maxScore: z.coerce.number().optional(),
   weightPercentage: z.coerce.number().optional(),
+  classId: z.string().optional(),
   classIds: z.union([z.string(), z.array(z.string())]).optional().transform(val => {
     if (typeof val === 'string') {
       return val.split(',').map(s => s.trim()).filter(Boolean)
@@ -20,6 +21,11 @@ export const CreateExamSchema = z.object({
     if (val === undefined) return undefined;
     return val === 'true' || val === true;
   }, z.boolean().optional()),
+}).transform(data => {
+  if (data.classId && (!data.classIds || data.classIds.length === 0)) {
+    data.classIds = [data.classId]
+  }
+  return data
 })
 
 export type CreateExamRequestDtoType = z.infer<typeof CreateExamSchema>

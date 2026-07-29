@@ -4,8 +4,7 @@ import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api
 import { formatSemesterCode } from '@/utils/semester'
 import {
   Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
-  Calendar, ChevronDown, ChevronUp, Book, Code, MoreHorizontal,
-  Users, Info
+  Calendar, ChevronDown, ChevronUp, Book, Code, Users
 } from 'lucide-react'
 
 export function LecturerClasses() {
@@ -280,7 +279,6 @@ export function LecturerClasses() {
                                     <th className="px-6 py-4 font-medium text-center">Subject code</th>
                                     <th className="px-6 py-4 font-medium text-center">Classes</th>
                                     <th className="px-6 py-4 font-medium text-center">Average class size</th>
-                                    <th className="px-6 py-4 font-medium text-center">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -290,10 +288,6 @@ export function LecturerClasses() {
                                     return (
                                       <React.Fragment key={subject.subjectId}>
                                         <tr
-                                          // Clicking a subject expands its classes in place. It used to jump to
-                                          // /lecturer/subjects/:id/workspace, which threw the user out of Classes
-                                          // and into the Subjects section. The workspace is still reachable from
-                                          // the "..." button on the right.
                                           onClick={(e) => toggleSubject(subject.subjectId, e)}
                                           className="hover:bg-slate-50/50 group cursor-pointer"
                                         >
@@ -312,34 +306,13 @@ export function LecturerClasses() {
                                             </span>
                                           </td>
                                           <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} students</td>
-                                          <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                              <button
-                                                onClick={(e) => toggleSubject(subject.subjectId, e)}
-                                                className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
-                                                title="View class list"
-                                              >
-                                                {isSubjExpanded ? <ChevronDown className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                                              </button>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  navigate(`/lecturer/subjects/${subject.subjectId}/workspace?semesterId=${semester.semesterId}`)
-                                                }}
-                                                className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition-colors"
-                                                title="Open subject workspace"
-                                              >
-                                                <MoreHorizontal className="w-4 h-4" />
-                                              </button>
-                                            </div>
-                                          </td>
                                         </tr>
 
                                         {/* Expanded Subject Classes */}
                                         {/* Was `> 1`, so a subject with a single class expanded to nothing. */}
                                         {isSubjExpanded && subject.classes.length > 0 && (
                                           <tr className="bg-slate-50/50">
-                                            <td colSpan={5} className="p-0 border-b border-indigo-100">
+                                            <td colSpan={4} className="p-0 border-b border-indigo-100">
                                               <div className="px-8 py-4 flex flex-wrap gap-2.5">
                                                 {subject.classes.map(cls => (
                                                   <button
@@ -374,18 +347,6 @@ export function LecturerClasses() {
           }))}
         </div>
       </div>
-
-      {/* Footer Info */}
-      <div className="mt-8 flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
-        <div className="flex items-center gap-2 text-sm text-blue-600">
-          <Info className="w-4 h-4" />
-          <span><span className="font-semibold">Tip:</span> Click a subject row (or the people icon) to list its classes, then pick a class to open it. The "..." button opens the subject workspace.</span>
-        </div>
-        <a href="#" className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline">
-          User guide <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-        </a>
-      </div>
-
     </div>
   )
 }

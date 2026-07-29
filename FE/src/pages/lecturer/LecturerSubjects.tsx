@@ -6,6 +6,8 @@ import {
   FileText, GraduationCap, Layers
 } from 'lucide-react'
 
+import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+
 type ViewMode = 'teaching' | 'all'
 
 export function LecturerSubjects() {
@@ -247,11 +249,9 @@ export function LecturerSubjects() {
                     {sub.name}
                   </h3>
 
-                  {sub.description && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
-                      {sub.description}
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                    {getCleanSubjectDescription(sub.code, sub.description)}
+                  </p>
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">

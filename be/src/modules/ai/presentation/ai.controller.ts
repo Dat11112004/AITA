@@ -59,13 +59,16 @@ export class AiController {
 
     async saveAssignmentFromAI(req: Request, res: Response): Promise<void> {
         const body = z.object({
-            classId: z.string(),
+            classId: z.string().optional(),
+            subjectId: z.string().optional(),
             title: z.string().min(2),
             description: z.string().optional(),
-            type: z.enum(['quiz', 'coding', 'group']),
+            type: z.string().optional(),
+            examType: z.string().optional(),
+            difficulty: z.string().optional(),
             content: z.unknown().optional(),
             publish: z.boolean().optional(),
-        }).parse(req.body)
+        }).passthrough().parse(req.body)
 
         const result = await this.saveAssignmentUseCase.execute({ dto: body, creatorId: req.user!.id })
         res.status(201).json(ApiResponse.success(MESSAGES.AI_SAVE_SUCCESS, result, 201))

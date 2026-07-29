@@ -4,6 +4,8 @@ import { api } from '@/lib/api'
 import { BookOpen, Search, Loader2, ArrowRight, BookMarked, ChevronDown, Check } from 'lucide-react'
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
 
+import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+
 type ViewMode = 'enrolled' | 'all'
 
 export function StudentCourses() {
@@ -44,7 +46,12 @@ export function StudentCourses() {
         const code = c.subject?.code || c.classCode
         if (code && !seen.has(code)) {
           seen.add(code)
-          acc.push({ id: c.subject?.id || c.id, code, name: c.subject?.name || 'Subject' })
+          acc.push({ 
+            id: c.subject?.id || c.id, 
+            code, 
+            name: c.subject?.name || 'Subject',
+            description: c.subject?.description || null
+          })
         }
         return acc
       }, [])
@@ -55,6 +62,7 @@ export function StudentCourses() {
     id: s.id,
     code: s.code,
     name: s.name || 'Subject',
+    description: s.description || null
   }))
 
   const activeList = viewMode === 'enrolled' ? enrolledSubjects : allSubjectsList
@@ -209,6 +217,9 @@ export function StudentCourses() {
                 <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors text-base leading-snug">
                   {sub.name}
                 </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                  {getCleanSubjectDescription(sub.code, sub.description)}
+                </p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end">
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform text-brand-600 dark:text-brand-400" />

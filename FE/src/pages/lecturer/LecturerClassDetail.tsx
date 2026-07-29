@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
-import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Plus, FileText, Send, MoreVertical, Search, FileEdit } from 'lucide-react'
+import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, FileText, Send, Search } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Input, Select } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
+import { useAssignmentListener } from '@/lib/events'
 
 export function LecturerClassDetail() {
   const { id } = useParams()
@@ -23,15 +23,9 @@ export function LecturerClassDetail() {
   // Stream Tab Form
   const [announcement, setAnnouncement] = useState('')
 
-  // Assign Task Modal State
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [assignForm, setAssignForm] = useState({ title: '', type: 'assignment', deadline: '' })
-
   const loadData = useCallback(async () => {
     if (!id) return
-    setLoading(true)
     try {
-      // In a real app we'd have api.getClass(id), but we'll filter from getClasses for now
       const classesData = await api.getClasses()
       const foundClass = classesData?.find(c => c.id === id)
       setCls(foundClass || null)
@@ -44,8 +38,6 @@ export function LecturerClassDetail() {
       const assignmentList = assignmentsData || []
       setAssignments(assignmentList)
 
-      // The gradebook used to fill itself with Math.random() scores, so it showed
-      // different marks on every reload. Read the real submissions instead.
       const submissionLists = await Promise.all(
         assignmentList.map(a =>
           api.getSubmissions({ assignmentId: a.id }).catch(() => [] as SubmissionRow[])
@@ -75,33 +67,26 @@ export function LecturerClassDetail() {
     }
   }, [id])
 
+  useAssignmentListener(loadData)
+
   useEffect(() => {
     loadData()
+    const handleFocus = () => loadData()
+    window.addEventListener('focus', handleFocus)
+    const interval = setInterval(() => {
+      loadData()
+    }, 5000)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      clearInterval(interval)
+    }
   }, [loadData])
 
   const handlePostAnnouncement = () => {
     if (!announcement.trim()) return
     alert('Announcement posted to the class.')
     setAnnouncement('')
-  }
-
-  const handleAssignTask = async () => {
-    if (!cls) return
-    try {
-      await api.createAssignment({
-        title: assignForm.title,
-        type: assignForm.type,
-        classId: cls.id,
-        subjectId: (cls.subject as any)?.id,
-        due: assignForm.deadline ? new Date(assignForm.deadline).toISOString() : null,
-      })
-      alert('Assignment created.')
-      setShowAssignModal(false)
-      setAssignForm({ title: '', type: 'assignment', deadline: '' })
-      loadData()
-    } catch (e: any) {
-      alert(e.message || 'Failed to create the assignment')
-    }
   }
 
   if (loading) {
@@ -227,22 +212,12 @@ export function LecturerClassDetail() {
                   </div>
                 </Card>
 
-                {assignments.map(a => (
-                  <Card key={a.id} className="p-5 border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#151821] hover:border-brand-300 dark:hover:border-brand-700 transition-all cursor-pointer group" onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions`)}>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:scale-110 transition-transform">
-                        <FileText size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand-600 transition-colors">The lecturer posted a new {a.type === 'Exam' ? 'exam' : 'assignment'}: {a.title}</h4>
-                          <button className="text-slate-400 hover:text-slate-600"><MoreVertical size={16}/></button>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">{a.due ? `Due: ${new Date(a.due).toLocaleString()}` : 'No due date'}</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                {/* Announcements section */}
+                <div className="p-8 text-center bg-white dark:bg-[#151821] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                  <Megaphone className="mx-auto mb-3 text-slate-300 dark:text-slate-600" size={32} />
+                  <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">Class Stream</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Use the box above to post announcements to your students. Assignments can be managed under the Classwork tab.</p>
+                </div>
               </div>
             </div>
           )}
@@ -251,43 +226,14 @@ export function LecturerClassDetail() {
           {activeTab === 'classwork' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-[#151821] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="flex gap-2">
-                  <Button className="bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-500/20" onClick={() => setShowAssignModal(true)}>
-                    <Plus size={16} className="mr-2" /> Create
-                  </Button>
-                  <Button variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100" onClick={() => navigate('/lecturer/assignments/ai-generator')}>
-                    <FileEdit size={16} className="mr-2" /> AI Generate Assignment
-                  </Button>
+                <div className="text-lg font-bold text-slate-800 dark:text-white">
+                  Classwork & Assignments
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input type="text" placeholder="Search assignments..." className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
               </div>
-
-              {showAssignModal && (
-                <Card className="p-6 border-brand-200 bg-brand-50/30 dark:bg-brand-900/10 shadow-lg animate-in fade-in slide-in-from-top-4">
-                  <h3 className="text-lg font-bold flex items-center gap-2 text-brand-800 dark:text-brand-300 mb-5">
-                    <FileText size={20}/> Create New Assignment / Exam
-                  </h3>
-                  <div className="grid gap-5 sm:grid-cols-3 mb-5">
-                    <Input label="Title" placeholder="e.g. Assignment 1" value={assignForm.title} onChange={e => setAssignForm({...assignForm, title: e.target.value})} />
-                    <Select 
-                      label="Type" 
-                      options={[{value: 'assignment', label: 'Assignment'}, {value: 'exam', label: 'Exam'}]} 
-                      value={assignForm.type} 
-                      onChange={e => setAssignForm({...assignForm, type: e.target.value})} 
-                    />
-                    <Input type="datetime-local" label="Deadline" value={assignForm.deadline} onChange={e => setAssignForm({...assignForm, deadline: e.target.value})} />
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <Button variant="outline" onClick={() => setShowAssignModal(false)} className="bg-white">Cancel</Button>
-                    <Button className="bg-brand-600 hover:bg-brand-700 text-white" onClick={handleAssignTask} disabled={!assignForm.title}>
-                      <Send size={16} className="mr-2"/> Create & notify students
-                    </Button>
-                  </div>
-                </Card>
-              )}
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white border-b border-brand-200 dark:border-slate-700 pb-2 flex items-center gap-2">
@@ -300,7 +246,11 @@ export function LecturerClassDetail() {
                 ) : (
                   <div className="grid gap-3">
                     {assignments.map(a => (
-                      <div key={a.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+                      <div 
+                        key={a.id} 
+                        onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions`)}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 transition-all group cursor-pointer"
+                      >
                         <div className="flex items-center gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${a.type === 'Exam' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30'}`}>
                             <FileText size={24} />
@@ -314,8 +264,15 @@ export function LecturerClassDetail() {
                           </div>
                         </div>
                         <div className="mt-4 sm:mt-0 flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions`)} className="bg-white hover:bg-slate-50 font-bold border-slate-200">
-                            {/* The numerator was hard-coded to 0 and never moved. */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/lecturer/assignments/${a.id}/submissions`)
+                            }} 
+                            className="bg-white hover:bg-slate-50 font-bold border-slate-200"
+                          >
                             Grade ({(submissionsByAssignment[a.id] || []).filter(s => s.status === 'Graded' || s.gradingStatus === 'Graded').length}/{students.length})
                           </Button>
                         </div>
@@ -337,20 +294,42 @@ export function LecturerClassDetail() {
               <div className="p-2">
                 <DataTable
                   columns={[
+                    {
+                      key: 'photo',
+                      header: 'Photo',
+                      render: (r: any) => {
+                        const parts = (r.name || '').trim().split(/\s+/)
+                        const initials = parts.length === 1 
+                          ? parts[0].slice(0, 2).toUpperCase() 
+                          : ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase()
+                        return (
+                          <div className="py-2 flex items-center justify-center">
+                            <div className="relative w-[111px] h-[146px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm shrink-0 bg-[#4f46e5] flex items-center justify-center">
+                              {r.avatar ? (
+                                <img 
+                                  src={r.avatar} 
+                                  alt={r.name} 
+                                  className="w-full h-full object-cover" 
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                                />
+                              ) : null}
+                              <span className="font-extrabold text-white text-3xl tracking-wider select-none">
+                                {initials || 'ST'}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      }
+                    },
                     { 
                       key: 'name', 
                       header: 'Full name', 
                       render: (r: any) => (
-                        <div className="flex items-center gap-3 py-1">
-                          <div className="w-10 h-12 rounded-md bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-sm shrink-0 border border-slate-300/50 shadow-sm">
-                            {r.name.charAt(0)}
-                          </div>
-                          <span className="font-bold text-slate-900 dark:text-white">{r.name}</span>
-                        </div>
+                        <span className="font-bold text-slate-900 dark:text-white text-base">{r.name}</span>
                       ) 
                     },
-                    { key: 'studentId', header: 'MSSV', render: (r: any) => <span className="font-mono text-sm font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400">{r.studentId || 'N/A'}</span> },
-                    { key: 'email', header: 'Email', render: (r: any) => <span className="text-slate-600 dark:text-slate-400">{r.email}</span> },
+                    { key: 'studentId', header: 'Student ID', render: (r: any) => <span className="font-mono text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{r.studentId || 'N/A'}</span> },
+                    { key: 'email', header: 'Email', render: (r: any) => <span className="text-slate-600 dark:text-slate-400 font-mono text-sm">{r.email}</span> },
                   ]}
                   data={students}
                   keyExtractor={(r: any) => r.studentId || r.email}

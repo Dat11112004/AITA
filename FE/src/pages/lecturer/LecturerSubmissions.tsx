@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DataTable } from '@/components/ui/DataTable'
-import { Badge } from '@/components/ui/Badge'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { ArrowLeft, CheckCircle, Clock, Save, X, Activity, Filter, BarChart, Bell, BrainCircuit, MessageSquareX, CheckCircle2, FileDown } from 'lucide-react'
+import { 
+  ArrowLeft, 
+  CheckCircle2, 
+  Clock, 
+  Save, 
+  X, 
+  Bell, 
+  BrainCircuit, 
+  MessageSquareX, 
+  FileDown, 
+  Search,
+  Sparkles,
+  Award,
+  AlertCircle,
+  FileCheck
+} from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 
 export function LecturerSubmissions() {
@@ -17,8 +30,10 @@ export function LecturerSubmissions() {
   const navigate = useNavigate()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [classStudents, setClassStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Grading Modal State
   const [gradingSub, setGradingSub] = useState<SubmissionRow | null>(null)
@@ -40,9 +55,43 @@ export function LecturerSubmissions() {
         api.getSubmissions({ assignmentId: id })
       ])
       setAssignment(assigData)
-      setSubmissions(subsData || [])
+      const submissionList = subsData || []
+      setSubmissions(submissionList)
+
+      // Discover target classIds
+      let classIds: string[] = (assigData as any)?.classes || []
+      if (classIds.length === 0 && (assigData as any)?.classId) {
+        classIds = [(assigData as any).classId]
+      }
+
+      let studentsList: any[] = []
+      if (classIds.length > 0) {
+        const studentLists = await Promise.all(
+          classIds.map(cid => api.getClassStudents(cid).catch(() => []))
+        )
+        const map = new Map<string, any>()
+        studentLists.flat().forEach((s: any) => {
+          if (s && (s.id || s.studentId)) {
+            map.set(s.id || s.studentId, s)
+          }
+        })
+        studentsList = Array.from(map.values())
+      }
+
+      // Fallback: If no class enrollment is explicitly assigned, gather students from submissions
+      if (studentsList.length === 0 && submissionList.length > 0) {
+        studentsList = submissionList.map(s => ({
+          id: s.studentId || s.id,
+          studentId: s.studentId || s.id,
+          name: s.student || 'Student',
+          avatar: (s as any).avatar || null,
+          email: (s as any).email || '',
+        }))
+      }
+
+      setClassStudents(studentsList)
     } catch (e: any) {
-      setError(e.message || 'Failed to load the submission list')
+      setError(e.message || 'Failed to load class submissions')
     } finally {
       setLoading(false)
     }
@@ -67,11 +116,10 @@ export function LecturerSubmissions() {
         feedback,
       })
       if (sendNotification) {
-        // Mocking a notification sent (could be a real API if available for specific users)
         console.log(`Notification sent to ${gradingSub.student}`)
       }
       setGradingSub(null)
-      load() // Reload list
+      load()
     } catch (error: any) {
       alert(error.message || 'Grading failed')
     } finally {
@@ -83,8 +131,6 @@ export function LecturerSubmissions() {
     if (!gradingSub) return
     setIsGrading(true)
     try {
-      // In a real app we would have a specific endpoint to resolve appeals.
-      // Here we just re-grade or clear the feedback field (mocking resolution).
       await api.gradeSubmission(gradingSub.id, {
         score: accepted && score !== '' ? Number(score) : (gradingSub.score as number),
         feedback: accepted 
@@ -128,86 +174,140 @@ export function LecturerSubmissions() {
   if (loading) return <LoadingSpinner />
   if (error || !assignment) return <ErrorState message={error || 'Assignment not found'} onRetry={load} />
 
-  // Derived stats
-  const gradedCount = submissions.filter(s => s.status === 'graded').length
-  const pendingCount = submissions.length - gradedCount
-  const appealCount = submissions.filter(s => !!s.studentFeedback).length
-  const avgScore = gradedCount > 0 
-    ? (submissions.filter(s => s.score != null).reduce((acc, s) => acc + (s.score as number), 0) / gradedCount).toFixed(1) 
-    : '—'
+  // Map class students to their submission and grade
+  const rosterRows = classStudents.map(st => {
+    const sub = submissions.find(
+      s => s.studentId === st.id || s.studentId === st.studentId || s.student === st.name
+    )
+    const rawScore = sub?.score ?? (sub as any)?.finalScore ?? sub?.aiScore
+    return {
+      id: st.id || st.studentId,
+      photo: st.avatar || null,
+      name: st.name || 'Unknown Student',
+      studentId: st.studentId || st.id || '—',
+      email: st.email || '',
+      submission: sub || null,
+      status: sub ? (sub.status === 'graded' ? 'graded' : 'pending') : 'not_submitted',
+      score: rawScore !== undefined && rawScore !== null ? Number(rawScore) : null,
+      hasAppeal: !!sub?.studentFeedback
+    }
+  })
 
-  // Filtered list
-  const filteredSubmissions = submissions.filter(s => {
-    if (filter === 'graded') return s.status === 'graded'
-    if (filter === 'pending') return s.status !== 'graded'
-    if (filter === 'appeal') return !!s.studentFeedback
+  // Derived metrics
+  const totalStudents = rosterRows.length
+  const gradedCount = rosterRows.filter(r => r.status === 'graded').length
+  const pendingCount = rosterRows.filter(r => r.status === 'pending').length
+  const notSubmittedCount = rosterRows.filter(r => r.status === 'not_submitted').length
+  const appealCount = rosterRows.filter(r => r.hasAppeal).length
+
+  // Filtered & searched rows
+  const filteredRows = rosterRows.filter(r => {
+    // Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      const matchName = r.name.toLowerCase().includes(q)
+      const matchCode = r.studentId.toLowerCase().includes(q)
+      const matchEmail = r.email.toLowerCase().includes(q)
+      if (!matchName && !matchCode && !matchEmail) return false
+    }
+
+    // Category tab filter
+    if (filter === 'graded') return r.status === 'graded'
+    if (filter === 'pending') return r.status === 'pending'
+    if (filter === 'not_submitted') return r.status === 'not_submitted'
+    if (filter === 'appeal') return r.hasAppeal
     return true
   })
 
   return (
-    <div className="space-y-8 p-1 sm:p-4 min-h-screen max-w-7xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/lecturer/assignments')} className="shrink-0 p-2">
-          <ArrowLeft size={16} />
-        </Button>
-        <PageHeader 
-          title={`Submissions: ${assignment.title}`} 
-          breadcrumbs={[{ label: 'Assignments', path: '/lecturer/assignments' }, { label: 'Submissions' }]} 
-          actions={
-            <div className="flex gap-2">
-              {assignment.type === 'Exam' ? (
-                <Button size="sm" onClick={handleStartSession} className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-md hover:shadow-lg transition-all active:scale-95">
-                  <BrainCircuit size={16} />
-                  Batch grade with AI (exam)
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
-                  <Activity size={16} className="animate-pulse" />
-                  AI grading in background (assignment)
-                </div>
-              )}
-              <Button size="sm" onClick={handleBulkPublish} className="bg-brand-600 hover:bg-brand-700 text-white gap-2 shadow-md">
-                <CheckCircle2 size={16} /> Publish all scores
-              </Button>
+    <div className="space-y-8 p-2 sm:p-6 min-h-screen max-w-7xl mx-auto animate-in fade-in duration-300">
+      
+      {/* Sleek Modern Header */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between bg-white dark:bg-[#12151e] p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate(-1)} 
+            className="shrink-0 p-2.5 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-600 dark:text-slate-300 transition-all active:scale-95"
+          >
+            <ArrowLeft size={18} />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-400 text-xs font-bold uppercase tracking-wider">
+                {assignment.type || 'Assignment'} Roster
+              </span>
             </div>
-          }
-        />
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+              {assignment.title}
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
+              <span>Class: <strong className="text-slate-700 dark:text-slate-300">{assignment.class || 'All Enrolled Classes'}</strong></span>
+              <span>•</span>
+              <span>Due: <strong className="text-slate-700 dark:text-slate-300 font-mono">{assignment.due?.slice(0, 10) || 'No deadline'}</strong></span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {assignment.type === 'Exam' ? (
+            <Button 
+              size="sm" 
+              onClick={handleStartSession} 
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
+            >
+              <BrainCircuit size={16} />
+              Batch Grade with AI
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl text-xs font-bold shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              AI Background Grading Active
+            </div>
+          )}
+          <Button 
+            size="sm" 
+            onClick={handleBulkPublish} 
+            className="bg-brand-600 hover:bg-brand-700 text-white font-bold gap-2 shadow-sm hover:shadow-md transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
+          >
+            <CheckCircle2 size={16} /> Publish All Scores
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">
-        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
-          <div className="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 p-3 rounded-xl"><Filter size={24}/></div>
-          <div><p className="text-sm font-semibold text-slate-500">Total submissions</p><p className="text-2xl font-bold">{submissions.length}</p></div>
-        </Card>
-        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
-          <div className="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 p-3 rounded-xl"><CheckCircle size={24}/></div>
-          <div><p className="text-sm font-semibold text-slate-500">Graded</p><p className="text-2xl font-bold">{gradedCount}</p></div>
-        </Card>
-        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
-          <div className="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 p-3 rounded-xl"><Clock size={24}/></div>
-          <div><p className="text-sm font-semibold text-slate-500">Pending</p><p className="text-2xl font-bold">{pendingCount}</p></div>
-        </Card>
-        <Card className="p-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
-          <div className="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 p-3 rounded-xl"><BarChart size={24}/></div>
-          <div><p className="text-sm font-semibold text-slate-500">Average score</p><p className="text-2xl font-bold">{avgScore}</p></div>
-        </Card>
-        <Card className="p-4 border-red-100 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 shadow-sm flex items-center gap-4">
-          <div className="bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400 p-3 rounded-xl"><MessageSquareX size={24}/></div>
-          <div><p className="text-sm font-semibold text-red-600 dark:text-red-400">Appeals</p><p className="text-2xl font-bold text-red-700 dark:text-red-300">{appealCount}</p></div>
-        </Card>
-      </div>
+      {/* Main Gradebook Workspace Card */}
+      <Card className="overflow-hidden border border-slate-200/90 dark:border-slate-800/90 shadow-sm rounded-2xl bg-white dark:bg-[#12151e]">
+        
+        {/* Workspace Toolbar: Search & Segmented Filter Tabs */}
+        <div className="border-b border-slate-100 dark:border-slate-800/80 p-5 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search student or MSSV..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-800 dark:text-slate-200 shadow-2xs"
+              />
+            </div>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              Showing {filteredRows.length} of {totalStudents}
+            </span>
+          </div>
 
-      <Card className="overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-        <div className="border-b border-slate-100 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <CardHeader title={`Submission list (${filteredSubmissions.length})`} />
-          <div className="inline-flex rounded-xl bg-white p-1 shadow-sm border border-slate-200/70 dark:bg-[#0f1117] dark:border-slate-800 w-max">
+          <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200/80 dark:border-slate-800 w-max overflow-x-auto custom-scrollbar">
             <Tabs 
               items={[
-                { id: 'all', label: 'All' },
-                { id: 'pending', label: 'Pending' },
-                { id: 'graded', label: 'Graded' },
-                { id: 'appeal', label: 'Appeals' }
+                { id: 'all', label: `All (${totalStudents})` },
+                { id: 'graded', label: `Graded (${gradedCount})` },
+                { id: 'pending', label: `Pending (${pendingCount})` },
+                { id: 'not_submitted', label: `Not Submitted (${notSubmittedCount})` },
+                { id: 'appeal', label: `Appeals (${appealCount})` }
               ]} 
               activeId={filter} 
               onChange={setFilter} 
@@ -215,160 +315,210 @@ export function LecturerSubmissions() {
           </div>
         </div>
 
-        <div className="p-2 overflow-x-auto custom-scrollbar">
+        {/* High Precision Data Table */}
+        <div className="p-3 overflow-x-auto custom-scrollbar">
           <DataTable
             columns={[
               {
-                key: 'student',
-                header: 'Student',
-                render: (r) => (
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-slate-100">{(r as SubmissionRow).student}</p>
-                    <p className="text-xs text-slate-500 font-mono">{(r as SubmissionRow).studentId}</p>
-                  </div>
-                )
-              },
-              {
-                key: 'submittedAt',
-                header: 'Submitted at',
-                render: (r) => <span className="text-sm">{(r as SubmissionRow).submittedAt?.replace('T', ' ')?.slice(0, 16) || '—'}</span>
-              },
-              {
-                key: 'aiScore',
-                header: 'AI score',
-                render: (r) => (
-                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">
-                    {(r as SubmissionRow).aiScore != null ? `${(r as SubmissionRow).aiScore}/100` : '—'}
-                  </span>
-                )
-              },
-              {
-                key: 'score',
-                header: 'Official score',
-                render: (r) => (
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black text-lg">
-                    {(r as SubmissionRow).score != null ? `${(r as SubmissionRow).score}` : '—'}
-                  </span>
-                )
-              },
-              {
-                key: 'status',
-                header: 'Status',
-                render: (r) => {
-                  const s = (r as SubmissionRow).status
-                  const hasFeedback = !!(r as SubmissionRow).studentFeedback
+                key: 'photo',
+                header: 'Photo',
+                render: (r: any) => {
+                  const parts = (r.name || '').trim().split(/\s+/)
+                  const initials = parts.length === 1 
+                    ? parts[0].slice(0, 2).toUpperCase() 
+                    : ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase()
                   return (
-                    <div className="flex flex-col gap-1 w-max">
-                      {s === 'graded' ? (
-                        <Badge variant="success" className="flex items-center gap-1"><CheckCircle size={12}/> Graded</Badge>
-                      ) : (
-                        <Badge variant="warning" className="flex items-center gap-1"><Clock size={12}/> Pending</Badge>
-                      )}
-                      {hasFeedback && (
-                        <Badge variant="danger" className="flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0"><Activity size={12}/> Appeal filed</Badge>
-                      )}
+                    <div className="flex items-center justify-center py-2">
+                      <div className="relative w-[111px] h-[146px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm shrink-0 bg-[#4f46e5] flex items-center justify-center">
+                        {r.photo ? (
+                          <img 
+                            src={r.photo} 
+                            alt={r.name} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                          />
+                        ) : null}
+                        <span className="font-extrabold text-white text-3xl tracking-wider select-none">
+                          {initials || 'ST'}
+                        </span>
+                      </div>
                     </div>
                   )
                 }
               },
               {
+                key: 'name',
+                header: 'Student Name',
+                render: (r: any) => (
+                  <div className="py-1">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight hover:text-brand-600 transition-colors">
+                      {r.name}
+                    </p>
+                    {r.email && <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">{r.email}</p>}
+                  </div>
+                )
+              },
+              {
+                key: 'studentId',
+                header: 'Student Code',
+                render: (r: any) => (
+                  <div className="py-1">
+                    <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
+                      {r.studentId}
+                    </span>
+                  </div>
+                )
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (r: any) => (
+                  <div className="flex flex-col gap-1 w-max py-1">
+                    {r.status === 'graded' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-bold">
+                        <CheckCircle2 size={13} className="text-emerald-500" /> Graded
+                      </span>
+                    ) : r.status === 'pending' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60 text-xs font-bold">
+                        <Clock size={13} className="text-amber-500" /> Submitted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-medium border border-slate-200/60 dark:border-slate-700/50">
+                        Not Submitted
+                      </span>
+                    )}
+                    {r.hasAppeal && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 text-[11px] font-bold">
+                        <AlertCircle size={12} /> Appeal Filed
+                      </span>
+                    )}
+                  </div>
+                )
+              },
+              {
+                key: 'score',
+                header: 'Score',
+                render: (r: any) => (
+                  <div className="py-1 font-mono">
+                    {r.score !== null ? (
+                      <span className="inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-emerald-600 dark:text-emerald-400 font-black text-sm px-3 py-1 rounded-xl shadow-2xs">
+                        <Award size={14} className="text-emerald-500" />
+                        {r.score} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-600 font-bold text-sm italic">
+                        —
+                      </span>
+                    )}
+                  </div>
+                )
+              },
+              {
                 key: 'actions',
                 header: '',
-                render: (r) => (
-                  <div className="flex justify-end gap-2 pr-2">
-                    <Button size="sm" variant="outline" onClick={() => openGradeModal(r as SubmissionRow)}>
-                      {((r as SubmissionRow).studentFeedback) ? 'View appeal & grade' : 'Grade'}
-                    </Button>
+                render: (r: any) => (
+                  <div className="flex justify-end gap-2 pr-2 py-1">
+                    {r.submission ? (
+                      <button 
+                        onClick={() => openGradeModal(r.submission)}
+                        className="bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-950/40 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1.5 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                      >
+                        <FileCheck size={14} />
+                        {r.hasAppeal ? 'Review Appeal' : r.status === 'graded' ? 'Edit Grade' : 'Grade'}
+                      </button>
+                    ) : (
+                      <button 
+                        disabled 
+                        className="text-slate-400 dark:text-slate-600 text-xs font-medium cursor-not-allowed bg-slate-50 dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 opacity-60"
+                      >
+                        No Submission
+                      </button>
+                    )}
                   </div>
                 )
               }
             ]}
-            data={filteredSubmissions}
-            keyExtractor={(r) => r.id}
+            data={filteredRows}
+            keyExtractor={(r: any) => r.id}
           />
         </div>
       </Card>
 
-      {/* Grading Modal */}
+      {/* Modern Grading Modal */}
       {gradingSub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <Card className="w-full max-w-2xl bg-white dark:bg-slate-900 shadow-2xl border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg">Grading: {gradingSub.student}</h3>
-              <Button variant="outline" size="sm" className="p-2 border-0" onClick={() => setGradingSub(null)}>
-                <X size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl bg-white dark:bg-[#12151e] shadow-2xl border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Grading Portal</span>
+                <h3 className="font-black text-lg text-slate-900 dark:text-white">{gradingSub.student}</h3>
+              </div>
+              <Button variant="outline" size="sm" className="p-2 border-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setGradingSub(null)}>
+                <X size={18} />
               </Button>
             </div>
             
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
               <div>
-                <h4 className="text-sm font-bold text-slate-500 mb-2 uppercase">Submission content</h4>
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">Submission Content</h4>
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
                   {gradingSub.content || 'The student did not submit any text content.'}
                 </div>
               </div>
 
               {gradingSub.zipFileUrl && (
                 <div>
-                  <h4 className="text-sm font-bold text-slate-500 mb-2 uppercase">Attachment</h4>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg">
+                  <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">Attachment</h4>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 rounded-xl border border-blue-100 dark:border-blue-900/40">
                         <FileDown size={20} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm">Attached submission</p>
-                        <p className="text-xs text-slate-500">Download to view details</p>
+                        <p className="font-bold text-xs text-slate-900 dark:text-white">Attached Submission Archive</p>
+                        <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs">{gradingSub.zipFileUrl}</p>
                       </div>
                     </div>
                     <Button 
-                      variant="outline" 
-                      size="sm"
+                      size="sm" 
                       onClick={() => window.open(gradingSub.zipFileUrl, '_blank')}
-                      className="gap-2"
+                      className="gap-2 text-xs rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-2xs hover:bg-slate-50"
                     >
-                      <FileDown size={16} /> Download file
+                      <FileDown size={14} /> Download File
                     </Button>
                   </div>
                 </div>
               )}
 
               {gradingSub.studentFeedback && (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg space-y-3">
+                <div className="p-4 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 rounded-xl space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                        <MessageSquareX size={16} /> Student appeal
+                      <p className="font-bold text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2 uppercase tracking-wider">
+                        <MessageSquareX size={16} /> Student Appeal Statement
                       </p>
-                      <p className="text-sm text-red-700 dark:text-red-400 mt-2 whitespace-pre-wrap p-3 bg-white/60 dark:bg-black/20 rounded shadow-inner">
+                      <p className="text-xs text-rose-700 dark:text-rose-400 mt-2 whitespace-pre-wrap p-3 bg-white/80 dark:bg-black/40 rounded-xl border border-rose-100 dark:border-rose-900/40 shadow-2xs font-medium">
                         "{gradingSub.studentFeedback}"
                       </p>
                     </div>
                   </div>
                   
-                  {/* This used to print one fixed sentence ("the appeal has merit on
-                      the algorithm explanation, add 0.5-1.0 points") for every appeal,
-                      which looked like a real per-appeal AI verdict. There is no
-                      appeal-analysis endpoint, so show the figures we actually have. */}
-                  <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-md">
-                    <p className="text-xs font-bold text-indigo-800 uppercase flex items-center gap-1 mb-1">
-                      <BrainCircuit size={14} /> Scores on record
+                  <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl">
+                    <p className="text-[11px] font-extrabold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                      <BrainCircuit size={14} /> Scores On Record
                     </p>
-                    <div className="text-xs text-indigo-700 space-y-0.5">
+                    <div className="text-xs text-indigo-700 dark:text-indigo-300 space-y-1">
                       <p>
-                        AI preliminary score:{' '}
+                        AI Preliminary Score:{' '}
                         <span className="font-mono font-bold">
-                          {gradingSub.aiScore != null ? `${gradingSub.aiScore}/100` : 'not available'}
+                          {gradingSub.aiScore != null ? `${gradingSub.aiScore}/100` : 'Not available'}
                         </span>
                       </p>
                       <p>
-                        Official score:{' '}
+                        Official Score:{' '}
                         <span className="font-mono font-bold">
-                          {gradingSub.score != null ? gradingSub.score : 'not graded yet'}
+                          {gradingSub.score != null ? `${gradingSub.score}/10` : 'Not graded yet'}
                         </span>
-                      </p>
-                      <p className="italic opacity-80 pt-1">
-                        Review the submission against the rubric before deciding on this appeal.
                       </p>
                     </div>
                   </div>
@@ -376,37 +526,43 @@ export function LecturerSubmissions() {
               )}
 
               {gradingSub.aiScore != null && (
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-lg">
-                  <p className="font-bold text-indigo-800 dark:text-indigo-300">AI suggestion</p>
-                  <p className="text-sm text-indigo-700 dark:text-indigo-400 mt-1">Preliminary score: <span className="font-mono font-bold text-lg">{gradingSub.aiScore}/100</span></p>
+                <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl">
+                  <p className="font-bold text-xs text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} /> AI Score Evaluation
+                  </p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
+                    Preliminary Grade: <span className="font-mono font-bold text-sm">{gradingSub.aiScore}/100</span>
+                  </p>
                   {!!gradingSub.aiFeedback && (
-                    <p className="mt-2 text-sm italic opacity-80">{String(gradingSub.aiFeedback)}</p>
+                    <p className="mt-2 text-xs italic opacity-90 text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                      {String(gradingSub.aiFeedback)}
+                    </p>
                   )}
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-4 gap-4 pt-2">
                 <div className="col-span-1">
                   <Input 
-                    label="Score (out of 10)" 
+                    label="Score (/ 10)" 
                     type="number" 
                     step="0.5"
                     min="0"
                     max="10"
                     value={score.toString()} 
                     onChange={(e) => setScore(e.target.value === '' ? '' : Number(e.target.value))} 
-                    className="text-lg font-bold"
+                    className="text-base font-bold font-mono"
                   />
                 </div>
                 <div className="col-span-3">
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Comment / feedback
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                    Lecturer Feedback / Comments
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Write feedback for the student..."
-                    className="w-full min-h-[100px] p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-brand-500 outline-none text-sm"
+                    placeholder="Provide constructive feedback for the student..."
+                    className="w-full min-h-[90px] p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none text-xs leading-relaxed font-medium"
                   />
                   <div className="mt-2 flex items-center gap-2">
                     <input 
@@ -416,30 +572,48 @@ export function LecturerSubmissions() {
                       onChange={(e) => setSendNotification(e.target.checked)}
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                     />
-                    <label htmlFor="notifyStudent" className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 cursor-pointer">
-                      <Bell size={14} />
-                      Notify the student after grading
+                    <label htmlFor="notifyStudent" className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
+                      <Bell size={13} className="text-brand-500" />
+                      Notify the student via email / app immediately
                     </label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-between bg-slate-50 dark:bg-slate-900">
-              <Button variant="outline" onClick={() => setGradingSub(null)}>Cancel</Button>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between bg-slate-50/50 dark:bg-slate-900/40">
+              <Button variant="outline" size="sm" onClick={() => setGradingSub(null)} className="rounded-xl border-slate-200 text-xs">
+                Cancel
+              </Button>
               
               {gradingSub.studentFeedback ? (
                 <div className="flex gap-2">
-                  <Button onClick={() => handleResolveAppeal(false)} disabled={isGrading} variant="outline" className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50">
-                    <X size={16} className="mr-1"/> Reject appeal
+                  <Button 
+                    size="sm"
+                    onClick={() => handleResolveAppeal(false)} 
+                    disabled={isGrading} 
+                    variant="outline" 
+                    className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50 text-xs rounded-xl"
+                  >
+                    <X size={14} className="mr-1"/> Reject Appeal
                   </Button>
-                  <Button onClick={() => handleResolveAppeal(true)} disabled={isGrading || score === ''} className="bg-brand-600 hover:bg-brand-700 text-white">
-                    <CheckCircle2 size={16} className="mr-1"/> Approve & save new score
+                  <Button 
+                    size="sm"
+                    onClick={() => handleResolveAppeal(true)} 
+                    disabled={isGrading || score === ''} 
+                    className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
+                  >
+                    <CheckCircle2 size={14} className="mr-1"/> Approve & Save Score
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleGrade} disabled={isGrading || score === ''} className="bg-brand-600 hover:bg-brand-700 text-white">
-                  {isGrading ? 'Saving...' : <><Save size={16} className="mr-2"/> Save score</>}
+                <Button 
+                  size="sm"
+                  onClick={handleGrade} 
+                  disabled={isGrading || score === ''} 
+                  className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
+                >
+                  {isGrading ? 'Saving...' : <><Save size={14} className="mr-1.5"/> Save Score</>}
                 </Button>
               )}
             </div>

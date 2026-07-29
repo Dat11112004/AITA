@@ -51,7 +51,7 @@ export function LecturerAssignmentRubric() {
 
       await api.saveExamRubric(id, formData)
       alert('Rubric configuration saved.')
-      navigate('/lecturer/assignments')
+      navigate(-1)
     } catch (error: any) {
       alert(error.message || 'Failed to save rubric')
     } finally {
@@ -62,12 +62,12 @@ export function LecturerAssignmentRubric() {
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen max-w-5xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/lecturer/assignments')} className="shrink-0 p-2">
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="shrink-0 p-2">
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
           title="Rubric & Answer Key Configuration" 
-          breadcrumbs={[{ label: 'Assignments', path: '/lecturer/assignments' }, { label: 'Rubric Configuration' }]} 
+          breadcrumbs={[{ label: 'Classes', path: '/lecturer/classes' }, { label: 'Rubric Configuration' }]} 
         />
       </div>
 
@@ -129,7 +129,7 @@ export function LecturerAssignmentRubric() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={() => navigate('/lecturer/assignments')}>Cancel</Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white gap-2">
             <Save size={16} />
             {isSaving ? 'Saving...' : 'Save rubric'}

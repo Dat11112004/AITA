@@ -62,6 +62,35 @@
   .prose code {
     @apply bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-md font-mono text-[0.9em] font-medium;
   }
+
+  /* Global hand pointer cursor on all clickable elements across Admin, Lecturer & Student roles */
+  button:not(:disabled),
+  a:not([aria-disabled="true"]),
+  select:not(:disabled),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="menuitem"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="link"],
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]::-webkit-file-upload-button,
+  .cursor-pointer,
+  [onClick] {
+    cursor: pointer !important;
+  }
+
+  button:disabled,
+  [disabled],
+  [aria-disabled="true"] {
+    cursor: not-allowed !important;
+  }
 }
 
 @layer utilities {

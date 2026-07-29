@@ -535,9 +535,11 @@ export interface CreateClassBody {
 }
 
 export interface StudentRow {
+  id?: string
   studentId: string
   name: string
   email: string
+  avatar?: string
   progress: string
   grade: string
 }

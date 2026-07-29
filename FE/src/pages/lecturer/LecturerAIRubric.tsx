@@ -42,7 +42,7 @@ export function LecturerAIRubric() {
     setIsSaving(true)
     try {
       alert('Rubric saved.')
-      navigate('/lecturer/assignments')
+      navigate(-1)
     } catch (error: any) {
       alert(error.message || 'Failed to save rubric')
     } finally {
@@ -53,12 +53,12 @@ export function LecturerAIRubric() {
   return (
     <div className="space-y-8 p-1 sm:p-4 min-h-screen max-w-5xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/lecturer/assignments')} className="shrink-0 p-2">
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="shrink-0 p-2">
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
           title="Generate a grading rubric with AI" 
-          breadcrumbs={[{ label: 'Assignments', path: '/lecturer/assignments' }, { label: 'AI Rubric Generator' }]} 
+          breadcrumbs={[{ label: 'Grading', path: '/lecturer/grading/assignments' }, { label: 'AI Rubric Generator' }]} 
         />
       </div>
 

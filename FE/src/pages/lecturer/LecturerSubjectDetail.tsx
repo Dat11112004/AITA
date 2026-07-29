@@ -8,6 +8,8 @@ import {
   ClipboardList, BarChart3
 } from 'lucide-react'
 
+import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+
 type TabType = 'syllabus' | 'clos' | 'sessions' | 'assessment'
 
 export function LecturerSubjectDetail() {
@@ -95,7 +97,7 @@ export function LecturerSubjectDetail() {
     const degreeLevel = s.degreeLevel || 'Bachelor'
     const timeAllocation = s.timeAllocation || 'Study hour (150h) = 45h contact hours + 1h final exam + 104h self-study'
     const prerequisites = s.prerequisites || s.preRequisite || 'None'
-    const description = s.description || subject?.description || ''
+    const description = getCleanSubjectDescription(subject?.code, s.description || subject?.description)
 
     const studentTasksList: string[] = Array.isArray(s.studentTasks)
       ? s.studentTasks
@@ -448,29 +450,6 @@ export function LecturerSubjectDetail() {
                     </span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-slate-800/80 dark:to-slate-900 border border-emerald-100 dark:border-slate-700/50 space-y-3">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-sm">Quick Stats</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
-                  <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.credits}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Credits</div>
-                </div>
-                <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
-                  <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.sessions.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Sessions</div>
-                </div>
-                <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
-                  <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.clos.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">CLOs</div>
-                </div>
-                <div className="text-center p-3 bg-white/60 dark:bg-slate-800/60 rounded-lg">
-                  <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{syllabus.assessments.length}</div>
-                  <div className="text-[10px] font-bold text-slate-500 mt-0.5">Assessments</div>
-                </div>
               </div>
             </div>
           </div>

@@ -24,6 +24,7 @@ export class GetClassStudentsUseCase implements IUseCase<string, any[]> {
       id: e.User.Id,
       studentId: e.User.StudentCode ?? e.User.Id,
       name: e.User.FullName,
+      avatar: e.User.Avatar,
       email: e.User.Email,
       progress: '—',
       grade: '—',
