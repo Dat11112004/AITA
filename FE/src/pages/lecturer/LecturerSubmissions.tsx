@@ -346,14 +346,31 @@ export function LecturerSubmissions() {
                     </div>
                   </div>
                   
-                  {/* AI Pre-screening component */}
+                  {/* This used to print one fixed sentence ("the appeal has merit on
+                      the algorithm explanation, add 0.5-1.0 points") for every appeal,
+                      which looked like a real per-appeal AI verdict. There is no
+                      appeal-analysis endpoint, so show the figures we actually have. */}
                   <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-md">
                     <p className="text-xs font-bold text-indigo-800 uppercase flex items-center gap-1 mb-1">
-                      <BrainCircuit size={14} /> AI appeal analysis
+                      <BrainCircuit size={14} /> Scores on record
                     </p>
-                    <p className="text-xs text-indigo-700 italic">
-                      Against the rubric, the appeal has merit on the "algorithm explanation" section. Suggestion: add 0.5 - 1.0 points.
-                    </p>
+                    <div className="text-xs text-indigo-700 space-y-0.5">
+                      <p>
+                        AI preliminary score:{' '}
+                        <span className="font-mono font-bold">
+                          {gradingSub.aiScore != null ? `${gradingSub.aiScore}/100` : 'not available'}
+                        </span>
+                      </p>
+                      <p>
+                        Official score:{' '}
+                        <span className="font-mono font-bold">
+                          {gradingSub.score != null ? gradingSub.score : 'not graded yet'}
+                        </span>
+                      </p>
+                      <p className="italic opacity-80 pt-1">
+                        Review the submission against the rubric before deciding on this appeal.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

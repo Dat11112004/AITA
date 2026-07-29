@@ -261,21 +261,33 @@ export function StudentSubjects() {
                     </div>
                     
                     <div className="flex items-center gap-6 lg:ml-auto pr-2 mt-4 lg:mt-0">
+                      {/* These three slots used to be fixed: A1 = 8.0, A2 = 8.2, PE =
+                          "Not scheduled" for every subject. Show real graded work instead. */}
                       <div className="flex gap-6 items-center">
-                        <div className="text-center">
-                          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">A1</div>
-                          <div className="text-sm font-bold text-emerald-600">8.0</div>
-                        </div>
-                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-                        <div className="text-center">
-                          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">A2</div>
-                          <div className="text-sm font-bold text-blue-600">8.2</div>
-                        </div>
-                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-                        <div className="text-center">
-                          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">PE</div>
-                          <div className="text-sm font-medium text-slate-400">Not scheduled</div>
-                        </div>
+                        {(() => {
+                          const graded = subjectAssignments
+                            .map(a => ({ title: a.title, score: (a as any).score ?? (a as any).aiScore }))
+                            .filter(x => x.score !== undefined && x.score !== null)
+                            .slice(0, 3)
+
+                          if (graded.length === 0) {
+                            return <div className="text-sm font-medium text-slate-400">No graded work yet</div>
+                          }
+
+                          return graded.map((g, i) => (
+                            <div key={i} className="flex items-center gap-6">
+                              {i > 0 && <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block" />}
+                              <div className="text-center max-w-[110px]">
+                                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 truncate" title={g.title}>
+                                  {g.title}
+                                </div>
+                                <div className="text-sm font-bold text-emerald-600">
+                                  {Math.round(Number(g.score) * 100) / 100}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        })()}
                       </div>
                       <div className="text-slate-400 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-colors ml-4 lg:ml-0">
                         {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -475,8 +487,10 @@ export function StudentSubjects() {
               </div>
             </div>
 
+            {/* "Your ranking: Top 28%" was a fixed string shown to every student.
+                There is no ranking endpoint, so state what the average is based on. */}
             <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
-              <span>Your ranking: <strong className="text-slate-800 dark:text-slate-200">Top 28%</strong></span>
+              <span>Average across <strong className="text-slate-800 dark:text-slate-200">{stats.graded}</strong> graded item(s)</span>
               <Info size={16} className="text-slate-400 ml-auto" />
             </div>
           </div>

@@ -121,6 +121,29 @@ export function LecturerOverview() {
         };
     }).slice(0, 4);
 
+    // Real submission volume for the last 6 weeks, oldest bucket first.
+    const weeklySubmissionData = (() => {
+        const WEEKS = 6
+        const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+        const now = Date.now()
+        return Array.from({ length: WEEKS }, (_, i) => {
+            const weeksAgo = WEEKS - 1 - i
+            const end = now - weeksAgo * MS_PER_WEEK
+            const start = end - MS_PER_WEEK
+            const count = submissions.filter((s: any) => {
+                const raw = s?.submittedAt
+                if (!raw) return false
+                const t = new Date(raw).getTime()
+                return !Number.isNaN(t) && t > start && t <= end
+            }).length
+            return {
+                label: weeksAgo === 0 ? 'This week' : `-${weeksAgo}w`,
+                value: count,
+                color: '#3b82f6',
+            }
+        })
+    })()
+
     // 2. Prepare bar chart data for GPA
     const gpaChartData = classStats.slice(0, 3).map((c, i) => {
         const colors = ['#3b82f6', '#ef4444', '#10b981'];
@@ -293,45 +316,23 @@ export function LecturerOverview() {
                         </div>
                     </div>
 
-                    {/* Area Chart Mocks */}
+                    {/* Was three hard-coded SVG paths with fixed Week 1/2/3 labels; it
+                        read no data at all. Now counts real submissions per week. */}
                     <div className="lg:col-span-5 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col">
-                        <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
-                            <TrendingUp size={18} className="text-blue-500" /> Performance trend
+                        <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center gap-2">
+                            <TrendingUp size={18} className="text-blue-500" /> Submissions per week
                         </h2>
-                        <div className="flex-1 relative border-l-2 border-b-2 border-slate-100 dark:border-slate-800 min-h-[180px] flex items-end mb-4 ml-6">
-                            <div className="w-full h-full absolute inset-0 flex items-end overflow-hidden rounded-br-lg">
-                                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
-                                            <stop offset="100%" stopColor="#10b981" stopOpacity="0.2" />
-                                        </linearGradient>
-                                        <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
-                                            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.2" />
-                                        </linearGradient>
-                                        <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
-                                            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M0,100 L0,70 L25,50 L50,45 L75,35 L100,25 L100,100 Z" fill="url(#grad1)" />
-                                    <path d="M0,100 L0,80 L25,70 L50,60 L75,45 L100,45 L100,100 Z" fill="url(#grad2)" />
-                                    <path d="M0,100 L0,85 L25,75 L50,75 L75,60 L100,65 L100,100 Z" fill="url(#grad3)" />
-                                </svg>
-                            </div>
-                            <div className="absolute -bottom-6 w-full flex justify-between text-[11px] font-bold text-slate-400 px-1">
-                                <span>Week 1</span>
-                                <span>Week 2</span>
-                                <span>Week 3</span>
-                                <span>Time</span>
-                            </div>
-                            <div className="absolute -left-8 h-full flex flex-col justify-between text-[11px] font-bold text-slate-400 py-1 pr-2">
-                                <span>70</span>
-                                <span>50</span>
-                                <span>30</span>
-                                <span>0</span>
-                            </div>
+                        <p className="text-[13px] text-slate-500 mb-6 font-semibold">Last 6 weeks</p>
+                        <div className="flex-1 min-h-[200px] flex items-end">
+                            {weeklySubmissionData.some(d => d.value > 0) ? (
+                                <div className="w-full pb-4">
+                                    <BarChart data={weeklySubmissionData} height={200} />
+                                </div>
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm font-medium">
+                                    No submissions in the last 6 weeks
+                                </div>
+                            )}
                         </div>
                     </div>
 
