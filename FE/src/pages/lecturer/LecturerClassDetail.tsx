@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type ClassRow, type AssignmentRow } from '@/lib/api'
+import { api, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
 import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Plus, FileText, Send, MoreVertical, Search, FileEdit } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -15,6 +15,7 @@ export function LecturerClassDetail() {
   const [cls, setCls] = useState<ClassRow | null>(null)
   const [students, setStudents] = useState<any[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
+  const [submissionsByAssignment, setSubmissionsByAssignment] = useState<Record<string, SubmissionRow[]>>({})
   
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('stream')
@@ -39,18 +40,34 @@ export function LecturerClassDetail() {
         api.getClassStudents(id),
         api.getAssignments({ classId: id })
       ])
-      
-      // Mocking grades for the gradebook view
-      const studentsWithGrades = (studentsData || []).map(s => ({
+
+      const assignmentList = assignmentsData || []
+      setAssignments(assignmentList)
+
+      // The gradebook used to fill itself with Math.random() scores, so it showed
+      // different marks on every reload. Read the real submissions instead.
+      const submissionLists = await Promise.all(
+        assignmentList.map(a =>
+          api.getSubmissions({ assignmentId: a.id }).catch(() => [] as SubmissionRow[])
+        )
+      )
+
+      const byAssignment: Record<string, SubmissionRow[]> = {}
+      assignmentList.forEach((a, i) => { byAssignment[a.id] = submissionLists[i] || [] })
+      setSubmissionsByAssignment(byAssignment)
+
+      const scoreFor = (studentId: string, assignmentId: string) => {
+        const found = (byAssignment[assignmentId] || []).find(s => s.studentId === studentId)
+        const raw = found?.score ?? found?.finalScore ?? found?.aiScore
+        return raw === null || raw === undefined ? undefined : Number(raw)
+      }
+
+      setStudents((studentsData || []).map((s: any) => ({
         ...s,
-        ass1: Math.floor(Math.random() * 4) + 6,
-        ass2: Math.floor(Math.random() * 5) + 5,
-        pe: Math.floor(Math.random() * 6) + 4,
-        fe: Math.floor(Math.random() * 5) + 5,
-      }))
-      
-      setStudents(studentsWithGrades)
-      setAssignments(assignmentsData || [])
+        scores: Object.fromEntries(
+          assignmentList.map(a => [a.id, scoreFor(s.studentId || s.id, a.id)])
+        ) as Record<string, number | undefined>,
+      })))
     } catch (error) {
       console.error(error)
     } finally {
@@ -298,7 +315,8 @@ export function LecturerClassDetail() {
                         </div>
                         <div className="mt-4 sm:mt-0 flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions`)} className="bg-white hover:bg-slate-50 font-bold border-slate-200">
-                            Grade (0/{students.length})
+                            {/* The numerator was hard-coded to 0 and never moved. */}
+                            Grade ({(submissionsByAssignment[a.id] || []).filter(s => s.status === 'Graded' || s.gradingStatus === 'Graded').length}/{students.length})
                           </Button>
                         </div>
                       </div>
@@ -351,19 +369,34 @@ export function LecturerClassDetail() {
                 <Button size="sm" variant="outline" className="bg-white border-slate-200 font-bold hover:bg-slate-50">Export Excel</Button>
               </div>
               <div className="p-2 overflow-x-auto">
+                {/* Columns come from the class's real assignments. The old fixed
+                    A1/A2/PE/FE columns did not correspond to anything in the data. */}
                 <DataTable
                   columns={[
                     { key: 'name', header: 'Student', render: (r: any) => <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{r.name}</span> },
-                    { key: 'ass1', header: 'Assignment 1 (10%)', render: (r: any) => <span className="font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">{r.ass1 ?? '—'}</span> },
-                    { key: 'ass2', header: 'Assignment 2 (10%)', render: (r: any) => <span className="font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">{r.ass2 ?? '—'}</span> },
-                    { key: 'pe', header: 'Practical exam (30%)', render: (r: any) => <span className="font-mono text-sm font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md">{r.pe ?? '—'}</span> },
-                    { key: 'fe', header: 'Final exam (50%)', render: (r: any) => <span className="font-mono text-sm font-black text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md">{r.fe ?? '—'}</span> },
-                    { 
-                      key: 'total', 
-                      header: 'Total', 
+                    ...assignments.map(a => ({
+                      key: a.id,
+                      header: a.title,
                       render: (r: any) => {
-                        const total = ((r.ass1 || 0)*0.1 + (r.ass2 || 0)*0.1 + (r.pe || 0)*0.3 + (r.fe || 0)*0.5).toFixed(1)
-                        return <span className="font-mono text-base font-black text-brand-700 dark:text-brand-400">{total}</span>
+                        const score = r.scores?.[a.id]
+                        return (
+                          <span className="font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
+                            {score === undefined ? '—' : score}
+                          </span>
+                        )
+                      },
+                    })),
+                    {
+                      key: 'total',
+                      header: 'Average',
+                      render: (r: any) => {
+                        const marks = assignments
+                          .map(a => r.scores?.[a.id])
+                          .filter((v): v is number => typeof v === 'number')
+                        const avg = marks.length > 0
+                          ? (marks.reduce((s, v) => s + v, 0) / marks.length).toFixed(1)
+                          : '—'
+                        return <span className="font-mono text-base font-black text-brand-700 dark:text-brand-400">{avg}</span>
                       }
                     },
                   ]}

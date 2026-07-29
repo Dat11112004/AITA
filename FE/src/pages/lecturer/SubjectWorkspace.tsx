@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { api, type SubjectRow, type ClassRow } from '@/lib/api'
+import { api, type SubjectRow, type ClassRow, type SemesterRow } from '@/lib/api'
+import { formatSemesterCode } from '@/utils/semester'
 import { 
   Loader2, Users, BookOpen, Bell, LayoutGrid,
   GraduationCap, Download, Search, Info,
@@ -16,6 +17,7 @@ export function SubjectWorkspace() {
   const [loading, setLoading] = useState(true)
   const [subject, setSubject] = useState<SubjectRow | null>(null)
   const [classes, setClasses] = useState<ClassRow[]>([])
+  const [semester, setSemester] = useState<SemesterRow | null>(null)
   
   const [selectedClassId, setSelectedClassId] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'students' | 'announcements'>('overview')
@@ -34,13 +36,17 @@ export function SubjectWorkspace() {
     const loadData = async () => {
       setLoading(true)
       try {
-        const [subData, clsData] = await Promise.all([
+        const [subData, clsData, semData] = await Promise.all([
           api.getSubjects(1, 1000),
-          api.getClasses(1, 1000)
+          api.getClasses(1, 1000),
+          api.getSemesters().catch(() => [] as SemesterRow[])
         ])
-        
+
         const foundSubject = subData?.find(s => s.id === subjectId) || null
         setSubject(foundSubject)
+
+        // The header used to print a fixed "Ky 3 - Summer 2026" for every subject.
+        setSemester(semData?.find(s => s.id === semesterId) || null)
 
         const subjectClasses = clsData?.filter(c => 
           (c.subject as any)?.id === subjectId && 
@@ -149,7 +155,9 @@ export function SubjectWorkspace() {
                <div className="inline-flex items-center bg-white border border-slate-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] rounded-xl overflow-hidden mt-3 text-sm font-semibold transition-all hover:border-slate-300">
                  <div className="flex items-center gap-2 px-4 py-2 text-slate-700">
                    <Calendar size={15} className="text-slate-400" />
-                   {semesterId ? "Semester 3 - Summer 2026" : "Current semester"} 
+                   {semester
+                     ? [formatSemesterCode(semester.code), semester.season].filter(Boolean).join(' - ')
+                     : "Current semester"}
                  </div>
 
                  <div className="w-px h-5 bg-slate-200"></div>
@@ -405,15 +413,23 @@ export function SubjectWorkspace() {
                           {exam.examType || 'Lab'}
                         </span>
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                          Weight {exam.weightPercentage || 10}%
+                          Weight {exam.weightPercentage ?? 10}%
                         </span>
                       </div>
                       <h4 className="font-bold text-base text-slate-800 mb-1">{exam.title}</h4>
                       <p className="text-xs text-slate-500 line-clamp-2">{exam.description || 'No description'}</p>
                     </div>
+                    {/* Both of these used to be fixed text, so a draft or a closed
+                        assignment still read "Published / Accepting submissions". */}
                     <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                      <span>Published</span>
-                      <span className="text-emerald-600 font-semibold">Accepting submissions</span>
+                      <span className="capitalize">{exam.status || 'draft'}</span>
+                      {(() => {
+                        const due = exam.dueDate ? new Date(exam.dueDate) : null
+                        if (!due) return <span className="text-slate-400 font-semibold">No due date</span>
+                        return due.getTime() > Date.now()
+                          ? <span className="text-emerald-600 font-semibold">Accepting submissions</span>
+                          : <span className="text-rose-600 font-semibold">Closed</span>
+                      })()}
                     </div>
                   </div>
                 ))}
