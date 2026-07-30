@@ -21,6 +21,10 @@ export const CreateExamSchema = z.object({
     if (val === undefined) return undefined;
     return val === 'true' || val === true;
   }, z.boolean().optional()),
+  latePenaltyType: z.enum(['NONE', 'DAILY_POINTS', 'DAILY_PERCENT', 'FLAT_POINTS']).optional().default('NONE'),
+  latePenaltyValue: z.coerce.number().optional(),
+  maxLatePenalty: z.coerce.number().optional(),
+  allowLateSubmission: z.coerce.boolean().optional().default(true),
 }).transform(data => {
   if (data.classId && (!data.classIds || data.classIds.length === 0)) {
     data.classIds = [data.classId]
@@ -43,6 +47,10 @@ export const UpdateExamSchema = z.object({
   description: z.string().optional(),
   status: z.string().optional(),
   weightPercentage: z.coerce.number().optional(),
+  latePenaltyType: z.enum(['NONE', 'DAILY_POINTS', 'DAILY_PERCENT', 'FLAT_POINTS']).optional(),
+  latePenaltyValue: z.coerce.number().optional(),
+  maxLatePenalty: z.coerce.number().optional(),
+  allowLateSubmission: z.coerce.boolean().optional(),
 })
 
 export type UpdateExamRequestDtoType = z.infer<typeof UpdateExamSchema>
@@ -73,7 +81,11 @@ export class ExamResponseDto {
     public readonly lecturerAvatar?: string | null,
     public readonly attachments?: { id: string, fileName: string, fileUrl: string, fileType: string }[] | null,
     public readonly rubrics?: any[] | null,
-    public readonly weightPercentage?: number | null
+    public readonly weightPercentage?: number | null,
+    public readonly latePenaltyType?: string | null,
+    public readonly latePenaltyValue?: number | null,
+    public readonly maxLatePenalty?: number | null,
+    public readonly allowLateSubmission?: boolean | null
   ) {}
 
   static from(exam: any): ExamResponseDto {
@@ -124,7 +136,11 @@ export class ExamResponseDto {
         fileType: a.FileType || a.fileType
       })) : null,
       rubrics,
-      weightPct
+      weightPct,
+      exam.LatePenaltyType || exam.latePenaltyType || 'NONE',
+      exam.LatePenaltyValue !== undefined && exam.LatePenaltyValue !== null ? Number(exam.LatePenaltyValue) : (exam.latePenaltyValue !== undefined ? Number(exam.latePenaltyValue) : null),
+      exam.MaxLatePenalty !== undefined && exam.MaxLatePenalty !== null ? Number(exam.MaxLatePenalty) : (exam.maxLatePenalty !== undefined ? Number(exam.maxLatePenalty) : null),
+      exam.AllowLateSubmission ?? exam.allowLateSubmission ?? true
     )
   }
 }

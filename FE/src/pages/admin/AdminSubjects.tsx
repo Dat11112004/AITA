@@ -9,10 +9,10 @@ import { DataTable } from '@/components/ui/DataTable'
 import { DropdownMenu } from '@/components/ui/DropdownMenu'
 import { api, type SubjectRow } from '@/lib/api'
 
-import { 
-  Plus, Library, TableProperties, Loader2, X, AlertTriangle, 
-  CheckSquare, ArrowUpDown, ArrowUp, ArrowDown, BookOpen, Edit2, 
-  Download, Search, LayoutGrid, Trash2, Layers, CheckCircle, ChevronRight 
+import {
+  Plus, Library, TableProperties, Loader2, X, AlertTriangle,
+  CheckSquare, ArrowUpDown, ArrowUp, ArrowDown, BookOpen, Edit2,
+  Download, Search, LayoutGrid, Trash2, Layers, CheckCircle, ChevronRight
 } from 'lucide-react'
 
 export function AdminSubjects() {
@@ -27,7 +27,7 @@ export function AdminSubjects() {
 
   // View Mode: Table vs Grid
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
-  
+
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('')
   const [filterSemester, setFilterSemester] = useState<string>('ALL')
@@ -75,7 +75,7 @@ export function AdminSubjects() {
   const filteredAndSortedSubjects = useMemo(() => {
     return subjects
       .filter((s) => {
-        const matchesSearch = 
+        const matchesSearch =
           !searchTerm ||
           s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -334,7 +334,7 @@ export function AdminSubjects() {
             <div className="grid gap-6 sm:grid-cols-2">
               <Input label="Code" placeholder="E.g. PRJ301" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               <Input label="Subject Name" placeholder="E.g. Java Web Application Development" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <Select 
+              <Select
                 label="Semester (1-9)"
                 value={form.semester.toString()}
                 onChange={(e) => setForm({ ...form, semester: e.target.value ? Number(e.target.value) : '' })}
@@ -466,13 +466,12 @@ export function AdminSubjects() {
               {filteredAndSortedSubjects.map((subj) => {
                 const isSelected = selectedIds.has(subj.id)
                 return (
-                  <Card 
+                  <Card
                     key={subj.id}
-                    className={`group relative overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer rounded-3xl ${
-                      isSelected 
-                        ? 'border-brand-500 bg-brand-50/30 dark:bg-brand-950/30 shadow-md' 
+                    className={`group relative overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer rounded-3xl ${isSelected
+                        ? 'border-brand-500 bg-brand-50/30 dark:bg-brand-950/30 shadow-md'
                         : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-400 dark:hover:border-brand-600'
-                    }`}
+                      }`}
                     onClick={() => {
                       if (selectionMode) {
                         setSelectedIds(prev => {
@@ -512,11 +511,10 @@ export function AdminSubjects() {
                           </span>
                         </div>
 
-                        <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${
-                          subj.status === 'active' || !subj.status
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${subj.status === 'active' || !subj.status
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60'
                             : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                        }`}>
+                          }`}>
                           {subj.status === 'active' || !subj.status ? 'Active' : 'Inactive'}
                         </span>
                       </div>
@@ -595,11 +593,11 @@ export function AdminSubjects() {
                         </span>
                       )
                     },
-                    { 
-                      key: 'name', 
+                    {
+                      key: 'name',
                       header: renderHeader('Subject Name', 'name'),
                       render: (r: SubjectRow) => (
-                        <span 
+                        <span
                           onClick={(e) => {
                             e.stopPropagation()
                             navigate(`/admin/subjects/${r.code || r.id}`)
@@ -769,31 +767,28 @@ function SubjectModal({
         <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-6 flex gap-2 pt-2 shrink-0">
           <button
             onClick={() => setModalTab('info')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-              modalTab === 'info'
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${modalTab === 'info'
                 ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-900 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
+              }`}
           >
             Information & Description
           </button>
           <button
             onClick={() => setModalTab('sessions')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-              modalTab === 'sessions'
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${modalTab === 'sessions'
                 ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-900 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
+              }`}
           >
             Roadmap ({syllabus?.sessions?.length || 0} Session)
           </button>
           <button
             onClick={() => setModalTab('clos')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-              modalTab === 'clos'
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${modalTab === 'clos'
                 ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-900 rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
-            }`}
+              }`}
           >
             CLO List ({syllabus?.clos?.length || 0})
           </button>

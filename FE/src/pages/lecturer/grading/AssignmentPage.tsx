@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { gradingApi as api } from '@/lib/api';
+import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
 import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -145,34 +145,55 @@ export default function AssignmentPage() {
     fetchHistoryData(true);
   }, [fetchHistoryData]);
 
-  // Pure real-time listener for student submissions (Zero idle polling)
+  // Pure Event-Driven SSE Push & Real-Time Event Listener (0 Polling / $0 Cost / Standard Web Architecture)
   useEffect(() => {
+    if (!id) return;
+
+    let eventSource: EventSource | null = null;
+    try {
+      const token = getStoredItem(AUTH_STORAGE_KEYS.token);
+      const sseUrl = `/api/grading/assignments/${id}/events?token=${token}`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'SUBMISSION_CREATED' || data.type === 'SUBMISSION_GRADED') {
+            console.log('[AssignmentPage] Server Pushed Assignment Event:', data);
+            fetchAssignmentData();
+            fetchHistoryData(false);
+          }
+        } catch (err) {}
+      };
+    } catch (e) {
+      console.warn('Failed to initialize SSE assignment event stream:', e);
+    }
+
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel('aita_submission_events');
       channel.onmessage = (event) => {
         if (event.data?.type === 'SUBMISSION_CREATED' || event.data?.type === 'SUBMISSION_PUBLISHED' || event.data?.assignmentId === id) {
-          console.log('[AssignmentPage] Instant real-time submission event received!');
           fetchAssignmentData();
           fetchHistoryData(false);
         }
       };
     } catch (e) { }
 
-    // Only poll while an automated batch grading job is actively processing
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-    if (hasActiveBatch) {
-      pollTimer = setInterval(() => {
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'aita_submission_event' || e.key === 'aita_last_publish_event') {
         fetchAssignmentData();
         fetchHistoryData(false);
-      }, 5000);
-    }
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
 
     return () => {
+      if (eventSource) eventSource.close();
       if (channel) channel.close();
-      if (pollTimer) clearInterval(pollTimer);
+      window.removeEventListener('storage', handleStorageEvent);
     };
-  }, [id, fetchAssignmentData, fetchHistoryData, hasActiveBatch]);
+  }, [id, fetchAssignmentData, fetchHistoryData]);
 
   useEffect(() => {
     const checkBatch = () => {
@@ -510,14 +531,6 @@ export default function AssignmentPage() {
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsGradingSettingsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
-                title="Configure background / batch grading"
-              >
-                <Settings size={20} className="text-slate-500 dark:text-slate-400" />
-                <span>Grading settings</span>
-              </button>
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"

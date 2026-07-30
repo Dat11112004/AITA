@@ -140,11 +140,10 @@ export function StudentNotifications() {
       <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
         <button
           onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'all'
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'all'
               ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
+            }`}
         >
           All
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
@@ -154,11 +153,10 @@ export function StudentNotifications() {
 
         <button
           onClick={() => setActiveTab('unread')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'unread'
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'unread'
               ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
+            }`}
         >
           Unread
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'unread' ? 'bg-white/20 text-white' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 font-extrabold'}`}>
@@ -168,11 +166,10 @@ export function StudentNotifications() {
 
         <button
           onClick={() => setActiveTab('assignment')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'assignment'
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'assignment'
               ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
+            }`}
         >
           New assignments
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'assignment' ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'}`}>
@@ -182,11 +179,10 @@ export function StudentNotifications() {
 
         <button
           onClick={() => setActiveTab('deadline')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'deadline'
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'deadline'
               ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
               : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-          }`}
+            }`}
         >
           Deadlines & warnings
           <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'deadline' ? 'bg-white/20 text-white' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300'}`}>
@@ -216,8 +212,8 @@ export function StudentNotifications() {
                 >
                   <div className="flex items-start gap-4">
                     <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDeadline ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-500' :
-                        isSystem ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
-                          'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
+                      isSystem ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
+                        'bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
                       }`}>
                       {isDeadline ? <AlertTriangle size={20} /> : isSystem ? <Info size={20} /> : <Bell size={20} />}
                     </div>

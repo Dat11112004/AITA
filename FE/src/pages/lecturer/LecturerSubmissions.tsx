@@ -7,21 +7,24 @@ import { DataTable } from '@/components/ui/DataTable'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { api, type AssignmentRow, type SubmissionRow } from '@/lib/api'
-import { 
-  ArrowLeft, 
-  CheckCircle2, 
-  Clock, 
-  Save, 
-  X, 
-  Bell, 
-  BrainCircuit, 
-  MessageSquareX, 
-  FileDown, 
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Save,
+  X,
+  Bell,
+  BrainCircuit,
+  MessageSquareX,
+  FileDown,
   Search,
   Sparkles,
   Award,
   AlertCircle,
-  FileCheck
+  RotateCcw,
+  ShieldAlert,
+  Calendar,
+  Zap
 } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 
@@ -34,14 +37,24 @@ export function LecturerSubmissions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  
+
   // Grading Modal State
   const [gradingSub, setGradingSub] = useState<SubmissionRow | null>(null)
   const [score, setScore] = useState<number | ''>('')
   const [feedback, setFeedback] = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [isGrading, setIsGrading] = useState(false)
-  
+
+  // Reopen Modal State
+  const [reopenTarget, setReopenTarget] = useState<any | null>(null)
+  const [extendedDate, setExtendedDate] = useState<string>('')
+  const [penaltyMode, setPenaltyMode] = useState<'SYSTEM_DEFAULT' | 'CUSTOM_RATE' | 'FLAT_AMOUNT' | 'WAIVE' | 'SCORE_CAP'>('WAIVE')
+  const [customPenaltyRate, setCustomPenaltyRate] = useState<number | ''>(1.0)
+  const [flatPenaltyAmount, setFlatPenaltyAmount] = useState<number | ''>(1.0)
+  const [scoreCap, setScoreCap] = useState<number | ''>(7.0)
+  const [reopenReason, setReopenReason] = useState<string>('Sinh viên xin mở lại bài nộp để cải thiện điểm')
+  const [isReopening, setIsReopening] = useState(false)
+
   // Filtering
   const [filter, setFilter] = useState('all')
 
@@ -133,8 +146,8 @@ export function LecturerSubmissions() {
     try {
       await api.gradeSubmission(gradingSub.id, {
         score: accepted && score !== '' ? Number(score) : (gradingSub.score as number),
-        feedback: accepted 
-          ? `[Appeal approved] ${feedback}` 
+        feedback: accepted
+          ? `[Appeal approved] ${feedback}`
           : `[Appeal rejected] ${feedback || 'Your appeal does not match the rubric.'}`,
       })
       if (sendNotification) {
@@ -146,6 +159,42 @@ export function LecturerSubmissions() {
       alert(error.message || 'Failed to process the appeal')
     } finally {
       setIsGrading(false)
+    }
+  }
+
+  const openReopenModal = (row: any) => {
+    setReopenTarget(row)
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    tomorrow.setHours(23, 59, 0, 0)
+    setExtendedDate(tomorrow.toISOString().slice(0, 16))
+    setPenaltyMode('WAIVE')
+    setCustomPenaltyRate(1.0)
+    setFlatPenaltyAmount(1.0)
+    setScoreCap(7.0)
+    setReopenReason('Sinh viên xin mở lại bài nộp để cải thiện điểm')
+  }
+
+  const handleReopen = async () => {
+    if (!reopenTarget || !id || !extendedDate) return
+    setIsReopening(true)
+    try {
+      await api.reopenSubmission({
+        examId: id,
+        studentId: reopenTarget.id || reopenTarget.studentId,
+        extendedDueDate: new Date(extendedDate).toISOString(),
+        penaltyMode,
+        customPenaltyRate: customPenaltyRate !== '' ? Number(customPenaltyRate) : undefined,
+        flatPenaltyAmount: flatPenaltyAmount !== '' ? Number(flatPenaltyAmount) : undefined,
+        scoreCap: scoreCap !== '' ? Number(scoreCap) : undefined,
+        reason: reopenReason,
+      })
+      alert('Đã mở lại bài nộp và thiết lập hạn nộp mới thành công!')
+      setReopenTarget(null)
+      load()
+    } catch (e: any) {
+      alert(e.message || 'Mở lại bài nộp thất bại')
+    } finally {
+      setIsReopening(false)
     }
   }
 
@@ -179,7 +228,11 @@ export function LecturerSubmissions() {
     const sub = submissions.find(
       s => s.studentId === st.id || s.studentId === st.studentId || s.student === st.name
     )
-    const rawScore = sub?.score ?? (sub as any)?.finalScore ?? sub?.aiScore
+    const finalScore = sub?.score ?? (sub as any)?.finalScore ?? sub?.aiScore
+    const rawScore = (sub as any)?.rawScore ?? finalScore
+    const latePenaltyAmount = (sub as any)?.latePenaltyAmount ?? 0
+    const isReopened = (sub as any)?.isReopened ?? false
+
     return {
       id: st.id || st.studentId,
       photo: st.avatar || null,
@@ -188,7 +241,10 @@ export function LecturerSubmissions() {
       email: st.email || '',
       submission: sub || null,
       status: sub ? (sub.status === 'graded' ? 'graded' : 'pending') : 'not_submitted',
-      score: rawScore !== undefined && rawScore !== null ? Number(rawScore) : null,
+      score: finalScore !== undefined && finalScore !== null ? Number(finalScore) : null,
+      rawScore: rawScore !== undefined && rawScore !== null ? Number(rawScore) : null,
+      latePenaltyAmount: Number(latePenaltyAmount || 0),
+      isReopened: Boolean(isReopened),
       hasAppeal: !!sub?.studentFeedback
     }
   })
@@ -221,14 +277,14 @@ export function LecturerSubmissions() {
 
   return (
     <div className="space-y-8 p-2 sm:p-6 min-h-screen max-w-7xl mx-auto animate-in fade-in duration-300">
-      
+
       {/* Sleek Modern Header */}
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between bg-white dark:bg-[#12151e] p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate(-1)} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(-1)}
             className="shrink-0 p-2.5 rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-600 dark:text-slate-300 transition-all active:scale-95"
           >
             <ArrowLeft size={18} />
@@ -252,9 +308,9 @@ export function LecturerSubmissions() {
 
         <div className="flex flex-wrap items-center gap-3">
           {assignment.type === 'Exam' ? (
-            <Button 
-              size="sm" 
-              onClick={handleStartSession} 
+            <Button
+              size="sm"
+              onClick={handleStartSession}
               className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
             >
               <BrainCircuit size={16} />
@@ -269,9 +325,9 @@ export function LecturerSubmissions() {
               AI Background Grading Active
             </div>
           )}
-          <Button 
-            size="sm" 
-            onClick={handleBulkPublish} 
+          <Button
+            size="sm"
+            onClick={handleBulkPublish}
             className="bg-brand-600 hover:bg-brand-700 text-white font-bold gap-2 shadow-sm hover:shadow-md transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
           >
             <CheckCircle2 size={16} /> Publish All Scores
@@ -281,15 +337,15 @@ export function LecturerSubmissions() {
 
       {/* Main Gradebook Workspace Card */}
       <Card className="overflow-hidden border border-slate-200/90 dark:border-slate-800/90 shadow-sm rounded-2xl bg-white dark:bg-[#12151e]">
-        
+
         {/* Workspace Toolbar: Search & Segmented Filter Tabs */}
         <div className="border-b border-slate-100 dark:border-slate-800/80 p-5 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search student or MSSV..." 
+              <input
+                type="text"
+                placeholder="Search student or MSSV..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-800 dark:text-slate-200 shadow-2xs"
@@ -301,16 +357,16 @@ export function LecturerSubmissions() {
           </div>
 
           <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200/80 dark:border-slate-800 w-max overflow-x-auto custom-scrollbar">
-            <Tabs 
+            <Tabs
               items={[
                 { id: 'all', label: `All (${totalStudents})` },
                 { id: 'graded', label: `Graded (${gradedCount})` },
                 { id: 'pending', label: `Pending (${pendingCount})` },
                 { id: 'not_submitted', label: `Not Submitted (${notSubmittedCount})` },
                 { id: 'appeal', label: `Appeals (${appealCount})` }
-              ]} 
-              activeId={filter} 
-              onChange={setFilter} 
+              ]}
+              activeId={filter}
+              onChange={setFilter}
             />
           </div>
         </div>
@@ -324,17 +380,17 @@ export function LecturerSubmissions() {
                 header: 'Photo',
                 render: (r: any) => {
                   const parts = (r.name || '').trim().split(/\s+/)
-                  const initials = parts.length === 1 
-                    ? parts[0].slice(0, 2).toUpperCase() 
+                  const initials = parts.length === 1
+                    ? parts[0].slice(0, 2).toUpperCase()
                     : ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase()
                   return (
                     <div className="flex items-center justify-center py-2">
                       <div className="relative w-[111px] h-[146px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm shrink-0 bg-[#4f46e5] flex items-center justify-center">
                         {r.photo ? (
-                          <img 
-                            src={r.photo} 
-                            alt={r.name} 
-                            className="w-full h-full object-cover" 
+                          <img
+                            src={r.photo}
+                            alt={r.name}
+                            className="w-full h-full object-cover"
                             onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                           />
                         ) : null}
@@ -387,6 +443,11 @@ export function LecturerSubmissions() {
                         Not Submitted
                       </span>
                     )}
+                    {r.isReopened && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 text-[11px] font-bold">
+                        <RotateCcw size={12} /> Đã Mở Lại
+                      </span>
+                    )}
                     {r.hasAppeal && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 text-[11px] font-bold">
                         <AlertCircle size={12} /> Appeal Filed
@@ -401,10 +462,17 @@ export function LecturerSubmissions() {
                 render: (r: any) => (
                   <div className="py-1 font-mono">
                     {r.score !== null ? (
-                      <span className="inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-emerald-600 dark:text-emerald-400 font-black text-sm px-3 py-1 rounded-xl shadow-2xs">
-                        <Award size={14} className="text-emerald-500" />
-                        {r.score} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-emerald-600 dark:text-emerald-400 font-black text-sm px-3 py-1 rounded-xl shadow-2xs">
+                          <Award size={14} className="text-emerald-500" />
+                          {r.score} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
+                        </span>
+                        {r.latePenaltyAmount > 0 && (
+                          <span className="text-[10px] text-rose-500 font-bold">
+                            (-{r.latePenaltyAmount}đ trễ deadline)
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-slate-400 dark:text-slate-600 font-bold text-sm italic">
                         —
@@ -419,7 +487,7 @@ export function LecturerSubmissions() {
                 render: (r: any) => (
                   <div className="flex justify-end gap-2 pr-2 py-1">
                     {r.submission ? (
-                      <button 
+                      <button
                         onClick={() => openGradeModal(r.submission)}
                         className="bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-950/40 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1.5 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
                       >
@@ -427,13 +495,21 @@ export function LecturerSubmissions() {
                         {r.hasAppeal ? 'Review Appeal' : r.status === 'graded' ? 'Edit Grade' : 'Grade'}
                       </button>
                     ) : (
-                      <button 
-                        disabled 
+                      <button
+                        disabled
                         className="text-slate-400 dark:text-slate-600 text-xs font-medium cursor-not-allowed bg-slate-50 dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 opacity-60"
                       >
                         No Submission
                       </button>
                     )}
+                    <button
+                      onClick={() => openReopenModal(r)}
+                      className="bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-1.5 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                      title="Mở lại bài nộp / Gia hạn hạn nộp"
+                    >
+                      <RotateCcw size={14} />
+                      Mở lại
+                    </button>
                   </div>
                 )
               }
@@ -457,7 +533,7 @@ export function LecturerSubmissions() {
                 <X size={18} />
               </Button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
               <div>
                 <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">Submission Content</h4>
@@ -479,8 +555,8 @@ export function LecturerSubmissions() {
                         <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs">{gradingSub.zipFileUrl}</p>
                       </div>
                     </div>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       onClick={() => window.open(gradingSub.zipFileUrl, '_blank')}
                       className="gap-2 text-xs rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-2xs hover:bg-slate-50"
                     >
@@ -502,7 +578,7 @@ export function LecturerSubmissions() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl">
                     <p className="text-[11px] font-extrabold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                       <BrainCircuit size={14} /> Scores On Record
@@ -543,14 +619,14 @@ export function LecturerSubmissions() {
 
               <div className="grid grid-cols-4 gap-4 pt-2">
                 <div className="col-span-1">
-                  <Input 
-                    label="Score (/ 10)" 
-                    type="number" 
+                  <Input
+                    label="Score (/ 10)"
+                    type="number"
                     step="0.5"
                     min="0"
                     max="10"
-                    value={score.toString()} 
-                    onChange={(e) => setScore(e.target.value === '' ? '' : Number(e.target.value))} 
+                    value={score.toString()}
+                    onChange={(e) => setScore(e.target.value === '' ? '' : Number(e.target.value))}
                     className="text-base font-bold font-mono"
                   />
                 </div>
@@ -565,10 +641,10 @@ export function LecturerSubmissions() {
                     className="w-full min-h-[90px] p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none text-xs leading-relaxed font-medium"
                   />
                   <div className="mt-2 flex items-center gap-2">
-                    <input 
-                      type="checkbox" 
-                      id="notifyStudent" 
-                      checked={sendNotification} 
+                    <input
+                      type="checkbox"
+                      id="notifyStudent"
+                      checked={sendNotification}
                       onChange={(e) => setSendNotification(e.target.checked)}
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                     />
@@ -585,37 +661,223 @@ export function LecturerSubmissions() {
               <Button variant="outline" size="sm" onClick={() => setGradingSub(null)} className="rounded-xl border-slate-200 text-xs">
                 Cancel
               </Button>
-              
+
               {gradingSub.studentFeedback ? (
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     size="sm"
-                    onClick={() => handleResolveAppeal(false)} 
-                    disabled={isGrading} 
-                    variant="outline" 
+                    onClick={() => handleResolveAppeal(false)}
+                    disabled={isGrading}
+                    variant="outline"
                     className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50 text-xs rounded-xl"
                   >
-                    <X size={14} className="mr-1"/> Reject Appeal
+                    <X size={14} className="mr-1" /> Reject Appeal
                   </Button>
-                  <Button 
+                  <Button
                     size="sm"
-                    onClick={() => handleResolveAppeal(true)} 
-                    disabled={isGrading || score === ''} 
+                    onClick={() => handleResolveAppeal(true)}
+                    disabled={isGrading || score === ''}
                     className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
                   >
-                    <CheckCircle2 size={14} className="mr-1"/> Approve & Save Score
+                    <CheckCircle2 size={14} className="mr-1" /> Approve & Save Score
                   </Button>
                 </div>
               ) : (
-                <Button 
+                <Button
                   size="sm"
-                  onClick={handleGrade} 
-                  disabled={isGrading || score === ''} 
+                  onClick={handleGrade}
+                  disabled={isGrading || score === ''}
                   className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
                 >
-                  {isGrading ? 'Saving...' : <><Save size={14} className="mr-1.5"/> Save Score</>}
+                  {isGrading ? 'Saving...' : <><Save size={14} className="mr-1.5" /> Save Score</>}
                 </Button>
               )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Reopen Submission Modal */}
+      {reopenTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+          <Card className="w-full max-w-xl bg-white dark:bg-[#12151e] shadow-2xl border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <RotateCcw size={12} /> Cấu hình mở lại bài nộp
+                </span>
+                <h3 className="font-black text-lg text-slate-900 dark:text-white">
+                  {reopenTarget.name} ({reopenTarget.studentId})
+                </h3>
+              </div>
+              <Button variant="outline" size="sm" className="p-2 border-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setReopenTarget(null)}>
+                <X size={18} />
+              </Button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar text-xs">
+              {/* Extended Due Date Input */}
+              <div>
+                <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={14} className="text-brand-500" />
+                  Hạn nộp gia hạn mới (New Extended Due Date):
+                </label>
+                <input
+                  type="datetime-local"
+                  value={extendedDate}
+                  onChange={(e) => setExtendedDate(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none font-medium text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Penalty Mode Selection */}
+              <div>
+                <label className="block font-bold text-slate-800 dark:text-slate-200 mb-2">
+                  Chính sách phạt trễ deadline cho lượt nộp này:
+                </label>
+                <div className="space-y-2.5">
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'WAIVE' ? 'bg-emerald-50/80 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
+                    <input
+                      type="radio"
+                      name="penaltyMode"
+                      checked={penaltyMode === 'WAIVE'}
+                      onChange={() => setPenaltyMode('WAIVE')}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <p className="font-bold text-emerald-900 dark:text-emerald-300">🟢 Miễn phạt trễ (Waive Late Penalty)</p>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400">Trừ 0 điểm. Sinh viên nộp lại trong hạn gia hạn sẽ lấy nguyên điểm thô lần nộp mới.</p>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'CUSTOM_RATE' ? 'bg-amber-50/80 border-amber-300 dark:bg-amber-950/30 dark:border-amber-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
+                    <input
+                      type="radio"
+                      name="penaltyMode"
+                      checked={penaltyMode === 'CUSTOM_RATE'}
+                      onChange={() => setPenaltyMode('CUSTOM_RATE')}
+                      className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                    />
+                    <div className="w-full">
+                      <p className="font-bold text-amber-900 dark:text-amber-300">🟡 Giảm nhẹ / Tùy chỉnh mức trừ điểm trễ theo ngày</p>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400 mb-2">Giảm mức phạt trễ dằn mặt nhẹ hơn so với mức phạt mặc định.</p>
+                      {penaltyMode === 'CUSTOM_RATE' && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Trừ trễ:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={customPenaltyRate.toString()}
+                            onChange={(e) => setCustomPenaltyRate(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-24 p-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-950 font-bold text-center"
+                          />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">điểm / 24h trễ</span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'FLAT_AMOUNT' ? 'bg-indigo-50/80 border-indigo-300 dark:bg-indigo-950/30 dark:border-indigo-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
+                    <input
+                      type="radio"
+                      name="penaltyMode"
+                      checked={penaltyMode === 'FLAT_AMOUNT'}
+                      onChange={() => setPenaltyMode('FLAT_AMOUNT')}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="w-full">
+                      <p className="font-bold text-indigo-900 dark:text-indigo-300">🟠 Trừ điểm cố định (Flat Penalty)</p>
+                      <p className="text-[11px] text-indigo-700 dark:text-indigo-400 mb-2">Chỉ trừ cố định một số điểm nhất định cho lượt nộp lại này.</p>
+                      {penaltyMode === 'FLAT_AMOUNT' && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Trừ tổng:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={flatPenaltyAmount.toString()}
+                            onChange={(e) => setFlatPenaltyAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-24 p-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-center"
+                          />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">điểm trực tiếp vào bài nộp</span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'SCORE_CAP' ? 'bg-purple-50/80 border-purple-300 dark:bg-purple-950/30 dark:border-purple-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
+                    <input
+                      type="radio"
+                      name="penaltyMode"
+                      checked={penaltyMode === 'SCORE_CAP'}
+                      onChange={() => setPenaltyMode('SCORE_CAP')}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500"
+                    />
+                    <div className="w-full">
+                      <p className="font-bold text-purple-900 dark:text-purple-300">🔵 Giới hạn điểm tối đa (Score Ceiling / Cap)</p>
+                      <p className="text-[11px] text-purple-700 dark:text-purple-400 mb-2">Bài nộp lại làm tốt mấy cũng chỉ đạt tối đa mức điểm quy định.</p>
+                      {penaltyMode === 'SCORE_CAP' && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Tối đa đạt:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="10"
+                            value={scoreCap.toString()}
+                            onChange={(e) => setScoreCap(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-24 p-1.5 rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-950 font-bold text-center"
+                          />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">/ 10 điểm</span>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'SYSTEM_DEFAULT' ? 'bg-rose-50/80 border-rose-300 dark:bg-rose-950/30 dark:border-rose-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
+                    <input
+                      type="radio"
+                      name="penaltyMode"
+                      checked={penaltyMode === 'SYSTEM_DEFAULT'}
+                      onChange={() => setPenaltyMode('SYSTEM_DEFAULT')}
+                      className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div>
+                      <p className="font-bold text-rose-900 dark:text-rose-300">🔴 Giữ nguyên quy định phạt trễ gốc hệ thống</p>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-400">Áp dụng trừ trễ theo cấu hình mặc định của đề bài.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Reason textarea */}
+              <div>
+                <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Ghi chú / Lý do mở lại bài:
+                </label>
+                <textarea
+                  value={reopenReason}
+                  onChange={(e) => setReopenReason(e.target.value)}
+                  placeholder="Ghi chú lý do gia hạn cho sinh viên..."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between bg-slate-50/50 dark:bg-slate-900/40">
+              <Button variant="outline" size="sm" onClick={() => setReopenTarget(null)} className="rounded-xl border-slate-200 text-xs">
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleReopen}
+                disabled={isReopening || !extendedDate}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-xl font-bold gap-1.5"
+              >
+                <RotateCcw size={14} />
+                {isReopening ? 'Đang mở...' : 'Xác nhận Mở Lại Bài Nộp'}
+              </Button>
             </div>
           </Card>
         </div>

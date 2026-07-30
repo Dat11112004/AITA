@@ -19,7 +19,9 @@ export function createAssignmentRoutes(): Router {
   router.post('/generate-rubric', controller.generateRubric);
   router.post('/publish', controller.publish);
   router.get('/', controller.getAll);
+  router.get('/:id/events', controller.streamAssignmentEvents);
   router.get('/:id', controller.getById);
+  router.put('/strategy/update-all', controller.updateAllStrategy);
   router.put('/:id', controller.update);
   router.delete('/:id', controller.delete);
 

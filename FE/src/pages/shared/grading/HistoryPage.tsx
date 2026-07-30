@@ -95,15 +95,15 @@ export default function HistoryPage() {
                 else if (percentage >= 50) scoreColor = 'text-amber-500';
 
                 return (
-                  <tr 
-                    key={item.id} 
+                  <tr
+                    key={item.id}
                     onClick={() => handleView(item.id)}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
                   >
                     <td className="py-4 px-6">
                       <div className="font-medium text-slate-900 dark:text-slate-200">{item.title || 'Unknown assignment'}</div>
                       <div className="text-xs text-slate-500 dark:text-slate-500 font-mono mt-1">
-                          {item.studentId ? `Student: ${item.studentId}` : `ID: ${item.id.split('-')[0]}...`}
+                        {item.studentId ? `Student: ${item.studentId}` : `ID: ${item.id.split('-')[0]}...`}
                       </div>
                     </td>
                     <td className="py-4 px-6">

@@ -26,6 +26,7 @@ export class SubmissionsRouter {
         this.router.get('/', authenticate, asyncHandler((req: any, res: any) => ctrl.list(req, res)))
         this.router.get('/recent', authenticate, asyncHandler((req: any, res: any) => ctrl.recent(req, res)))
         this.router.post('/bulk-publish', authenticate, asyncHandler((req: any, res: any) => ctrl.bulkPublish(req, res)))
+        this.router.post('/reopen', authenticate, asyncHandler((req: any, res: any) => ctrl.reopen(req, res)))
         this.router.get('/:id', authenticate, asyncHandler((req: any, res: any) => ctrl.getOne(req, res)))
         this.router.get('/:id/download', authenticate, asyncHandler((req: any, res: any) => ctrl.download(req, res)))
         this.router.post('/', authenticate, upload.single('file'), asyncHandler((req: any, res: any) => ctrl.submit(req, res)))

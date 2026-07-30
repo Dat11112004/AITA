@@ -25,7 +25,7 @@ export const PublishGradeSchema = z.object({
 })
 
 export class ListSubmissionsQueryDto {
-  constructor(public readonly data: z.infer<typeof ListSubmissionsQuerySchema>) {}
+  constructor(public readonly data: z.infer<typeof ListSubmissionsQuerySchema>) { }
 
   static from(query: unknown): ListSubmissionsQueryDto {
     return new ListSubmissionsQueryDto(ListSubmissionsQuerySchema.parse(query))
@@ -33,7 +33,7 @@ export class ListSubmissionsQueryDto {
 }
 
 export class CreateSubmissionRequestDto {
-  constructor(public readonly data: z.infer<typeof CreateSubmissionSchema>) {}
+  constructor(public readonly data: z.infer<typeof CreateSubmissionSchema>) { }
 
   static from(body: unknown): CreateSubmissionRequestDto {
     return new CreateSubmissionRequestDto(CreateSubmissionSchema.parse(body))
@@ -41,10 +41,30 @@ export class CreateSubmissionRequestDto {
 }
 
 export class PublishGradeRequestDto {
-  constructor(public readonly data: z.infer<typeof PublishGradeSchema>) {}
+  constructor(public readonly data: z.infer<typeof PublishGradeSchema>) { }
 
   static from(body: unknown): PublishGradeRequestDto {
     return new PublishGradeRequestDto(PublishGradeSchema.parse(body))
+  }
+}
+
+export const ReopenSubmissionSchema = z.object({
+  examId: z.string(),
+  studentId: z.string(),
+  classId: z.string().optional(),
+  extendedDueDate: z.string(),
+  penaltyMode: z.enum(['SYSTEM_DEFAULT', 'CUSTOM_RATE', 'FLAT_AMOUNT', 'WAIVE', 'SCORE_CAP']).default('SYSTEM_DEFAULT'),
+  customPenaltyRate: z.coerce.number().optional(),
+  flatPenaltyAmount: z.coerce.number().optional(),
+  scoreCap: z.coerce.number().optional(),
+  reason: z.string().optional(),
+})
+
+export class ReopenSubmissionRequestDto {
+  constructor(public readonly data: z.infer<typeof ReopenSubmissionSchema>) { }
+
+  static from(body: unknown): ReopenSubmissionRequestDto {
+    return new ReopenSubmissionRequestDto(ReopenSubmissionSchema.parse(body))
   }
 }
 
@@ -66,6 +86,8 @@ export class SubmissionResponseDto {
 
     let rawTotalScore = submission.totalScore !== undefined && submission.totalScore !== null ? Number(submission.totalScore) : (submission.TotalScore !== undefined && submission.TotalScore !== null ? Number(submission.TotalScore) : null);
     let rawFinalScore = submission.finalScore !== undefined && submission.finalScore !== null ? Number(submission.finalScore) : (submission.FinalScore !== undefined && submission.FinalScore !== null ? Number(submission.FinalScore) : null);
+    let rawScoreValue = submission.rawScore !== undefined && submission.rawScore !== null ? Number(submission.rawScore) : (submission.RawScore !== undefined && submission.RawScore !== null ? Number(submission.RawScore) : null);
+    let latePenaltyValue = submission.latePenaltyAmount !== undefined && submission.latePenaltyAmount !== null ? Number(submission.latePenaltyAmount) : (submission.LatePenaltyAmount !== undefined && submission.LatePenaltyAmount !== null ? Number(submission.LatePenaltyAmount) : null);
 
     return {
       id: submission.id || submission.Id,
@@ -81,8 +103,12 @@ export class SubmissionResponseDto {
       reviewStatus: revStatus,
       isPublished: isPublished,
       totalScore: isPublished ? rawTotalScore : null,
+      rawScore: isPublished ? (rawScoreValue ?? rawTotalScore) : null,
+      latePenaltyAmount: isPublished ? latePenaltyValue : null,
       finalScore: isPublished ? rawFinalScore : null,
       score: isPublished ? (rawFinalScore ?? rawTotalScore) : null,
+      isReopened: submission.isReopened ?? submission.IsReopened ?? false,
+      reopenReason: submission.reopenReason || submission.ReopenReason || null,
       instructorFeedback: isPublished ? (submission.instructorFeedback || submission.InstructorFeedback) : null,
       studentFeedback: submission.studentFeedback || submission.StudentFeedback,
       reviewedBy: submission.reviewedBy || submission.ReviewedBy,
@@ -98,6 +124,9 @@ export class SubmissionResponseDto {
         id: submission.Exam.Id,
         title: submission.Exam.Title,
         status: submission.Exam.Status,
+        dueDate: submission.Exam.DueDate,
+        latePenaltyType: submission.Exam.LatePenaltyType,
+        latePenaltyValue: submission.Exam.LatePenaltyValue,
       } : (submission.exam ? submission.exam : null),
       class: submission.Class ? {
         id: submission.Class.Id,

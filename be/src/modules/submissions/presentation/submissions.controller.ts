@@ -11,6 +11,8 @@ import { RecentSubmissionsUseCase } from '../application/use-cases/recent-submis
 import { SubmitFeedbackUseCase } from '../application/use-cases/submit-feedback.use-case.js'
 import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-grades.use-case.js'
 import { GetAiHintUseCase } from '../application/use-cases/get-ai-hint.use-case.js'
+import { ReopenSubmissionUseCase } from '../application/use-cases/reopen-submission.use-case.js'
+import { ReopenSubmissionRequestDto } from '../application/dtos/submission.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class SubmissionsController extends BaseController {
@@ -151,5 +153,13 @@ export class SubmissionsController extends BaseController {
         this.logger.debug(`Received request for AI hint for submission: ${submissionId}, rule: ${ruleScoreId}`)
         const result = await this.getAiHintUseCase.execute({ submissionId, ruleScoreId, user: req.user! })
         this.ok(res, result, 'Lấy gợi ý AI thành công')
+    }
+
+    async reopen(req: Request, res: Response): Promise<void> {
+        this.logger.debug(`Received request to reopen submission for student: ${req.body.studentId}`)
+        const dto = ReopenSubmissionRequestDto.from(req.body)
+        const useCase = new ReopenSubmissionUseCase()
+        const result = await useCase.execute({ dto, user: req.user! })
+        this.ok(res, result, 'Đã mở lại bài nộp thành công')
     }
 }

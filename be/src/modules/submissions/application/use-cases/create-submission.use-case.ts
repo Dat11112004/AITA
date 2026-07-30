@@ -75,12 +75,23 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     })
     const existingSubmission = existingSubmissionList && existingSubmissionList.length > 0 ? existingSubmissionList[0] : null
 
-    // Check deadline (applies to both new submission and resubmission)
-    if (exam.dueDate) {
+    // Check deadline considering student-specific SubmissionOverride extension
+    const { prisma } = await import('../../../../database/prisma.js')
+    const override = await prisma.submissionOverride.findUnique({
+      where: {
+        ExamId_StudentId: {
+          ExamId: examId,
+          StudentId: user.id,
+        }
+      }
+    })
+
+    const effectiveDueDate = override?.ExtendedDueDate ? new Date(override.ExtendedDueDate) : (exam.dueDate ? new Date(exam.dueDate) : null)
+
+    if (effectiveDueDate) {
       const now = new Date()
-      const dueDate = new Date(exam.dueDate)
-      if (now > dueDate) {
-        throw new ValidationError('Hạn nộp bài đã hết, không thể nộp bài (hoặc nộp bài lại).')
+      if (now > effectiveDueDate) {
+        throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết, không thể nộp bài.')
       }
     }
 
@@ -149,6 +160,15 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     try {
       await this.submissionRepo.save(targetSubmission)
 
+      try {
+        const { globalJobManager } = await import('../../../grading/engine/application/queue/SubmissionJobManager.js');
+        globalJobManager.emit(`assignment_event:${examId}`, {
+          type: 'SUBMISSION_CREATED',
+          assignmentId: examId,
+          submissionId: targetSubmission.id
+        });
+      } catch (e) {}
+
       // Clean up any deadline warning notifications for this student and assignment
       try {
         const { prisma } = await import('../../../../database/prisma.js');
@@ -170,7 +190,13 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       }
 
       // If continuous queue (Chấm ngầm) is enabled, auto-enqueue grading job immediately
-      const isContinuousQueue = (exam as any).gradingStrategy !== 'BATCH_POST_DEADLINE' && (exam as any).GradingStrategy !== 'BATCH_POST_DEADLINE';
+      const { prisma } = await import('../../../../database/prisma.js');
+      const dbExam = await prisma.exam.findUnique({
+        where: { Id: examId },
+        select: { GradingStrategy: true }
+      });
+      const strat = dbExam?.GradingStrategy || (exam as any).gradingStrategy || (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE';
+      const isContinuousQueue = strat === 'CONTINUOUS_QUEUE';
       if (isContinuousQueue) {
         try {
           const { engineSubmissionController } = await import('../../../grading/engine/modules/submissions/routes/index.js');
@@ -182,6 +208,8 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
         } catch (statusErr) {
           console.error('Failed to trigger auto-grading for continuous queue:', statusErr);
         }
+      } else {
+        console.log(`[BatchPostDeadline] Submission ${targetSubmission.id} held in pending status until lecturer triggers batch grading.`);
       }
     } catch (dbError: any) {
       if (uploadedPublicId) {

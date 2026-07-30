@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/modules/grading/FileUpload';
-import { gradingApi as api, api as mainApi } from '@/lib/api';
+import { gradingApi as api, api as mainApi, type SubjectRow } from '@/lib/api';
 import { aiGenerationStore } from '@/services/aiGenerationStore';
-import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle } from 'lucide-react';
+import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle, Calendar, BookOpen, Bookmark } from 'lucide-react';
 import classNames from 'classnames';
 import Editor from 'react-simple-wysiwyg';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
+import { extractAssignmentTypesFromSyllabus } from '@/utils/subjectHelper';
 
 export interface PromptTemplate {
     id: string;
@@ -20,51 +21,88 @@ export interface PromptTemplate {
     temperature?: number;
 }
 
-const CustomDropdown = ({ value, onChange, options, placeholder = "Select...", className = "w-48", hasError = false }: { value: string, onChange: (v: string) => void, options: any[], placeholder?: string, className?: string, hasError?: boolean }) => {
+const CustomDropdown = ({
+    value,
+    onChange,
+    options,
+    placeholder = "Select...",
+    emptyMessage = "Please select a subject first",
+    className = "w-48",
+    hasError = false,
+    icon
+}: {
+    value: string,
+    onChange: (v: string) => void,
+    options: any[],
+    placeholder?: string,
+    emptyMessage?: string,
+    className?: string,
+    hasError?: boolean,
+    icon?: React.ReactNode
+}) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
     const selectedOption = normalizedOptions.find(opt => opt.value === value);
 
     return (
-        <div className={`relative ${className}`}>
+        <div className={`relative ${isOpen ? 'z-50' : 'z-10'} ${className}`}>
             <div
                 className={classNames(
-                    "w-full px-4 py-2 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-sm transition-all",
-                    isOpen ? "border-brand-500 ring-2 ring-brand-100" : (hasError ? "border-rose-400 ring-2 ring-rose-100 bg-rose-50/30" : "border-slate-200 hover:border-slate-300")
+                    "w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-2xs transition-all duration-200 select-none",
+                    isOpen
+                        ? "border-brand-500 ring-4 ring-brand-500/10 shadow-sm"
+                        : (hasError
+                            ? "border-rose-400 ring-3 ring-rose-500/10 bg-rose-50/30"
+                            : "border-slate-200 hover:border-slate-300 hover:shadow-2xs")
                 )}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className={value ? "text-slate-900 font-semibold" : "text-slate-400"}>
-                    {selectedOption ? selectedOption.label : (value ? value : placeholder)}
-                </span>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                <div className="flex items-center gap-2 min-w-0 pr-1">
+                    {icon && <span className="text-slate-400 shrink-0">{icon}</span>}
+                    <span className={classNames("truncate font-semibold text-[13.5px]", value ? "text-slate-800" : "text-slate-400 font-normal")}>
+                        {selectedOption ? selectedOption.label : (value ? value : placeholder)}
+                    </span>
+                </div>
+                <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-brand-600" : ""}`} />
             </div>
 
             {isOpen && (
+
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 py-1.5 max-h-64 overflow-y-auto">
-                        {normalizedOptions.map(opt => (
-                            <div
-                                key={opt.value}
-                                className={classNames(
-                                    "px-4 py-2.5 mx-1.5 my-0.5 text-sm cursor-pointer transition-all duration-200 rounded-xl flex items-center",
-                                    value === opt.value
-                                        ? "bg-brand-50 text-brand-700 font-bold"
-                                        : "text-slate-600 hover:bg-brand-50/60 hover:text-brand-600 font-medium"
-                                )}
-                                onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                            >
-                                {opt.label}
+                    <div className="absolute z-50 min-w-full w-max max-w-xs mt-1.5 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_32px_-8px_rgba(15,23,42,0.15)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 py-1.5 max-h-60 overflow-y-auto">
+                        {normalizedOptions.length === 0 ? (
+                            <div className="px-4 py-3 text-xs text-slate-400 font-medium text-center italic">
+                                {emptyMessage}
                             </div>
-                        ))}
+                        ) : (
+                            normalizedOptions.map(opt => {
+                                const isSelected = value === opt.value;
+                                return (
+                                    <div
+                                        key={opt.value}
+                                        className={classNames(
+                                            "px-3.5 py-2 mx-1.5 my-0.5 text-xs font-semibold cursor-pointer transition-all duration-150 rounded-xl flex items-center justify-between gap-3",
+                                            isSelected
+                                                ? "bg-brand-50/80 text-brand-700 font-bold"
+                                                : "text-slate-700 hover:bg-slate-50 hover:text-brand-600"
+                                        )}
+                                        onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                                    >
+                                        <span className="truncate">{opt.label}</span>
+                                        {isSelected && <CheckCircle size={14} className="text-brand-600 shrink-0" />}
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </>
             )}
         </div>
-    )
-}
+    );
+};
+
 
 export default function AssignmentUploadPage() {
     const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -74,7 +112,7 @@ export default function AssignmentUploadPage() {
     const [content, setContent] = useState('');
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
-    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', dueDate: '' });
+    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', category: '', dueDate: '' });
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
@@ -100,11 +138,15 @@ export default function AssignmentUploadPage() {
     const navigate = useNavigate();
 
     const [teacherSubjects, setTeacherSubjects] = useState<string[]>([]);
+    const [allSubjectsData, setAllSubjectsData] = useState<SubjectRow[]>([]);
+    const [selectedAssignmentType, setSelectedAssignmentType] = useState<string>('');
+    const [availableAssignmentTypes, setAvailableAssignmentTypes] = useState<string[]>([]);
     const [allClasses, setAllClasses] = useState<any[]>([]);
     const [semesters, setSemesters] = useState<any[]>([]);
     const [selectedSemester, setSelectedSemester] = useState<string>('');
     const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-    const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, dueDate?: string, classes?: string }>({});
+    const [validationErrors, setValidationErrors] = useState<{ semester?: string, subjectCode?: string, assignmentType?: string, dueDate?: string, classes?: string }>({});
+
 
     const handleCancelGeneration = () => {
         aiGenerationStore.cancelGeneration();
@@ -125,6 +167,7 @@ export default function AssignmentUploadPage() {
             }
             if (storeState.selectedSemester) setSelectedSemester(storeState.selectedSemester);
             if (storeState.subjectCode) setSubjectCode(storeState.subjectCode);
+            if (storeState.assignmentType) setSelectedAssignmentType(storeState.assignmentType);
             if (storeState.textPrompt) setTextPrompt(storeState.textPrompt);
         });
         return unsubscribe;
@@ -133,11 +176,15 @@ export default function AssignmentUploadPage() {
     useEffect(() => {
         const fetchClasses = async () => {
             try {
-                const [clsData, semsData] = await Promise.all([
+                const [clsData, semsData, subjData] = await Promise.all([
                     mainApi.getClasses(1, 1000),
-                    mainApi.getSemesters()
+                    mainApi.getSemesters(),
+                    mainApi.getSubjects(1, 1000).catch(() => [])
                 ]);
                 setAllClasses(clsData);
+                if (Array.isArray(subjData)) {
+                    setAllSubjectsData(subjData);
+                }
 
                 // Filter semesters to only include those where the lecturer has classes
                 const teacherSemesterIds = new Set(clsData.map((c: any) => c.semester?.id).filter(Boolean));
@@ -166,6 +213,23 @@ export default function AssignmentUploadPage() {
         };
         fetchClasses();
     }, []);
+
+    useEffect(() => {
+        if (!subjectCode) {
+            setAvailableAssignmentTypes([]);
+            setSelectedAssignmentType('');
+            return;
+        }
+        const foundSubject = allSubjectsData.find(s => s.code?.toLowerCase() === subjectCode.toLowerCase());
+        const types = extractAssignmentTypesFromSyllabus(foundSubject?.syllabusData);
+        setAvailableAssignmentTypes(types);
+        if (types.length > 0) {
+            setSelectedAssignmentType(prev => (types.includes(prev) ? prev : types[0]));
+            setMetadata((prev: any) => ({ ...prev, category: types.includes(selectedAssignmentType) ? selectedAssignmentType : types[0] }));
+        } else {
+            setSelectedAssignmentType('');
+        }
+    }, [subjectCode, allSubjectsData]);
 
     useEffect(() => {
         if (isDrawerOpen) {
@@ -253,9 +317,10 @@ export default function AssignmentUploadPage() {
 
 
     const handleGenerateContent = async () => {
-        const newErrors: { semester?: string, subjectCode?: string } = {};
+        const newErrors: { semester?: string, subjectCode?: string, assignmentType?: string } = {};
         if (!selectedSemester) newErrors.semester = "Please select a semester.";
         if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
+        if (!selectedAssignmentType) newErrors.assignmentType = "Please select an assignment type.";
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -265,13 +330,14 @@ export default function AssignmentUploadPage() {
 
         if (!textPrompt) return;
         setError(null);
-        aiGenerationStore.startGeneration(textPrompt, selectedSemester, subjectCode);
+        aiGenerationStore.startGeneration(textPrompt, selectedSemester, subjectCode, selectedAssignmentType);
     };
 
     const handleFileUpload = async (file: File) => {
-        const newErrors: { semester?: string, subjectCode?: string } = {};
+        const newErrors: { semester?: string, subjectCode?: string, assignmentType?: string } = {};
         if (!selectedSemester) newErrors.semester = "Please select a semester.";
         if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
+        if (!selectedAssignmentType) newErrors.assignmentType = "Please select an assignment type.";
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -280,8 +346,9 @@ export default function AssignmentUploadPage() {
         setValidationErrors({});
 
         setError(null);
-        aiGenerationStore.startFileGeneration(file, selectedSemester, subjectCode);
+        aiGenerationStore.startFileGeneration(file, selectedSemester, subjectCode, selectedAssignmentType);
     };
+
 
     const handleParseRubric = async () => {
         if (!content) return;
@@ -335,7 +402,8 @@ export default function AssignmentUploadPage() {
         setIsLoading(true);
         setLoadingMsg('Finalizing and publishing assignment...');
         try {
-            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content };
+            const defaultGradingStrategy = localStorage.getItem('aita_default_grading_strategy') || 'CONTINUOUS_QUEUE';
+            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content, gradingStrategy: defaultGradingStrategy };
             const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);
             aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
@@ -529,13 +597,14 @@ export default function AssignmentUploadPage() {
 
                                     {inputMethod === 'text' ? (
                                         <>
-                                            <div className="border border-slate-200 rounded-[24px] p-6 bg-white flex flex-col flex-1 min-h-[450px]">
-                                                <div className="flex flex-col gap-4 mb-4 shrink-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                                            <div className="border border-slate-200/90 rounded-[24px] p-5 md:p-6 bg-white flex flex-col flex-1 min-h-[460px] shadow-2xs">
+                                                {/* Clean Single-Row Selection Bar */}
+                                                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-4 flex items-center gap-4 shadow-2xs">
+                                                    <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
                                                                 Semester <span className="text-rose-500">*</span>
-                                                            </div>
+                                                            </span>
                                                             <div className="relative">
                                                                 <CustomDropdown
                                                                     value={selectedSemester}
@@ -547,20 +616,24 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, semester: undefined }));
                                                                     }}
                                                                     options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                                    placeholder="Select a semester..."
-                                                                    className="w-56"
+                                                                    placeholder="Select semester..."
+                                                                    className="w-48 md:w-52"
+                                                                    icon={<Calendar size={15} />}
                                                                     hasError={!!validationErrors.semester}
                                                                 />
                                                                 {validationErrors.semester && (
-                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
-                                                                        <Info size={14} className="shrink-0" />
+                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                        <Info size={13} className="shrink-0" />
                                                                         {validationErrors.semester}
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
                                                                 Subject code <span className="text-rose-500">*</span>
-                                                            </div>
+                                                            </span>
                                                             <div className="relative">
                                                                 <CustomDropdown
                                                                     value={subjectCode}
@@ -571,38 +644,71 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
                                                                     }}
                                                                     options={availableSubjectsForInput as string[]}
-                                                                    placeholder="Select a subject..."
+                                                                    placeholder="Select subject..."
+                                                                    className="w-40 md:w-44"
+                                                                    icon={<BookOpen size={15} />}
                                                                     hasError={!!validationErrors.subjectCode}
                                                                 />
                                                                 {validationErrors.subjectCode && (
-                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
-                                                                        <Info size={14} className="shrink-0" />
+                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                        <Info size={13} className="shrink-0" />
                                                                         {validationErrors.subjectCode}
                                                                     </div>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => setIsDrawerOpen(true)}
-                                                            className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 text-brand-600 hover:bg-brand-100 rounded-lg text-sm font-bold transition-colors"
-                                                        >
-                                                            <Lightbulb size={16} /> Prompt suggestions
-                                                        </button>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-                                                        Describe the assignment
-                                                        <Info size={16} className="text-slate-400" />
+
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
+                                                                Assignment type <span className="text-rose-500">*</span>
+                                                            </span>
+                                                            <div className="relative">
+                                                                <CustomDropdown
+                                                                    value={selectedAssignmentType}
+                                                                    onChange={(val) => {
+                                                                        setSelectedAssignmentType(val);
+                                                                        setMetadata((prev: any) => ({ ...prev, category: val }));
+                                                                        setValidationErrors(prev => ({ ...prev, assignmentType: undefined }));
+                                                                    }}
+                                                                    options={availableAssignmentTypes}
+                                                                    placeholder={subjectCode ? "Select type..." : "Select subject first"}
+                                                                    className="w-44 md:w-48"
+                                                                    icon={<Bookmark size={15} />}
+                                                                    hasError={!!validationErrors.assignmentType}
+                                                                />
+                                                                {validationErrors.assignmentType && (
+                                                                    <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                        <Info size={13} className="shrink-0" />
+                                                                        {validationErrors.assignmentType}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="relative flex-1 flex flex-col rounded-xl border border-slate-200 bg-white">
+                                                <div className="flex items-center justify-between gap-3 mb-3">
+                                                    <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                                                        Describe the assignment
+                                                        <Info size={15} className="text-slate-400" />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setIsDrawerOpen(true)}
+                                                        className="flex items-center justify-center gap-2 px-3.5 py-1.5 bg-brand-50 text-brand-600 hover:bg-brand-100/80 rounded-xl text-xs font-bold transition-all border border-brand-200/50 shadow-2xs whitespace-nowrap"
+                                                    >
+                                                        <Lightbulb size={15} /> Prompt suggestions
+                                                    </button>
+                                                </div>
+
+
+                                                <div className="relative flex-1 flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-2xs focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/10 transition-all">
                                                     <textarea
-                                                        className="w-full flex-1 bg-transparent p-4 pb-10 text-slate-700 placeholder-slate-400 outline-none resize-none text-[15px] leading-relaxed rounded-xl focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                                                        className="w-full flex-1 bg-transparent p-4 pb-10 text-slate-800 placeholder-slate-400 outline-none resize-none text-[14.5px] leading-relaxed rounded-2xl"
                                                         placeholder="Type your requirements here...&#10;&#10;Example: Create a full React and Node.js assignment where students build a shopping cart.&#10;Include JWT authentication, a PostgreSQL database and a checkout page."
                                                         value={textPrompt}
                                                         onChange={(e) => setTextPrompt(e.target.value)}
                                                     />
-                                                    <div className="absolute bottom-4 right-4 text-xs font-medium text-slate-400 pointer-events-none">
+                                                    <div className="absolute bottom-3 right-4 text-xs font-semibold text-slate-400 pointer-events-none">
                                                         {textPrompt.length}/2000
                                                     </div>
                                                 </div>
@@ -612,71 +718,111 @@ export default function AssignmentUploadPage() {
                                                 <button
                                                     onClick={handleGenerateContent}
                                                     disabled={!textPrompt || textPrompt.length === 0}
-                                                    className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all text-sm"
+                                                    className="flex items-center gap-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-7 py-3 rounded-xl font-bold shadow-sm hover:shadow-md transition-all text-sm"
                                                 >
                                                     <Sparkles size={16} /> Generate content <ArrowRight size={16} />
                                                 </button>
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="border border-slate-200 rounded-[24px] p-6 bg-white flex flex-col flex-1 min-h-[450px]">
-                                            <div className="flex items-center gap-4 mb-6">
-                                                <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-                                                    Semester <span className="text-rose-500">*</span>
-                                                </div>
-                                                <div className="relative">
-                                                    <CustomDropdown
-                                                        value={selectedSemester}
-                                                        onChange={(val) => {
-                                                            setSelectedSemester(val);
-                                                            setSubjectCode('');
-                                                            setSelectedClasses([]);
-                                                            setMetadata({ ...metadata, subject: '' });
-                                                            setValidationErrors(prev => ({ ...prev, semester: undefined }));
-                                                        }}
-                                                        options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                        placeholder="Select a semester..."
-                                                        className="w-56"
-                                                        hasError={!!validationErrors.semester}
-                                                    />
-                                                    {validationErrors.semester && (
-                                                        <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
-                                                            <Info size={14} className="shrink-0" />
-                                                            {validationErrors.semester}
+                                        <div className="border border-slate-200/90 rounded-[24px] p-5 md:p-6 bg-white flex flex-col flex-1 min-h-[460px] shadow-2xs">
+                                            {/* Clean Single-Row Selection Bar for File Upload */}
+                                            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-6 flex items-center gap-4 shadow-2xs">
+                                                <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
+                                                            Semester <span className="text-rose-500">*</span>
+                                                        </span>
+                                                        <div className="relative">
+                                                            <CustomDropdown
+                                                                value={selectedSemester}
+                                                                onChange={(val) => {
+                                                                    setSelectedSemester(val);
+                                                                    setSubjectCode('');
+                                                                    setSelectedClasses([]);
+                                                                    setMetadata({ ...metadata, subject: '' });
+                                                                    setValidationErrors(prev => ({ ...prev, semester: undefined }));
+                                                                }}
+                                                                options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
+                                                                placeholder="Select semester..."
+                                                                className="w-48 md:w-52"
+                                                                icon={<Calendar size={15} />}
+                                                                hasError={!!validationErrors.semester}
+                                                            />
+                                                            {validationErrors.semester && (
+                                                                <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                    <Info size={13} className="shrink-0" />
+                                                                    {validationErrors.semester}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-slate-900 font-bold text-base ml-2">
-                                                    Subject code <span className="text-rose-500">*</span>
-                                                </div>
-                                                <div className="relative">
-                                                    <CustomDropdown
-                                                        value={subjectCode}
-                                                        onChange={(val) => {
-                                                            setSubjectCode(val);
-                                                            setSelectedClasses([]);
-                                                            setMetadata({ ...metadata, subject: val });
-                                                            setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
-                                                        }}
-                                                        options={availableSubjectsForInput as string[]}
-                                                        placeholder="Select a subject..."
-                                                        hasError={!!validationErrors.subjectCode}
-                                                    />
-                                                    {validationErrors.subjectCode && (
-                                                        <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[12px] text-rose-600 font-bold bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 shadow-sm whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1">
-                                                            <Info size={14} className="shrink-0" />
-                                                            {validationErrors.subjectCode}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
+                                                            Subject code <span className="text-rose-500">*</span>
+                                                        </span>
+                                                        <div className="relative">
+                                                            <CustomDropdown
+                                                                value={subjectCode}
+                                                                onChange={(val) => {
+                                                                    setSubjectCode(val);
+                                                                    setSelectedClasses([]);
+                                                                    setMetadata({ ...metadata, subject: val });
+                                                                    setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
+                                                                }}
+                                                                options={availableSubjectsForInput as string[]}
+                                                                placeholder="Select subject..."
+                                                                className="w-40 md:w-44"
+                                                                icon={<BookOpen size={15} />}
+                                                                hasError={!!validationErrors.subjectCode}
+                                                            />
+                                                            {validationErrors.subjectCode && (
+                                                                <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                    <Info size={13} className="shrink-0" />
+                                                                    {validationErrors.subjectCode}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
+                                                            Assignment type <span className="text-rose-500">*</span>
+                                                        </span>
+                                                        <div className="relative">
+                                                            <CustomDropdown
+                                                                value={selectedAssignmentType}
+                                                                onChange={(val) => {
+                                                                    setSelectedAssignmentType(val);
+                                                                    setMetadata((prev: any) => ({ ...prev, category: val }));
+                                                                    setValidationErrors(prev => ({ ...prev, assignmentType: undefined }));
+                                                                }}
+                                                                options={availableAssignmentTypes}
+                                                                placeholder={subjectCode ? "Select type..." : "Select subject first"}
+                                                                className="w-44 md:w-48"
+                                                                icon={<Bookmark size={15} />}
+                                                                hasError={!!validationErrors.assignmentType}
+                                                            />
+                                                            {validationErrors.assignmentType && (
+                                                                <div className="absolute top-[110%] left-0 flex items-center gap-1.5 text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 shadow-xs whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-1">
+                                                                    <Info size={13} className="shrink-0" />
+                                                                    {validationErrors.assignmentType}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="flex-1 flex items-center justify-center border border-slate-200 border-dashed rounded-xl bg-slate-50 p-4">
+
+                                            <div className="flex-1 flex items-center justify-center border border-slate-200/90 border-dashed rounded-2xl bg-slate-50/50 p-6">
                                                 <div className="w-full max-w-xl">
                                                     <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx" errorMessage="Only PDF or DOCX is supported" />
                                                 </div>
                                             </div>
                                         </div>
                                     )}
+
                                 </div>
                             )}
 
@@ -718,9 +864,9 @@ export default function AssignmentUploadPage() {
                                             Edit titles, descriptions, and scores. Ensure the total score adds up to <strong className="text-slate-900">10 points</strong>.
                                         </p>
 
-                                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/90 shadow-2xs mb-5">
                                             <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Subject code</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Subject code</label>
                                                 <CustomDropdown
                                                     value={metadata.subject || ''}
                                                     onChange={(v) => {
@@ -730,20 +876,35 @@ export default function AssignmentUploadPage() {
                                                     options={teacherSubjects}
                                                     className="w-full"
                                                     placeholder="Select a subject..."
+                                                    icon={<BookOpen size={15} />}
                                                 />
                                             </div>
                                             <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assignment title</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assignment type</label>
+                                                <CustomDropdown
+                                                    value={selectedAssignmentType || metadata.category || ''}
+                                                    onChange={(v) => {
+                                                        setSelectedAssignmentType(v);
+                                                        setMetadata((prev: any) => ({ ...prev, category: v }));
+                                                    }}
+                                                    options={availableAssignmentTypes.length > 0 ? availableAssignmentTypes : ['Assignment', 'Lab']}
+                                                    className="w-full"
+                                                    placeholder="Select type..."
+                                                    icon={<Bookmark size={15} />}
+                                                />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assignment title</label>
                                                 <input
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 text-sm focus:border-brand-500 outline-none shadow-sm"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none shadow-2xs transition-all"
                                                     value={metadata.title}
                                                     onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
                                                 />
                                             </div>
                                             <div className="col-span-1">
-                                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Project type</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Project type</label>
                                                 <select
-                                                    className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-900 text-sm focus:border-brand-500 outline-none shadow-sm"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none shadow-2xs transition-all cursor-pointer"
                                                     value={metadata.projectType}
                                                     onChange={(e) => setMetadata({ ...metadata, projectType: e.target.value })}
                                                 >
@@ -757,6 +918,8 @@ export default function AssignmentUploadPage() {
                                                 </select>
                                             </div>
                                         </div>
+
+
 
 
 
@@ -822,6 +985,32 @@ export default function AssignmentUploadPage() {
                                                             <AlertCircle size={12} /> {validationErrors.dueDate}
                                                         </div>
                                                     )}
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Quy tắc nộp trễ (Late Penalty)</label>
+                                                    <div className="flex gap-2">
+                                                        <select
+                                                            value={metadata.latePenaltyType || 'NONE'}
+                                                            onChange={(e) => setMetadata({ ...metadata, latePenaltyType: e.target.value })}
+                                                            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                        >
+                                                            <option value="NONE">Không trừ điểm trễ</option>
+                                                            <option value="DAILY_POINTS">Trừ điểm theo ngày (-X đ/24h)</option>
+                                                            <option value="DAILY_PERCENT">Trừ % theo ngày (-X %/24h)</option>
+                                                            <option value="FLAT_POINTS">Trừ cố định X điểm</option>
+                                                        </select>
+                                                        {metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
+                                                            <input
+                                                                type="number"
+                                                                step="0.5"
+                                                                min="0"
+                                                                placeholder="Mức trừ"
+                                                                value={metadata.latePenaltyValue !== undefined ? metadata.latePenaltyValue : 2.0}
+                                                                onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
+                                                                className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

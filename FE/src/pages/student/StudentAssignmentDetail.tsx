@@ -390,6 +390,7 @@ export function StudentAssignmentDetail() {
         evtChannel.postMessage({ type: 'SUBMISSION_CREATED', assignmentId: id });
         evtChannel.close();
       } catch (e) {}
+      localStorage.setItem('aita_submission_event', JSON.stringify({ type: 'SUBMISSION_CREATED', assignmentId: id, timestamp: Date.now() }));
       setToast({
         message: wasAlreadySubmitted
           ? 'Resubmitted successfully. Your work is now waiting to be re-graded by the lecturer.'
@@ -701,6 +702,24 @@ export function StudentAssignmentDetail() {
               </div>
             </div>
           </div>
+          {/* Reopen Notification Banner */}
+          {submission?.isReopened && (
+            <div className="p-4 rounded-2xl border flex items-center gap-3.5 bg-blue-50/90 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 mb-4 shadow-sm">
+              <div className="p-2.5 bg-blue-600 text-white rounded-xl shrink-0 shadow-xs">
+                <RotateCcw size={20} />
+              </div>
+              <div>
+                <p className="font-extrabold text-sm text-blue-900 dark:text-blue-200 flex items-center gap-2">
+                  <span>Giảng viên đã cho phép bạn nộp lại bài!</span>
+                  <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-600 text-white rounded-full">Reopened</span>
+                </p>
+                <p className="text-xs mt-0.5 opacity-90">
+                  {submission.reopenReason ? `Lý do: "${submission.reopenReason}". ` : ''}Hãy tải file bài làm mới lên và ấn "Nộp bài" trước khi hết hạn gia hạn.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Deadline & Live Countdown Banner */}
           {dueDate && (
             isSubmitted ? (

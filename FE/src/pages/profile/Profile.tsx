@@ -52,9 +52,14 @@ export function Profile() {
     return (localStorage.getItem('aita_default_grading_strategy') as any) || 'CONTINUOUS_QUEUE'
   })
 
-  const handleSaveDefaultStrategy = (strat: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
+  const handleSaveDefaultStrategy = async (strat: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
     setDefaultGradingStrategy(strat)
     localStorage.setItem('aita_default_grading_strategy', strat)
+    try {
+      await api.updateAllGradingStrategies(strat)
+    } catch (err) {
+      console.error('Failed to update grading strategies across assignments:', err)
+    }
   }
 
   useEffect(() => {
@@ -316,7 +321,7 @@ export function Profile() {
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Settings className="text-brand-500 w-5 h-5 ml-1" />
-                  <CardHeader title="Cấu Hình Phương Thức Chấm Bài Mặc Định" />
+                  <CardHeader title="Default Grading Strategy" />
                 </div>
               </div>
               <div className="p-6 grid sm:grid-cols-2 gap-4">
@@ -333,16 +338,16 @@ export function Profile() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
                       <Zap size={18} className="text-emerald-500 stroke-[2.5]" />
-                      <span>⚡ Chấm ngầm theo hàng đợi</span>
+                      <span>⚡ Continuous Queue Grading</span>
                     </div>
                     {defaultGradingStrategy === 'CONTINUOUS_QUEUE' && (
                       <span className="px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider">
-                        Đang chọn
+                        Selected
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Học sinh nộp bài đến đâu, AI/Autograder tự động xếp vào hàng đợi FIFO và chấm ngầm ngay lập tức.
+                    Submissions are automatically enqueued in real-time and background-graded by AI as soon as students submit.
                   </p>
                 </div>
 
@@ -359,16 +364,16 @@ export function Profile() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
                       <Clock size={18} className="text-amber-500 stroke-[2.5]" />
-                      <span>📦 Dồn bài chấm 1 lần</span>
+                      <span>📦 Batch / Post-Deadline Grading</span>
                     </div>
                     {defaultGradingStrategy === 'BATCH_POST_DEADLINE' && (
                       <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider">
-                        Đang chọn
+                        Selected
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Giữ bài nộp ở trạng thái chờ và dồn lại chấm đồng loạt 1 lần khi Giảng viên bấm nút Chấm tất cả.
+                    Keep submissions in pending status and accumulate them for 1-click batch grading when the lecturer triggers "Grade All".
                   </p>
                 </div>
               </div>

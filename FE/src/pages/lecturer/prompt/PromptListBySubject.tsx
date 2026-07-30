@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
-import { 
-  ArrowLeft, Plus, Search, Edit3, Trash2, Bot, Tag, CheckCircle2, 
-  Copy, Check, Eye, Terminal, Sparkles, Zap, Sliders, X, Code2, BookOpen
+import {
+  ArrowLeft, Plus, Search, Edit3, Trash2, Bot, Tag, CheckCircle2,
+  Copy, Check, Eye, Terminal, Sparkles, Zap, Sliders, X, Code2, BookOpen, AlertTriangle
 } from 'lucide-react';
 
 export function PromptListBySubject() {
@@ -16,6 +16,7 @@ export function PromptListBySubject() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeletePrompt, setConfirmDeletePrompt] = useState<{ id: string; name: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -53,17 +54,19 @@ export function PromptListBySubject() {
     fetchData();
   }, [subjectId]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Delete the prompt "${name}"?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!confirmDeletePrompt) return;
+    const { id, name } = confirmDeletePrompt;
     try {
       setDeletingId(id);
       await api.deletePromptTemplate(id);
       setPrompts((prev) => prev.filter((p) => p.id !== id));
       if (selectedPrompt?.id === id) setSelectedPrompt(null);
       setToastMessage(`Prompt template "${name}" deleted`);
+      setConfirmDeletePrompt(null);
     } catch (err) {
       console.error('Failed to delete prompt:', err);
-      alert('The prompt could not be deleted.');
+      setToastMessage('The prompt could not be deleted.');
     } finally {
       setDeletingId(null);
     }
@@ -297,7 +300,7 @@ export function PromptListBySubject() {
                       <Edit3 size={14} /> Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(prompt.id, prompt.name)}
+                      onClick={() => setConfirmDeletePrompt({ id: prompt.id, name: prompt.name })}
                       disabled={deletingId === prompt.id}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
                       title="Delete prompt"
@@ -389,6 +392,88 @@ export function PromptListBySubject() {
                   <Edit3 size={16} /> Edit
                 </button>
               </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeletePrompt && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setConfirmDeletePrompt(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-rose-900/60 shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    Xác nhận xoá prompt
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Hành động này không thể hoàn tác
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmDeletePrompt(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Bạn có chắc chắn muốn xoá prompt template{' '}
+                <strong className="text-slate-900 dark:text-white font-semibold">
+                  "{confirmDeletePrompt.name}"
+                </strong>
+                ?
+              </p>
+              <div className="bg-rose-50/60 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-100 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-400 flex items-start gap-2.5">
+                <Trash2 size={16} className="shrink-0 mt-0.5 text-rose-500" />
+                <span>Prompt template này sẽ bị xoá vĩnh viễn khỏi môn học và không thể khôi phục lại.</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDeletePrompt(null)}
+                disabled={deletingId !== null}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-all disabled:opacity-50"
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deletingId !== null}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-[0.98] rounded-xl shadow-md shadow-rose-500/20 transition-all disabled:opacity-50"
+              >
+                {deletingId === confirmDeletePrompt.id ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Đang xoá...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>Xoá prompt</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>,

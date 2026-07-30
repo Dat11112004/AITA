@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams, Link } from 'react-router-dom';
+import { useLocation, useParams, Link, useNavigate } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
@@ -9,6 +9,7 @@ import { gradingApi as api } from '@/lib/api';
 
 export default function ResultPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
   const [result, setResult] = useState<SubmissionResponse | null>((location.state?.result as SubmissionResponse) || null);
@@ -17,6 +18,17 @@ export default function ResultPage() {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const gradingTime = location.state?.gradingTime as number | undefined;
+
+  const handleGoBack = () => {
+    const targetAssignmentId = (result as any)?.assignmentId || (result as any)?.examId || (result as any)?.ExamId;
+    if (window.history.length > 1 && window.history.state?.idx > 0) {
+      navigate(-1);
+    } else if (targetAssignmentId) {
+      navigate(`/lecturer/grading/assignments/${targetAssignmentId}`);
+    } else {
+      navigate('/lecturer/grading');
+    }
+  };
 
   const handleTogglePublish = async () => {
     if (!id || !result) return;
@@ -90,7 +102,7 @@ export default function ResultPage() {
 
   return (
     <div className="max-w-5xl mx-auto pb-8 -mt-2 sm:-mt-4">
-      <button onClick={() => window.history.back()} className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors mb-8 cursor-pointer bg-transparent border-none p-0 outline-none">
+      <button type="button" onClick={handleGoBack} className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors mb-8 cursor-pointer bg-transparent border-none p-0 outline-none">
         <ArrowLeft size={18} />
         <span>Go back</span>
       </button>

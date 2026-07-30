@@ -18,6 +18,7 @@ import * as crypto from 'crypto';
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 import { prisma } from '../../../../../../database/prisma.js';
 import { CloudinaryService } from '../../../../../../shared/infrastructure/services/cloudinary.service.js';
+import { globalJobManager } from '../../../application/queue/SubmissionJobManager.js';
 import { SendAssignmentNotificationUseCase } from '../../../../../../modules/notifications/application/use-cases/send-assignment-notification.use-case.js';
 import { NodemailerService } from '../../../../../../shared/infrastructure/email/nodemailer.service.js';
 
@@ -226,7 +227,8 @@ export class AssignmentController extends BaseController {
             await this.assignmentRepository.saveAsync(publishedAssignment);
 
             // INTEGRATION WITH AITA CORE
-            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, weightPercentage } = metadata;
+            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, weightPercentage, gradingStrategy } = metadata;
+            const selectedGradingStrategy = gradingStrategy || 'CONTINUOUS_QUEUE';
 
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -286,6 +288,7 @@ export class AssignmentController extends BaseController {
                     CreatedBy: creatorId,
                     StartDate: new Date(),
                     DueDate: parsedDueDate,
+                    GradingStrategy: selectedGradingStrategy,
                     AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id, weightPercentage: weightPercentage ? Number(weightPercentage) : 0 }),
                     ...(validClassIds.length > 0 ? {
                         ExamClass: {
@@ -351,6 +354,7 @@ export class AssignmentController extends BaseController {
                     Id: true,
                     StartDate: true,
                     DueDate: true,
+                    GradingStrategy: true,
                     _count: {
                         select: { Submission: true }
                     },
@@ -379,6 +383,7 @@ export class AssignmentController extends BaseController {
                 statsMap.set(exam.Id, {
                     createdAt: exam.StartDate,
                     dueDate: exam.DueDate,
+                    gradingStrategy: (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE',
                     submitted: exam._count.Submission || 0,
                     totalStudents: totalStudents
                 });
@@ -389,6 +394,7 @@ export class AssignmentController extends BaseController {
                 const stats = statsMap.get(a.id) || {
                     createdAt: new Date(),
                     dueDate: null,
+                    gradingStrategy: 'CONTINUOUS_QUEUE',
                     submitted: 0,
                     totalStudents: 0
                 };
@@ -424,6 +430,7 @@ export class AssignmentController extends BaseController {
                     select: {
                         StartDate: true,
                         DueDate: true,
+                        GradingStrategy: true,
                         ExamClass: {
                             select: {
                                 Class: {
@@ -592,6 +599,61 @@ export class AssignmentController extends BaseController {
         } catch (error) {
             throw new Error('Error deleting assignment');
         }
+    };
+
+    updateAllStrategy = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { strategy } = req.body;
+            if (!strategy || !['CONTINUOUS_QUEUE', 'BATCH_POST_DEADLINE'].includes(strategy)) {
+                throw new BadRequestError('Invalid grading strategy');
+            }
+
+            // Update all exams in SQL Database
+            await prisma.exam.updateMany({
+                data: { GradingStrategy: strategy }
+            });
+
+            // Update all published assignments in Document Store
+            const allAssignments = await this.assignmentRepository.getAllAsync();
+            for (const assignment of allAssignments) {
+                const updated = {
+                    ...assignment,
+                    metadata: {
+                        ...assignment.metadata,
+                        gradingStrategy: strategy
+                    }
+                };
+                await this.assignmentRepository.saveAsync(updated);
+            }
+
+            this.ok(res, { strategy }, 'All assignment grading strategies updated successfully');
+        } catch (error: any) {
+            console.error("UpdateAllStrategy Error:", error);
+            res.status(500).json({ error: error.message || "Error updating all grading strategies" });
+        }
+    };
+
+    streamAssignmentEvents = async (req: Request, res: Response): Promise<void> => {
+        const id = req.params.id;
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        // Send initial heartbeat
+        res.write(`data: ${JSON.stringify({ type: 'CONNECTED', assignmentId: id })}\n\n`);
+
+        const onAssignmentEvent = (eventData: any) => {
+            try {
+                res.write(`data: ${JSON.stringify(eventData)}\n\n`);
+            } catch (e) {}
+        };
+
+        globalJobManager.on(`assignment_event:${id}`, onAssignmentEvent);
+
+        req.on('close', () => {
+            globalJobManager.removeListener(`assignment_event:${id}`, onAssignmentEvent);
+        });
     };
 }
 

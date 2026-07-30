@@ -64,6 +64,8 @@ export class ExamMapper {
     if (raw.ExamSection) {
       (exam as any).ExamSection = raw.ExamSection
     }
+    (exam as any).GradingStrategy = raw.GradingStrategy || 'CONTINUOUS_QUEUE';
+    (exam as any).gradingStrategy = raw.GradingStrategy || 'CONTINUOUS_QUEUE';
 
     return exam
   }

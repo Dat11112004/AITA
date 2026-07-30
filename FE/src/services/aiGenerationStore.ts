@@ -16,6 +16,7 @@ export interface AiGenerationState {
   error: string | null;
   selectedSemester?: string;
   subjectCode?: string;
+  assignmentType?: string;
   textPrompt?: string;
   isCompleted: boolean;
 }
@@ -78,6 +79,7 @@ class AiGenerationStoreManager {
       result: null,
       selectedSemester: undefined,
       subjectCode: undefined,
+      assignmentType: undefined,
       textPrompt: undefined,
       isCompleted: false,
     });
@@ -86,7 +88,8 @@ class AiGenerationStoreManager {
   async startGeneration(
     textPrompt: string,
     selectedSemester: string,
-    subjectCode: string
+    subjectCode: string,
+    assignmentType?: string
   ) {
     this.cancelGeneration();
     this.abortController = new AbortController();
@@ -100,11 +103,16 @@ class AiGenerationStoreManager {
       isCompleted: false,
       selectedSemester,
       subjectCode,
+      assignmentType,
       textPrompt,
     });
 
     try {
-      const finalPrompt = subjectCode ? `Môn học: ${subjectCode}\n\n${textPrompt}` : textPrompt;
+      const promptHeader = [
+        subjectCode ? `Môn học: ${subjectCode}` : '',
+        assignmentType ? `Loại bài tập: ${assignmentType}` : ''
+      ].filter(Boolean).join('\n');
+      const finalPrompt = promptHeader ? `${promptHeader}\n\n${textPrompt}` : textPrompt;
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
         signal: this.abortController.signal,
       });
@@ -143,6 +151,7 @@ class AiGenerationStoreManager {
           description: draftBlueprint.description || '',
           projectType: draftBlueprint.projectType || 'backend',
           subject: subjectCode || draftBlueprint.subject || '',
+          category: assignmentType || 'Assignment',
         },
         step: 2,
       };
@@ -166,7 +175,7 @@ class AiGenerationStoreManager {
     }
   }
 
-  async startFileGeneration(file: File, selectedSemester: string, subjectCode: string) {
+  async startFileGeneration(file: File, selectedSemester: string, subjectCode: string, assignmentType?: string) {
     this.cancelGeneration();
     this.abortController = new AbortController();
 
@@ -179,6 +188,7 @@ class AiGenerationStoreManager {
       isCompleted: false,
       selectedSemester,
       subjectCode,
+      assignmentType,
     });
 
     try {
@@ -189,7 +199,11 @@ class AiGenerationStoreManager {
         loadingMsg: 'Gemini is generating assignment structure from extracted file...',
         progress: 40,
       });
-      const finalPrompt = subjectCode ? `Môn học: ${subjectCode}\n\n${extractedText}` : extractedText;
+      const promptHeader = [
+        subjectCode ? `Môn học: ${subjectCode}` : '',
+        assignmentType ? `Loại bài tập: ${assignmentType}` : ''
+      ].filter(Boolean).join('\n');
+      const finalPrompt = promptHeader ? `${promptHeader}\n\n${extractedText}` : extractedText;
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
         signal: this.abortController.signal,
       });
@@ -223,6 +237,7 @@ class AiGenerationStoreManager {
           description: draftBlueprint.description || '',
           projectType: draftBlueprint.projectType || 'backend',
           subject: subjectCode || draftBlueprint.subject || '',
+          category: assignmentType || 'Assignment',
         },
         step: 2,
       };
@@ -245,6 +260,7 @@ class AiGenerationStoreManager {
       });
     }
   }
+
 }
 
 export const aiGenerationStore = new AiGenerationStoreManager();

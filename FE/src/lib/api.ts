@@ -176,6 +176,9 @@ function normalizeSubmissionRow(raw: any): SubmissionRow {
     finalScore: toNullableNumber(raw?.finalScore),
     rawScore: raw?.score ?? raw?.finalScore ?? raw?.totalScore ?? null,
     rawAiScore: raw?.aiScore ?? raw?.totalScore ?? null,
+    latePenaltyAmount: toNullableNumber(raw?.latePenaltyAmount),
+    isReopened: raw?.isReopened ?? false,
+    reopenReason: raw?.reopenReason ?? null,
     aiFeedback: raw?.aiFeedback ?? null,
     instructorFeedback: raw?.instructorFeedback ?? null,
     studentFeedback: raw?.studentFeedback ?? null,
@@ -261,6 +264,8 @@ export const api = {
   },
   updateAssignment: (id: string, body: unknown) =>
     request<AssignmentRow>(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  updateAllGradingStrategies: (strategy: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') =>
+    request<any>('/grading/assignments/strategy/update-all', { method: 'PUT', body: JSON.stringify({ strategy }) }),
 
   getClassOptions: () => request<Option[]>(`/settings/options/classes`),
   getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
@@ -392,6 +397,18 @@ export const api = {
     request<void>(`/submissions/${submissionId}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) }),
   bulkPublishGrades: (assignmentId: string) =>
     request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
+  reopenSubmission: (body: {
+    examId: string
+    studentId: string
+    classId?: string
+    extendedDueDate: string
+    penaltyMode?: 'SYSTEM_DEFAULT' | 'CUSTOM_RATE' | 'FLAT_AMOUNT' | 'WAIVE' | 'SCORE_CAP'
+    customPenaltyRate?: number
+    flatPenaltyAmount?: number
+    scoreCap?: number
+    reason?: string
+  }) =>
+    request<{ success: boolean; message: string; override: any }>('/submissions/reopen', { method: 'POST', body: JSON.stringify(body) }),
 
   // â”€â”€â”€ Grading & Rubric â”€â”€â”€
   startGradingSession: (assignmentId: string) =>
@@ -792,6 +809,11 @@ export const gradingApi = {
   publishAssignment: (metadata: any, blueprint: any, rubric: any) => request<any>('/grading/assignments/publish', {
     method: 'POST',
     body: JSON.stringify({ metadata, blueprint, rubric }),
+  }),
+
+  updateAllGradingStrategies: (strategy: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => request<any>('/grading/assignments/strategy/update-all', {
+    method: 'PUT',
+    body: JSON.stringify({ strategy }),
   }),
 
   submitAssignment: (file: File | null, content: string, assignmentId: string) => {
