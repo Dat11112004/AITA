@@ -1,6 +1,6 @@
 import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { AuthUser } from '../../../../types/express.js'
-import { NotFoundError, ValidationError, ForbiddenError } from '../../../../shared/application/app.error.js'
+import { NotFoundError, ValidationError } from '../../../../shared/application/app.error.js'
 import { ReopenSubmissionRequestDto } from '../dtos/submission.dto.js'
 import { prisma } from '../../../../database/prisma.js'
 
