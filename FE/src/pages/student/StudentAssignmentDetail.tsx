@@ -474,6 +474,33 @@ export function StudentAssignmentDetail() {
     }
   }
 
+  // The rule itself, shown BEFORE the deadline too so a student knows the cost of
+  // being late while they can still act on it.
+  const latePolicyRule: string | null = (() => {
+    if (!allowLateSubmission) return 'Late submission not accepted';
+    if (latePenaltyType === 'NONE' || latePenaltyValue <= 0) return 'Accepted, no penalty';
+    if (latePenaltyType === 'DAILY_POINTS') return `-${trim(latePenaltyValue)} point${latePenaltyValue === 1 ? '' : 's'} per day late`;
+    if (latePenaltyType === 'DAILY_PERCENT') return `-${trim(latePenaltyValue)}% of your score per day late`;
+    if (latePenaltyType === 'FLAT_POINTS') return `-${trim(latePenaltyValue)} points, however late`;
+    return null;
+  })();
+
+  // Concrete escalation for the day-based rules, so "each extra day costs more" is
+  // visible as numbers rather than left for the student to work out.
+  const lateSchedule: string | null = (() => {
+    if (!allowLateSubmission || latePenaltyValue <= 0) return null;
+    if (latePenaltyType !== 'DAILY_POINTS' && latePenaltyType !== 'DAILY_PERCENT') return null;
+    const isPercent = latePenaltyType === 'DAILY_PERCENT';
+    return [1, 2, 3]
+      .map((d) => {
+        let amount = d * latePenaltyValue;
+        // The cap is expressed in points, so it only bounds the points-based rule.
+        if (!isPercent && maxLatePenalty !== null) amount = Math.min(amount, maxLatePenalty);
+        return `${d}d −${trim(amount)}${isPercent ? '%' : ''}`;
+      })
+      .join('  ·  ');
+  })();
+
   // Only truly locked when the lecturer disallowed late submission.
   const isLocked = isPastDue && !allowLateSubmission && !isSubmitted;
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
@@ -1222,8 +1249,31 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Due date</span>
-                <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                {/* Use the resolved `dueDate` (same source as the countdown banner), not
+                    assignment.due — that field is empty on some response shapes, which is
+                    why this row showed "—" while the banner showed the real deadline. */}
+                <span className="font-medium text-red-600">{dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
               </div>
+              {latePolicyRule && (
+                <div className="flex justify-between items-start gap-3">
+                  <span className="text-slate-500 shrink-0">Late penalty</span>
+                  <div className="text-right">
+                    <span className={`font-medium ${allowLateSubmission ? 'text-amber-600 dark:text-amber-400' : 'text-red-600'}`}>
+                      {latePolicyRule}
+                    </span>
+                    {lateSchedule && (
+                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+                        {lateSchedule}
+                      </div>
+                    )}
+                    {maxLatePenalty !== null && allowLateSubmission && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        max −{trim(maxLatePenalty)} points
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Status</span>
                 <span className={`font-medium ${isSubmitted ? 'text-emerald-500' : 'text-amber-500'}`}>{isSubmitted ? 'Submitted' : 'Not submitted'}</span>

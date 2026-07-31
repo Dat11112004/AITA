@@ -1286,7 +1286,11 @@ export default function AssignmentUploadPage() {
                                     <Info size={20} />
                                 </div>
                                 <div className="flex-1">
-                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Missing information</h4>
+                                    {/* This toast also carries server-side failures, so it must not
+                                        always claim the lecturer forgot a field. */}
+                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">
+                                        {Object.keys(validationErrors).length > 0 ? 'Missing information' : 'Publish failed'}
+                                    </h4>
                                     <p className="text-sm text-slate-600 mt-1">{error}</p>
                                 </div>
                                 <button
