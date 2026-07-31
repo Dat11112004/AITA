@@ -1018,8 +1018,13 @@ export default function AssignmentUploadPage() {
                                                     >
                                                         <option value="NONE">Không trừ điểm trễ</option>
                                                         <option value="DAILY_POINTS">Trừ điểm theo ngày (-X đ/24h)</option>
-                                                        <option value="DAILY_PERCENT">Trừ % theo ngày (-X %/24h)</option>
                                                         <option value="FLAT_POINTS">Trừ cố định X điểm</option>
+                                                        {/* DAILY_PERCENT is intentionally not offered any more. It stays
+                                                            supported in the backend and the engine so exams already saved
+                                                            with it keep working and can still be edited. */}
+                                                        {metadata.latePenaltyType === 'DAILY_PERCENT' && (
+                                                            <option value="DAILY_PERCENT">Trừ % theo ngày (-X %/24h) — cũ</option>
+                                                        )}
                                                     </select>
 
                                                     {metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
@@ -1040,25 +1045,6 @@ export default function AssignmentUploadPage() {
                                                                 <span className="text-[11px] text-slate-500 font-medium">
                                                                     {metadata.latePenaltyType === 'DAILY_PERCENT' ? '% / 24h' : metadata.latePenaltyType === 'DAILY_POINTS' ? 'đ / 24h' : 'điểm'}
                                                                 </span>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-1.5">
-                                                                <label className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                                                                    Trừ tối đa:
-                                                                </label>
-                                                                <input
-                                                                    type="number"
-                                                                    step="0.5"
-                                                                    min="0"
-                                                                    placeholder="Không giới hạn"
-                                                                    value={metadata.maxLatePenalty !== undefined && metadata.maxLatePenalty !== null ? metadata.maxLatePenalty : ''}
-                                                                    onChange={(e) => setMetadata({
-                                                                        ...metadata,
-                                                                        maxLatePenalty: e.target.value === '' ? null : Number(e.target.value)
-                                                                    })}
-                                                                    className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                                                />
-                                                                <span className="text-[11px] text-slate-500 font-medium">điểm</span>
                                                             </div>
                                                         </div>
                                                     )}

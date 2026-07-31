@@ -89,6 +89,23 @@ export class SubmissionResponseDto {
     let rawScoreValue = submission.rawScore !== undefined && submission.rawScore !== null ? Number(submission.rawScore) : (submission.RawScore !== undefined && submission.RawScore !== null ? Number(submission.RawScore) : null);
     let latePenaltyValue = submission.latePenaltyAmount !== undefined && submission.latePenaltyAmount !== null ? Number(submission.latePenaltyAmount) : (submission.LatePenaltyAmount !== undefined && submission.LatePenaltyAmount !== null ? Number(submission.LatePenaltyAmount) : null);
 
+    // ── How late the submission was, for the "why was I deducted" note ──────────
+    // Same rounding as calculateLatePenalty(): any fraction of a day counts and the
+    // minimum is 1 day, so the number matches the deduction that was applied.
+    //
+    // Deliberately null when the submission was reopened: in that case the lecturer
+    // extended the deadline, and the extended date lives on SubmissionOverride which
+    // is not loaded here — counting against the ORIGINAL due date would overstate the
+    // lateness. Better to show no day count than a wrong one.
+    const submittedAtVal = submission.submittedAt || submission.SubmittedAt
+    const dueDateVal = submission.Exam?.DueDate || submission.exam?.dueDate || null
+    const wasReopened = submission.isReopened ?? submission.IsReopened ?? false
+    let lateDays: number | null = null
+    if (submittedAtVal && dueDateVal && !wasReopened) {
+      const lateMs = new Date(submittedAtVal).getTime() - new Date(dueDateVal).getTime()
+      if (lateMs > 0) lateDays = Math.max(1, Math.ceil(lateMs / (1000 * 60 * 60 * 24)))
+    }
+
     return {
       id: submission.id || submission.Id,
       examId: submission.examId || submission.ExamId,
@@ -105,6 +122,7 @@ export class SubmissionResponseDto {
       totalScore: isPublished ? rawTotalScore : null,
       rawScore: isPublished ? (rawScoreValue ?? rawTotalScore) : null,
       latePenaltyAmount: isPublished ? latePenaltyValue : null,
+      lateDays: isPublished ? lateDays : null,
       finalScore: isPublished ? rawFinalScore : null,
       score: isPublished ? (rawFinalScore ?? rawTotalScore) : null,
       isReopened: submission.isReopened ?? submission.IsReopened ?? false,

@@ -1021,6 +1021,36 @@ export function StudentAssignmentDetail() {
                     </h2>
                   </div>
 
+                  {/* Why the score was reduced, shown together with the score itself so a
+                      student is never left guessing where the missing points went. */}
+                  {Number((submission as any).latePenaltyAmount) > 0 && (
+                    <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-950/20 px-4 py-3">
+                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          Late penalty applied
+                        </span>
+                        <span className="text-xs font-extrabold text-amber-900 dark:text-amber-200 tabular-nums">
+                          {(submission as any).rawScore != null ? `${trim(Number((submission as any).rawScore))} → ` : ''}
+                          {trim(Number(displayScore))} pts
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-1 leading-relaxed">
+                        {'('}
+                        −{trim(Number((submission as any).latePenaltyAmount))} pts
+                        {(submission as any).lateDays
+                          ? ` · ${(submission as any).lateDays} day${Number((submission as any).lateDays) > 1 ? 's' : ''} late`
+                          : ' · submitted late'}
+                        {submission.submittedAt
+                          ? ` · submitted ${new Date(submission.submittedAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                          : ''}
+                        {dueDate
+                          ? ` · due ${new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                          : ''}
+                        {')'}
+                      </p>
+                    </div>
+                  )}
+
                   {submission.aiFeedback ? (
                     <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
                       <div className="flex items-center gap-3 mb-4">
