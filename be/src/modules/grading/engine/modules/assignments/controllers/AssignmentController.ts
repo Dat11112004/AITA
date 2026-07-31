@@ -14,6 +14,8 @@ import { DocumentImage } from '../../../core/contracts/IAiProvider';
 import { BadRequestError } from '../../../shared/errors';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
+import * as path from 'path';
+import { sanitizeCloudinaryPathSegment } from '../../../../../../shared/utils/cloudinary-path.util.js';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 import { prisma } from '../../../../../../database/prisma.js';
@@ -101,17 +103,24 @@ export class AssignmentController extends BaseController {
 
             // Upload file to Cloudinary directly for Lecturer Assignment Attachment
             let uploadedFileUrl: string | null = null;
+            let uploadErrorMessage: string | null = null;
             try {
+                // Do NOT use `use_filename` here: it derives the public_id from the raw
+                // upload name, so any document titled "... A & B.docx" is rejected with
+                // "public_id is invalid". Build a sanitized id ourselves instead.
+                const baseName = path.parse(file.originalname).name;
                 const uploadOptions = {
                     folder: 'aita/assignments',
                     resource_type: 'raw' as any,
-                    use_filename: true,
-                    unique_filename: true,
+                    public_id: `${sanitizeCloudinaryPathSegment(baseName, 'assignment')}_${Date.now()}`,
                 };
                 const cloudinaryRes = await CloudinaryService.uploadStream(file.buffer, uploadOptions);
                 uploadedFileUrl = cloudinaryRes.secure_url;
                 console.log(`[AssignmentController] Uploaded assignment document to Cloudinary: ${uploadedFileUrl}`);
-            } catch (uploadError) {
+            } catch (uploadError: any) {
+                // Non-fatal: the extracted text is still useful. But report the reason
+                // instead of silently returning uploadedFile: null.
+                uploadErrorMessage = uploadError?.message || 'Unknown Cloudinary error';
                 console.error(`[AssignmentController] Failed to upload assignment to Cloudinary:`, uploadError);
             }
 
@@ -122,10 +131,14 @@ export class AssignmentController extends BaseController {
                     url: uploadedFileUrl,
                     fileName: file.originalname,
                     fileType: file.mimetype
-                } : null
+                } : null,
+                uploadError: uploadErrorMessage
             }, 'Text extracted');
-        } catch (error) {
-            throw new Error('Error extracting text');
+        } catch (error: any) {
+            // Preserve the original failure — a bare `new Error('Error extracting text')`
+            // hides the real cause (bad mimetype, corrupt docx, Cloudinary rejection).
+            console.error('[AssignmentController] extractText failed:', error);
+            throw error instanceof Error ? error : new Error(`Error extracting text: ${String(error)}`);
         }
     };
 

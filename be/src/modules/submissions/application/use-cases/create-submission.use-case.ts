@@ -8,6 +8,7 @@ import { CreateSubmissionRequestDto, SubmissionResponseDto } from '../dtos/submi
 import { Submission } from '../../domain/entities/submission.entity.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
 import { CloudinaryService } from '../../../../shared/infrastructure/services/cloudinary.service.js'
+import { buildCloudinaryFolder, sanitizeCloudinaryPathSegment } from '../../../../shared/utils/cloudinary-path.util.js'
 import path from 'path'
 import fs from 'fs'
 
@@ -117,8 +118,10 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     let localFilePath: string | undefined;
 
     if (file) {
-      const subjectCode = subjectInfo.subjectCode || subjectInfo.Code || 'UnknownSubject'
-      const classCode = classInfo.classCode || classInfo.Code || 'UnknownClass'
+      // Sanitized here, not at the call sites: these also become a local directory
+      // path in the >10MB fallback below, so a stray "/" or ".." must never survive.
+      const subjectCode = sanitizeCloudinaryPathSegment(subjectInfo.subjectCode || subjectInfo.Code, 'UnknownSubject')
+      const classCode = sanitizeCloudinaryPathSegment(classInfo.classCode || classInfo.Code, 'UnknownClass')
       const studentNameSafe = ((user as any).name || (user as any).email || user.id).replace(/[^a-zA-Z0-9]/g, '_')
 
       if (file.size > 10485760) {
@@ -135,7 +138,9 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
         // Use relative URL so frontend/API can serve it
         fileUrl = `/uploads/submissions/${subjectCode}/${classCode}/${fileName}?filename=${encodeURIComponent(file.originalname)}`;
       } else {
-        const folderPath = `AITA/${subjectCode}/${classCode}/${exam.title || examId}`
+        // Every segment must be sanitized — Cloudinary rejects ? & # \ % < > + in a
+        // public_id, and exam titles routinely contain "&" or ":".
+        const folderPath = buildCloudinaryFolder('AITA', subjectCode, classCode, exam.title || examId)
         try {
           const uploadResult = await CloudinaryService.uploadStream(file.buffer, {
             folder: folderPath,
