@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -30,9 +30,13 @@ import { Tabs } from '@/components/ui/Tabs'
 export function LecturerSubmissions() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const filterClassId = searchParams.get('classId') || ''
+
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [classStudents, setClassStudents] = useState<any[]>([])
+  const [availableClasses, setAvailableClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -62,24 +66,42 @@ export function LecturerSubmissions() {
     setLoading(true)
     setError(null)
     try {
-      const [assigData, subsData] = await Promise.all([
+      const [assigData, allClassesData] = await Promise.all([
         api.getAssignment(id),
-        api.getSubmissions({ assignmentId: id })
+        api.getClasses().catch(() => [])
       ])
       setAssignment(assigData)
-      const submissionList = subsData || []
-      setSubmissions(submissionList)
 
-      // Discover target classIds
+      // Discover target classIds assigned to this assignment
       let classIds: string[] = (assigData as any)?.classes || []
       if (classIds.length === 0 && (assigData as any)?.classId) {
         classIds = [(assigData as any).classId]
       }
 
+      // Available assigned classes
+      const assignedClasses = (allClassesData || []).filter(
+        (c: any) => classIds.length === 0 || classIds.includes(c.id)
+      )
+      setAvailableClasses(assignedClasses)
+
+      // Determine active target class IDs
+      const targetClassIds = filterClassId
+        ? [filterClassId]
+        : classIds
+
+      // Fetch submissions for this assignment (and scoped by filterClassId if provided)
+      const subsData = await api.getSubmissions({
+        assignmentId: id,
+        ...(filterClassId ? { classId: filterClassId } : {})
+      })
+      const submissionList = subsData || []
+      setSubmissions(submissionList)
+
+      // Fetch students for target classes ONLY
       let studentsList: any[] = []
-      if (classIds.length > 0) {
+      if (targetClassIds.length > 0) {
         const studentLists = await Promise.all(
-          classIds.map(cid => api.getClassStudents(cid).catch(() => []))
+          targetClassIds.map(cid => api.getClassStudents(cid).catch(() => []))
         )
         const map = new Map<string, any>()
         studentLists.flat().forEach((s: any) => {
@@ -88,17 +110,22 @@ export function LecturerSubmissions() {
           }
         })
         studentsList = Array.from(map.values())
-      }
-
-      // Fallback: If no class enrollment is explicitly assigned, gather students from submissions
-      if (studentsList.length === 0 && submissionList.length > 0) {
-        studentsList = submissionList.map(s => ({
-          id: s.studentId || s.id,
-          studentId: s.studentId || s.id,
-          name: s.student || 'Student',
-          avatar: (s as any).avatar || null,
-          email: (s as any).email || '',
-        }))
+      } else if (submissionList.length > 0) {
+        // Fallback only if no assigned classes exist
+        const map = new Map<string, any>()
+        submissionList.forEach(s => {
+          const sid = s.studentId || s.id
+          if (sid && !map.has(sid)) {
+            map.set(sid, {
+              id: sid,
+              studentId: sid,
+              name: s.student || 'Student',
+              avatar: (s as any).avatar || null,
+              email: (s as any).email || '',
+            })
+          }
+        })
+        studentsList = Array.from(map.values())
       }
 
       setClassStudents(studentsList)
@@ -107,7 +134,7 @@ export function LecturerSubmissions() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, filterClassId])
 
   useEffect(() => {
     load()
@@ -289,16 +316,16 @@ export function LecturerSubmissions() {
             <ArrowLeft size={18} />
           </Button>
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-400 text-xs font-bold uppercase tracking-wider">
-                {assignment.type || 'Assignment'} Roster
-              </span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
               {assignment.title}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
-              <span>Class: <strong className="text-slate-700 dark:text-slate-300">{assignment.class || 'All Enrolled Classes'}</strong></span>
+              <span>Class: <strong className="text-slate-700 dark:text-slate-300 font-bold">{
+                availableClasses.find((c: any) => c.id === filterClassId)?.code ||
+                availableClasses.find((c: any) => c.id === filterClassId)?.ClassCode ||
+                assignment.class ||
+                (filterClassId ? 'Selected Class' : 'All Enrolled Classes')
+              }</strong></span>
               <span>•</span>
               <span>Due: <strong className="text-slate-700 dark:text-slate-300 font-mono">{assignment.due?.slice(0, 10) || 'No deadline'}</strong></span>
             </p>
@@ -306,7 +333,7 @@ export function LecturerSubmissions() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {assignment.type === 'Exam' ? (
+          {assignment.type === 'Exam' && (
             <Button
               size="sm"
               onClick={handleStartSession}
@@ -315,14 +342,6 @@ export function LecturerSubmissions() {
               <BrainCircuit size={16} />
               Batch Grade with AI
             </Button>
-          ) : (
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl text-xs font-bold shadow-2xs">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              AI Background Grading Active
-            </div>
           )}
           <Button
             size="sm"
@@ -339,8 +358,8 @@ export function LecturerSubmissions() {
 
         {/* Workspace Toolbar: Search & Segmented Filter Tabs */}
         <div className="border-b border-slate-100 dark:border-slate-800/80 p-5 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:w-72">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
@@ -521,7 +540,7 @@ export function LecturerSubmissions() {
 
       {/* Modern Grading Modal */}
       {gradingSub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 animate-in fade-in duration-200">
           <Card className="w-full max-w-2xl bg-white dark:bg-[#12151e] shadow-2xl border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
               <div>
@@ -698,7 +717,7 @@ export function LecturerSubmissions() {
 
       {/* Reopen Submission Modal */}
       {reopenTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 animate-in fade-in duration-200">
           <Card className="w-full max-w-xl bg-white dark:bg-[#12151e] shadow-2xl border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
               <div>

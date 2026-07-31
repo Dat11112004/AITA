@@ -40,7 +40,7 @@ export function LecturerClassDetail() {
 
       const submissionLists = await Promise.all(
         assignmentList.map(a =>
-          api.getSubmissions({ assignmentId: a.id }).catch(() => [] as SubmissionRow[])
+          api.getSubmissions({ assignmentId: a.id, classId: id }).catch(() => [] as SubmissionRow[])
         )
       )
 
@@ -248,7 +248,7 @@ export function LecturerClassDetail() {
                     {assignments.map(a => (
                       <div 
                         key={a.id} 
-                        onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions`)}
+                        onClick={() => navigate(`/lecturer/assignments/${a.id}/submissions?classId=${id}`)}
                         className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white dark:bg-[#151821] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 transition-all group cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
@@ -269,7 +269,7 @@ export function LecturerClassDetail() {
                             size="sm" 
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/lecturer/assignments/${a.id}/submissions`)
+                              navigate(`/lecturer/assignments/${a.id}/submissions?classId=${id}`)
                             }} 
                             className="bg-white hover:bg-slate-50 font-bold border-slate-200"
                           >

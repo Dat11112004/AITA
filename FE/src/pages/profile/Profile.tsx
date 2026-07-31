@@ -155,10 +155,10 @@ export function Profile() {
   if (!user) return null
 
   const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Quản trị viên'
-      case 'lecturer': return 'Giảng viên'
-      case 'student': return 'Sinh viên'
+    switch (role?.toLowerCase()) {
+      case 'admin': return 'Admin'
+      case 'lecturer': return 'Lecturer'
+      case 'student': return 'Student'
       default: return role
     }
   }

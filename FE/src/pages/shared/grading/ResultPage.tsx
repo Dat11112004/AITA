@@ -124,13 +124,13 @@ export default function ResultPage() {
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                   : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
               }`}>
-                {(result as any).isPublished ? 'Đã công bố kết quả' : 'Đang ở trạng thái nháp (Chờ công bố)'}
+                {(result as any).isPublished ? 'PUBLISHED RESULT' : 'DRAFT STATUS (PENDING PUBLICATION)'}
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
               {(result as any).isPublished
-                ? 'Học sinh đã có thể xem điểm và nhận xét chi tiết bài làm này.'
-                : 'Giảng viên cần xem xét lại kết quả và nhấn "Công bố" để gửi điểm cho học sinh.'}
+                ? 'Students can now view their grades and detailed feedback for this submission.'
+                : 'Lecturer needs to review the result and click "Publish" to send grades to the student.'}
             </p>
           </div>
         </div>
@@ -153,10 +153,10 @@ export default function ResultPage() {
           )}
           <span>
             {isPublishing
-              ? 'Đang xử lý...'
+              ? 'Processing...'
               : (result as any).isPublished
-                ? 'Hủy công bố (Về nháp)'
-                : '🚀 Công bố kết quả cho học sinh'}
+                ? 'Unpublish (Back to Draft)'
+                : '🚀 Publish result to student'}
           </span>
         </button>
       </div>
@@ -177,7 +177,7 @@ export default function ResultPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Tổng hợp đánh giá & chiến lược phát triển</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Synthesis evaluation & development strategy</p>
               </div>
             </div>
             <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-[15px] text-slate-700 dark:text-slate-300">

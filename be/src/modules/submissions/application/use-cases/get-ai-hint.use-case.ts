@@ -39,14 +39,15 @@ export class GetAiHintUseCase implements IUseCase<{ submissionId: string; ruleSc
     const rubricDescription = ruleScore.RubricRule?.Description || 'Unknown Rule'
     const aiReasoning = ruleScore.AiReasoning || 'No specific reasoning provided'
 
-    const systemPrompt = `Bạn là một trợ lý giảng dạy (Senior Developer). 
-Sinh viên đã làm sai bài tập ở tiêu chí: "${rubricDescription}".
-Lý do AI chấm điểm trừ là: "${aiReasoning}".
+    const systemPrompt = `You are a Senior Teaching Assistant (Senior Developer). 
+The student made a mistake in the following criteria: "${rubricDescription}".
+The evaluation reason is: "${aiReasoning}".
 
-Nhiệm vụ của bạn:
-1. Giải thích ngắn gọn lỗi này nghĩa là gì.
-2. Đưa ra gợi ý (hints) để sinh viên tự sửa lỗi.
-TUYỆT ĐỐI KHÔNG cung cấp toàn bộ code giải hoàn chỉnh. Chỉ đưa ra hướng dẫn tư duy hoặc ví dụ minh họa chung chung.`
+Your task:
+1. Briefly explain what this issue means.
+2. Provide constructive hints for the student to fix the issue themselves.
+ABSOLUTELY DO NOT provide the complete solution code. Only provide guidance or general illustrative examples.
+MUST BE WRITTEN ENTIRELY IN ENGLISH.`
 
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -58,7 +59,7 @@ TUYỆT ĐỐI KHÔNG cung cấp toàn bộ code giải hoàn chỉnh. Chỉ đ�
       return { hint }
     } catch (error) {
       console.error('Failed to generate AI hint:', error)
-      return { hint: 'Hệ thống AI hiện đang bận hoặc chưa được cấu hình. Vui lòng thử lại sau.' }
+      return { hint: 'AI system is currently busy or unconfigured. Please try again later.' }
     }
   }
 }

@@ -635,6 +635,8 @@ export interface SubmissionListQuery {
   assignmentId?: string
   examId?: string
   status?: string
+  classId?: string
+  studentId?: string
 }
 
 export interface CreateSubmissionBody {

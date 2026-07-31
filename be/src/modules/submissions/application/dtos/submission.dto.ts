@@ -125,8 +125,8 @@ export class SubmissionResponseDto {
         title: submission.Exam.Title,
         status: submission.Exam.Status,
         dueDate: submission.Exam.DueDate,
-        latePenaltyType: submission.Exam.LatePenaltyType,
-        latePenaltyValue: submission.Exam.LatePenaltyValue,
+        latePenaltyType: (submission.Exam as any)?.LatePenaltyType,
+        latePenaltyValue: (submission.Exam as any)?.LatePenaltyValue,
       } : (submission.exam ? submission.exam : null),
       class: submission.Class ? {
         id: submission.Class.Id,

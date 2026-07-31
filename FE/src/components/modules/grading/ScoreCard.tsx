@@ -50,7 +50,7 @@ export default function ScoreCard({ score, maxScore, assessedAt, gradingTime }: 
             <div className="flex flex-col text-left">
               <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest">Date Assessed</span>
               <span className="text-sm font-bold text-slate-800 dark:text-slate-300 mt-0.5">
-                {new Date(assessedAt).toLocaleString(undefined, {
+                {new Date(assessedAt).toLocaleString('en-US', {
                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                 })}
               </span>

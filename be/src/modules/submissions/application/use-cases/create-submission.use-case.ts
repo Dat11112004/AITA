@@ -76,15 +76,22 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     const existingSubmission = existingSubmissionList && existingSubmissionList.length > 0 ? existingSubmissionList[0] : null
 
     // Check deadline considering student-specific SubmissionOverride extension
-    const { prisma } = await import('../../../../database/prisma.js')
-    const override = await prisma.submissionOverride.findUnique({
-      where: {
-        ExamId_StudentId: {
-          ExamId: examId,
-          StudentId: user.id,
-        }
+    let override: any = null
+    try {
+      const { prisma } = await import('../../../../database/prisma.js')
+      if ((prisma as any).submissionOverride?.findUnique) {
+        override = await (prisma as any).submissionOverride.findUnique({
+          where: {
+            ExamId_StudentId: {
+              ExamId: examId,
+              StudentId: user.id,
+            }
+          }
+        })
       }
-    })
+    } catch (overrideErr) {
+      console.warn('SubmissionOverride lookup skipped:', overrideErr)
+    }
 
     const effectiveDueDate = override?.ExtendedDueDate ? new Date(override.ExtendedDueDate) : (exam.dueDate ? new Date(exam.dueDate) : null)
 

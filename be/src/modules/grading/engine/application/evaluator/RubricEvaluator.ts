@@ -305,7 +305,7 @@ export class RubricEvaluator {
         let overallFeedback: string | undefined;
         try {
             if (onProgress) {
-                onProgress(totalRules, totalRules, `Đang tổng hợp nhận xét (AI Feedback)...`, null);
+                onProgress(totalRules, totalRules, `Generating AI Feedback...`, null);
             }
             overallFeedback = await this.aiProvider.generateOverallFeedbackAsync(
                 rubric.title || "Bài tập rèn luyện",
