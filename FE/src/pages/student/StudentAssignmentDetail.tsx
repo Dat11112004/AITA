@@ -439,15 +439,23 @@ export function StudentAssignmentDetail() {
   // Read defensively: this page already tolerates several response shapes for dueDate.
   const policySrc = (assignment ?? {}) as any;
   const pick = (key: string, upperKey: string) =>
-    policySrc[key] ?? policySrc.metadata?.[key] ?? policySrc[upperKey] ?? policySrc.stats?.[key];
+    policySrc[key] ??
+    policySrc.metadata?.[key] ??
+    policySrc[upperKey] ??
+    policySrc.stats?.[key] ??
+    policySrc.exam?.[key] ??
+    policySrc.exam?.[upperKey] ??
+    policySrc.blueprint?.[key] ??
+    policySrc.blueprint?.[upperKey] ??
+    policySrc.blueprint?.exam?.[key] ??
+    policySrc.blueprint?.exam?.[upperKey];
 
   const latePenaltyType: string = pick('latePenaltyType', 'LatePenaltyType') ?? 'NONE';
-  const latePenaltyValue = Number(pick('latePenaltyValue', 'LatePenaltyValue') ?? 0) || 0;
-  const rawMaxLatePenalty = pick('maxLatePenalty', 'MaxLatePenalty');
-  const maxLatePenalty =
-    rawMaxLatePenalty === null || rawMaxLatePenalty === undefined || rawMaxLatePenalty === ''
-      ? null
-      : Number(rawMaxLatePenalty);
+  const rawPenaltyVal = pick('latePenaltyValue', 'LatePenaltyValue');
+  const latePenaltyValue = (rawPenaltyVal !== undefined && rawPenaltyVal !== null && !isNaN(Number(rawPenaltyVal)))
+    ? Number(rawPenaltyVal)
+    : (latePenaltyType !== 'NONE' ? 1 : 0);
+
   // Defaults to allowed, matching the DB default.
   const allowLateSubmission = (pick('allowLateSubmission', 'AllowLateSubmission') ?? true) !== false;
 
@@ -459,18 +467,14 @@ export function StudentAssignmentDetail() {
 
   const trim = (n: number) => n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
   let latePenaltyText: string | null = null;
-  if (isPastDue && allowLateSubmission && latePenaltyType !== 'NONE' && latePenaltyValue > 0) {
+  const effectiveValue = latePenaltyValue > 0 ? latePenaltyValue : 1;
+  if (isPastDue && allowLateSubmission && latePenaltyType !== 'NONE') {
     if (latePenaltyType === 'DAILY_POINTS') {
-      latePenaltyText = `-${trim(daysLate * latePenaltyValue)} points`;
+      latePenaltyText = `-${trim(daysLate * effectiveValue)} points`;
     } else if (latePenaltyType === 'DAILY_PERCENT') {
-      // The backend applies the percentage to the graded score, which does not exist
-      // yet — so express it as a percentage rather than inventing a point figure.
-      latePenaltyText = `-${trim(daysLate * latePenaltyValue)}% of your score`;
+      latePenaltyText = `-${trim(daysLate * effectiveValue)}% of your score`;
     } else if (latePenaltyType === 'FLAT_POINTS') {
-      latePenaltyText = `-${trim(latePenaltyValue)} points`;
-    }
-    if (latePenaltyText && maxLatePenalty !== null) {
-      latePenaltyText += ` (capped at ${trim(maxLatePenalty)} points)`;
+      latePenaltyText = `-${trim(effectiveValue)} points`;
     }
   }
 
@@ -478,27 +482,11 @@ export function StudentAssignmentDetail() {
   // being late while they can still act on it.
   const latePolicyRule: string | null = (() => {
     if (!allowLateSubmission) return 'Late submission not accepted';
-    if (latePenaltyType === 'NONE' || latePenaltyValue <= 0) return 'Accepted, no penalty';
-    if (latePenaltyType === 'DAILY_POINTS') return `-${trim(latePenaltyValue)} point${latePenaltyValue === 1 ? '' : 's'} per day late`;
-    if (latePenaltyType === 'DAILY_PERCENT') return `-${trim(latePenaltyValue)}% of your score per day late`;
-    if (latePenaltyType === 'FLAT_POINTS') return `-${trim(latePenaltyValue)} points, however late`;
+    if (latePenaltyType === 'NONE') return 'Accepted, no penalty';
+    if (latePenaltyType === 'DAILY_POINTS') return `-${trim(effectiveValue)} point${effectiveValue === 1 ? '' : 's'} per day late`;
+    if (latePenaltyType === 'DAILY_PERCENT') return `-${trim(effectiveValue)}% of your score per day late`;
+    if (latePenaltyType === 'FLAT_POINTS') return `-${trim(effectiveValue)} points, however late`;
     return null;
-  })();
-
-  // Concrete escalation for the day-based rules, so "each extra day costs more" is
-  // visible as numbers rather than left for the student to work out.
-  const lateSchedule: string | null = (() => {
-    if (!allowLateSubmission || latePenaltyValue <= 0) return null;
-    if (latePenaltyType !== 'DAILY_POINTS' && latePenaltyType !== 'DAILY_PERCENT') return null;
-    const isPercent = latePenaltyType === 'DAILY_PERCENT';
-    return [1, 2, 3]
-      .map((d) => {
-        let amount = d * latePenaltyValue;
-        // The cap is expressed in points, so it only bounds the points-based rule.
-        if (!isPercent && maxLatePenalty !== null) amount = Math.min(amount, maxLatePenalty);
-        return `${d}d −${trim(amount)}${isPercent ? '%' : ''}`;
-      })
-      .join('  ·  ');
   })();
 
   // Only truly locked when the lecturer disallowed late submission.
@@ -1261,16 +1249,6 @@ export function StudentAssignmentDetail() {
                     <span className={`font-medium ${allowLateSubmission ? 'text-amber-600 dark:text-amber-400' : 'text-red-600'}`}>
                       {latePolicyRule}
                     </span>
-                    {lateSchedule && (
-                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
-                        {lateSchedule}
-                      </div>
-                    )}
-                    {maxLatePenalty !== null && allowLateSubmission && (
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        max −{trim(maxLatePenalty)} points
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

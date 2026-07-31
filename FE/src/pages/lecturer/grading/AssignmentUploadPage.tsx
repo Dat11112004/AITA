@@ -999,53 +999,59 @@ export default function AssignmentUploadPage() {
                                                 </div>
                                                 <div className="col-span-1">
                                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Quy tắc nộp trễ (Late Penalty)</label>
-                                                    <div className="flex gap-2">
-                                                        <select
-                                                            value={metadata.latePenaltyType || 'NONE'}
-                                                            onChange={(e) => setMetadata({ ...metadata, latePenaltyType: e.target.value })}
-                                                            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                                        >
-                                                            <option value="NONE">Không trừ điểm trễ</option>
-                                                            <option value="DAILY_POINTS">Trừ điểm theo ngày (-X đ/24h)</option>
-                                                            <option value="DAILY_PERCENT">Trừ % theo ngày (-X %/24h)</option>
-                                                            <option value="FLAT_POINTS">Trừ cố định X điểm</option>
-                                                        </select>
-                                                        {metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
-                                                            <input
-                                                                type="number"
-                                                                step="0.5"
-                                                                min="0"
-                                                                placeholder="Mức trừ"
-                                                                value={metadata.latePenaltyValue !== undefined ? metadata.latePenaltyValue : 2.0}
-                                                                onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
-                                                                className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                                            />
-                                                        )}
-                                                    </div>
+                                                    <select
+                                                        value={metadata.latePenaltyType || 'NONE'}
+                                                        onChange={(e) => setMetadata({ ...metadata, latePenaltyType: e.target.value })}
+                                                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                    >
+                                                        <option value="NONE">Không trừ điểm trễ</option>
+                                                        <option value="DAILY_POINTS">Trừ điểm theo ngày (-X đ/24h)</option>
+                                                        <option value="DAILY_PERCENT">Trừ % theo ngày (-X %/24h)</option>
+                                                        <option value="FLAT_POINTS">Trừ cố định X điểm</option>
+                                                    </select>
 
-                                                    {/* Cap: without it, a submission 20 days late goes to 0 (or below). */}
                                                     {metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
-                                                        <div className="mt-2 flex items-center gap-2">
-                                                            <label className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                                                                Trừ tối đa
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                step="0.5"
-                                                                min="0"
-                                                                placeholder="Không giới hạn"
-                                                                value={metadata.maxLatePenalty !== undefined && metadata.maxLatePenalty !== null ? metadata.maxLatePenalty : ''}
-                                                                onChange={(e) => setMetadata({
-                                                                    ...metadata,
-                                                                    maxLatePenalty: e.target.value === '' ? null : Number(e.target.value)
-                                                                })}
-                                                                className="w-28 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                                            />
-                                                            <span className="text-[11px] text-slate-500">điểm</span>
+                                                        <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <label className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                                                                    Mức trừ:
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.5"
+                                                                    min="0"
+                                                                    placeholder="1"
+                                                                    value={metadata.latePenaltyValue !== undefined && metadata.latePenaltyValue !== null ? metadata.latePenaltyValue : 1}
+                                                                    onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
+                                                                    className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                                />
+                                                                <span className="text-[11px] text-slate-500 font-medium">
+                                                                    {metadata.latePenaltyType === 'DAILY_PERCENT' ? '% / 24h' : metadata.latePenaltyType === 'DAILY_POINTS' ? 'đ / 24h' : 'điểm'}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1.5">
+                                                                <label className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                                                                    Trừ tối đa:
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.5"
+                                                                    min="0"
+                                                                    placeholder="Không giới hạn"
+                                                                    value={metadata.maxLatePenalty !== undefined && metadata.maxLatePenalty !== null ? metadata.maxLatePenalty : ''}
+                                                                    onChange={(e) => setMetadata({
+                                                                        ...metadata,
+                                                                        maxLatePenalty: e.target.value === '' ? null : Number(e.target.value)
+                                                                    })}
+                                                                    className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                                />
+                                                                <span className="text-[11px] text-slate-500 font-medium">điểm</span>
+                                                            </div>
                                                         </div>
                                                     )}
 
-                                                    <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
+                                                    <label className="mt-2.5 flex items-center gap-2 cursor-pointer select-none">
                                                         <input
                                                             type="checkbox"
                                                             checked={metadata.allowLateSubmission !== false}
