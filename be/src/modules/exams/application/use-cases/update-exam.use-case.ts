@@ -25,6 +25,13 @@ export class UpdateExamUseCase implements IUseCase<{ id: string; dto: UpdateExam
       description: data.description,
     })
 
+    exam.setLatePolicy({
+      latePenaltyType: data.latePenaltyType,
+      latePenaltyValue: data.latePenaltyValue,
+      maxLatePenalty: data.maxLatePenalty,
+      allowLateSubmission: data.allowLateSubmission,
+    })
+
     if (data.status === 'published' || data.status === 'Published') {
       if (exam.status !== 'Published') {
         exam.publish()

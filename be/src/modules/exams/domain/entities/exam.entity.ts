@@ -7,6 +7,24 @@ import { AggregateRoot, DomainEvent } from '../../../../shared/domain/domain-eve
 export type ExamTypeValue = 'Midterm' | 'Final' | 'Practice' | 'Assignment'
 export type ExamStatusValue = 'Draft' | 'Published' | 'Closed' | 'Archived'
 
+/** How a late submission is penalised. Mirrors Exam.LatePenaltyType in the DB. */
+export type LatePenaltyTypeValue = 'NONE' | 'DAILY_POINTS' | 'DAILY_PERCENT' | 'FLAT_POINTS'
+
+/**
+ * The lecturer-configured late policy for an exam.
+ *
+ * `allowLateSubmission` decides whether a late submission is ACCEPTED at all;
+ * `latePenaltyType`/`latePenaltyValue` decide how much is DEDUCTED once accepted.
+ * The two are independent — type 'NONE' means "accepted, deduct nothing", it is
+ * not a way to refuse late work.
+ */
+export interface LatePolicy {
+  latePenaltyType?: LatePenaltyTypeValue | string | null
+  latePenaltyValue?: number | null
+  maxLatePenalty?: number | null
+  allowLateSubmission?: boolean | null
+}
+
 // ──────────────────────────────────────────────────────────────
 // Domain Events
 // ──────────────────────────────────────────────────────────────
@@ -100,6 +118,10 @@ export class Exam extends AggregateRoot {
   promptTemplateId: string | null
   createdBy: string | null
   dueDate: Date | null
+  latePenaltyType: string | null
+  latePenaltyValue: number | null
+  maxLatePenalty: number | null
+  allowLateSubmission: boolean
 
   private constructor(
     id: string,
@@ -119,7 +141,10 @@ export class Exam extends AggregateRoot {
     originalPrompt: string | null,
     promptTemplateId: string | null,
     createdBy: string | null,
-    dueDate: Date | null = null
+    dueDate: Date | null = null,
+    // Trailing options object rather than 4 more positional args — the list is
+    // already long enough to make call sites unreadable.
+    latePolicy: LatePolicy = {}
   ) {
     super()
     this.id = id
@@ -140,6 +165,12 @@ export class Exam extends AggregateRoot {
     this.promptTemplateId = promptTemplateId
     this.createdBy = createdBy
     this.dueDate = dueDate
+    this.latePenaltyType = latePolicy.latePenaltyType ?? 'NONE'
+    this.latePenaltyValue = latePolicy.latePenaltyValue ?? null
+    this.maxLatePenalty = latePolicy.maxLatePenalty ?? null
+    // Defaults to true to match the DB default — absence must not silently
+    // start refusing late work.
+    this.allowLateSubmission = latePolicy.allowLateSubmission ?? true
   }
 
   // ── Factory Methods ──
@@ -160,6 +191,7 @@ export class Exam extends AggregateRoot {
       assignmentTemplateId?: string
       submissionFormat?: string
       dueDate?: Date
+      latePolicy?: LatePolicy
     }
   ): Exam {
     const exam = new Exam(
@@ -180,7 +212,8 @@ export class Exam extends AggregateRoot {
       null,   // originalPrompt
       null,   // promptTemplateId
       createdBy,
-      params?.dueDate ?? null
+      params?.dueDate ?? null,
+      params?.latePolicy ?? {}
     )
     exam.addDomainEvent(new ExamCreatedEvent(exam.id, exam.title, exam.createdBy))
     return exam
@@ -204,13 +237,14 @@ export class Exam extends AggregateRoot {
     originalPrompt: string | null,
     promptTemplateId: string | null,
     createdBy: string | null,
-    dueDate: Date | null = null
+    dueDate: Date | null = null,
+    latePolicy: LatePolicy = {}
   ): Exam {
     return new Exam(
       id, title, description, assignmentTemplateId, projectTypeId,
       gradingProfileId, subjectId, examType, duration, totalPoints,
       weightPercentage, status, submissionFormat, aiGeneratedContent,
-      originalPrompt, promptTemplateId, createdBy, dueDate
+      originalPrompt, promptTemplateId, createdBy, dueDate, latePolicy
     )
   }
 
@@ -266,5 +300,33 @@ export class Exam extends AggregateRoot {
   setAiGeneratedContent(content: string, originalPrompt: string): void {
     this.aiGeneratedContent = content
     this.originalPrompt = originalPrompt
+  }
+
+  /**
+   * Apply the lecturer's late policy. Only the keys present are changed, so a
+   * partial update (PATCH) cannot silently reset the others.
+   */
+  setLatePolicy(policy: LatePolicy): void {
+    if (policy.latePenaltyType !== undefined) {
+      this.latePenaltyType = policy.latePenaltyType ?? 'NONE'
+    }
+    if (policy.latePenaltyValue !== undefined) {
+      this.latePenaltyValue = policy.latePenaltyValue ?? null
+    }
+    if (policy.maxLatePenalty !== undefined) {
+      this.maxLatePenalty = policy.maxLatePenalty ?? null
+    }
+    if (policy.allowLateSubmission !== undefined && policy.allowLateSubmission !== null) {
+      this.allowLateSubmission = policy.allowLateSubmission
+    }
+  }
+
+  /**
+   * Whether a submission arriving after the effective due date is still accepted.
+   * Deliberately independent of latePenaltyType: 'NONE' deducts nothing but is
+   * still accepted — refusing late work is what allowLateSubmission=false is for.
+   */
+  acceptsLateSubmission(): boolean {
+    return this.allowLateSubmission !== false
   }
 }

@@ -96,11 +96,31 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
 
     const effectiveDueDate = override?.ExtendedDueDate ? new Date(override.ExtendedDueDate) : (exam.dueDate ? new Date(exam.dueDate) : null)
 
+    // A late submission is only refused when the lecturer turned late submission
+    // off. Previously this rejected every late submission unconditionally, which
+    // made the whole late-penalty engine unreachable: no submission could ever be
+    // late, so the deduction was always 0. The penalty itself is applied later, at
+    // publish time, by calculateLatePenalty().
+    let isLate = false
     if (effectiveDueDate) {
       const now = new Date()
       if (now > effectiveDueDate) {
-        throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết, không thể nộp bài.')
+        const lateAllowed = typeof exam.acceptsLateSubmission === 'function'
+          ? exam.acceptsLateSubmission()
+          : exam.allowLateSubmission !== false
+
+        if (!lateAllowed) {
+          throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết và bài tập này không cho phép nộp trễ.')
+        }
+        isLate = true
       }
+    }
+
+    if (isLate) {
+      console.warn(
+        `[CreateSubmission] Late submission accepted — exam=${examId} student=${user.id} ` +
+        `due=${effectiveDueDate?.toISOString()} penaltyType=${exam.latePenaltyType ?? 'NONE'}`
+      )
     }
 
     let fileUrl = dto.data.zipFileUrl ?? ''

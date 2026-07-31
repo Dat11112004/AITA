@@ -435,7 +435,47 @@ export function StudentAssignmentDetail() {
   const displayScore = (submission && isPublished) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
   const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
-  const isLocked = isPastDue && !isSubmitted;
+  // ── Late-submission policy, as configured by the lecturer on the exam ──
+  // Read defensively: this page already tolerates several response shapes for dueDate.
+  const policySrc = (assignment ?? {}) as any;
+  const pick = (key: string, upperKey: string) =>
+    policySrc[key] ?? policySrc.metadata?.[key] ?? policySrc[upperKey] ?? policySrc.stats?.[key];
+
+  const latePenaltyType: string = pick('latePenaltyType', 'LatePenaltyType') ?? 'NONE';
+  const latePenaltyValue = Number(pick('latePenaltyValue', 'LatePenaltyValue') ?? 0) || 0;
+  const rawMaxLatePenalty = pick('maxLatePenalty', 'MaxLatePenalty');
+  const maxLatePenalty =
+    rawMaxLatePenalty === null || rawMaxLatePenalty === undefined || rawMaxLatePenalty === ''
+      ? null
+      : Number(rawMaxLatePenalty);
+  // Defaults to allowed, matching the DB default.
+  const allowLateSubmission = (pick('allowLateSubmission', 'AllowLateSubmission') ?? true) !== false;
+
+  // Same rounding as the backend calculateLatePenalty(): any fraction of a day counts
+  // and the minimum is 1 day, so the figure shown matches the deduction applied.
+  const daysLate = isPastDue
+    ? Math.max(1, Math.ceil(Math.abs(timeRemaining) / (24 * 60 * 60 * 1000)))
+    : 0;
+
+  const trim = (n: number) => n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  let latePenaltyText: string | null = null;
+  if (isPastDue && allowLateSubmission && latePenaltyType !== 'NONE' && latePenaltyValue > 0) {
+    if (latePenaltyType === 'DAILY_POINTS') {
+      latePenaltyText = `-${trim(daysLate * latePenaltyValue)} points`;
+    } else if (latePenaltyType === 'DAILY_PERCENT') {
+      // The backend applies the percentage to the graded score, which does not exist
+      // yet — so express it as a percentage rather than inventing a point figure.
+      latePenaltyText = `-${trim(daysLate * latePenaltyValue)}% of your score`;
+    } else if (latePenaltyType === 'FLAT_POINTS') {
+      latePenaltyText = `-${trim(latePenaltyValue)} points`;
+    }
+    if (latePenaltyText && maxLatePenalty !== null) {
+      latePenaltyText += ` (capped at ${trim(maxLatePenalty)} points)`;
+    }
+  }
+
+  // Only truly locked when the lecturer disallowed late submission.
+  const isLocked = isPastDue && !allowLateSubmission && !isSubmitted;
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
   const rubricsList = assignment?.rubrics || (assignment as any)?.rubric?.rules || [];
 
@@ -767,15 +807,28 @@ export function StudentAssignmentDetail() {
                       <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
                         isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
                       }`}>
-                        {isPastDue ? 'CLOSED' : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
+                        {isPastDue
+                          ? (allowLateSubmission ? 'LATE SUBMISSION' : 'CLOSED')
+                          : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
                       </span>
                       <span className="text-xs font-semibold">
                         Due: {new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold flex items-center gap-1">
-                      {isPastDue ? 'This assignment is closed for official submissions.' : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
+                      {isPastDue
+                        ? (allowLateSubmission
+                            ? <>Late by {daysLate} day{daysLate > 1 ? 's' : ''}. You can still submit.</>
+                            : 'This assignment is closed for official submissions.')
+                        : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
                     </p>
+                    {isPastDue && allowLateSubmission && (
+                      <p className="text-xs mt-1 font-semibold opacity-90">
+                        {latePenaltyText
+                          ? <>Projected late penalty: <span className="font-extrabold">{latePenaltyText}</span> — the final figure is confirmed when your lecturer publishes the grade.</>
+                          : 'No late penalty applies to this assignment.'}
+                      </p>
+                    )}
                   </div>
                 </div>
 

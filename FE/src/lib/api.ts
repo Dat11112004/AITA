@@ -629,9 +629,6 @@ export interface SubmissionRow {
   aiFeedback?: unknown | null
   instructorFeedback?: string | null
   studentFeedback?: string | null
-  latePenaltyAmount?: number | null
-  isReopened?: boolean
-  reopenReason?: string | null
 }
 
 export interface SubmissionListQuery {

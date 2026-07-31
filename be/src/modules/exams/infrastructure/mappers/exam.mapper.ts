@@ -33,7 +33,17 @@ export class ExamMapper {
       raw.OriginalPrompt,
       raw.PromptTemplateId,
       raw.CreatedBy,
-      raw.DueDate ? new Date(raw.DueDate) : null
+      raw.DueDate ? new Date(raw.DueDate) : null,
+      {
+        latePenaltyType: raw.LatePenaltyType ?? 'NONE',
+        latePenaltyValue: raw.LatePenaltyValue !== null && raw.LatePenaltyValue !== undefined
+          ? Number(raw.LatePenaltyValue)
+          : null,
+        maxLatePenalty: raw.MaxLatePenalty !== null && raw.MaxLatePenalty !== undefined
+          ? Number(raw.MaxLatePenalty)
+          : null,
+        allowLateSubmission: raw.AllowLateSubmission ?? true,
+      }
     )
     
     // Add additional unmapped fields safely if needed by DTOs or logic
@@ -97,7 +107,11 @@ export class ExamMapper {
       OriginalPrompt: exam.originalPrompt,
       PromptTemplateId: exam.promptTemplateId,
       CreatedBy: exam.createdBy,
-      DueDate: exam.dueDate
+      DueDate: exam.dueDate,
+      LatePenaltyType: exam.latePenaltyType ?? 'NONE',
+      LatePenaltyValue: exam.latePenaltyValue,
+      MaxLatePenalty: exam.maxLatePenalty,
+      AllowLateSubmission: exam.allowLateSubmission
     }
   }
 }

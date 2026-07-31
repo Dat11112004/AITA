@@ -1022,6 +1022,40 @@ export default function AssignmentUploadPage() {
                                                             />
                                                         )}
                                                     </div>
+
+                                                    {/* Cap: without it, a submission 20 days late goes to 0 (or below). */}
+                                                    {metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
+                                                        <div className="mt-2 flex items-center gap-2">
+                                                            <label className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                                                                Trừ tối đa
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.5"
+                                                                min="0"
+                                                                placeholder="Không giới hạn"
+                                                                value={metadata.maxLatePenalty !== undefined && metadata.maxLatePenalty !== null ? metadata.maxLatePenalty : ''}
+                                                                onChange={(e) => setMetadata({
+                                                                    ...metadata,
+                                                                    maxLatePenalty: e.target.value === '' ? null : Number(e.target.value)
+                                                                })}
+                                                                className="w-28 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                            />
+                                                            <span className="text-[11px] text-slate-500">điểm</span>
+                                                        </div>
+                                                    )}
+
+                                                    <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={metadata.allowLateSubmission !== false}
+                                                            onChange={(e) => setMetadata({ ...metadata, allowLateSubmission: e.target.checked })}
+                                                            className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                                        />
+                                                        <span className="text-[11px] font-semibold text-slate-600">
+                                                            Cho phép nộp trễ (bỏ chọn = chặn nộp sau hạn)
+                                                        </span>
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>

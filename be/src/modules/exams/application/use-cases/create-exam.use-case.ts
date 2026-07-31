@@ -46,6 +46,14 @@ export class CreateExamUseCase implements IUseCase<{ dto: CreateExamRequestDto; 
         totalPoints: data.maxScore ?? 10,
         weightPercentage: data.weightPercentage ?? 0,
         duration: data.duration,
+        // The DTO has always validated these; before this they were dropped here
+        // and the exam was saved with the DB default of 'NONE'.
+        latePolicy: {
+          latePenaltyType: data.latePenaltyType,
+          latePenaltyValue: data.latePenaltyValue,
+          maxLatePenalty: data.maxLatePenalty,
+          allowLateSubmission: data.allowLateSubmission,
+        },
       }
     )
 

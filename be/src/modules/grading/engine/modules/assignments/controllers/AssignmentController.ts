@@ -266,6 +266,24 @@ export class AssignmentController extends BaseController {
             const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, weightPercentage, gradingStrategy } = metadata;
             const selectedGradingStrategy = gradingStrategy || 'CONTINUOUS_QUEUE';
 
+            // Late policy set by the lecturer. These were previously dropped here, so
+            // every assignment published through this screen was stored with the DB
+            // default LatePenaltyType='NONE' no matter what the lecturer picked.
+            const VALID_LATE_PENALTY_TYPES = ['NONE', 'DAILY_POINTS', 'DAILY_PERCENT', 'FLAT_POINTS'];
+            const toNullableNumber = (v: any) =>
+                v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) ? Number(v) : null;
+
+            const latePenaltyType = VALID_LATE_PENALTY_TYPES.includes(metadata.latePenaltyType)
+                ? metadata.latePenaltyType
+                : 'NONE';
+            const latePenaltyValue = toNullableNumber(metadata.latePenaltyValue);
+            const maxLatePenalty = toNullableNumber(metadata.maxLatePenalty);
+            // Default true to match the DB default — a missing field must not start
+            // silently refusing late submissions.
+            const allowLateSubmission = metadata.allowLateSubmission === undefined || metadata.allowLateSubmission === null
+                ? true
+                : Boolean(metadata.allowLateSubmission);
+
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
             // 1. Resolve subject code or ID to SubjectId safely
@@ -332,6 +350,10 @@ export class AssignmentController extends BaseController {
                     StartDate: new Date(),
                     DueDate: parsedDueDate,
                     GradingStrategy: selectedGradingStrategy,
+                    LatePenaltyType: latePenaltyType,
+                    LatePenaltyValue: latePenaltyValue,
+                    MaxLatePenalty: maxLatePenalty,
+                    AllowLateSubmission: allowLateSubmission,
                     AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id, weightPercentage: weightPercentage ? Number(weightPercentage) : 0 }),
                     ...(validClassIds.length > 0 ? {
                         ExamClass: {
