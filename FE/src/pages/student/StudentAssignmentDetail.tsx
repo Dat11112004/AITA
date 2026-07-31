@@ -452,9 +452,12 @@ export function StudentAssignmentDetail() {
 
   const latePenaltyType: string = pick('latePenaltyType', 'LatePenaltyType') ?? 'NONE';
   const rawPenaltyVal = pick('latePenaltyValue', 'LatePenaltyValue');
+  // No invented default here. The backend engine does Number(examPenaltyValue || 0),
+  // so a missing value means a deduction of ZERO — assuming 1 would promise students
+  // a penalty the grader never applies (and vice versa).
   const latePenaltyValue = (rawPenaltyVal !== undefined && rawPenaltyVal !== null && !isNaN(Number(rawPenaltyVal)))
     ? Number(rawPenaltyVal)
-    : (latePenaltyType !== 'NONE' ? 1 : 0);
+    : 0;
 
   // Defaults to allowed, matching the DB default.
   const allowLateSubmission = (pick('allowLateSubmission', 'AllowLateSubmission') ?? true) !== false;
@@ -467,14 +470,13 @@ export function StudentAssignmentDetail() {
 
   const trim = (n: number) => n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
   let latePenaltyText: string | null = null;
-  const effectiveValue = latePenaltyValue > 0 ? latePenaltyValue : 1;
-  if (isPastDue && allowLateSubmission && latePenaltyType !== 'NONE') {
+  if (isPastDue && allowLateSubmission && latePenaltyType !== 'NONE' && latePenaltyValue > 0) {
     if (latePenaltyType === 'DAILY_POINTS') {
-      latePenaltyText = `-${trim(daysLate * effectiveValue)} points`;
+      latePenaltyText = `-${trim(daysLate * latePenaltyValue)} points`;
     } else if (latePenaltyType === 'DAILY_PERCENT') {
-      latePenaltyText = `-${trim(daysLate * effectiveValue)}% of your score`;
+      latePenaltyText = `-${trim(daysLate * latePenaltyValue)}% of your score`;
     } else if (latePenaltyType === 'FLAT_POINTS') {
-      latePenaltyText = `-${trim(effectiveValue)} points`;
+      latePenaltyText = `-${trim(latePenaltyValue)} points`;
     }
   }
 
@@ -482,10 +484,12 @@ export function StudentAssignmentDetail() {
   // being late while they can still act on it.
   const latePolicyRule: string | null = (() => {
     if (!allowLateSubmission) return 'Late submission not accepted';
-    if (latePenaltyType === 'NONE') return 'Accepted, no penalty';
-    if (latePenaltyType === 'DAILY_POINTS') return `-${trim(effectiveValue)} point${effectiveValue === 1 ? '' : 's'} per day late`;
-    if (latePenaltyType === 'DAILY_PERCENT') return `-${trim(effectiveValue)}% of your score per day late`;
-    if (latePenaltyType === 'FLAT_POINTS') return `-${trim(effectiveValue)} points, however late`;
+    // latePenaltyValue of 0 lands here too: the engine would deduct nothing, so
+    // "no penalty" is the truthful label.
+    if (latePenaltyType === 'NONE' || latePenaltyValue <= 0) return 'Accepted, no penalty';
+    if (latePenaltyType === 'DAILY_POINTS') return `-${trim(latePenaltyValue)} point${latePenaltyValue === 1 ? '' : 's'} per day late`;
+    if (latePenaltyType === 'DAILY_PERCENT') return `-${trim(latePenaltyValue)}% of your score per day late`;
+    if (latePenaltyType === 'FLAT_POINTS') return `-${trim(latePenaltyValue)} points, however late`;
     return null;
   })();
 

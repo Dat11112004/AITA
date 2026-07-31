@@ -1001,7 +1001,19 @@ export default function AssignmentUploadPage() {
                                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Quy tắc nộp trễ (Late Penalty)</label>
                                                     <select
                                                         value={metadata.latePenaltyType || 'NONE'}
-                                                        onChange={(e) => setMetadata({ ...metadata, latePenaltyType: e.target.value })}
+                                                        onChange={(e) => {
+                                                            const nextType = e.target.value;
+                                                            setMetadata({
+                                                                ...metadata,
+                                                                latePenaltyType: nextType,
+                                                                // Commit the default the number input already displays. Without
+                                                                // this the state stays undefined, the DB stores null, and the
+                                                                // grading engine deducts 0 while both screens promise 1.
+                                                                latePenaltyValue: nextType === 'NONE'
+                                                                    ? metadata.latePenaltyValue
+                                                                    : (metadata.latePenaltyValue ?? 1),
+                                                            });
+                                                        }}
                                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                                                     >
                                                         <option value="NONE">Không trừ điểm trễ</option>
