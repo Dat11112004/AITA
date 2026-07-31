@@ -67,6 +67,14 @@ export function AppRoutes() {
       </Route>
 
       <Route path="/login" element={<LoginPage />} />
+      {/* SRS 3.2.1 specifies these as their own pages, so each step is addressable by URL
+          instead of only reachable as a hidden state inside /login. */}
+      <Route path="/forgot-password" element={<LoginPage initialView="forgot_email" />} />
+      <Route path="/reset-password" element={<LoginPage initialView="forgot_otp_password" />} />
+      {/* SRS 3.2.6 Web Admin Sign-In Page. Deliberately NOT nested under /admin, which is a
+          role-guarded layout — a login route inside it would be unreachable. Same JWT auth
+          as /login; only the framing differs. */}
+      <Route path="/admin-login" element={<LoginPage portal="admin" />} />
 
       <Route
         path="/admin"

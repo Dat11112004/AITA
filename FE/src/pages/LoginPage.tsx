@@ -16,8 +16,18 @@ const roleRedirect: Record<string, string> = {
   admin: '/admin', lecturer: '/lecturer', student: '/student',
 }
 
+/** Which step this page opens on, so SRS 3.2.1 can address each step by URL. */
+export type LoginView = 'login' | 'forgot_email' | 'forgot_otp_password'
+
+interface LoginPageProps {
+  /** Step to open on. Lets /forgot-password and /reset-password be real, linkable pages. */
+  initialView?: LoginView
+  /** 'admin' renders the dedicated Web Admin sign-in page (SRS 3.2.6). Same JWT auth. */
+  portal?: 'admin'
+}
+
 /* ────────────────────────────────────────────────── */
-export function LoginPage() {
+export function LoginPage({ initialView = 'login', portal }: LoginPageProps = {}) {
   const { t, language, setLanguage } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const { login } = useAuth()
@@ -34,7 +44,10 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
-  const [view, setView] = useState<'login' | 'forgot_email' | 'forgot_otp_password'>('login')
+  const [view, setView] = useState<LoginView>(initialView)
+  // Derived from the prop, not from `email`, so the field cannot disappear as soon as
+  // the user types the first character.
+  const landedOnResetDirectly = initialView === 'forgot_otp_password'
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [msg, setMsg] = useState('')
@@ -212,10 +225,12 @@ export function LoginPage() {
           {/* Title */}
           <div className="mb-7">
             <h1 className="text-2xl font-black text-white drop-shadow">
-              {t('auth.welcome_back')}
+              {portal === 'admin' ? 'AITA Admin sign-in' : t('auth.welcome_back')}
             </h1>
             <p className="mt-1.5 text-sm text-white/80 drop-shadow">
-              {t('auth.login_desc')}
+              {portal === 'admin'
+                ? 'Administrator access to user, curriculum and system configuration.'
+                : t('auth.login_desc')}
             </p>
           </div>
 
@@ -249,7 +264,10 @@ export function LoginPage() {
                       <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
                       Ghi nhớ mật khẩu
                     </label>
-                    <button type="button" onClick={() => { setView('forgot_email'); setErr(''); setMsg(''); }} className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
+                    {/* Navigates so the step has a real URL (SRS 3.2.1). Safe to remount here:
+                        nothing has been entered yet. Later steps stay in-component so the
+                        email typed in step 1 survives. */}
+                    <button type="button" onClick={() => { setErr(''); setMsg(''); navigate('/forgot-password'); }} className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
                       Quên mật khẩu?
                     </button>
                   </div>
@@ -279,6 +297,11 @@ export function LoginPage() {
                   <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                     Nhập mã xác thực (OTP) đã được gửi đến email và mật khẩu mới của bạn.
                   </div>
+                  {/* Reached /reset-password directly, so there is no email in state from the
+                      previous step — the reset would post an empty email without this. */}
+                  {landedOnResetDirectly && (
+                    <AuthField id="r-email" icon={<Mail size={16} />} label="Email" type="email" value={email} onChange={handleEmailChange} placeholder="you@fpt.edu.vn" autoComplete="email" required />
+                  )}
                   <AuthField id="r-otp" icon={<CheckCircle2 size={16} />} label="Mã xác thực (OTP)" type="text" value={otp} onChange={setOtp} placeholder="123456" autoComplete="one-time-code" required />
                   <AuthField id="r-pw" icon={<Lock size={16} />} label="Mật khẩu mới" type={showPw ? 'text' : 'password'} value={newPassword} onChange={setNewPassword} placeholder="Mật khẩu mới" autoComplete="new-password" required
                     suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
