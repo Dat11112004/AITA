@@ -8,7 +8,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical } from 'lucide-react'
+import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical, ChevronDown } from 'lucide-react'
 
 const ROLE_TABS = [
   { id: 'all', label: 'All' },
@@ -124,6 +124,21 @@ export function AdminUsers() {
   const [semesterFilter, setSemesterFilter] = useState<string>('')
   const [subjectsBySemester, setSubjectsBySemester] = useState<Record<string, any[]>>({})
   const [allSemesters, setAllSemesters] = useState<any[]>([])
+
+  const [importDropdownOpen, setImportDropdownOpen] = useState(false)
+  const importDropdownRef = React.useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
+        setImportDropdownOpen(false)
+      }
+    }
+    if (importDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [importDropdownOpen])
 
   useEffect(() => {
     api.getSemesters().then(setAllSemesters).catch(console.error)
@@ -555,33 +570,77 @@ export function AdminUsers() {
             )}
             {!isSelectionMode && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Lecturer
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowAssignmentImport(true); setShowLecturerImport(false); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Assignment
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Student
-                </Button>
+                <div className="relative" ref={importDropdownRef}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-2xs font-bold text-xs rounded-xl px-3.5 py-2 transition-all cursor-pointer"
+                    onClick={() => setImportDropdownOpen(!importDropdownOpen)}
+                  >
+                    <Upload size={15} className="text-brand-600 dark:text-brand-400" />
+                    <span>Import Data</span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${importDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+
+                  {importDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-[#12151e] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+                      <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                        <p className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Select Import Type</p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLecturerImport(true)
+                          setShowImport(false)
+                          setShowAssignmentImport(false)
+                          setShowForm(false)
+                          setError('')
+                          setImportSuccess('')
+                          setImportDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-brand-600 dark:hover:text-brand-400 transition-colors text-left cursor-pointer"
+                      >
+                        <p className="font-bold text-slate-900 dark:text-white">Import Lecturer</p>
+                        <p className="text-[10px] text-slate-400 font-normal">Excel sheet for lecturers</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAssignmentImport(true)
+                          setShowLecturerImport(false)
+                          setShowImport(false)
+                          setShowForm(false)
+                          setError('')
+                          setImportSuccess('')
+                          setImportDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-brand-600 dark:hover:text-brand-400 transition-colors text-left cursor-pointer"
+                      >
+                        <p className="font-bold text-slate-900 dark:text-white">Import Assignment</p>
+                        <p className="text-[10px] text-slate-400 font-normal">Excel sheet for assignments</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowImport(true)
+                          setShowLecturerImport(false)
+                          setShowAssignmentImport(false)
+                          setShowForm(false)
+                          setError('')
+                          setImportSuccess('')
+                          setImportDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-brand-600 dark:hover:text-brand-400 transition-colors text-left cursor-pointer"
+                      >
+                        <p className="font-bold text-slate-900 dark:text-white">Import Student</p>
+                        <p className="text-[10px] text-slate-400 font-normal">Excel sheet for students</p>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
@@ -753,8 +812,16 @@ export function AdminUsers() {
 
               <div className="grid sm:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">ID (Student/Lecturer)</p>
-                  <p className="text-slate-900 dark:text-slate-200 font-medium">{selectedUserDetail.studentCode || selectedUserDetail.lecturerCode || 'None'}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">
+                    {selectedUserDetail.role === 'student' ? 'Student ID' : selectedUserDetail.role === 'lecturer' ? 'Lecturer ID' : 'User ID'}
+                  </p>
+                  <p className="text-slate-900 dark:text-slate-200 font-medium">
+                    {selectedUserDetail.role === 'student'
+                      ? (selectedUserDetail.studentCode || 'None')
+                      : selectedUserDetail.role === 'lecturer'
+                      ? (selectedUserDetail.lecturerCode || 'None')
+                      : (selectedUserDetail.studentCode || selectedUserDetail.lecturerCode || 'None')}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">{selectedUserDetail.role === 'lecturer' ? 'Teaching Subjects' : 'Class'}</p>
@@ -790,7 +857,19 @@ export function AdminUsers() {
                         const classKey = c.classCode || 'Not assigned';
                         if (!acc[semKey][classKey]) acc[semKey][classKey] = [];
 
-                        acc[semKey][classKey].push(c);
+                        const subjCode = (c.subjectCode || c.subjectName || '').toLowerCase();
+                        const existingIdx = acc[semKey][classKey].findIndex((existing: any) => 
+                          (existing.subjectCode || existing.subjectName || '').toLowerCase() === subjCode
+                        );
+
+                        if (existingIdx >= 0) {
+                          const existing = acc[semKey][classKey][existingIdx];
+                          if ((c.instructorName && !existing.instructorName) || (existing.isPending && !c.isPending)) {
+                            acc[semKey][classKey][existingIdx] = c;
+                          }
+                        } else {
+                          acc[semKey][classKey].push(c);
+                        }
                         return acc;
                       }, {})
                     ).sort((a: any, b: any) => {
@@ -827,7 +906,7 @@ export function AdminUsers() {
                                     <h5 className="font-medium text-brand-600 dark:text-brand-400 flex flex-wrap items-center gap-2">
                                       {c.subjectName ? `${c.subjectCode} - ${c.subjectName}` : c.subjectCode}
                                     </h5>
-                                    {c.instructorName && (
+                                    {selectedUserDetail.role !== 'student' && c.instructorName && (
                                       <span className="text-[13px] text-slate-500 flex items-center gap-1.5 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md shrink-0">
                                         <Users size={14} className="text-brand-600 dark:text-brand-400" />
                                         {c.instructorName}

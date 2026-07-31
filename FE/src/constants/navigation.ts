@@ -38,6 +38,6 @@ export const PUBLIC_NAV = [
 ]
 
 export const PORTAL_LINKS = [
-  { role: 'lecturer' as const, label: 'Giảng viên', path: '/login?redirect=/lecturer', description: 'Lớp học, bài tập & chấm điểm' },
-  { role: 'student' as const, label: 'Sinh viên', path: '/login?redirect=/student', description: 'Học tập & phản hồi AI' },
+  { role: 'lecturer' as const, label: 'Lecturer', path: '/login?redirect=/lecturer', description: 'Classes, assignments & grading' },
+  { role: 'student' as const, label: 'Student', path: '/login?redirect=/student', description: 'Learning & AI feedback' },
 ]

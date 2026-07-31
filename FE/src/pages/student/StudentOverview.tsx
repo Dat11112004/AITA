@@ -60,21 +60,6 @@ export function StudentOverview() {
     teacher: c.lecturers?.[0]?.name || 'Not assigned',
   })) || []
 
-  // Find most urgent assignment due in next 48 hours
-  const urgentAssignment = upcomingTasks.find((a: any) => {
-    if (!a.due) return false
-    const diff = new Date(a.due).getTime() - new Date().getTime()
-    return diff > 0 && diff <= 48 * 3600 * 1000
-  })
-
-  let timeRemainingText = ''
-  if (urgentAssignment?.due) {
-    const diffMs = new Date(urgentAssignment.due).getTime() - new Date().getTime()
-    const hours = Math.floor(diffMs / (1000 * 3600))
-    const minutes = Math.floor((diffMs % (1000 * 3600)) / (1000 * 60))
-    timeRemainingText = hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`
-  }
-
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
@@ -129,32 +114,6 @@ export function StudentOverview() {
           className="self-start md:self-auto shrink-0"
         />
       </div>
-
-      {/* Urgent Deadline Alert Banner */}
-      {urgentAssignment && (
-        <div 
-          onClick={() => navigate(`/student/assignments/${urgentAssignment.id}`)}
-          className="p-4 bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border-2 border-red-500/40 rounded-2xl flex items-center justify-between gap-4 cursor-pointer hover:border-red-500/70 transition-all shadow-lg shadow-red-500/10 animate-pulse"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 bg-red-500 text-white rounded-xl font-bold flex items-center justify-center shrink-0 shadow-md shadow-red-500/30">
-              <Clock size={20} className="animate-spin" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">DEADLINE APPROACHING</span>
-                <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">{urgentAssignment.title}</h4>
-              </div>
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-semibold">
-                Due: {new Date(urgentAssignment.due).toLocaleString()} ({timeRemainingText})
-              </p>
-            </div>
-          </div>
-          <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-red-600/30">
-            Start now <ArrowRight size={14} />
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

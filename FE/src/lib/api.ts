@@ -623,6 +623,9 @@ export interface SubmissionRow {
   finalScore?: number | null
   rawScore?: number | string | null
   rawAiScore?: number | string | null
+  latePenaltyAmount?: number | null
+  isReopened?: boolean
+  reopenReason?: string | null
   aiFeedback?: unknown | null
   instructorFeedback?: string | null
   studentFeedback?: string | null
@@ -635,6 +638,8 @@ export interface SubmissionListQuery {
   assignmentId?: string
   examId?: string
   status?: string
+  classId?: string
+  studentId?: string
 }
 
 export interface CreateSubmissionBody {

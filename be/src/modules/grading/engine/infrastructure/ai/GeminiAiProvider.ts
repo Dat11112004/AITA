@@ -698,32 +698,32 @@ CRITICAL RULES FOR CONVERSION:
     }
 
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
-        const passedTitles = passedRules.map(r => `- Tiêu chí: ${r.title} (+${r.earnedScore}đ)\n  Đánh giá chi tiết: ${r.details}`).join('\n\n');
-        const failedTitles = failedRules.map(r => `- Tiêu chí: ${r.title} (0đ)\n  Lỗi/Nhận xét: ${r.details}`).join('\n\n');
+        const passedTitles = passedRules.map(r => `- Criteria: ${r.title} (+${r.earnedScore} pts)\n  Evaluation details: ${r.details}`).join('\n\n');
+        const failedTitles = failedRules.map(r => `- Criteria: ${r.title} (0 pts)\n  Errors/Notes: ${r.details}`).join('\n\n');
 
-        const systemPrompt = `Bạn là một Tech Lead (Mentor) đang review bài tập của sinh viên.
-Nhiệm vụ của bạn là tổng hợp Feedback dựa trên kết quả chấm điểm từ hệ thống.
+        const systemPrompt = `You are a Tech Lead (Mentor) reviewing a student's assignment submission.
+Your task is to summarize comprehensive feedback based on the system's evaluation results.
 
-YÊU CẦU QUAN TRỌNG (CRITICAL TONE & STYLE):
-1. VĂN PHONG THỰC TẾ, TRỰC DIỆN: Tuyệt đối KHÔNG DÙNG các từ ngữ sáo rỗng, chào hỏi, chúc mừng (VD: KHÔNG dùng "Chào bạn", "Rất vui mừng", "Chúc mừng", "Xuất sắc"). Đi thẳng ngay vào phân tích chuyên môn.
-2. RẤT NGẮN GỌN & ĐÚNG TRỌNG TÂM: Tối đa 2-3 đoạn ngắn. Nhận xét cực kỳ thực tế, tránh giải thích dông dài đạo lý.
-3. PHẠM VI CHÍNH XÁC: Chỉ đánh giá dựa trên danh sách các tiêu chí Đạt (Passed) và Chưa đạt (Failed) cùng với "Đánh giá chi tiết" của từng tiêu chí bên dưới. Tuyệt đối KHÔNG TƯỞNG TƯỢNG hoặc đưa ra các khái niệm ngoài phạm vi bài học (ví dụ: Không khuyên dùng Docker, CI/CD, Unit Test, Validation... nếu tiêu chí không hề đề cập đến).
-4. CẤU TRÚC:
-   - Trạng thái hiện tại (Đạt ${totalScore}/${maxScore} điểm).
-   - Đánh giá kỹ thuật: Dựa hoàn toàn vào phần "Đánh giá chi tiết" của các tiêu chí, hãy tổng hợp lại những gì sinh viên đã code tốt và những lỗi/hạn chế cụ thể sinh viên gặp phải.
-   - Hướng khắc phục / Tối ưu: Dựa trên các lỗi hoặc điểm chưa hoàn hảo trong "Đánh giá chi tiết", đưa ra 1-2 lời khuyên tối ưu code thiết thực. TUYỆT ĐỐI không dùng văn mẫu chung chung và KHÔNG khuyên "Hướng phát triển mở rộng" ra ngoài phạm vi môn học. Nếu "Đánh giá chi tiết" không có gì để chê, không cần bịa ra lời khuyên.
-5. NGÔN NGỮ: Tiếng Việt, sử dụng thuật ngữ IT chuẩn. Định dạng Markdown đơn giản.`;
+CRITICAL REQUIREMENTS (TONE & STYLE):
+1. REALISTIC, DIRECT TONE: Absolutely DO NOT use generic greetings, clichés, or congratulations (e.g. DO NOT use "Hello student", "Great job", "Congratulations", "Excellent"). Go straight to professional technical analysis.
+2. CONCISE & FOCUSED: Maximum 2-3 short paragraphs. Keep comments extremely practical and direct.
+3. ACCURATE SCOPE: Evaluate strictly based on the provided list of Passed and Failed criteria and their "Evaluation details" below. Do NOT invent or introduce concepts outside the scope of the assignment (e.g. Do NOT recommend Docker, CI/CD, Unit Tests, Validation... unless explicitly mentioned in the criteria).
+4. STRUCTURE:
+   - Current Status (Score: ${totalScore}/${maxScore} points).
+   - Technical Evaluation: Based strictly on the "Evaluation details" of the criteria, summarize what the student coded well and the specific bugs/limitations encountered.
+   - Fixes / Recommendations: Based on errors or flaws in "Evaluation details", provide 1-2 practical code optimization tips. ABSOLUTELY no generic templates and NO recommendations extending beyond the subject scope. If the evaluation details have no issues, no need to invent recommendations.
+5. LANGUAGE: MUST BE IN ENGLISH ONLY. Write the entire feedback strictly in ENGLISH using standard IT terminology. Simple Markdown format.`;
 
-        const userPrompt = `Bài tập: ${assignmentTitle}
-Điểm số: ${totalScore} / ${maxScore}
+        const userPrompt = `Assignment: ${assignmentTitle}
+Score: ${totalScore} / ${maxScore}
 
---- CÁC TIÊU CHÍ ĐÃ ĐẠT ---
-${passedTitles || '(Không có)'}
+--- PASSED CRITERIA ---
+${passedTitles || '(None)'}
 
---- CÁC TIÊU CHÍ CHƯA ĐẠT / BỊ LỖI ---
-${failedTitles || '(Không có)'}
+--- FAILED / ERROR CRITERIA ---
+${failedTitles || '(None)'}
 
-Hãy viết feedback cuối cùng cho sinh viên này.`;
+Please write the final feedback for this student in ENGLISH ONLY.`;
 
         const response = await AiClientManager.executeWithFallback(async (client, model) => {
             return await client.chat.completions.create({

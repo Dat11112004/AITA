@@ -113,51 +113,62 @@ export class GetUserDetailsUseCase implements IUseCase<string, any> {
             requirePasswordChange: user.RequirePasswordChange ?? false,
             roles: roles,
             // Only populate these if they exist to avoid huge payloads
-            enrolledClasses: [
-                ...user.StudentClass.map(sc => ({
-                    classId: sc.ClassId,
-                    classCode: sc.Class?.ClassCode,
-                    subjectCode: sc.Class?.Subject?.SubjectCode,
-                    subjectName: sc.Class?.Subject?.SubjectName,
-                    semesterCode: sc.Class?.Semester?.Code,
-                    enrolledAt: sc.EnrolledAt ? sc.EnrolledAt.toISOString() : null,
-                    instructorName: (sc.Class as any)?.InstructorClass?.map((ic: any) => ic.User?.FullName).filter(Boolean).join(', ') || null,
-                    isPending: false
-                })),
-                ...user.PendingEnrollment.filter(pe => {
-                    const peSemNumMatch = pe.SemesterCode?.match(/\d+/);
-                    const peSemNum = peSemNumMatch ? parseInt(peSemNumMatch[0], 10) : null;
+            enrolledClasses: (() => {
+                const raw = [
+                    ...user.StudentClass.map(sc => ({
+                        classId: sc.ClassId,
+                        classCode: sc.Class?.ClassCode,
+                        subjectCode: sc.Class?.Subject?.SubjectCode,
+                        subjectName: sc.Class?.Subject?.SubjectName,
+                        semesterCode: sc.Class?.Semester?.Code,
+                        enrolledAt: sc.EnrolledAt ? sc.EnrolledAt.toISOString() : null,
+                        instructorName: (sc.Class as any)?.InstructorClass?.map((ic: any) => ic.User?.FullName).filter(Boolean).join(', ') || null,
+                        isPending: false
+                    })),
+                    ...user.PendingEnrollment.filter(pe => {
+                        const peSemNumMatch = pe.SemesterCode?.match(/\d+/);
+                        const peSemNum = peSemNumMatch ? parseInt(peSemNumMatch[0], 10) : null;
 
-                    const hasEnrolled = user.StudentClass.some(sc => {
-                        // ClassCode must match
-                        if (sc.Class?.ClassCode !== pe.ClassCode) return false;
+                        const hasEnrolled = user.StudentClass.some(sc => {
+                            if (sc.Class?.ClassCode !== pe.ClassCode) return false;
+                            const scSemCode = sc.Class?.Semester?.Code;
+                            const scSemNumMatch = scSemCode?.match(/\d+/);
+                            const scSemNum = scSemNumMatch ? parseInt(scSemNumMatch[0], 10) : null;
+                            const isSemMatch = scSemCode === pe.SemesterCode || (peSemNum !== null && scSemNum === peSemNum);
+                            if (!isSemMatch) return false;
+                            if (pe.SubjectCode) {
+                                return sc.Class?.Subject?.SubjectCode?.toLowerCase() === pe.SubjectCode.toLowerCase();
+                            }
+                            return true;
+                        });
                         
-                        // Semester must match
-                        const scSemCode = sc.Class?.Semester?.Code;
-                        const scSemNumMatch = scSemCode?.match(/\d+/);
-                        const scSemNum = scSemNumMatch ? parseInt(scSemNumMatch[0], 10) : null;
-                        const isSemMatch = scSemCode === pe.SemesterCode || (peSemNum !== null && scSemNum === peSemNum);
-                        if (!isSemMatch) return false;
-                        
-                        // Subject must match (if it's a subject-specific pending)
-                        if (pe.SubjectCode) {
-                            return sc.Class?.Subject?.SubjectCode?.toLowerCase() === pe.SubjectCode.toLowerCase();
+                        return !hasEnrolled;
+                    }).map(pe => ({
+                        classId: `pending-${pe.Id}`,
+                        classCode: pe.ClassCode,
+                        subjectCode: pe.SubjectCode || 'Đang chờ xếp môn',
+                        subjectName: null,
+                        semesterCode: pe.SemesterCode,
+                        enrolledAt: pe.CreatedAt ? pe.CreatedAt.toISOString() : null,
+                        instructorName: null,
+                        isPending: true
+                    }))
+                ];
+
+                const dedupMap = new Map<string, any>();
+                for (const item of raw) {
+                    const key = `${(item.semesterCode || '').toLowerCase()}_${(item.classCode || '').toLowerCase()}_${(item.subjectCode || '').toLowerCase()}`;
+                    const existing = dedupMap.get(key);
+                    if (!existing) {
+                        dedupMap.set(key, item);
+                    } else {
+                        if ((!item.isPending && existing.isPending) || (item.instructorName && !existing.instructorName)) {
+                            dedupMap.set(key, item);
                         }
-                        return true;
-                    });
-                    
-                    return !hasEnrolled;
-                }).map(pe => ({
-                    classId: `pending-${pe.Id}`,
-                    classCode: pe.ClassCode,
-                    subjectCode: pe.SubjectCode || 'Đang chờ xếp môn',
-                    subjectName: null,
-                    semesterCode: pe.SemesterCode,
-                    enrolledAt: pe.CreatedAt ? pe.CreatedAt.toISOString() : null,
-                    instructorName: null,
-                    isPending: true
-                }))
-            ],
+                    }
+                }
+                return Array.from(dedupMap.values());
+            })(),
             instructingClasses: user.InstructorClass.map(ic => ({
                 classId: ic.ClassId,
                 classCode: ic.Class?.ClassCode,
