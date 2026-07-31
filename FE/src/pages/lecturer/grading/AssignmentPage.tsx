@@ -476,7 +476,10 @@ export default function AssignmentPage() {
       setAssignment(data);
       setIsGradingSettingsModalOpen(false);
     } catch (err: any) {
+      // Previously this only console.error'd: a failed save looked identical to a
+      // successful one, so the lecturer believed the strategy had been applied.
       console.error(err);
+      setError(err?.response?.data?.error || err?.message || 'Could not save the grading strategy. Please try again.');
     } finally {
       setSavingStrategy(false);
     }
