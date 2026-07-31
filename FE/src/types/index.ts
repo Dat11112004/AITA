@@ -99,6 +99,7 @@ export interface RuleEvidence {
     probePct: number;
     visionPct?: number;
   };
+  sqlTestCases?: any[];
 }
 
 export interface ScoreRule {

@@ -131,9 +131,9 @@ export class AssignmentController extends BaseController {
 
     generateContent = async (req: Request, res: Response): Promise<void> => {
         try {
-            const { prompt, semester, subject } = req.body;
+            const { prompt, semester, subject, pageImages } = req.body;
             if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
-            const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt);
+            const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt, pageImages);
             this.ok(res, { markdown }, 'Content generated');
         } catch (error) {
             throw new Error('Error generating content');
@@ -167,6 +167,29 @@ export class AssignmentController extends BaseController {
             this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
         } catch (error) {
             throw new Error('Error parsing rubric');
+        }
+    };
+
+    parseSqlKey = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { file } = req;
+            const { rubricRules } = req.body;
+            if (!file) throw new BadRequestError('No file provided');
+            if (!rubricRules) throw new BadRequestError('Rubric rules are required');
+
+            const sqlContent = file.buffer.toString('utf-8');
+            const rules = typeof rubricRules === 'string' ? JSON.parse(rubricRules) : rubricRules;
+
+            let updatedRules = await this.aiProvider.parseSqlAnswerKeyAsync(sqlContent, rules);
+
+            // Automatically extract and inject setupScript from sqlContent
+            const rubricGenerator = new RubricGeneratorService(this.aiProvider);
+            updatedRules = rubricGenerator.extractAndInjectSqlSetupScript(updatedRules, sqlContent);
+
+            this.ok(res, { rules: updatedRules }, 'SQL Key parsed');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error parsing SQL Key:', error);
+            throw new Error(`Error parsing SQL Key: ${error.message}`);
         }
     };
 
@@ -266,6 +289,13 @@ export class AssignmentController extends BaseController {
 
             const examId = publishedAssignmentId; // Keep 1:1 mapping
             const totalPoints = rubric?.rules ? rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0) : 10;
+            if (rubric?.rules && Array.isArray(rubric.rules) && rubric.rules.length > 0) {
+                if (Math.abs(totalPoints - 10) > 0.01) {
+                    return res.status(400).json({
+                        error: `Tổng điểm của các tiêu chí Rubric phải bằng chính xác 10.0 điểm. Hiện tại: ${totalPoints.toFixed(2)} điểm.`
+                    });
+                }
+            }
 
             let parsedDueDate: Date | undefined;
             if (dueDate) {

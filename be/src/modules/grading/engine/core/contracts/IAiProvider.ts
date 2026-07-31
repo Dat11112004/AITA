@@ -78,12 +78,18 @@ export interface IAiProvider {
     /**
      * Generates assignment markdown content from a text prompt.
      */
-    generateAssignmentContentAsync(prompt: string): Promise<string>;
+    generateAssignmentContentAsync(prompt: string, pageImages?: string[]): Promise<string>;
 
     /**
      * Synthesizes a final, overall feedback report for a student based on their graded assignment.
      * Provides concise, actionable insights on current academic status and development strategy in Vietnamese.
      */
     generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string>;
+
+    /**
+     * Parses an SQL answer key file and maps its queries to existing rubric rules.
+     * Generates a fully populated SqlExecutionProbeSpec for each rule, including setupScript and reference queries.
+     */
+    parseSqlAnswerKeyAsync(sqlContent: string, rubricRules: any[]): Promise<any[]>;
 }
 

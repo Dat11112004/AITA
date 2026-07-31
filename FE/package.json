@@ -23,6 +23,7 @@
         "i18next": "^23.0.0",
         "i18next-browser-languagedetector": "^7.0.1",
         "lucide-react": "^0.511.0",
+        "pdfjs-dist": "^6.1.200",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-hook-form": "^7.77.0",

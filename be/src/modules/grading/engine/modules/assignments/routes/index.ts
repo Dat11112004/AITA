@@ -15,6 +15,7 @@ export function createAssignmentRoutes(): Router {
   router.post('/extract-text', upload.single('file'), controller.extractText);
   router.post('/generate-content', controller.generateContent);
   router.post('/parse-rubric', controller.parseRubric);
+  router.post('/parse-sql-key', upload.single('file'), controller.parseSqlKey);
   router.post('/parse-requirements', controller.parseRequirements);
   router.post('/generate-rubric', controller.generateRubric);
   router.post('/publish', controller.publish);

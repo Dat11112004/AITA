@@ -49,6 +49,12 @@ export class RubricGeneratorService {
         // 2. Compute weights deterministically from marks + complexity
         rules = this.computeWeights(rules, requirements);
 
+        // 3. Deterministically extract Setup Script for SQL assignments
+        const originalContent = (blueprint as any).originalContent || blueprint.description;
+        if (originalContent) {
+            rules = this.extractAndInjectSqlSetupScript(rules, originalContent);
+        }
+
         return {
             id: `rubric-${Date.now()}`,
             assignmentId: blueprint.id,
@@ -58,6 +64,87 @@ export class RubricGeneratorService {
             passThreshold: 0.7,
             rules
         };
+    }
+
+    /**
+     * Deterministically extracts the setup script from the original SQL file and injects it into SqlExecutionProbe rules.
+     * Bypasses the AI to prevent truncation of large INSERT statement blocks.
+     */
+    public extractAndInjectSqlSetupScript(rules: RubricRule[], originalContent: string): RubricRule[] {
+        const sqlRules = rules.filter(r => r.scoringStrategy === 'SqlExecutionProbe');
+        if (sqlRules.length === 0) {
+            return rules;
+        }
+
+        let setupScript = originalContent;
+
+        // Subtractive method: Iteratively remove all extracted queries from the original content
+        for (const rule of sqlRules) {
+            if (rule.requiredEvidence && rule.requiredEvidence.length > 0) {
+                const probe = rule.requiredEvidence[0].sqlProbe;
+                if (probe && probe.testCases) {
+                    for (const tc of probe.testCases) {
+                        if (tc.query) {
+                            setupScript = this.fuzzyReplace(setupScript, tc.query);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Clean up excessive whitespace
+        setupScript = setupScript.replace(/\n{3,}/g, '\n\n').trim();
+
+        // Strip out CREATE DATABASE, DROP DATABASE, and USE statements.
+        setupScript = setupScript.replace(/CREATE\s+DATABASE\s+[a-zA-Z0-9_\[\]`"']+/gi, '');
+        setupScript = setupScript.replace(/DROP\s+DATABASE\s+(?:IF\s+EXISTS\s+)?[a-zA-Z0-9_\[\]`"']+/gi, '');
+        setupScript = setupScript.replace(/USE\s+[a-zA-Z0-9_\[\]`"']+/gi, '');
+
+        if (setupScript) {
+            // Inject the extracted setup script into all SQL rules
+            return rules.map(rule => {
+                if (rule.scoringStrategy === 'SqlExecutionProbe' && rule.requiredEvidence && rule.requiredEvidence.length > 0) {
+                    const probe = rule.requiredEvidence[0].sqlProbe;
+                    if (probe) {
+                        probe.setupScript = setupScript;
+                    }
+                }
+                return rule;
+            });
+        }
+
+        return rules;
+    }
+
+    private fuzzyReplace(text: string, search: string): string {
+        const normText = text.replace(/\r\n/g, '\n');
+        const normSearch = search.replace(/\r\n/g, '\n');
+
+        let idx = normText.indexOf(normSearch);
+        if (idx !== -1) {
+            // Note: we can safely return the normalized string, it works perfectly fine
+            return normText.substring(0, idx) + normText.substring(idx + normSearch.length);
+        }
+        
+        idx = text.indexOf(search);
+        if (idx !== -1) {
+            return text.substring(0, idx) + text.substring(idx + search.length);
+        }
+        
+        // Fallback: try to find start and end fragments to handle minor whitespace tweaks
+        const startFrag = search.substring(0, 30).trim();
+        const endFrag = search.substring(Math.max(0, search.length - 30)).trim();
+        
+        if (startFrag && endFrag) {
+            const startIdx = text.lastIndexOf(startFrag); // Use lastIndexOf to avoid matching the DB setup scripts at the top!
+            if (startIdx !== -1) {
+                const endIdx = text.indexOf(endFrag, startIdx);
+                if (endIdx !== -1) {
+                    return text.substring(0, startIdx) + text.substring(endIdx + endFrag.length);
+                }
+            }
+        }
+        return text; // Return original if not found
     }
 
     /**
@@ -111,11 +198,8 @@ export class RubricGeneratorService {
                 finalStrategy = 'AICodeReview';
             }
 
-            // Constraint E: SqlExecutionProbe must have valid sqlProbe spec
-            if (finalStrategy === 'SqlExecutionProbe'
-                && !rule.requiredEvidence?.some((e: any) => e.sqlProbe?.testCases?.length > 0)) {
-                finalStrategy = 'AICodeReview';
-            }
+            // Constraint E: SqlExecutionProbe used to require valid sqlProbe spec, but we now allow it
+            // to pass through because the teacher will provide the sql schema/dump later in the process.
 
             // ══════════════════════════════════════════════════════════════
             // STEP 3: Build the final rule with correct evidence types.

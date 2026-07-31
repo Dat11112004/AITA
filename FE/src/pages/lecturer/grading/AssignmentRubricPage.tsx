@@ -59,15 +59,26 @@ export default function AssignmentRubricPage() {
             />
           </div>
         ) : null}
+
+        <div className="px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-800/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-brand-600 dark:bg-brand-400 rounded-full"></div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-wide">
+              Danh sách tiêu chí Rubric (Assignment Rubric Rules)
+            </h2>
+          </div>
+          <span className="text-xs font-bold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 px-3 py-1.5 rounded-lg border border-brand-200 dark:border-brand-800">
+            Tổng điểm: {(assignment.rubric as any)?.totalWeight || 10} điểm
+          </span>
+        </div>
         
         <div className="p-0 overflow-x-auto">
             <table className="w-full text-left">
             <thead>
-                <tr className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                <th className="px-8 py-4 font-semibold dark:text-slate-400 text-slate-500">Category</th>
-                <th className="px-8 py-4 font-semibold dark:text-slate-400 text-slate-500">Requirement</th>
-                <th className="px-6 py-4 font-semibold dark:text-slate-400 text-slate-500 text-center">Grading</th>
-                <th className="px-8 py-4 font-semibold dark:text-slate-400 text-slate-500 text-right">Points</th>
+                <tr className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider">
+                <th className="px-8 py-4 font-bold dark:text-slate-400 text-slate-500">Requirement</th>
+                <th className="px-6 py-4 font-bold dark:text-slate-400 text-slate-500 text-center whitespace-nowrap">Grading Method</th>
+                <th className="px-8 py-4 font-bold dark:text-slate-400 text-slate-500 text-right whitespace-nowrap">Points</th>
                 </tr>
             </thead>
             <tbody className="divide-y dark:divide-slate-700/30 divide-slate-200/50">
@@ -82,7 +93,6 @@ export default function AssignmentRubricPage() {
 
                   return (
                 <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-8 py-4 text-sm font-medium dark:text-slate-400 text-slate-500 align-middle">{typeof rule.category === 'string' ? rule.category : (JSON.stringify(rule.category) || 'General')}</td>
                     <td className="px-8 py-4 dark:text-slate-200 text-slate-700">
                     <p className="font-semibold dark:text-brand-300 text-brand-600 mb-2">{typeof (rule.name || rule.title) === 'string' ? (rule.name || rule.title) : JSON.stringify(rule.name || rule.title || 'Rule')}</p>
                     <FormattedText className="text-sm dark:text-slate-400 text-slate-500 leading-relaxed" text={typeof rule.description === 'string' ? rule.description : JSON.stringify(rule.description)} />
@@ -156,45 +166,56 @@ export default function AssignmentRubricPage() {
                     </td>
                     <td className="px-6 py-4 text-center align-middle">
                     {(() => {
-                        let text = 'AUTO';
+                        let text = 'Automated Test';
                         let colorClass = 'text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-800 dark:border-slate-700';
                         
                         switch (rule.scoringStrategy) {
-                            case 'AIVision':
-                                text = 'VISUAL AI';
-                                colorClass = 'text-fuchsia-700 bg-fuchsia-50 border-fuchsia-200 dark:text-fuchsia-300 dark:bg-fuchsia-500/10 dark:border-fuchsia-500/20 shadow-[0_0_10px_rgba(217,70,239,0.1)]';
-                                break;
-                            case 'AICodeReview':
-                                text = 'CODE AI';
-                                colorClass = 'text-indigo-700 bg-indigo-50 border-indigo-200 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.1)]';
-                                break;
-                            case 'AiTextAnalysis':
-                                text = 'TEXT AI';
-                                colorClass = 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.1)]';
-                                break;
-                            case 'StdInOutProbe':
-                                text = 'I/O PROBE';
-                                colorClass = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
+                            case 'SqlExecutionProbe':
+                                text = 'DB Execution';
+                                colorClass = 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/20';
                                 break;
                             case 'HTTPProbe':
-                                text = 'API PROBE';
-                                colorClass = 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/20 shadow-[0_0_10px_rgba(14,165,233,0.1)]';
+                                text = 'API Probe';
+                                colorClass = 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/20';
+                                break;
+                            case 'StdInOutProbe':
+                                text = 'I/O Test';
+                                colorClass = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20';
+                                break;
+                            case 'AIVision':
+                                text = 'Visual Check';
+                                colorClass = 'text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-300 dark:bg-purple-500/10 dark:border-purple-500/20';
+                                break;
+                            case 'AICodeReview':
+                                text = 'Code Review';
+                                colorClass = 'text-indigo-700 bg-indigo-50 border-indigo-200 dark:text-indigo-300 dark:bg-indigo-500/10 dark:border-indigo-500/20';
+                                break;
+                            case 'AiTextAnalysis':
+                                text = 'Text Analysis';
+                                colorClass = 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/20';
+                                break;
+                            case 'HybridVisionAndCode':
+                                text = 'Hybrid AI & UI';
+                                colorClass = 'text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-300 dark:bg-purple-500/10 dark:border-purple-500/20';
+                                break;
+                            case 'Manual':
+                                text = 'Teacher Review';
+                                colorClass = 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/20';
                                 break;
                         }
                         
                         return (
-                            <div className={classNames("inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap tracking-wider", colorClass)}>
-                                <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-75"></span>
+                            <div className={classNames("inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap shadow-sm", colorClass)}>
                                 {text}
                             </div>
                         );
                     })()}
                     </td>
-                    <td className="px-8 py-4 text-right font-bold dark:text-emerald-400 text-emerald-600 align-middle">{typeof (rule as any).weight === 'number' ? (rule as any).weight.toString() : (rule as any).weight}</td>
+                    <td className="px-8 py-4 text-right font-bold dark:text-emerald-400 text-emerald-600 align-middle text-base">{typeof (rule as any).weight === 'number' ? (rule as any).weight.toString() : (rule as any).weight}</td>
                 </tr>
                 )})}
                 <tr className="dark:bg-slate-900/30 bg-slate-100">
-                <td colSpan={3} className="px-8 py-4 font-bold dark:text-slate-300 text-slate-700 text-right">Total possible score</td>
+                <td colSpan={2} className="px-8 py-4 font-bold dark:text-slate-300 text-slate-700 text-right">Total possible score</td>
                 <td className="px-8 py-4 text-right font-bold dark:text-white text-slate-900 text-xl">{(assignment.rubric as any)?.totalWeight || 0}</td>
                 </tr>
             </tbody>

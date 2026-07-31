@@ -48,7 +48,7 @@ export interface SqlExecutionResult {
 const MSSQL_IMAGE = 'mcr.microsoft.com/mssql/server:2022-latest';
 const MSSQL_SA_PASSWORD = 'AitaGrading2024!';
 const MSSQL_PORT = 1433;
-const SETUP_TIMEOUT_MS = 45000;   // Max 45s to start SQL Server
+const SETUP_TIMEOUT_MS = 180000;   // Max 180s to start SQL Server on slow hosts
 const DEFAULT_QUERY_TIMEOUT_MS = 10000;
 const FLOAT_TOLERANCE = 0.01;
 
@@ -69,6 +69,7 @@ const FLOAT_TOLERANCE = 0.01;
  */
 export class SqlExecutionProbeEngine {
     private docker: Docker;
+    private containerSessions = new Map<string, { container: Docker.Container, setupMs: number }>();
 
     constructor() {
         this.docker = new Docker();
@@ -80,52 +81,76 @@ export class SqlExecutionProbeEngine {
 
     public async evaluateAsync(
         submissionPath: string,
-        probeSpec: SqlExecutionProbeSpec
+        probeSpec: SqlExecutionProbeSpec,
+        submissionId?: string
     ): Promise<SqlExecutionResult> {
         const caseResults: SqlCaseResult[] = [];
         const overallStart = Date.now();
         let setupMs = 0;
+        // ── 0. Find and read student's SQL file ──
+        const studentSql = await this.readStudentSql(submissionPath);
+        if (!studentSql) {
+            return this.buildEmptyResult(probeSpec, 'Không tìm thấy file .sql trong bài nộp của sinh viên.', 0);
+        }
+
         let container: Docker.Container | null = null;
+        let isNewContainer = true;
 
         try {
-            // ── 1. Pull image if needed ──
-            await this.ensureImage(MSSQL_IMAGE);
+            if (submissionId && this.containerSessions.has(submissionId)) {
+                const session = this.containerSessions.get(submissionId)!;
+                container = session.container;
+                setupMs = session.setupMs;
+                isNewContainer = false;
+                console.log(`[SqlExecutionProbe] Reusing existing SQL Server container for submission ${submissionId}`);
+            } else {
+                // ── 1. Pull image if needed ──
+                await this.ensureImage(MSSQL_IMAGE);
 
-            // ── 2. Start SQL Server container ──
-            console.log(`[SqlExecutionProbe] Starting SQL Server container...`);
-            container = await this.startSqlServer();
-            const containerId = container.id.substring(0, 12);
-            console.log(`[SqlExecutionProbe] Container ${containerId} started.`);
+                // ── 2. Start SQL Server container ──
+                console.log(`[SqlExecutionProbe] Starting SQL Server container...`);
+                container = await this.startSqlServer();
+                const containerId = container.id.substring(0, 12);
+                console.log(`[SqlExecutionProbe] Container ${containerId} started.`);
 
-            // ── 3. Wait for SQL Server readiness ──
-            await this.waitForReady(container);
-            console.log(`[SqlExecutionProbe] SQL Server is ready.`);
+                // ── 3. Wait for SQL Server readiness ──
+                await this.waitForReady(container);
+                console.log(`[SqlExecutionProbe] SQL Server is ready.`);
 
-            // ── 4. Execute setup script (CREATE DB + test data) ──
-            const setupScript = await this.resolveSetupScript(probeSpec.setupScript, submissionPath);
-            await this.executeSql(container, setupScript, 'master');
-            setupMs = Date.now() - overallStart;
-            console.log(`[SqlExecutionProbe] Setup completed in ${setupMs}ms.`);
+                // ── 4. Execute setup script (CREATE DB + test data) ──
+                const initDbScript = `
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'TestDBI202')
+BEGIN
+    CREATE DATABASE TestDBI202;
+END
+`;
+                await this.executeSql(container, initDbScript, 'master');
 
-            // ── 5. Find and read student's SQL file ──
-            const studentSql = await this.readStudentSql(submissionPath);
-            if (!studentSql) {
-                return this.buildEmptyResult(probeSpec, 'Không tìm thấy file .sql trong bài nộp của sinh viên.', setupMs);
+                const setupScript = await this.resolveSetupScript(probeSpec.setupScript, submissionPath, studentSql);
+                await this.executeSetupScriptBatches(container, setupScript, 'TestDBI202');
+                setupMs = Date.now() - overallStart;
+                console.log(`[SqlExecutionProbe] Setup completed in ${setupMs}ms.`);
+                
+                if (submissionId) {
+                    this.containerSessions.set(submissionId, { container, setupMs });
+                }
             }
 
-            // ── 6. Execute student's DDL/setup statements first (CREATE TABLE, etc.) ──
-            // This allows subsequent queries to reference tables the student created
             const studentStatements = this.splitSqlStatements(studentSql);
-            const ddlStatements = studentStatements.filter(s =>
-                /^\s*(CREATE|ALTER|DROP)\s/i.test(s)
-            );
-            if (ddlStatements.length > 0) {
-                const ddlScript = ddlStatements.join('\nGO\n');
-                try {
-                    await this.executeSql(container, ddlScript, 'TestDBI202');
-                    console.log(`[SqlExecutionProbe] Executed ${ddlStatements.length} DDL statements from student.`);
-                } catch (e: any) {
-                    console.warn(`[SqlExecutionProbe] Some DDL statements failed (may be expected): ${e.message?.substring(0, 200)}`);
+
+            // ── 6. Execute student's DDL/setup statements first (ONLY if new container) ──
+            if (isNewContainer) {
+                const ddlStatements = studentStatements.filter(s =>
+                    /^\s*(CREATE|ALTER|DROP)\s/i.test(s)
+                );
+                if (ddlStatements.length > 0) {
+                    const ddlScript = ddlStatements.join('\nGO\n');
+                    try {
+                        await this.executeSql(container, ddlScript, 'TestDBI202');
+                        console.log(`[SqlExecutionProbe] Executed ${ddlStatements.length} DDL statements from student.`);
+                    } catch (e: any) {
+                        console.warn(`[SqlExecutionProbe] Some DDL statements failed (may be expected): ${e.message?.substring(0, 200)}`);
+                    }
                 }
             }
 
@@ -142,14 +167,28 @@ export class SqlExecutionProbeEngine {
 
         } catch (error: any) {
             console.error(`[SqlExecutionProbe] Fatal error:`, error);
-            return this.buildEmptyResult(probeSpec, `Lỗi hệ thống: ${error.message}`, setupMs);
-        } finally {
-            // ── 8. Cleanup ──
+            // If a fatal error occurs (like setup failing), the container is likely broken.
+            // Clean it up immediately so it doesn't leak or poison subsequent rules.
             if (container) {
+                if (submissionId) {
+                    this.containerSessions.delete(submissionId);
+                }
                 try {
                     await container.remove({ force: true });
-                    console.log(`[SqlExecutionProbe] Container removed.`);
-                } catch (e) { /* Container may already be removed */ }
+                    console.log(`[SqlExecutionProbe] Container removed after fatal error.`);
+                } catch (e) { /* ignore */ }
+            }
+            throw error; // Let RubricEvaluator handle the fatal failure and abort grading
+        } finally {
+            // ── 8. Cleanup (if not successfully tracked in session) ──
+            if (container) {
+                const isTracked = submissionId && this.containerSessions.has(submissionId) && this.containerSessions.get(submissionId)!.container.id === container.id;
+                if (!isTracked) {
+                    try {
+                        await container.remove({ force: true });
+                        console.log(`[SqlExecutionProbe] Untracked container removed.`);
+                    } catch (e) { /* Container may already be removed */ }
+                }
             }
         }
 
@@ -174,6 +213,19 @@ export class SqlExecutionProbeEngine {
     // Docker Lifecycle
     // ═══════════════════════════════════════════════════════════════
 
+    public async cleanupSessionAsync(submissionId: string): Promise<void> {
+        const session = this.containerSessions.get(submissionId);
+        if (session) {
+            console.log(`[SqlExecutionProbe] Cleaning up SQL Server session for submission ${submissionId}`);
+            try {
+                await session.container.remove({ force: true });
+            } catch (e) {
+                // Ignore errors during cleanup
+            }
+            this.containerSessions.delete(submissionId);
+        }
+    }
+
     private async startSqlServer(): Promise<Docker.Container> {
         const container = await this.docker.createContainer({
             Image: MSSQL_IMAGE,
@@ -183,7 +235,7 @@ export class SqlExecutionProbeEngine {
                 'MSSQL_PID=Developer'
             ],
             HostConfig: {
-                Memory: 1024 * 1024 * 1024, // 1GB — minimum for SQL Server
+                Memory: 2048 * 1024 * 1024, // 2GB — minimum for SQL Server 2022
                 CpuShares: 1024,
                 NetworkMode: 'bridge',
             },
@@ -199,12 +251,14 @@ export class SqlExecutionProbeEngine {
      */
     private async waitForReady(container: Docker.Container): Promise<void> {
         const deadline = Date.now() + SETUP_TIMEOUT_MS;
-        const checkCmd = `/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${MSSQL_SA_PASSWORD}' -C -Q "SELECT 1" -b`;
+        // Wait until all critical system databases (master, tempdb, model, msdb) are fully ONLINE (state = 0).
+        // Otherwise, CREATE DATABASE might fail with Msg 1807 (model database in transition).
+        const checkCmd = `/opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1 -U sa -P '${MSSQL_SA_PASSWORD}' -l 3 -C -Q "SELECT 'SQL_SERVER_IS_READY' WHERE (SELECT COUNT(*) FROM sys.databases WHERE state = 0 AND name IN ('master', 'tempdb', 'model', 'msdb')) = 4" -b`;
 
         while (Date.now() < deadline) {
             try {
                 const output = await this.execInContainer(container, checkCmd);
-                if (output.includes('1')) return;
+                if (output.includes('SQL_SERVER_IS_READY')) return;
             } catch {
                 // Not ready yet
             }
@@ -225,8 +279,15 @@ export class SqlExecutionProbeEngine {
         // Write SQL to a temp file inside the container, then execute it.
         // This avoids shell escaping issues with complex SQL.
         const escapedSql = sql.replace(/'/g, "'\\''");
-        const cmd = `echo '${escapedSql}' > /tmp/exec.sql && /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${MSSQL_SA_PASSWORD}' -C -d ${database} -i /tmp/exec.sql -s "|" -W -w 9999`;
-        return await this.execInContainer(container, cmd);
+        // Use -b to abort batch on error, though we also parse output to catch any errors that didn't abort.
+        const cmd = `echo '${escapedSql}' > /tmp/exec.sql && /opt/mssql-tools18/bin/sqlcmd -b -S 127.0.0.1 -U sa -P '${MSSQL_SA_PASSWORD}' -C -d ${database} -i /tmp/exec.sql -s "|" -W -w 9999`;
+        const output = await this.execInContainer(container, cmd);
+        
+        // Catch connection errors (Sqlcmd: Error) or runtime SQL errors (Msg ..., Level ..., State ...)
+        if (output.includes('Sqlcmd: Error:') || output.includes('ODBC Driver') || /Msg \d+, Level \d+, State \d+/.test(output)) {
+            throw new Error(`SQL Server Execution Error:\n${output}`);
+        }
+        return output;
     }
 
     /**
@@ -330,6 +391,22 @@ export class SqlExecutionProbeEngine {
         studentQuery: string,
         result: SqlCaseResult
     ): Promise<SqlCaseResult> {
+        // Dynamically execute the reference query (teacher's answer) if expectedRows is empty
+        if ((!testCase.expectedRows || testCase.expectedRows.length === 0) && testCase.query) {
+            try {
+                console.log(`[SqlExecutionProbe] Dynamically executing reference query for '${testCase.title}' to obtain expected results...`);
+                const { columns: expCols, rows: expRows } = await this.executeQuery(container, testCase.query, 'TestDBI202');
+                testCase.expectedColumns = expCols;
+                testCase.expectedRows = expRows;
+                result.expectedColumns = expCols;
+                result.expectedRows = expRows;
+            } catch (e: any) {
+                console.warn(`[SqlExecutionProbe] Failed to execute reference query for '${testCase.title}': ${e.message}`);
+                result.diffSummary = `Lỗi hệ thống: Không thể chạy câu truy vấn đáp án để đối chiếu (${e.message}).`;
+                return result;
+            }
+        }
+
         const { columns, rows } = await this.executeQuery(container, studentQuery, 'TestDBI202');
         result.actualColumns = columns;
         result.actualRows = rows;
@@ -406,26 +483,40 @@ export class SqlExecutionProbeEngine {
         try {
             await this.executeSql(container, studentQuery, 'TestDBI202');
         } catch (e: any) {
-            result.diffSummary = `Lỗi khi thực thi DDL: ${e.message.substring(0, 300)}`;
-            result.errorMessage = e.message;
-            return result;
+            // Msg 2714 means object already exists (e.g. created by setup). Proceed to verify object existence.
+            if (!e.message || !e.message.includes('2714')) {
+                result.diffSummary = `Lỗi khi thực thi DDL: ${e.message.substring(0, 300)}`;
+                result.errorMessage = e.message;
+                return result;
+            }
+        }
+
+        // Determine object type dynamically if not provided
+        let objType = testCase.expectedObjectType;
+        if (!objType) {
+            const combinedQuery = (testCase.query || '') + ' ' + studentQuery;
+            if (/CREATE\s+TRIGGER/i.test(combinedQuery)) objType = 'trigger';
+            else if (/CREATE\s+(?:OR\s+ALTER\s+)?PROC/i.test(combinedQuery)) objType = 'procedure';
+            else if (/CREATE\s+VIEW/i.test(combinedQuery)) objType = 'view';
+            else objType = 'table';
         }
 
         // Verify object exists
-        if (testCase.expectedObjectName) {
-            const objType = testCase.expectedObjectType || 'table';
-            const checkQuery = this.buildObjectCheckQuery(testCase.expectedObjectName, objType);
+        const expectedName = testCase.expectedObjectName || this.extractObjectName(testCase.query || studentQuery, objType);
+        if (expectedName) {
+            const checkQuery = this.buildObjectCheckQuery(expectedName, objType);
             const output = await this.executeSql(container, checkQuery, 'TestDBI202');
 
             if (output.toLowerCase().includes('exists')) {
                 result.passed = true;
                 result.earnedPoints = result.points;
-                result.diffSummary = `✓ ${objType} "${testCase.expectedObjectName}" đã được tạo thành công.`;
+                const typeLabel = objType === 'trigger' ? 'Trigger' : objType === 'procedure' ? 'Stored procedure' : objType === 'view' ? 'View' : 'Table';
+                result.diffSummary = `✓ ${typeLabel} "${expectedName}" đã được tạo thành công.`;
             } else {
-                result.diffSummary = `${objType} "${testCase.expectedObjectName}" không tồn tại sau khi thực thi DDL.`;
+                result.diffSummary = `${objType} "${expectedName}" không tồn tại sau khi thực thi DDL.`;
             }
         } else {
-            // No object to verify — just check the DDL didn't error
+            // No object name parsed — check DDL didn't fail
             result.passed = true;
             result.earnedPoints = result.points;
             result.diffSummary = '✓ DDL thực thi thành công.';
@@ -492,6 +583,25 @@ export class SqlExecutionProbeEngine {
 
     // ─── Procedure Evaluation ────────────────────────────────────
 
+    private extractObjectName(query: string, type: 'procedure' | 'table' | 'trigger' | 'view'): string | null {
+        const regexMap: Record<string, RegExp> = {
+            'procedure': /CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+([a-zA-Z0-9_\[\]\.]+)/i,
+            'table': /CREATE\s+TABLE\s+([a-zA-Z0-9_\[\]\.]+)/i,
+            'trigger': /CREATE\s+TRIGGER\s+([a-zA-Z0-9_\[\]\.]+)/i,
+            'view': /CREATE\s+VIEW\s+([a-zA-Z0-9_\[\]\.]+)/i
+        };
+        const match = query.match(regexMap[type]);
+        if (match && match[1]) {
+            // Strip brackets or dbo. prefixes
+            let name = match[1].replace(/[\[\]]/g, '');
+            if (name.toLowerCase().startsWith('dbo.')) {
+                name = name.substring(4);
+            }
+            return name;
+        }
+        return null;
+    }
+
     private async evaluateProcedure(
         container: Docker.Container,
         testCase: SqlTestCase,
@@ -534,9 +644,10 @@ export class SqlExecutionProbeEngine {
             }
         } else {
             // Verify procedure exists
+            const expectedName = testCase.expectedObjectName || this.extractObjectName(testCase.query, 'procedure') || 'unknown';
             const checkOutput = await this.executeSql(
                 container,
-                `SELECT CASE WHEN OBJECT_ID('${testCase.expectedObjectName || 'unknown'}', 'P') IS NOT NULL THEN 'EXISTS' ELSE 'NOT_EXISTS' END AS result`,
+                `SELECT CASE WHEN OBJECT_ID('${expectedName}', 'P') IS NOT NULL THEN 'EXISTS' ELSE 'NOT_EXISTS' END AS result`,
                 'TestDBI202'
             );
             if (checkOutput.includes('EXISTS') && !checkOutput.includes('NOT_EXISTS')) {
@@ -781,22 +892,76 @@ export class SqlExecutionProbeEngine {
         }
     }
 
-    /**
-     * Resolve the setup script. If it starts with "file:", read from disk.
-     * Otherwise, treat it as inline SQL.
-     */
-    private async resolveSetupScript(setupScript: string, submissionPath: string): Promise<string> {
-        if (setupScript.startsWith('file:')) {
-            const filePath = setupScript.substring(5);
-            // Try absolute path first, then relative to submission
+    private sanitizeSqlScript(sql: string): string {
+        if (!sql) return '';
+        let cleaned = sql;
+        cleaned = cleaned.replace(/CREATE\s+DATABASE\s+[a-zA-Z0-9_\[\]`"']+/gi, '-- [REMOVED CREATE DATABASE]');
+        cleaned = cleaned.replace(/DROP\s+DATABASE\s+(?:IF\s+EXISTS\s+)?[a-zA-Z0-9_\[\]`"']+/gi, '-- [REMOVED DROP DATABASE]');
+        cleaned = cleaned.replace(/USE\s+[a-zA-Z0-9_\[\]`"']+/gi, '-- [REMOVED USE]');
+        return cleaned;
+    }
+
+    private async executeSetupScriptBatches(container: Docker.Container, setupScript: string, dbName: string): Promise<void> {
+        const sanitized = this.sanitizeSqlScript(setupScript);
+        if (!sanitized.trim()) return;
+
+        const batches = sanitized
+            .split(/\bGO\b/i)
+            .map(b => b.trim())
+            .filter(b => b.length > 0);
+
+        console.log(`[SqlExecutionProbe] Executing ${batches.length} setup script batches on database '${dbName}'...`);
+        for (const batch of batches) {
             try {
-                return await fs.readFile(filePath, 'utf-8');
-            } catch {
-                const relative = path.join(submissionPath, filePath);
-                return await fs.readFile(relative, 'utf-8');
+                await this.executeSql(container, batch, dbName);
+            } catch (err: any) {
+                console.warn(`[SqlExecutionProbe] Setup batch notice (continued): ${err.message?.substring(0, 150)}`);
             }
         }
-        return setupScript;
+    }
+
+    /**
+     * Resolve the setup script. If it starts with "file:", read from disk.
+     * Otherwise, treat it as inline SQL. Fallback to searching submissionPath if empty.
+     */
+    private async resolveSetupScript(setupScript: string, submissionPath: string, studentSql?: string): Promise<string> {
+        let rawScript = setupScript || '';
+
+        if (rawScript.startsWith('file:')) {
+            const filePath = rawScript.substring(5);
+            try {
+                rawScript = await fs.readFile(filePath, 'utf-8');
+            } catch {
+                const relative = path.join(submissionPath, filePath);
+                try {
+                    rawScript = await fs.readFile(relative, 'utf-8');
+                } catch {
+                    rawScript = '';
+                }
+            }
+        }
+
+        // Fallback: If setupScript is empty or missing, search for setup files inside submissionPath
+        if (!rawScript.trim()) {
+            console.log('[SqlExecutionProbe] probeSpec.setupScript is empty. Searching submissionPath for SQL setup script...');
+            const sqlFiles = await this.findFiles(submissionPath, '.sql');
+            for (const f of sqlFiles) {
+                try {
+                    const content = await fs.readFile(f, 'utf-8');
+                    if (/CREATE\s+TABLE\s+Product/i.test(content) || /INSERT\s+INTO\s+Product/i.test(content)) {
+                        console.log(`[SqlExecutionProbe] Found fallback setup script in file: ${f}`);
+                        rawScript = content;
+                        break;
+                    }
+                } catch { /* ignore */ }
+            }
+            if (!rawScript.trim() && studentSql && /CREATE\s+TABLE/i.test(studentSql)) {
+                console.log('[SqlExecutionProbe] Using student SQL as setup script fallback.');
+                rawScript = studentSql;
+            }
+        }
+
+        return this.sanitizeSqlScript(rawScript);
     }
 
     private async findFiles(dir: string, extension: string): Promise<string[]> {

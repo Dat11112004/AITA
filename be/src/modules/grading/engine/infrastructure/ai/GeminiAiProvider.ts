@@ -51,7 +51,7 @@ F) IS ARCHITECTURE CODE: true if the core deliverable is the structural organiza
 G) IS DIAGRAM TASK: true if the core deliverable is a visual representation (e.g., UML, flowchart, architecture diagram).
 H) IS SOFT DELETE: true if the task requires implementing a soft delete (logical deletion, hiding a record instead of physically dropping it from the database).
 I) PART LABEL: The section of the exam this requirement belongs to (e.g. "PART A", "PART B", "PART D", "PART E").
-J) PRESERVE KEYWORDS: You MUST PRESERVE all technical keywords, exact property names, HTTP methods, and exact rule logic in your description. DO NOT truncate technical details.
+J) PRESERVE KEYWORDS & TABLES: You MUST PRESERVE all technical keywords, exact property names, HTTP methods, and exact rule logic in your description. CRITICAL: If a question or requirement includes a sample output table, expected result table, or test execution example (e.g., Expected Output tables), you MUST PRESERVE AND INCLUDE IT AS A MARKDOWN TABLE (e.g. | col1 | col2 |) inside the requirement's \`description\`. DO NOT omit sample output tables!
 K) RECOMMENDED ENGINE REASON: First, briefly explain why a specific engine is needed based on the core deliverable. If the core deliverable is source code structure (like MVVM), explain that. If it's an image, explain that.
 L) RECOMMENDED ENGINE: Based on the reason, output the exact engine name:
 - "AiTextAnalysis": MUST be used for written essays, theory questions, text reports, or DIAGRAMS. CRITICAL: If IS WRITTEN ANSWER or IS DIAGRAM TASK is true, you MUST assign AiTextAnalysis.
@@ -641,7 +641,7 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
     /**
      * Generates a comprehensive markdown assignment document from a short prompt.
      */
-    public async generateAssignmentContentAsync(prompt: string): Promise<string> {
+    public async generateAssignmentContentAsync(prompt: string, pageImages?: string[]): Promise<string> {
         // const model = this.genAi.getGenerativeModel({ 
         //     model: config.gemini.model,
         //     generationConfig: {
@@ -649,34 +649,37 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
         //     }
         // });
 
-        const systemPrompt = `You are a strict, professional Computer Science Professor.
-The user will give you a short topic or idea for a programming assignment.
-Your task is to generate a highly concise Assignment Document in pure HTML format.
+        const systemPrompt = `You are an expert Document Extraction and Conversion AI.
+The user will provide you with a programming assignment document. This document may be provided as plain text, or as a series of PDF page images, or both.
+Your task is to perfectly transcribe and convert the entire assignment document into a comprehensive HTML document.
 
-RULES:
-1. Include a clear Title (<h1>), Project Description, Technical Requirements, and Expected Behavior.
-2. Be CONCRETE and SPECIFIC. List exactly what features need to be built using <ul> and <li>.
-3. DO NOT include generic fluff or boilerplate advice. ABSOLUTELY NO sentences like:
-   - "The system should demonstrate proper error handling..."
-   - "Make sure to write clean, maintainable code..."
-   - "Separation of concerns should be evident..."
-   - "Ensure appropriate HTTP status codes are returned..."
-   If a requirement doesn't explicitly state a feature to build, DO NOT write it.
-4. DO NOT wrap your response in \`\`\`html ... \`\`\` code blocks. Just return the raw HTML string. DO NOT USE MARKDOWN. NO ** NO ##.
-5. Only include a "Scoring Rubric" section in the HTML if the Instructor EXPLICITLY provides points or grading percentages. If the Instructor's text does not contain specific numbers for grading, COMPLETELY OMIT the Scoring Rubric section.
-6. Only output the HTML content (no <html>, <head>, or <body> tags, just the inner content).
-7. EXAMPLES: ONLY if the Instructor's idea explicitly contains example inputs and outputs, format them nicely in an "Expected Behavior" section. If the Instructor's idea DOES NOT contain examples, DO NOT invent any examples and DO NOT write an Expected Behavior section.
-8. LANGUAGE: ALWAYS write the generated HTML content entirely in ENGLISH, regardless of the language used in the Instructor Idea. Do NOT use Vietnamese or any other language in your output.`;
+CRITICAL RULES FOR CONVERSION:
+1. COMPLETE TRANSCRIPTION: You MUST transcribe the entire assignment, including all instructions, questions, constraints, and point values exactly as they appear in the source document. Do NOT summarize or skip any question.
+2. VISUAL TABLES TO HTML TABLES: If you see any data tables in the provided images (e.g., sample data, schema definitions, attribute lists), you MUST meticulously transcribe them into properly formatted HTML tables (<table>, <thead>, <tbody>, <tr>, <th>, <td>). Do NOT skip rows or columns.
+3. ER DIAGRAMS TO TEXT SCHEMAS: If you see an Entity-Relationship Diagram (ERD) or database schema diagram, you must convert it into a clear text-based representation. List the tables, their columns, primary keys, and foreign key relationships explicitly in the HTML.
+4. FORMAT: Output the content in pure HTML format. Use appropriate tags (<h1>, <h2>, <p>, <ul>, <li>, <table>, <code>, <pre>).
+5. NO FLUFF: Do NOT add generic advice like "Ensure proper error handling" unless it is explicitly written in the original document. Do NOT add an arbitrary "Scoring Rubric" unless the points are present in the text.
+6. NO MARKDOWN: DO NOT use markdown like ** or ##. DO NOT wrap your response in \`\`\`html ... \`\`\` code blocks. Just return the raw HTML string (no <html>, <head>, or <body> tags, just the inner content).
+7. LANGUAGE: Output the final HTML entirely in ENGLISH, even if the source contains other languages. Translate accurately if needed.`;
 
         const fullPrompt = `${systemPrompt}\n\nInstructor Idea:\n${prompt}`;
 
+        let messageContent: any[] = [{ type: "text", text: fullPrompt }];
+        
+        if (pageImages && pageImages.length > 0) {
+            pageImages.forEach(base64 => {
+                messageContent.push({
+                    type: "image_url",
+                    image_url: { url: base64 }
+                });
+            });
+        }
+
         try {
-            // const result = await model.generateContent(fullPrompt);
-            // let text = result.response.text();
             const response = await AiClientManager.executeWithFallback(async (client, model) => {
                 return await client.chat.completions.create({
                     model: model,
-                    messages: [{ role: "user", content: fullPrompt }],
+                    messages: [{ role: "user", content: messageContent }],
                     temperature: 0.2
                 });
             });
@@ -866,6 +869,80 @@ where 1.0 means fully satisfied, 0.0 means not satisfied at all, and anything in
         } catch (error: any) {
             console.error(`[GeminiAiProvider] Failed to evaluate image (outer):`, error.message || error);
             throw new Error(`Hệ thống chấm điểm AI Vision gặp sự cố: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    public async parseSqlAnswerKeyAsync(sqlContent: string, rubricRules: any[]): Promise<any[]> {
+        const systemPrompt = `You are an expert SQL parser and Database Assessor.
+Your task is to analyze a teacher's SQL Answer Key file and map the correct SQL queries to a given list of grading rubric rules.
+
+INPUT:
+1. The teacher's raw SQL file content. This file contains the complete answer key, usually including DDL commands (to setup the database, create tables, insert mock data) and DML/SELECT commands (the answers for specific questions like Q1, Q2...).
+2. A JSON array of Rubric Rules. Some of these rules are for SQL Execution (\`scoringStrategy: "SqlExecutionProbe"\`).
+
+OUTPUT:
+Return ONLY a valid JSON array of rules. This array must be identical to the input array, EXCEPT for the rules with \`scoringStrategy: "SqlExecutionProbe"\`.
+For those rules, you MUST populate the \`requiredEvidence[0].sqlProbe\` object with a \`setupScript\` and an array of \`testCases\`.
+
+HOW TO MAP QUERIES:
+- Read the title and description of each rule to understand what question it represents (e.g. "Question 1", "Select Accessories Subcategories").
+- Find the corresponding query in the teacher's SQL file.
+- Look for comments like /* Q1 */, -- Question 2, etc. to help map the queries accurately.
+- Extract the raw SQL query exactly as it is written in the file.
+- The \`setupScript\` property MUST be returned as an empty string "". The Backend will handle extracting the setup script automatically. DO NOT try to generate or extract it here to save tokens.
+
+JSON SCHEMA FOR sqlProbe:
+{
+  "sqlProbe": {
+    "description": "SQL Test Cases",
+    "setupScript": "CREATE TABLE ... INSERT INTO ...",
+    "testCases": [
+      {
+        "id": "q1",
+        "title": "Title of the test case",
+        "query": "SELECT * FROM ...", // THE EXACT QUERY EXTRACTED FROM THE SQL FILE
+        "queryType": "select", // "select", "ddl", "dml", or "procedure"
+        "points": 1,
+        "expectedObjectName": "Departments" // IMPORTANT: For "ddl" queries, MUST provide the object name being created
+      }
+    ]
+  }
+}
+
+CRITICAL RULES:
+1. Output MUST be valid JSON only. No markdown fences, no explanations.
+2. The returned array must have the exact same number of rules as the input array.
+3. Keep all other fields (id, title, description, weight, scoringStrategy, etc.) intact.
+4. For \`queryType\`, use "select" for SELECT, "ddl" for CREATE/ALTER/DROP, "dml" for INSERT/UPDATE/DELETE, and "procedure" for Stored Procedures.
+5. DO NOT generate \`expectedRows\` or \`expectedColumns\`. The system will automatically execute the \`query\` to get the expected results at runtime!`;
+
+        const prompt = `Rubric Rules:\n${JSON.stringify(rubricRules, null, 2)}\n\nTeacher's SQL File Content:\n${sqlContent}`;
+
+        try {
+            const response = await AiClientManager.executeWithFallback(async (client, model) => {
+                return await client.chat.completions.create({
+                    model: model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 0.1
+                });
+            });
+
+            let text = response.choices[0].message.content?.trim() || "[]";
+            text = text.replace(/^```json/gi, "").replace(/```$/g, "").trim();
+            const updatedRules = JSON.parse(text);
+
+            if (Array.isArray(updatedRules) && updatedRules.length === rubricRules.length) {
+                return updatedRules;
+            } else {
+                console.warn("[GeminiAiProvider] parseSqlAnswerKeyAsync returned malformed array. Returning original rules.");
+                return rubricRules;
+            }
+        } catch (error: any) {
+            console.error("[GeminiAiProvider] Failed to parse SQL Answer Key:", error);
+            throw new Error(`Lỗi khi AI phân tích file SQL: ${error.message}`);
         }
     }
 }

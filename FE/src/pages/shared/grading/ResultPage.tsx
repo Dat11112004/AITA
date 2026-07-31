@@ -88,17 +88,25 @@ export default function ResultPage() {
     );
   }
 
+  const extractQuestionNum = (title: string): number => {
+    if (!title) return 999;
+    const match = title.match(/(?:Question|Câu)\s*(\d+)/i) || title.match(/Q(\d+)/i);
+    return match ? parseInt(match[1], 10) : 999;
+  };
+
   const passedRules = result.rules || [];
   const failedRules = result.failedRules || [];
-  const allRules = [...passedRules, ...failedRules].map((r: any) => ({
-    name: r.title || r.ruleId,
-    description: r.description,
-    passed: r.passed,
-    score: r.earnedScore || 0,
-    maxScore: r.weight || 0,
-    details: r.details || r.reason || '',
-    evidence: r.evidence,
-  }));
+  const allRules = [...passedRules, ...failedRules]
+    .map((r: any) => ({
+      name: r.title || r.ruleId,
+      description: r.description,
+      passed: r.passed,
+      score: r.earnedScore || 0,
+      maxScore: r.weight || 0,
+      details: r.details || r.reason || '',
+      evidence: r.evidence,
+    }))
+    .sort((a, b) => extractQuestionNum(a.name) - extractQuestionNum(b.name));
 
   return (
     <div className="max-w-5xl mx-auto pb-8 -mt-2 sm:-mt-4">

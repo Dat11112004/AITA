@@ -19,6 +19,7 @@ export interface AiGenerationState {
   assignmentType?: string;
   textPrompt?: string;
   isCompleted: boolean;
+  pageImages?: string[];
 }
 
 type Listener = (state: AiGenerationState) => void;
@@ -189,9 +190,18 @@ class AiGenerationStoreManager {
       selectedSemester,
       subjectCode,
       assignmentType,
+      pageImages: [],
     });
 
     try {
+      let pageImages: string[] = [];
+      if (file.type === 'application/pdf') {
+        this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
+        const { renderPdfToImages } = await import('@/lib/pdf');
+        pageImages = await renderPdfToImages(file, 2.0);
+        this.setState({ pageImages, loadingMsg: `Reading & extracting text from file ${file.name}...`, progress: 25 });
+      }
+
       const extractedData: any = await api.extractText(file, selectedSemester, subjectCode);
       const extractedText = extractedData.text?.rawText || (typeof extractedData.text === 'string' ? extractedData.text : extractedData.rawText || JSON.stringify(extractedData.text || ''));
 
@@ -206,6 +216,7 @@ class AiGenerationStoreManager {
       const finalPrompt = promptHeader ? `${promptHeader}\n\n${extractedText}` : extractedText;
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
         signal: this.abortController.signal,
+        pageImages: pageImages
       });
 
       this.setState({

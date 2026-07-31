@@ -626,6 +626,9 @@ export interface SubmissionRow {
   aiFeedback?: unknown | null
   instructorFeedback?: string | null
   studentFeedback?: string | null
+  latePenaltyAmount?: number | null
+  isReopened?: boolean
+  reopenReason?: string | null
 }
 
 export interface SubmissionListQuery {
@@ -784,10 +787,10 @@ export const gradingApi = {
     })
   },
 
-  generateContent: (prompt: string, semester: string, subject: string, options?: RequestInit) => request<{ markdown: string }>('/grading/assignments/generate-content', {
+  generateContent: (prompt: string, semester: string, subject: string, options?: RequestInit & { pageImages?: string[] }) => request<{ markdown: string }>('/grading/assignments/generate-content', {
     method: 'POST',
-    body: JSON.stringify({ prompt, semester, subject }),
-    ...options
+    body: JSON.stringify({ prompt, semester, subject, pageImages: options?.pageImages }),
+    ...options,
   }).then(res => res.markdown),
 
   parseRubric: (content: string, documentImageKey?: string | null, options?: RequestInit) => request<{ rubric: any, blueprint: any }>('/grading/assignments/parse-rubric', {
@@ -841,6 +844,13 @@ export const gradingApi = {
     files.forEach(f => formData.append('files', f))
     if (assignmentId) formData.append('assignmentId', assignmentId)
     return request<{ jobs: any[] }>('/grading/submissions/upload-batch', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  parseSqlKey: (formData: FormData) => {
+    return request<any>('/grading/assignments/parse-sql-key', {
       method: 'POST',
       body: formData,
     })

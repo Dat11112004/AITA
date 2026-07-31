@@ -76,7 +76,12 @@ export class ExamsController extends BaseController {
           return;
         }
 
-        res.attachment(attachment.fileName);
+        if (req.query.inline === 'true') {
+          res.setHeader('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+        } else {
+          res.attachment(attachment.fileName);
+        }
+        
         if ((attachment as any).fileType) {
           res.setHeader('Content-Type', (attachment as any).fileType);
         } else {
@@ -106,6 +111,11 @@ export class ExamsController extends BaseController {
       return
     }
 
-    res.download(filePath, attachment.fileName)
+    if (req.query.inline === 'true') {
+      res.setHeader('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+      res.sendFile(filePath);
+    } else {
+      res.download(filePath, attachment.fileName);
+    }
   }
 }

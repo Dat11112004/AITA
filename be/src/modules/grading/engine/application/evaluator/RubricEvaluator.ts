@@ -24,6 +24,7 @@ export interface EvaluationContext {
     /** Extracted document for AiTextAnalysis (from Docx/PDF) */
     extractedDocument?: ExtractedDocument;
     crashLogs?: string;
+    submissionId?: string;
 }
 
 interface RuleScore {
@@ -75,6 +76,9 @@ export class RubricEvaluator {
 
         let currentRuleIndex = 0;
         const totalRules = rubric.rules.length;
+
+        // Attach submissionId to context for engines that support session caching
+        context.submissionId = submissionId;
 
         try {
             for (const rule of rubric.rules) {
@@ -265,7 +269,7 @@ export class RubricEvaluator {
             } else {
                 failedRules.push(scoredRule);
             }
-        } // Close for loop
+            }
         } catch (err: any) {
             console.warn(`[RubricEvaluator] Evaluation interrupted for ${submissionId}: ${err.message}. Building partial report.`);
             
@@ -292,6 +296,11 @@ export class RubricEvaluator {
 
             err.partialReport = partialReport;
             throw err;
+        } finally {
+            // Clean up any stateful sessions
+            if (context.submissionId) {
+                await this.sqlProbe.cleanupSessionAsync(context.submissionId);
+            }
         }
 
         totalScore = Math.round(totalScore * 100) / 100;
@@ -964,11 +973,19 @@ export class RubricEvaluator {
                     }
                     const sqlSpec = rule.requiredEvidence?.find(e => e.sqlProbe);
                     if (!sqlSpec?.sqlProbe || sqlSpec.sqlProbe.testCases.length === 0) {
-                        return this.fail(rule, "No SQL test cases defined for SqlExecutionProbe");
+                        console.log(`[RubricEvaluator] No SQL test cases defined for SqlExecutionProbe on rule '${rule.title}'. Returning 0 score instead of falling back to AICodeReview.`);
+                        return {
+                            ruleId: rule.id,
+                            passed: false,
+                            score: 0,
+                            reason: `Hệ thống chưa tạo test case tự động cho câu hỏi này. (Vui lòng re-upload Answer Key để cập nhật lại bộ test case).`,
+                            evidence: {}
+                        };
                     }
                     const sqlResult = await this.sqlProbe.evaluateAsync(
                         context.submissionPath,
-                        sqlSpec.sqlProbe
+                        sqlSpec.sqlProbe,
+                        context.submissionId
                     );
                     const sqlProportionalScore = sqlResult.totalPoints > 0
                         ? (sqlResult.earnedPoints / sqlResult.totalPoints) * rule.weight
@@ -988,9 +1005,9 @@ export class RubricEvaluator {
                                 passed: c.passed,
                                 diffSummary: c.diffSummary,
                                 actualColumns: c.actualColumns,
-                                actualRows: c.actualRows?.slice(0, 10),
+                                actualRows: c.actualRows,
                                 expectedColumns: c.expectedColumns,
-                                expectedRows: c.expectedRows?.slice(0, 10),
+                                expectedRows: c.expectedRows,
                                 errorMessage: c.errorMessage,
                                 points: c.points,
                                 earnedPoints: c.earnedPoints

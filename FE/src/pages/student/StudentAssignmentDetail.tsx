@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { FormattedText } from '@/components/ui/FormattedText'
+import { RubricRuleSpecViewer } from '@/components/modules/grading/evidence/RubricRuleSpecViewer'
 
 const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code', onCopy, isCopied }: { code: string; language?: string; onCopy: () => void; isCopied: boolean }) {
   const codeLines = code.split('\n');
@@ -817,23 +818,45 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="px-5 py-2">
                 <div className="flex flex-col gap-2">
-                  {assignment.attachments.map(att => (
-                    <a
-                      key={att.id}
-                      href={`${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText size={18} className="text-blue-500" />
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-brand-600 transition-colors flex-1">{att.fileName}</span>
+                  {assignment.attachments.map(att => {
+                    const isPreviewable = att.fileName.toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif)$/);
+                    const fileUrl = `${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`;
+                    
+                    return (
+                      <div key={att.id} className="flex flex-col gap-2">
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-colors group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileText size={18} className="text-blue-500" />
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-brand-600 transition-colors flex-1">{att.fileName}</span>
+                          </div>
+                          <div className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-brand-600 group-hover:border-brand-200 shadow-sm transition-all">
+                            <Download size={14} />
+                          </div>
+                        </a>
+                        
+                        {isPreviewable && (
+                          <div className="w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white shadow-sm mt-1 mb-4">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Xem trước tài liệu</span>
+                              <a href={`${fileUrl}&inline=true`} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Mở tab mới</a>
+                            </div>
+                            {att.fileName.toLowerCase().endsWith('.pdf') ? (
+                              <iframe src={`${fileUrl}&inline=true`} className="w-full h-[800px] bg-slate-100" title={att.fileName} />
+                            ) : (
+                              <div className="p-4 flex justify-center bg-slate-100 dark:bg-slate-900/50">
+                                <img src={`${fileUrl}&inline=true`} alt={att.fileName} className="max-w-full h-auto object-contain max-h-[800px] rounded" />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-brand-600 group-hover:border-brand-200 shadow-sm transition-all">
-                        <Download size={14} />
-                      </div>
-                    </a>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </Card>
@@ -874,25 +897,7 @@ export function StudentAssignmentDetail() {
                             {displayPoints}
                           </span>
                         </div>
-                        {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
-                          <div className="px-4 pb-4">
-                            <p className="text-xs font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wider mb-2">I/O test cases</p>
-                            <div className="flex flex-col gap-2">
-                              {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, i: number) => (
-                                <div key={i} className="bg-white dark:bg-[#151821] rounded border border-blue-100 dark:border-blue-800/50 p-3 text-xs font-mono grid grid-cols-2 gap-4 shadow-sm">
-                                  <div>
-                                    <span className="text-slate-400 font-semibold mb-1 block">In:</span>
-                                    <span className="dark:text-slate-300 text-slate-700 whitespace-pre-wrap">{tc.input}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-slate-400 font-semibold mb-1 block">Out:</span>
-                                    <span className="dark:text-emerald-400/80 text-emerald-600 whitespace-pre-wrap">{tc.expectedOutput}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        <RubricRuleSpecViewer rule={rule} />
 
                         {rule.criteria && rule.criteria.length > 0 && (
                           <ul className="divide-y divide-slate-100 dark:divide-slate-800">

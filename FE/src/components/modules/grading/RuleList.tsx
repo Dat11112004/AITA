@@ -6,6 +6,7 @@ import classNames from 'classnames';
 import CodeSnippetViewer from './evidence/CodeSnippetViewer';
 import HttpTimelineViewer from './evidence/HttpTimelineViewer';
 import IoTestCaseViewer from './evidence/IoTestCaseViewer';
+import SqlTestCaseViewer from './evidence/SqlTestCaseViewer';
 import { FormattedText } from '@/components/ui/FormattedText';
 
 interface RuleListProps {
@@ -198,8 +199,13 @@ export default function RuleList({ title, rules }: RuleListProps) {
                           <IoTestCaseViewer testCases={rule.evidence.ioTestCases} />
                         )}
 
+                        {/* 5. SQL Test Cases Evidence */}
+                        {rule.evidence.sqlTestCases && rule.evidence.sqlTestCases.length > 0 && (
+                          <SqlTestCaseViewer testCases={rule.evidence.sqlTestCases} />
+                        )}
+
                         {/* Fallback general explanation if no specific viewer triggered */}
-                        {(!rule.evidence.codeSnippet && !rule.evidence.httpSteps && !rule.evidence.screenshotBase64 && !rule.evidence.ioTestCases && rule.evidence.explanation) && (
+                        {(!rule.evidence.codeSnippet && !rule.evidence.httpSteps && !rule.evidence.screenshotBase64 && !rule.evidence.ioTestCases && !rule.evidence.sqlTestCases && rule.evidence.explanation) && (
                           <div className="space-y-3">
                             <div className="p-3 bg-white dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                               <p className="text-sm text-slate-700 dark:text-slate-300 font-sans whitespace-pre-wrap">{rule.evidence.explanation}</p>

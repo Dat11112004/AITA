@@ -22,9 +22,8 @@ import {
   Award,
   AlertCircle,
   RotateCcw,
-  ShieldAlert,
   Calendar,
-  Zap
+  FileCheck
 } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 
