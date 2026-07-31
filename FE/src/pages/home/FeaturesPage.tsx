@@ -1,7 +1,6 @@
 import {
   Upload,
   Bot,
-  Brain,
   LayoutDashboard,
   TrendingUp,
   MessageSquare,
@@ -29,12 +28,9 @@ const STUDENT_FEATURES = [
     title: 'AI Code Feedback',
     desc: 'AI phân tích mã nguồn sinh viên theo các tham số cụ thể — trả về lỗi kiến trúc, metrics chất lượng code, và gợi ý cải thiện logic ngữ nghĩa.',
   },
-  {
-    id: 'FE-S-03',
-    icon: Brain,
-    title: 'Adaptive Practice',
-    desc: 'Hệ thống tạo hoặc trình bày bài tập lập trình dựa trên trình độ hiện tại và kết quả trước đó. AI phân loại độ khó và đề xuất lộ trình học tối ưu.',
-  },
+  // FE-S-03 (Adaptive Practice) removed: the system has no adaptive-practice feature,
+  // so advertising it here promised something the product cannot demo. The id is left
+  // out rather than renumbered, since these ids trace to requirement ids in the SRS.
   {
     id: 'FE-S-04',
     icon: LayoutDashboard,

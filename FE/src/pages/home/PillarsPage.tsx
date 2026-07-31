@@ -37,11 +37,10 @@ const PILLARS = [
     description:
       'Nền tảng học tập trực tuyến giúp sinh viên truy cập bài tập, nộp source code, nhận phản hồi AI chi tiết về kiến trúc và logic code, theo dõi tiến độ cá nhân, và tham gia thảo luận với bạn bè và giảng viên.',
     longDesc:
-      'Student Learning Portal là giao diện chính mà sinh viên tương tác hàng ngày. Nền tảng này không chỉ là nơi nộp bài tập — mà là hệ sinh thái học tập toàn diện: AI phân tích mã nguồn và trả về phản hồi chi tiết về lỗi kiến trúc, code quality metrics, và gợi ý cải thiện logic; hệ thống Adaptive Practice tạo bài tập phù hợp trình độ; và Course Dashboard cập nhật thời gian thực về deadline và tiến độ.',
+      'Student Learning Portal là giao diện chính mà sinh viên tương tác hàng ngày. Nền tảng này không chỉ là nơi nộp bài tập — mà là hệ sinh thái học tập toàn diện: AI phân tích mã nguồn và trả về phản hồi chi tiết về lỗi kiến trúc, code quality metrics, và gợi ý cải thiện logic; và Course Dashboard cập nhật thời gian thực về deadline và tiến độ.',
     features: [
       { name: 'Exercise Submission', desc: 'Nộp mã nguồn với nhiều định dạng, kiểm soát deadline' },
       { name: 'AI Code Feedback', desc: 'Phân tích kiến trúc, code quality, gợi ý cải thiện semantic' },
-      { name: 'Adaptive Practice', desc: 'Bài tập thích ứng theo trình độ và kết quả trước đó' },
       { name: 'Progress Tracking', desc: 'Biểu đồ hiệu suất thời gian thực, lộ trình học tập' },
       { name: 'Discussion Forum', desc: 'Chat/video call với bạn bè và giảng viên để nhận tư vấn' },
       { name: 'Assignment History', desc: 'Lưu trữ toàn bộ lịch sử nộp bài, điểm số, feedback' },
