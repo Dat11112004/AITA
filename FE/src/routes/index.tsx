@@ -76,7 +76,7 @@ export function AppRoutes() {
               <DashboardLayout
                 navItems={ADMIN_NAV}
                 role="admin"
-                roleLabel="Quản trị hệ thống"
+                roleLabel="System Administrator"
                 portalTitle="AITA Admin"
               />
             </ErrorBoundary>
@@ -105,7 +105,7 @@ export function AppRoutes() {
               <DashboardLayout
                 navItems={LECTURER_NAV}
                 role="lecturer"
-                roleLabel="Giảng viên"
+                roleLabel="Lecturer"
                 portalTitle="AITA Lecturer"
               />
             </ErrorBoundary>

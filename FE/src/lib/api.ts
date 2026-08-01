@@ -75,7 +75,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
               fetch(`${BASE}${path}`, { ...options, headers: retryHeaders })
                 .then(r => r.json())
                 .then(j => {
-                  if (!j.success && j.statusCode >= 400) reject(new ApiError(j.Message || j.error?.message || 'Lỗi API', j.statusCode, j.error?.code))
+                  if (!j.success && j.statusCode >= 400) reject(new ApiError(j.Message || j.error?.message || 'API error', j.statusCode, j.error?.code))
                   else resolve(j.Data !== undefined ? j.Data : j.data)
                 })
                 .catch(reject)
@@ -129,7 +129,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok || json.success === false || json.statusCode >= 400) {
-    throw new ApiError(json.Message || json.error?.message || res.statusText || 'Lá»—i API', json.statusCode || res.status, json.error?.code)
+    throw new ApiError(json.Message || json.error?.message || res.statusText || 'API error', json.statusCode || res.status, json.error?.code)
   }
   if (json.Data !== undefined) return json.Data as T;
   if (json.data !== undefined) return json.data as T;

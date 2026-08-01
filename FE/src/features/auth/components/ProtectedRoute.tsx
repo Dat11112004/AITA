@@ -20,7 +20,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-slate-500">
-        Đang tải...
+        Loading...
       </div>
     )
   }

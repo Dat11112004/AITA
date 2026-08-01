@@ -187,8 +187,8 @@ void i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'vi',
-    supportedLngs: ['vi', 'en', 'ja'],
+    fallbackLng: 'en',
+    supportedLngs: ['en'],
     ns: ['translation'],
     defaultNS: 'translation',
     interpolation: { escapeValue: false },

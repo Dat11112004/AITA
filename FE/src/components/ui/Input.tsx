@@ -84,7 +84,7 @@ export function Select({ label, hint, options, className = '', id, ...props }: S
         className={`${baseInput} border-slate-300 cursor-pointer ${className}`}
         {...props}
       >
-        <option value="">— Chọn —</option>
+        <option value="">— Select —</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {hint && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}

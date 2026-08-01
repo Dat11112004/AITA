@@ -410,7 +410,7 @@ export default function AssignmentUploadPage() {
         if (!rubric || !blueprint) return;
         
         if (isUploadingAnswerKey) {
-            setError("Hệ thống đang tiến hành phân tích và trích xuất Test Cases từ file Đáp án SQL. Vui lòng đợi quá trình này hoàn tất trước khi Publish!");
+            setError("The system is currently analyzing and extracting test cases from the SQL answer key file. Please wait until this process is complete before publishing.");
             return;
         }
 
@@ -451,7 +451,7 @@ export default function AssignmentUploadPage() {
 
         const totalScore = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
         if (Math.abs(totalScore - 10) > 0.01) {
-            setError(`CẢNH BÁO TỔNG ĐIỂM: Tổng điểm hiện tại là ${totalScore.toFixed(2)} / 10.0. Hệ thống bắt buộc tổng điểm tất cả tiêu chí phải bằng chính xác 10.0 điểm.`);
+            setError(`TOTAL SCORE WARNING: Current total score is ${totalScore.toFixed(2)} / 10.0. The system requires the total score of all criteria to be exactly 10.0.`);
             return;
         }
 
@@ -1002,9 +1002,9 @@ export default function AssignmentUploadPage() {
                                                         </div>
                                                         <div>
                                                             <h3 className="font-bold text-slate-900 text-[15px] flex items-center gap-2">
-                                                                SQL Answer Key & Setup Script <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-semibold">Tùy chọn / Khuyên dùng</span>
+                                                                SQL Answer Key & Setup Script <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-semibold">Optional / Recommended</span>
                                                             </h3>
-                                                            <p className="text-slate-500 text-xs mt-0.5">Tải lên file script DB (.sql, .zip, .docx, .txt) chứa DDL/DML đáp án chuẩn để hệ thống tự động chấm bài SQL của sinh viên.</p>
+                                                            <p className="text-slate-500 text-xs mt-0.5">Upload a DB script file (.sql, .zip, .docx, .txt) containing the reference DDL/DML so the system can auto-grade student SQL submissions.</p>
                                                         </div>
                                                     </div>
                                                     {answerKeyText && (
@@ -1012,7 +1012,7 @@ export default function AssignmentUploadPage() {
                                                             onClick={() => setShowAnswerKeyEditor(!showAnswerKeyEditor)}
                                                             className="px-3.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100/50 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
                                                         >
-                                                            <Code size={14} /> {showAnswerKeyEditor ? 'Ẩn Trình Sửa SQL' : 'Xem & Sửa Script SQL'}
+                                                            <Code size={14} /> {showAnswerKeyEditor ? 'Hide SQL Editor' : 'View & Edit SQL Script'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -1026,13 +1026,13 @@ export default function AssignmentUploadPage() {
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                                                        {answerKeyFile?.name || 'File Đáp án SQL đã nạp'}
+                                                                        {answerKeyFile?.name || 'SQL answer key file loaded'}
                                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">
                                                                             <CheckCircle size={12} className="mr-1" /> Ready for DB Probe
                                                                         </span>
                                                                     </div>
                                                                     <div className="text-xs text-slate-500 mt-0.5">
-                                                                        {answerKeyText ? `${answerKeyText.split('\n').length} dòng SQL script` : 'Đã nạp vào cấu hình chấm điểm SQL'}
+                                                                        {answerKeyText ? `${answerKeyText.split('\n').length} SQL script lines` : 'Loaded into SQL grading configuration'}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1047,7 +1047,7 @@ export default function AssignmentUploadPage() {
                                                                     ) : (
                                                                         <Upload size={14} />
                                                                     )}
-                                                                    {isUploadingAnswerKey ? 'Đang phân tích...' : 'Thay file đáp án'}
+                                                                    {isUploadingAnswerKey ? 'Analyzing...' : 'Replace answer key file'}
                                                                     <input
                                                                         type="file"
                                                                         accept=".sql,.zip,.docx,.txt"
@@ -1063,7 +1063,7 @@ export default function AssignmentUploadPage() {
 
                                                         {showAnswerKeyEditor && (
                                                             <div className="mt-2 pt-3 border-t border-slate-100">
-                                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">Nội dung SQL Script Đáp án (Setup Script):</label>
+                                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">SQL Answer Script Content (Setup Script):</label>
                                                                 <textarea
                                                                     className="w-full h-48 bg-slate-900 text-emerald-400 font-mono text-xs p-3 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                                     value={answerKeyText}
@@ -1098,9 +1098,9 @@ export default function AssignmentUploadPage() {
                                                         <label className="cursor-pointer flex flex-col items-center gap-2 py-3 px-6 text-center">
                                                             <UploadCloud size={24} className={classNames("text-emerald-600", isUploadingAnswerKey ? "animate-spin" : "animate-bounce")} />
                                                             <span className="text-sm font-bold text-slate-700">
-                                                                {isUploadingAnswerKey ? 'Đang đọc và phân tích file đáp án...' : 'Tải lên file Đáp án Mẫu (.sql, .zip, .docx, .txt)'}
+                                                                {isUploadingAnswerKey ? 'Reading and analyzing answer key file...' : 'Upload reference answer file (.sql, .zip, .docx, .txt)'}
                                                             </span>
-                                                            <span className="text-xs text-slate-400">Tệp script SQL này sẽ tự động nạp dữ liệu chuẩn cho Docker SQL Server khi chấm bài</span>
+                                                            <span className="text-xs text-slate-400">This SQL script will auto-load reference data into Docker SQL Server during grading</span>
                                                             <input
                                                                 type="file"
                                                                 accept=".sql,.zip,.docx,.txt"
@@ -1187,7 +1187,7 @@ export default function AssignmentUploadPage() {
                                                 </div>
                                                 <div className="col-span-1">
                                                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                                                        Quy tắc nộp trễ (Late Penalty)
+                                                        Late submission policy
                                                     </label>
                                                     <div className="flex items-center gap-2">
                                                         <select
@@ -1204,9 +1204,9 @@ export default function AssignmentUploadPage() {
                                                                     : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
                                                             }`}
                                                         >
-                                                            <option value="NONE">Không trừ điểm trễ</option>
-                                                            <option value="DAILY_POINTS">Trừ điểm theo ngày (-X đ/24h)</option>
-                                                            <option value="FLAT_POINTS">Trừ cố định X điểm</option>
+                                                            <option value="NONE">No late penalty</option>
+                                                            <option value="DAILY_POINTS">Deduct points by day (-X pts/24h)</option>
+                                                            <option value="FLAT_POINTS">Flat deduction (X points)</option>
                                                         </select>
                                                         {metadata.allowLateSubmission !== false && metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
                                                             <div className="relative flex items-center shrink-0">
@@ -1214,12 +1214,12 @@ export default function AssignmentUploadPage() {
                                                                     type="number"
                                                                     step="0.5"
                                                                     min="0"
-                                                                    placeholder="Mức trừ"
+                                                                    placeholder="Penalty"
                                                                     value={metadata.latePenaltyValue !== undefined && metadata.latePenaltyValue !== null ? metadata.latePenaltyValue : 2}
                                                                     onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
                                                                     className="w-28 pl-3 pr-7 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-[#151821] text-center text-rose-600 dark:text-rose-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
                                                                 />
-                                                                <span className="absolute right-2.5 text-[11px] font-bold text-slate-400 pointer-events-none">đ</span>
+                                                                <span className="absolute right-2.5 text-[11px] font-bold text-slate-400 pointer-events-none">pts</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1244,22 +1244,22 @@ export default function AssignmentUploadPage() {
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 flex-wrap">
                                                                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand-600 transition-colors">
-                                                                        Đồng ý cho nộp trễ deadline (Áp dụng trừ điểm)
+                                                                        Allow late submissions after deadline (penalty applied)
                                                                     </span>
                                                                     {metadata.allowLateSubmission !== false ? (
                                                                         <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md border border-emerald-200 dark:border-emerald-800/60">
-                                                                            Cho phép nộp trễ
+                                                                            Late submission allowed
                                                                         </span>
                                                                     ) : (
                                                                         <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-md border border-rose-200 dark:border-rose-800/60">
-                                                                            Chặn nộp khi hết deadline
+                                                                            Block submissions after deadline
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                                                                     {metadata.allowLateSubmission !== false
-                                                                        ? `Học sinh có thể nộp bài sau deadline (tự động trừ ${metadata.latePenaltyValue || 2} điểm theo quy tắc).`
-                                                                        : 'Tới khung giờ Due date, hệ thống sẽ tự động khóa và CHẶN HOÀN TOÀN không cho học sinh nộp bài nữa.'}
+                                                                        ? `Students can submit after the deadline (auto-deduct ${metadata.latePenaltyValue || 2} points based on policy).`
+                                                                        : 'At due date time, the system will automatically lock and completely block further student submissions.'}
                                                                 </p>
                                                             </div>
                                                         </label>
@@ -1283,12 +1283,12 @@ export default function AssignmentUploadPage() {
                                                         )}
                                                         <div>
                                                             <h4 className="font-extrabold text-sm">
-                                                                {isTotalScoreValid ? "Tổng điểm Rubric đạt chuẩn (10.0 / 10.0 điểm)" : `CẢNH BÁO TỔNG ĐIỂM: ${currentTotalScore.toFixed(2)} / 10.0 điểm`}
+                                                                {isTotalScoreValid ? "Rubric total score is valid (10.0 / 10.0 points)" : `TOTAL SCORE WARNING: ${currentTotalScore.toFixed(2)} / 10.0 points`}
                                                             </h4>
                                                             <p className="text-xs opacity-90 mt-0.5">
                                                                 {isTotalScoreValid
-                                                                    ? "Cấu trúc điểm hợp lệ, bài tập sẵn sàng để phát hành."
-                                                                    : `Hệ thống bắt buộc tổng điểm của tất cả tiêu chí phải bằng chính xác 10.0. Đang lệch ${Math.abs(currentTotalScore - 10).toFixed(2)} điểm.`}
+                                                                    ? "The score structure is valid. The assignment is ready to publish."
+                                                                    : `The system requires the sum of all criteria to be exactly 10.0. Current difference: ${Math.abs(currentTotalScore - 10).toFixed(2)} points.`}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1323,7 +1323,7 @@ export default function AssignmentUploadPage() {
                                                                                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 shrink-0"
                                                                             >
                                                                                 <Edit3 size={13} />
-                                                                                <span>{editingRuleIndex === index ? 'Xong' : 'Sửa text'}</span>
+                                                                                <span>{editingRuleIndex === index ? 'Done' : 'Edit text'}</span>
                                                                             </button>
                                                                         </div>
 
@@ -1352,7 +1352,7 @@ export default function AssignmentUploadPage() {
                                                                                         onClick={() => setEditingRuleIndex(null)}
                                                                                         className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700"
                                                                                     >
-                                                                                        Áp dụng
+                                                                                        Apply
                                                                                     </button>
                                                                                 </div>
                                                                             </div>
@@ -1376,7 +1376,7 @@ export default function AssignmentUploadPage() {
                                                                             onClick={() => handleDeleteRule(index)}
                                                                             className="text-xs text-rose-500 hover:text-rose-600 font-bold mt-2"
                                                                         >
-                                                                            Xóa tiêu chí
+                                                                            Delete criterion
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -1479,10 +1479,10 @@ export default function AssignmentUploadPage() {
                                                         ? "bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
                                                         : "bg-slate-300 text-slate-500 border border-slate-300 cursor-not-allowed opacity-70"
                                             )}
-                                            title={!isTotalScoreValid ? `Tổng điểm (${currentTotalScore.toFixed(2)}) chưa bằng 10.0` : (isUploadingAnswerKey ? "Vui lòng chờ tiến trình phân tích đáp án hoàn tất" : undefined)}
+                                            title={!isTotalScoreValid ? `Total score (${currentTotalScore.toFixed(2)}) is not equal to 10.0` : (isUploadingAnswerKey ? "Please wait for answer key analysis to finish" : undefined)}
                                         >
                                             {isUploadingAnswerKey ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
-                                            {isUploadingAnswerKey ? 'Đang phân tích...' : 'Publish assignment'}
+                                            {isUploadingAnswerKey ? 'Analyzing...' : 'Publish assignment'}
                                         </button>
                                     </div>
                                 </div>

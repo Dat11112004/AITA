@@ -110,8 +110,8 @@ class AiGenerationStoreManager {
 
     try {
       const promptHeader = [
-        subjectCode ? `Môn học: ${subjectCode}` : '',
-        assignmentType ? `Loại bài tập: ${assignmentType}` : ''
+        subjectCode ? `Subject: ${subjectCode}` : '',
+        assignmentType ? `Assignment type: ${assignmentType}` : ''
       ].filter(Boolean).join('\n');
       const finalPrompt = promptHeader ? `${promptHeader}\n\n${textPrompt}` : textPrompt;
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
@@ -210,8 +210,8 @@ class AiGenerationStoreManager {
         progress: 40,
       });
       const promptHeader = [
-        subjectCode ? `Môn học: ${subjectCode}` : '',
-        assignmentType ? `Loại bài tập: ${assignmentType}` : ''
+        subjectCode ? `Subject: ${subjectCode}` : '',
+        assignmentType ? `Assignment type: ${assignmentType}` : ''
       ].filter(Boolean).join('\n');
       const finalPrompt = promptHeader ? `${promptHeader}\n\n${extractedText}` : extractedText;
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {

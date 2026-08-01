@@ -55,13 +55,13 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-amber-400 animate-pulse" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  {aiState.isGenerating ? 'Gemini đang tạo đề bài tập ngầm' : 'Tạo đề AI hoàn tất!'}
+                  {aiState.isGenerating ? 'Gemini is generating the assignment in the background' : 'AI assignment generation complete!'}
                 </h4>
               </div>
               <p className="text-xs text-slate-300 font-medium truncate mt-0.5">
                 {aiState.isGenerating
-                  ? aiState.loadingMsg || 'Vui lòng chờ AI xử lý yêu cầu...'
-                  : 'Bấm vào đây để xem kết quả & lưu bài tập.'}
+                  ? aiState.loadingMsg || 'Please wait while AI processes your request...'
+                  : 'Click here to view results and save the assignment.'}
               </p>
             </div>
 
@@ -73,13 +73,13 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
                 }}
                 className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
               >
-                <span>Xem</span>
+                <span>View</span>
                 <ArrowRight size={14} />
               </button>
               <button
                 onClick={() => aiGenerationStore.clearCompleted()}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
-                title="Đóng thông báo"
+                title="Close notification"
               >
                 <X size={16} />
               </button>
@@ -104,13 +104,13 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-amber-400 animate-pulse" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  {promptState.isGenerating ? 'AI đang khởi tạo System Prompt ngầm' : 'Tạo Prompt AI hoàn tất!'}
+                  {promptState.isGenerating ? 'AI is initializing the system prompt in the background' : 'AI prompt generation complete!'}
                 </h4>
               </div>
               <p className="text-xs text-slate-300 font-medium truncate mt-0.5">
                 {promptState.isGenerating
-                  ? promptState.loadingMsg || 'Vui lòng chờ AI khởi tạo System Prompt...'
-                  : 'Bấm vào đây để xem và lưu System Prompt.'}
+                  ? promptState.loadingMsg || 'Please wait while AI initializes the system prompt...'
+                  : 'Click here to view and save the system prompt.'}
               </p>
             </div>
 
@@ -127,13 +127,13 @@ export function DashboardLayout({ navItems, role, roleLabel, portalTitle }: Prop
                 }}
                 className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
               >
-                <span>Xem</span>
+                <span>View</span>
                 <ArrowRight size={14} />
               </button>
               <button
                 onClick={() => promptGenerationStore.clearCompleted()}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
-                title="Đóng thông báo"
+                title="Close notification"
               >
                 <X size={16} />
               </button>

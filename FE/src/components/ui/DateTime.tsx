@@ -35,7 +35,7 @@ export function DateTime() {
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Ngày
+            Date
           </p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             {formatDate()}
@@ -50,7 +50,7 @@ export function DateTime() {
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Giờ
+            Time
           </p>
           <p className="font-mono text-sm font-bold text-slate-900 dark:text-white">
             {formatTime()}

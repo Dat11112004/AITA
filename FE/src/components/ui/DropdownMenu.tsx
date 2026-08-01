@@ -74,7 +74,7 @@ export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' 
                 ref={triggerRef}
                 onClick={toggleMenu}
                 className={`p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300 rounded-md transition-colors ${triggerClassName}`}
-                title="Hành động"
+                title="Actions"
             >
                 <MoreVertical size={16} />
             </button>

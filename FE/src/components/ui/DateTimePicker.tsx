@@ -82,10 +82,10 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
   };
 
   const displayFormat = selectedDate 
-    ? `${selectedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} - ${selectedDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-    : 'Chọn thời gian...';
+    ? `${selectedDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} - ${selectedDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Select date and time...';
 
-  const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -125,7 +125,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
             </div>
             
             <div className="grid grid-cols-7 gap-1 mb-2">
-              {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(day => (
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <div key={day} className="text-center text-xs font-semibold text-slate-400 dark:text-slate-500 py-1">
                   {day}
                 </div>
@@ -186,7 +186,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
                 onClick={() => setIsOpen(false)}
                 className="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded text-sm font-medium transition-colors shadow-sm"
               >
-                Xong
+                Done
               </button>
             </div>
           </div>

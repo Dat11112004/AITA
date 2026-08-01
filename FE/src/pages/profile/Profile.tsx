@@ -105,10 +105,10 @@ export function Profile() {
       }
 
       await api.updateProfile(formData)
-      alert('Cập nhật thông tin cá nhân thành công!')
+      alert('Profile updated successfully!')
       window.location.reload() // Reload to update context user
     } catch (e: any) {
-      alert(e.message || 'Lỗi khi lưu thông tin')
+      alert(e.message || 'Failed to save profile information')
     } finally {
       setSavingProfile(false)
     }
@@ -116,15 +116,15 @@ export function Profile() {
 
   const handleChangePassword = async () => {
     if (!passwordForm.oldPassword) {
-      alert('Vui lòng nhập mật khẩu hiện tại')
+      alert('Please enter your current password')
       return
     }
     if (passwordForm.newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự')
+      alert('New password must be at least 6 characters')
       return
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('Mật khẩu mới không khớp!')
+      alert('New password does not match!')
       return
     }
     setSavingPassword(true)
@@ -133,7 +133,7 @@ export function Profile() {
         oldPassword: passwordForm.oldPassword,
         newPassword: passwordForm.newPassword
       })
-      alert('Đổi mật khẩu thành công!')
+      alert('Password changed successfully!')
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' })
       
       try {
@@ -146,7 +146,7 @@ export function Profile() {
         window.location.href = `/${user.role}`
       }
     } catch (e: any) {
-      alert(e.message || 'Lỗi đổi mật khẩu')
+      alert(e.message || 'Failed to change password')
     } finally {
       setSavingPassword(false)
     }
@@ -156,9 +156,9 @@ export function Profile() {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'admin': return 'Quản trị viên'
-      case 'lecturer': return 'Giảng viên'
-      case 'student': return 'Sinh viên'
+      case 'admin': return 'Administrator'
+      case 'lecturer': return 'Lecturer'
+      case 'student': return 'Student'
       default: return role
     }
   }
@@ -192,7 +192,7 @@ export function Profile() {
                 <>
                   <div className="absolute inset-0 bg-black/40 rounded-xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="text-white mb-1" size={24} />
-                    <span className="text-xs text-white font-medium">Đổi ảnh</span>
+                    <span className="text-xs text-white font-medium">Change photo</span>
                   </div>
                   <input
                     type="file"
@@ -217,12 +217,12 @@ export function Profile() {
               )}
               {user.studentCode && user.role === 'student' && (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  Mã SV: <span className="font-bold text-slate-700 dark:text-slate-200">{user.studentCode}</span>
+                  Student ID: <span className="font-bold text-slate-700 dark:text-slate-200">{user.studentCode}</span>
                 </p>
               )}
               {user.lecturerCode && user.role === 'lecturer' && (
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  Mã GV: <span className="font-bold text-slate-700 dark:text-slate-200">{user.lecturerCode}</span>
+                  Lecturer ID: <span className="font-bold text-slate-700 dark:text-slate-200">{user.lecturerCode}</span>
                 </p>
               )}
             </div>
@@ -235,25 +235,25 @@ export function Profile() {
           {(user.role === 'lecturer' || user.role === 'student') && (
             <Card className="p-0 border-slate-200 dark:border-slate-800 overflow-hidden">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
-                <GraduationCap size={16} className="text-brand-600" /> {user.role === 'lecturer' ? 'Phân công giảng dạy' : 'Lớp học đang tham gia'}
+                <GraduationCap size={16} className="text-brand-600" /> {user.role === 'lecturer' ? 'Teaching assignments' : 'Enrolled classes'}
               </div>
               <div className="p-4 space-y-2 text-sm">
-                {classesLoading && <p className="text-slate-500">Đang tải...</p>}
+                {classesLoading && <p className="text-slate-500">Loading...</p>}
                 {!classesLoading && userClasses.length === 0 && (
-                  <p className="text-slate-500">{user.role === 'lecturer' ? 'Chưa được phân công lớp nào.' : 'Chưa tham gia lớp nào.'}</p>
+                  <p className="text-slate-500">{user.role === 'lecturer' ? 'No assigned classes yet.' : 'No enrolled classes yet.'}</p>
                 )}
                 {!classesLoading && userClasses.map((cls) => {
                   const semesterLabel = typeof cls.semester === 'string'
                     ? cls.semester
-                    : (cls.semester as any)?.name || (cls.semester as any)?.code || 'Chưa rõ kỳ'
+                    : (cls.semester as any)?.name || (cls.semester as any)?.code || 'Unknown semester'
                   const subjectLabel = typeof cls.subject === 'object' && cls.subject
                     ? (cls.subject.code || cls.subject.name)
-                    : cls.subject || 'Chưa rõ môn'
+                    : cls.subject || 'Unknown subject'
                   return (
                     <div key={cls.id} className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-800 dark:text-slate-200 truncate">{subjectLabel || cls.name || cls.code}</p>
-                        <p className="text-xs text-slate-500">Lớp {cls.code}</p>
+                        <p className="text-xs text-slate-500">Class {cls.code}</p>
                       </div>
                       <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
                         {semesterLabel}
@@ -267,15 +267,15 @@ export function Profile() {
 
           <Card className="p-0 border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50">
-              <Shield size={16} className="text-brand-600" /> Trạng thái tài khoản
+              <Shield size={16} className="text-brand-600" /> Account status
             </div>
             <div className="p-4 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Trạng thái:</span>
-                <span className="font-bold text-emerald-600">Đang hoạt động</span>
+                <span className="text-slate-500">Status:</span>
+                <span className="font-bold text-emerald-600">Active</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Vai trò hệ thống:</span>
+                <span className="text-slate-500">System role:</span>
                 <span className="font-medium text-slate-800 dark:text-slate-200">{user.role.toUpperCase()}</span>
               </div>
             </div>
@@ -290,25 +290,25 @@ export function Profile() {
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <UserCircle className="text-brand-500 w-5 h-5 ml-1" />
-                <CardHeader title="Thông tin Chung" />
+                <CardHeader title="General Information" />
               </div>
               <Button onClick={handleSaveProfile} disabled={savingProfile} size="sm" className="bg-brand-600 hover:bg-brand-700 text-white">
-                {savingProfile ? <><Loader2 size={16} className="animate-spin mr-2" /> Đang lưu...</> : <><Save size={16} className="mr-2" /> Lưu thay đổi</>}
+                {savingProfile ? <><Loader2 size={16} className="animate-spin mr-2" /> Saving...</> : <><Save size={16} className="mr-2" /> Save changes</>}
               </Button>
             </div>
             <div className="p-6 grid sm:grid-cols-2 gap-5">
               <Input
-                label="Họ và Tên"
+                label="Full name"
                 value={profile.fullName}
                 onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
               />
               <Input
-                label="Email hệ thống (Không thể đổi)"
+                label="System email (cannot be changed)"
                 value={user.email}
                 disabled
               />
               <Input
-                label="Số điện thoại"
+                label="Phone number"
                 value={profile.phone}
                 onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
               />
@@ -385,34 +385,34 @@ export function Profile() {
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <KeyRound className="text-amber-500 w-5 h-5 ml-1" />
-                <CardHeader title="Đổi Mật Khẩu" />
+                <CardHeader title="Change Password" />
               </div>
               <Button onClick={handleChangePassword} disabled={savingPassword || !passwordForm.newPassword} size="sm" variant="outline" className="text-amber-700 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-900 dark:hover:bg-amber-900/30">
-                {savingPassword ? <><Loader2 size={16} className="animate-spin mr-2" /> Đang cập nhật...</> : 'Cập nhật mật khẩu'}
+                {savingPassword ? <><Loader2 size={16} className="animate-spin mr-2" /> Updating...</> : 'Update password'}
               </Button>
             </div>
             <div className="p-6 space-y-4 max-w-md">
               {mustChangePassword && (
                 <div className="p-3 mb-4 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-400 flex items-start gap-3">
                   <Shield size={18} className="shrink-0 mt-0.5" />
-                  <p>Tài khoản của bạn đang sử dụng mật khẩu tạm thời. Vui lòng đổi mật khẩu để đảm bảo an toàn.</p>
+                  <p>Your account is using a temporary password. Please change it to keep your account secure.</p>
                 </div>
               )}
               <Input
                 type="password"
-                label="Mật khẩu hiện tại"
+                label="Current password"
                 value={passwordForm.oldPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
               />
               <Input
                 type="password"
-                label="Mật khẩu mới"
+                label="New password"
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
               />
               <Input
                 type="password"
-                label="Nhập lại mật khẩu mới"
+                label="Confirm new password"
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
               />

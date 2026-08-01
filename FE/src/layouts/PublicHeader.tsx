@@ -160,7 +160,7 @@ export function PublicHeader() {
 
               <div className="px-1 py-1">
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600 px-2">
-                  Ngôn ngữ
+                  Language
                 </p>
                 <LanguageDropdown variant="full" />
               </div>

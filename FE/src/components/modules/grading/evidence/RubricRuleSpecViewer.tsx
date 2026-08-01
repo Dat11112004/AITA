@@ -29,7 +29,7 @@ export function RubricRuleSpecViewer({ rule }: Props) {
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
             <Terminal size={14} className="text-purple-500" />
-            <span>I/O Test Cases (Mẫu đầu vào / đầu ra)</span>
+            <span>I/O Test Cases (Input / Output Samples)</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stdProbe.testCases.map((tc: any, i: number) => (
@@ -53,14 +53,14 @@ export function RubricRuleSpecViewer({ rule }: Props) {
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
             <Database size={14} className="text-blue-500" />
-            <span>Chỉ mục Kiểm thử SQL & Bảng mẫu (SQL Test Specification)</span>
+            <span>SQL Test Index & Sample Tables (SQL Test Specification)</span>
           </div>
           <div className="space-y-3">
             {sqlProbe.testCases.map((tc: any, i: number) => (
               <div key={i} className="bg-slate-50 dark:bg-slate-900/90 rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-2 text-xs shadow-sm">
                 {tc.query && (
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Truy vấn Đáp án (Reference SQL Query)</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Reference Query (Reference SQL Query)</span>
                     <pre className="p-2 bg-slate-900 text-emerald-400 font-mono text-xs rounded overflow-x-auto whitespace-pre-wrap border border-slate-800">{tc.query}</pre>
                   </div>
                 )}
@@ -69,10 +69,10 @@ export function RubricRuleSpecViewer({ rule }: Props) {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
                         <Table size={12} className="text-blue-400" />
-                        Bảng Mẫu Đầu Ra Kỳ Vọng (Expected Output Sample)
+                        Expected Output Sample Table
                       </span>
                       {tc.expectedRows && (
-                        <span className="text-[10px] text-slate-500 font-mono">{tc.expectedRows.length} dòng × {tc.expectedColumns.length} cột</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{tc.expectedRows.length} rows × {tc.expectedColumns.length} columns</span>
                       )}
                     </div>
                     <div className="overflow-x-auto rounded border border-slate-200 dark:border-slate-800 max-h-48 shadow-inner">
@@ -96,7 +96,7 @@ export function RubricRuleSpecViewer({ rule }: Props) {
                               </tr>
                             ))
                           ) : (
-                            <tr><td colSpan={tc.expectedColumns.length} className="px-2 py-2 text-center text-slate-400 italic">Dữ liệu mẫu tự động sinh tại thời điểm chấm Sandbox</td></tr>
+                            <tr><td colSpan={tc.expectedColumns.length} className="px-2 py-2 text-center text-slate-400 italic">Sample data is generated automatically during sandbox grading</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -114,7 +114,7 @@ export function RubricRuleSpecViewer({ rule }: Props) {
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
             <Globe size={14} className="text-emerald-500" />
-            <span>Kịch bản Kiểm thử API Endpoints (HTTP Probe Steps)</span>
+            <span>API Endpoint Test Scenario (HTTP Probe Steps)</span>
           </div>
           <div className="space-y-2">
             {httpProbe.steps.map((step: any, i: number) => (
@@ -152,7 +152,7 @@ export function RubricRuleSpecViewer({ rule }: Props) {
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
             <ImageIcon size={14} className="text-pink-500" />
-            <span>Giao diện / Mockup Thiết kế Mẫu (UI Reference Mockup)</span>
+            <span>UI / Design Reference Mockup</span>
           </div>
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950 p-2 flex justify-center">
             <img src={referenceImage} alt="UI Reference Mockup" className="max-h-80 w-auto object-contain rounded" />

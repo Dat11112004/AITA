@@ -13,7 +13,7 @@ const IoTestCaseViewer: React.FC<Props> = ({ testCases }) => {
       <div className="bg-slate-50/80 dark:bg-slate-900/50 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
         <Code2 size={16} className="text-slate-500 dark:text-slate-400" />
         <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-          Kết quả thực thi Test Cases
+          Test Case Execution Results
         </h4>
       </div>
       
@@ -26,7 +26,7 @@ const IoTestCaseViewer: React.FC<Props> = ({ testCases }) => {
               <th scope="col" className="px-5 py-3 font-semibold">Input</th>
               <th scope="col" className="px-5 py-3 font-semibold">Expected Output</th>
               <th scope="col" className="px-5 py-3 font-semibold">Actual Output</th>
-              <th scope="col" className="px-5 py-3 font-semibold text-center w-32">Kết quả</th>
+              <th scope="col" className="px-5 py-3 font-semibold text-center w-32">Result</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -54,7 +54,7 @@ const IoTestCaseViewer: React.FC<Props> = ({ testCases }) => {
                       ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400' 
                       : 'bg-rose-50/50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800/50 text-rose-700 dark:text-rose-400'
                   }`}>
-                    {tc.actual || <span className="italic opacity-50 text-slate-500">(Trống)</span>}
+                    {tc.actual || <span className="italic opacity-50 text-slate-500">(Empty)</span>}
                   </div>
                 </td>
                 
