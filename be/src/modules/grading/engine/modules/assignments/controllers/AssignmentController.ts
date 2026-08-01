@@ -546,6 +546,62 @@ export class AssignmentController extends BaseController {
         }
     };
 
+    /**
+     * POST /api/grading/assignments/:id/update-answer-key
+     * Upload a new Answer Key file for an already-published assignment.
+     * Parses the SQL content, generates test cases via AI, and updates the rubric in DB.
+     */
+    updateAnswerKey = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+            const { file } = req;
+            if (!file) throw new BadRequestError('No file provided');
+
+            const assignment = await this.assignmentRepository.getAsync(id);
+            if (!assignment) {
+                throw new BadRequestError('Assignment not found');
+            }
+
+            const sqlContent = file.buffer.toString('utf-8');
+            const rules = assignment.rubric?.rules || [];
+
+            console.log(`[AssignmentController] updateAnswerKey: Parsing SQL answer key for assignment ${id} (${rules.length} rules)`);
+
+            // 1. AI parses the SQL answer key and maps queries to rubric rules
+            let updatedRules = await this.aiProvider.parseSqlAnswerKeyAsync(sqlContent, rules);
+
+            // 2. Automatically extract and inject setupScript from sqlContent
+            const rubricGenerator = new RubricGeneratorService(this.aiProvider);
+            updatedRules = rubricGenerator.extractAndInjectSqlSetupScript(updatedRules, sqlContent);
+
+            // 3. Update the assignment in DB
+            const updatedAssignment = {
+                ...assignment,
+                rubric: {
+                    ...assignment.rubric,
+                    rules: updatedRules
+                }
+            };
+
+            await this.assignmentRepository.saveAsync(updatedAssignment);
+
+            const testCaseCount = updatedRules.reduce((sum: number, r: any) => {
+                return sum + (r.requiredEvidence?.[0]?.sqlProbe?.testCases?.length || 0);
+            }, 0);
+
+            console.log(`[AssignmentController] updateAnswerKey: Successfully updated ${testCaseCount} test cases for assignment ${id}`);
+
+            this.ok(res, { 
+                rules: updatedRules,
+                testCaseCount,
+                message: `Answer Key updated successfully. ${testCaseCount} test cases generated.`
+            }, 'Answer Key updated');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error updating Answer Key:', error);
+            throw new Error(`Error updating Answer Key: ${error.message}`);
+        }
+    };
+
     update = async (req: Request, res: Response): Promise<void> => {
         try {
             const id = req.params.id;

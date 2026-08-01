@@ -51,7 +51,9 @@ const LANGUAGE_SCORING: Record<string, Array<{ pattern: string, score: number }>
     { pattern: '.razor', score: 5 },
   ],
   java: [
-    { pattern: 'application', score: 15 }, { pattern: 'main', score: 15 },
+    { pattern: 'solution', score: 25 }, { pattern: 'main', score: 15 }, { pattern: 'application', score: 15 },
+    { pattern: 'q1', score: 20 }, { pattern: 'q2', score: 20 }, { pattern: 'q3', score: 20 }, { pattern: 'q4', score: 20 }, { pattern: 'q5', score: 20 },
+    { pattern: 'q6', score: 20 }, { pattern: 'q7', score: 20 }, { pattern: 'q8', score: 20 }, { pattern: 'q9', score: 20 }, { pattern: 'q10', score: 20 },
     { pattern: 'controller', score: 15 }, { pattern: 'restcontroller', score: 15 },
     { pattern: 'service', score: 15 }, { pattern: 'serviceimpl', score: 15 },
     { pattern: 'repository', score: 15 }, { pattern: 'dao', score: 15 },
@@ -456,6 +458,12 @@ STRICT RULES:
       const filePath = f.relativePath.toLowerCase();
       const content = f.content.toLowerCase();
 
+      // 0. Base score for actual source code files
+      const sourceExts = ['.java', '.cpp', '.c', '.cs', '.py', '.js', '.ts', '.go', '.rs', '.kt', '.dart', '.rb', '.php', '.scala', '.h', '.hpp'];
+      if (sourceExts.some(ext => filePath.endsWith(ext))) {
+        score += 10;
+      }
+
       // 1. Exact keyword matches in path are highly relevant
       keywords.forEach(k => {
         if (filePath.includes(k)) score += 50;
@@ -471,6 +479,7 @@ STRICT RULES:
       }
 
       // 3. Universal high-value patterns (cross-language)
+      if (filePath.includes('solution') || filePath.includes('algo') || filePath.includes('leetcode')) score += 20;
       if (filePath.includes('controller') || filePath.includes('handler')) score += 12;
       if (filePath.includes('service')) score += 10;
       if (filePath.includes('repository') || filePath.includes('repo')) score += 10;
@@ -482,7 +491,7 @@ STRICT RULES:
       const skipPatterns = ['node_modules', '.git', 'bin/', 'obj/', 'build/', '__pycache__', '.gradle', 'wwwroot', 'dist/'];
       if (skipPatterns.some(sp => filePath.includes(sp))) score -= 200;
 
-      const staticExts = ['.css', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.lock'];
+      const staticExts = ['.css', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.lock', '.class'];
       if (staticExts.some(ext => filePath.endsWith(ext))) score -= 100;
 
       // Allow config/manifest files but with lower priority, except high-value ones
@@ -495,8 +504,12 @@ STRICT RULES:
       return { file: f, score };
     });
 
-    // Only keep files with score > 0, sort by score descending
-    const relevant = scoredFiles.filter(sf => sf.score > 0).sort((a, b) => b.score - a.score);
+    // Sort files by score descending
+    let relevant = scoredFiles.filter(sf => sf.score > 0).sort((a, b) => b.score - a.score);
+    // Fallback: If filtering dropped valid code files, include all non-penalized files
+    if (relevant.length === 0) {
+      relevant = scoredFiles.filter(sf => sf.score > -50).sort((a, b) => b.score - a.score);
+    }
     return relevant.map(sf => sf.file);
   }
 

@@ -83,7 +83,7 @@ export class SubmissionController extends BaseController {
 
             // 1. Unzip the file
             const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-            await extractZipAsync(req.file.path, extractDir);
+            await this.extractOrCopyFile(req.file.path, extractDir, req.file.originalname);
             await this.extractNestedZips(extractDir);
 
             // Initialize Job
@@ -144,7 +144,7 @@ export class SubmissionController extends BaseController {
                 };
 
                 const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-                await extractZipAsync(file.path, extractDir);
+                await this.extractOrCopyFile(file.path, extractDir, file.originalname);
                 await this.extractNestedZips(extractDir);
 
                 globalJobManager.initJob(submissionId);
@@ -163,6 +163,21 @@ export class SubmissionController extends BaseController {
             next(error);
         }
     };
+
+    private async extractOrCopyFile(sourcePath: string, extractDir: string, originalFileName?: string): Promise<void> {
+        try {
+            await extractZipAsync(sourcePath, extractDir);
+        } catch (err: any) {
+            // Not a valid zip. Just copy it as a plain file into the directory
+            await fs.mkdir(extractDir, { recursive: true });
+            let fileName = originalFileName || path.basename(sourcePath);
+            if (fileName.endsWith('.zip') && !err.message?.includes('ENOENT')) {
+                fileName = fileName.replace(/\.zip$/, '');
+            }
+            if (!fileName) fileName = 'submission_file';
+            await fs.copyFile(sourcePath, path.join(extractDir, fileName));
+        }
+    }
 
     /**
      * Helper to download file from URL (Cloudinary or local) and save to temp path
@@ -271,13 +286,27 @@ export class SubmissionController extends BaseController {
             submissionRecord.User_Submission_StudentIdToUser?.Username ||
             submissionRecord.StudentId;
 
+        let originalFileName = 'submission.zip';
+        if (submissionRecord.ZipFileUrl) {
+            try {
+                const urlObj = new URL(submissionRecord.ZipFileUrl);
+                if (urlObj.searchParams.has('filename')) {
+                    originalFileName = urlObj.searchParams.get('filename')!;
+                } else {
+                    originalFileName = urlObj.pathname.split('/').pop() || originalFileName;
+                }
+            } catch (e) {
+                originalFileName = submissionRecord.ZipFileUrl.split('/').pop()?.split('?')[0] || originalFileName;
+            }
+        }
+
         // 1. Download file to temp directory
-        const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+        const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}_${originalFileName}`);
         await this.downloadFile(submissionRecord.ZipFileUrl, tempZipPath);
 
-        // 2. Unzip file
+        // 2. Unzip file or copy
         const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-        await extractZipAsync(tempZipPath, extractDir);
+        await this.extractOrCopyFile(tempZipPath, extractDir, originalFileName);
         await this.extractNestedZips(extractDir);
 
         // 3. Update status to 'Processing'
@@ -315,6 +344,7 @@ export class SubmissionController extends BaseController {
             this.ok(res, { submissionId, statusUrl: `/api/grading/submissions/${submissionId}/stream` }, 'Submission accepted for grading');
 
         } catch (error: any) {
+            console.error('[gradeExisting] ERROR:', error?.stack || error);
             next(error);
         }
     };
@@ -362,18 +392,26 @@ export class SubmissionController extends BaseController {
                     record.User_Submission_StudentIdToUser?.Username ||
                     record.StudentId;
 
-                // Extract original file name from URL for display
                 let fileName = 'submission.zip';
                 if (record.ZipFileUrl) {
-                    fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+                    try {
+                        const urlObj = new URL(record.ZipFileUrl);
+                        if (urlObj.searchParams.has('filename')) {
+                            fileName = urlObj.searchParams.get('filename')!;
+                        } else {
+                            fileName = urlObj.pathname.split('/').pop() || fileName;
+                        }
+                    } catch (e) {
+                        fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+                    }
                 }
 
                 try {
-                    const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+                    const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}_${fileName}`);
                     await this.downloadFile(record.ZipFileUrl!, tempZipPath);
 
                     const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-                    await extractZipAsync(tempZipPath, extractDir);
+                    await this.extractOrCopyFile(tempZipPath, extractDir, fileName);
                     await this.extractNestedZips(extractDir);
 
                     const engineSubmission: Submission = {
@@ -458,15 +496,24 @@ export class SubmissionController extends BaseController {
 
                 let fileName = 'submission.zip';
                 if (record.ZipFileUrl) {
-                    fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+                    try {
+                        const urlObj = new URL(record.ZipFileUrl);
+                        if (urlObj.searchParams.has('filename')) {
+                            fileName = urlObj.searchParams.get('filename')!;
+                        } else {
+                            fileName = urlObj.pathname.split('/').pop() || fileName;
+                        }
+                    } catch (e) {
+                        fileName = record.ZipFileUrl.split('/').pop()?.split('?')[0] || fileName;
+                    }
                 }
 
                 try {
-                    const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}.zip`);
+                    const tempZipPath = path.join(process.cwd(), 'temp', 'uploads', `${submissionId}_${fileName}`);
                     await this.downloadFile(record.ZipFileUrl!, tempZipPath);
 
                     const extractDir = path.join(process.cwd(), 'temp', 'submissions', submissionId);
-                    await extractZipAsync(tempZipPath, extractDir);
+                    await this.extractOrCopyFile(tempZipPath, extractDir, fileName);
                     await this.extractNestedZips(extractDir);
 
                     const engineSubmission: Submission = {

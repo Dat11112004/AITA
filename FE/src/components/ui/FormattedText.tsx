@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatLatexMath } from '@/utils/mathHelper';
 
 interface FormattedTextProps {
   text?: string;
@@ -8,8 +9,8 @@ interface FormattedTextProps {
 export function FormattedText({ text, className }: FormattedTextProps) {
   if (!text) return null;
 
-  // Pre-process text to separate ERD entity schemas into structured lines if clumped
-  let processedText = text;
+  // Pre-process LaTeX math expressions
+  let processedText = formatLatexMath(text);
 
   // If text contains ERD entity definitions like "Departments (...), Employees (...), Dependants (...)", break them into bullet lines
   if (processedText.includes('derived from the ERD') || processedText.includes('ERD:')) {
@@ -21,6 +22,37 @@ export function FormattedText({ text, className }: FormattedTextProps) {
 
   const rawLines = processedText.split('\n');
   const renderedBlocks: React.ReactNode[] = [];
+
+  // Helper to render inline markdown: `code`, 'bold', **bold**
+  const renderInlineParts = (str: string) => {
+    const inlineRegex = /(`[^`]+`|'[^']+'|\*\*[^*]+\*\*)/g;
+    const parts = str.split(inlineRegex);
+
+    return parts.map((part, pIdx) => {
+      if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+        return (
+          <code key={pIdx} className="font-mono text-[0.88em] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-800/60 mx-0.5 font-semibold">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      if (part.startsWith("'") && part.endsWith("'") && part.length > 2) {
+        return (
+          <strong key={pIdx} className="font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
+            {part.slice(1, -1)}
+          </strong>
+        );
+      }
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        return (
+          <strong key={pIdx} className="font-bold text-slate-900 dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return <React.Fragment key={pIdx}>{part}</React.Fragment>;
+    });
+  };
 
   let lineIdx = 0;
   while (lineIdx < rawLines.length) {
@@ -72,7 +104,7 @@ export function FormattedText({ text, className }: FormattedTextProps) {
               <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   {headerCells.map((hCell, hIdx) => (
-                    <th key={hIdx} className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-700/60 last:border-r-0">{hCell}</th>
+                    <th key={hIdx} className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-700/60 last:border-r-0">{renderInlineParts(hCell)}</th>
                   ))}
                 </tr>
               </thead>
@@ -80,7 +112,7 @@ export function FormattedText({ text, className }: FormattedTextProps) {
                 {dataRows.map((dRow, rIdx) => (
                   <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     {dRow.map((cell, cIdx) => (
-                      <td key={cIdx} className="px-3 py-1.5 border-r border-slate-100 dark:border-slate-800/40 last:border-r-0">{cell}</td>
+                      <td key={cIdx} className="px-3 py-1.5 border-r border-slate-100 dark:border-slate-800/40 last:border-r-0">{renderInlineParts(cell)}</td>
                     ))}
                   </tr>
                 ))}
@@ -96,38 +128,19 @@ export function FormattedText({ text, className }: FormattedTextProps) {
     const isBullet = trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ');
     const lineContent = isBullet ? trimmedLine.replace(/^\s*[*|-]\s+/, '') : trimmedLine;
 
-    // Helper to render inline markdown: `code`, 'bold', **bold**
-    const renderInlineParts = (str: string) => {
-      const inlineRegex = /(`[^`]+`|'[^']+'|\*\*[^*]+\*\*)/g;
-      const parts = str.split(inlineRegex);
+    // Check if line is a Section or Entity Header (e.g. "Departments:", "Employees:", "Dependants:", "Rules:", "Entity Attributes:")
+    const cleanContent = lineContent.replace(/\*\*/g, '').trim();
+    const isHeader = (cleanContent.endsWith(':') && cleanContent.length < 50) || /^([A-Z][a-zA-Z0-9_\s]+):$/.test(cleanContent);
 
-      return parts.map((part, pIdx) => {
-        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-          return (
-            <code key={pIdx} className="font-mono text-[0.88em] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-800/60 mx-0.5 font-semibold">
-              {part.slice(1, -1)}
-            </code>
-          );
-        }
-        if (part.startsWith("'") && part.endsWith("'") && part.length > 2) {
-          return (
-            <strong key={pIdx} className="font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
-              {part.slice(1, -1)}
-            </strong>
-          );
-        }
-        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-          return (
-            <strong key={pIdx} className="font-bold text-slate-900 dark:text-white">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        return <React.Fragment key={pIdx}>{part}</React.Fragment>;
-      });
-    };
 
-    if (isBullet) {
+
+    if (isHeader) {
+      renderedBlocks.push(
+        <div key={`header-${lineIdx}`} className="font-bold text-sm text-slate-900 dark:text-white mt-3.5 mb-1.5 flex items-center gap-2 border-l-2 border-brand-500 pl-2">
+          {renderInlineParts(lineContent)}
+        </div>
+      );
+    } else if (isBullet) {
       // Check if bullet represents an ERD entity table definition e.g. **Departments** (cols...)
       const isEntityCard = /^\*\*([A-Z][a-zA-Z0-9_]+)\*\*\s*\((.+)\)/.test(lineContent);
 
@@ -153,9 +166,9 @@ export function FormattedText({ text, className }: FormattedTextProps) {
       }
 
       renderedBlocks.push(
-        <div key={`bullet-${lineIdx}`} className="flex items-start gap-2 mt-1.5 leading-relaxed">
-          <span className="text-blue-500 dark:text-blue-400 font-bold text-base leading-none mt-0.5 shrink-0">•</span>
-          <div className="flex-1 text-slate-700 dark:text-slate-300">{renderInlineParts(lineContent)}</div>
+        <div key={`bullet-${lineIdx}`} className="flex items-start gap-2 mt-1 leading-relaxed ml-3.5">
+          <span className="text-slate-400 dark:text-slate-500 font-mono text-xs font-bold shrink-0 mt-0.5">–</span>
+          <div className="flex-1 text-slate-700 dark:text-slate-300 text-xs font-mono">{renderInlineParts(lineContent)}</div>
         </div>
       );
     } else {

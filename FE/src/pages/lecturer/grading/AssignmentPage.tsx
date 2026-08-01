@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2 } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
@@ -92,6 +92,9 @@ export default function AssignmentPage() {
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10;
 
+  const [isUploadingAnswerKey, setIsUploadingAnswerKey] = useState(false);
+  const [uploadAnswerKeySuccess, setUploadAnswerKeySuccess] = useState<string | null>(null);
+
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('score_desc');
@@ -117,6 +120,36 @@ export default function AssignmentPage() {
       console.error(err);
     }
   }, [id]);
+
+  const handleAnswerKeyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !id) return;
+
+    setIsUploadingAnswerKey(true);
+    setError(null);
+    setUploadAnswerKeySuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await api.updateAnswerKey(id, formData);
+      setUploadAnswerKeySuccess(`Updated ${response.testCaseCount} test cases successfully!`);
+      
+      // Reload assignment to get updated rubric
+      await fetchAssignmentData();
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setUploadAnswerKeySuccess(null), 5000);
+    } catch (err: any) {
+      console.error("Failed to update Answer Key:", err);
+      setError(err.response?.data?.error || err.message || "Failed to update Answer Key");
+    } finally {
+      setIsUploadingAnswerKey(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
 
   const fetchHistoryData = React.useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -522,6 +555,12 @@ export default function AssignmentPage() {
           {error}
         </div>
       )}
+      {uploadAnswerKeySuccess && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 shadow-sm">
+          <CheckCircle2 size={18} />
+          {uploadAnswerKeySuccess}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm mb-8 relative z-10">
         <div className="p-6 border-b dark:border-slate-800 border-slate-100 bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
@@ -531,6 +570,23 @@ export default function AssignmentPage() {
               <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
             </div>
             <div className="flex items-center gap-3">
+              {((assignment?.metadata as any)?.projectType === 'database' || (assignment?.metadata as any)?.subject?.toUpperCase().includes('DBI') || assignment?.rubric?.rules?.some((r: any) => r.scoringStrategy === 'SqlExecutionProbe')) && (
+                <label className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium transition-colors shadow-sm text-base">
+                  {isUploadingAnswerKey ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <Database size={20} />
+                  )}
+                  <span>{isUploadingAnswerKey ? 'Updating...' : 'Update Answer Key'}</span>
+                  <input
+                    type="file"
+                    accept=".sql,.txt"
+                    className="hidden"
+                    disabled={isUploadingAnswerKey}
+                    onChange={handleAnswerKeyUpload}
+                  />
+                </label>
+              )}
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"

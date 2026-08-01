@@ -496,9 +496,10 @@ For HTTPProbe (REST APIs), generate:
   }
 }
 * Infer realistic paths based on the requirement description.
-* CRITICAL SEQUENCE (MANDATORY): You MUST ALWAYS sequence mutating requests (POST, PUT) BEFORE read/delete requests (GET, DELETE) within the "steps" array. This ensures the database has data before you assert it is notEmpty.
-* SAFE ASSERTIONS (CRITICAL): If the exact JSON schema/property names are NOT explicitly defined in the assignment description, DO NOT invent them (e.g., guessing 'title' instead of 'name'). In the absence of a strict schema, rely ONLY on HTTP status codes (e.g., 201 Created, 200 OK) or safe generic assertions (e.g., '$.id notEmpty').
-* If exact property names ARE explicitly mentioned, you MUST use them EXACTLY as written. DO NOT use synonyms.
+* ID SUBSTITUTION (CRITICAL): The testing engine automatically captures the \`id\` from a successful POST response into a \`{{id}}\` variable. You MUST use this placeholder in subsequent steps for the URL path (e.g., \`"/api/products/{{id}}"\`) AND in the request body for PUT updates (e.g., \`{"id": "{{id}}", "name": "..."}\`). Failure to include \`"id": "{{id}}"\` in the PUT body will cause 'ID Mismatch' errors in frameworks like .NET.
+* COMPREHENSIVE TEST FLOW (CRITICAL): Your steps array MUST logically and comprehensively test all endpoints described in the requirement. If the requirement describes a standard CRUD entity, you MUST simulate a complete lifecycle (e.g., Create -> Read -> Update -> Read -> Delete -> Read) including both success paths and expected error paths (like 400 Bad Request). For non-CRUD endpoints, generate steps that test all described scenarios. DO NOT generate a short, incomplete flow.
+* SAFE ASSERTIONS (CRITICAL): If the exact JSON schema/property names are NOT explicitly defined in the assignment description, DO NOT invent them. Rely ONLY on HTTP status codes or safe generic assertions (e.g., '$.id notEmpty').
+* JSON CASING (CRITICAL): When writing jsonPath assertions, you MUST adhere to standard JSON naming conventions appropriate for the technology stack (e.g., camelCase is the industry standard for REST APIs in most frameworks). If the assignment description explicitly requires a specific casing (e.g., PascalCase or snake_case) in the API output, use that. Otherwise, default to camelCase for your assertions (e.g., convert "CreatedAt" to "$.createdAt").
 * Ensure soft-delete checks use HTTP GET assertions.
 
 For StdInOutProbe (Algorithms), generate test cases functioning strictly as an Automated Competitive Programming Judge.

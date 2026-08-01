@@ -23,6 +23,7 @@ export function createAssignmentRoutes(): Router {
   router.get('/:id/events', controller.streamAssignmentEvents);
   router.get('/:id', controller.getById);
   router.put('/strategy/update-all', controller.updateAllStrategy);
+  router.post('/:id/update-answer-key', upload.single('file'), controller.updateAnswerKey);
   router.put('/:id', controller.update);
   router.delete('/:id', controller.delete);
 

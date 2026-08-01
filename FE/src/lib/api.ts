@@ -856,6 +856,13 @@ export const gradingApi = {
     })
   },
 
+  updateAnswerKey: (assignmentId: string, formData: FormData) => {
+    return request<any>(`/grading/assignments/${assignmentId}/update-answer-key`, {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
   gradeExistingSubmission: (submissionId: string) => {
     return request<{ submissionId: string, statusUrl: string }>('/grading/submissions/grade-existing', {
       method: 'POST',

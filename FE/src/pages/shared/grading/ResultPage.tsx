@@ -5,6 +5,7 @@ import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
 import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { formatLatexMath } from '@/utils/mathHelper';
 import { gradingApi as api } from '@/lib/api';
 
 export default function ResultPage() {
@@ -189,7 +190,7 @@ export default function ResultPage() {
               </div>
             </div>
             <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-[15px] text-slate-700 dark:text-slate-300">
-              <ReactMarkdown>{result.overallFeedback}</ReactMarkdown>
+              <ReactMarkdown>{formatLatexMath(result.overallFeedback)}</ReactMarkdown>
             </div>
           </div>
         )}

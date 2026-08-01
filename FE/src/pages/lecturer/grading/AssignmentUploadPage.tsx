@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import FileUpload from '@/components/modules/grading/FileUpload';
 import { gradingApi as api, api as mainApi, type SubjectRow } from '@/lib/api';
 import { aiGenerationStore } from '@/services/aiGenerationStore';
-import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle, Calendar, BookOpen, Bookmark } from 'lucide-react';
+import { Sparkles, Edit3, CheckCircle, Type, UploadCloud, ArrowRight, Info, Lightbulb, X, Search, ArrowLeft, ChevronDown, AlertCircle, Calendar, BookOpen, Bookmark, Database, Code, Upload, Loader2 } from 'lucide-react';
 import classNames from 'classnames';
 import Editor from 'react-simple-wysiwyg';
 import { DateTimePicker } from '@/components/ui/DateTimePicker';
@@ -116,6 +116,39 @@ export default function AssignmentUploadPage() {
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
     const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', category: '', dueDate: '' });
+
+    const [answerKeyFile, setAnswerKeyFile] = useState<File | null>(null);
+    const [answerKeyText, setAnswerKeyText] = useState<string>('');
+    const [isUploadingAnswerKey, setIsUploadingAnswerKey] = useState<boolean>(false);
+    const [showAnswerKeyEditor, setShowAnswerKeyEditor] = useState<boolean>(false);
+
+    const handleAnswerKeyUpload = async (file: File) => {
+        setIsUploadingAnswerKey(true);
+        try {
+            setAnswerKeyFile(file);
+            
+            // Read file content locally for the editor display
+            const text = await file.text();
+            setAnswerKeyText(text);
+
+            // Call backend to parse SQL Key and generate test cases
+            if (rubric?.rules) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('rubricRules', JSON.stringify(rubric.rules));
+                
+                const response = await api.parseSqlKey(formData);
+                if (response.rules) {
+                    setRubric({ ...rubric, rules: response.rules });
+                }
+            }
+        } catch (err: any) {
+            console.error("Failed to parse Answer Key file:", err);
+            setError("Cannot parse SQL Answer Key file: " + (err.message || 'File read error'));
+        } finally {
+            setIsUploadingAnswerKey(false);
+        }
+    };
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('');
@@ -367,6 +400,11 @@ export default function AssignmentUploadPage() {
 
     const handlePublish = async () => {
         if (!rubric || !blueprint) return;
+        
+        if (isUploadingAnswerKey) {
+            setError("Hệ thống đang tiến hành phân tích và trích xuất Test Cases từ file Đáp án SQL. Vui lòng đợi quá trình này hoàn tất trước khi Publish!");
+            return;
+        }
 
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
         if (!selectedSemester) newErrors.semester = "Please select a semester.";
@@ -825,7 +863,7 @@ export default function AssignmentUploadPage() {
 
                                             <div className="flex-1 flex items-center justify-center border border-slate-200/90 border-dashed rounded-2xl bg-slate-50/50 p-6">
                                                 <div className="w-full max-w-xl">
-                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx" errorMessage="Only PDF or DOCX is supported" />
+                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx,.sql,.zip,.txt" errorMessage="Supported formats: PDF, DOCX, SQL, ZIP, TXT" />
                                                 </div>
                                             </div>
                                         </div>
@@ -929,6 +967,130 @@ export default function AssignmentUploadPage() {
                                                 </select>
                                             </div>
                                         </div>
+
+                                        {/* SQL Answer Key / Reference Solution Upload Section */}
+                                        {(metadata.projectType === 'database' || selectedAssignmentType === 'database' || metadata.subject?.toUpperCase().includes('DBI') || subjectCode?.toUpperCase().includes('DBI') || selectedAssignmentType?.toUpperCase().includes('SQL') || rubric?.rules?.some((r: any) => r.scoringStrategy === 'SqlExecutionProbe')) && (
+                                            <div className="bg-emerald-50/70 border border-emerald-200/90 p-5 rounded-2xl mb-6 shadow-2xs">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+                                                            <Database size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-900 text-[15px] flex items-center gap-2">
+                                                                SQL Answer Key & Setup Script <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-semibold">Tùy chọn / Khuyên dùng</span>
+                                                            </h3>
+                                                            <p className="text-slate-500 text-xs mt-0.5">Tải lên file script DB (.sql, .zip, .docx, .txt) chứa DDL/DML đáp án chuẩn để hệ thống tự động chấm bài SQL của sinh viên.</p>
+                                                        </div>
+                                                    </div>
+                                                    {answerKeyText && (
+                                                        <button
+                                                            onClick={() => setShowAnswerKeyEditor(!showAnswerKeyEditor)}
+                                                            className="px-3.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100/50 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
+                                                        >
+                                                            <Code size={14} /> {showAnswerKeyEditor ? 'Ẩn Trình Sửa SQL' : 'Xem & Sửa Script SQL'}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {answerKeyFile || answerKeyText ? (
+                                                    <div className="bg-white p-4 rounded-xl border border-emerald-200 flex flex-col gap-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
+                                                                    {answerKeyFile?.name.split('.').pop() || 'SQL'}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                                                        {answerKeyFile?.name || 'File Đáp án SQL đã nạp'}
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                                                                            <CheckCircle size={12} className="mr-1" /> Ready for DB Probe
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                                        {answerKeyText ? `${answerKeyText.split('\n').length} dòng SQL script` : 'Đã nạp vào cấu hình chấm điểm SQL'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2">
+                                                                <label className={classNames(
+                                                                    "cursor-pointer px-3 py-1.5 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5",
+                                                                    isUploadingAnswerKey ? "bg-emerald-600 text-white animate-pulse cursor-wait ring-2 ring-emerald-300 ring-offset-1" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                                                                )}>
+                                                                    {isUploadingAnswerKey ? (
+                                                                        <Loader2 size={14} className="animate-spin" />
+                                                                    ) : (
+                                                                        <Upload size={14} />
+                                                                    )}
+                                                                    {isUploadingAnswerKey ? 'Đang phân tích...' : 'Thay file đáp án'}
+                                                                    <input
+                                                                        type="file"
+                                                                        accept=".sql,.zip,.docx,.txt"
+                                                                        className="hidden"
+                                                                        disabled={isUploadingAnswerKey}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.files?.[0]) handleAnswerKeyUpload(e.target.files[0]);
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+
+                                                        {showAnswerKeyEditor && (
+                                                            <div className="mt-2 pt-3 border-t border-slate-100">
+                                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">Nội dung SQL Script Đáp án (Setup Script):</label>
+                                                                <textarea
+                                                                    className="w-full h-48 bg-slate-900 text-emerald-400 font-mono text-xs p-3 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                                    value={answerKeyText}
+                                                                    onChange={(e) => {
+                                                                        const newText = e.target.value;
+                                                                        setAnswerKeyText(newText);
+                                                                        if (rubric?.rules) {
+                                                                            const updatedRules = rubric.rules.map((rule: any) => {
+                                                                                if (rule.scoringStrategy === 'SqlExecutionProbe' && rule.requiredEvidence?.[0]?.sqlProbe) {
+                                                                                    return {
+                                                                                        ...rule,
+                                                                                        requiredEvidence: [{
+                                                                                            ...rule.requiredEvidence[0],
+                                                                                            sqlProbe: {
+                                                                                                ...rule.requiredEvidence[0].sqlProbe,
+                                                                                                setupScript: newText
+                                                                                            }
+                                                                                        }]
+                                                                                    };
+                                                                                }
+                                                                                return rule;
+                                                                            });
+                                                                            setRubric({ ...rubric, rules: updatedRules });
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-white p-4 rounded-xl border border-dashed border-emerald-300 flex items-center justify-center">
+                                                        <label className="cursor-pointer flex flex-col items-center gap-2 py-3 px-6 text-center">
+                                                            <UploadCloud size={24} className={classNames("text-emerald-600", isUploadingAnswerKey ? "animate-spin" : "animate-bounce")} />
+                                                            <span className="text-sm font-bold text-slate-700">
+                                                                {isUploadingAnswerKey ? 'Đang đọc và phân tích file đáp án...' : 'Tải lên file Đáp án Mẫu (.sql, .zip, .docx, .txt)'}
+                                                            </span>
+                                                            <span className="text-xs text-slate-400">Tệp script SQL này sẽ tự động nạp dữ liệu chuẩn cho Docker SQL Server khi chấm bài</span>
+                                                            <input
+                                                                type="file"
+                                                                accept=".sql,.zip,.docx,.txt"
+                                                                className="hidden"
+                                                                disabled={isUploadingAnswerKey}
+                                                                onChange={(e) => {
+                                                                    if (e.target.files?.[0]) handleAnswerKeyUpload(e.target.files[0]);
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
 
 
@@ -1282,16 +1444,19 @@ export default function AssignmentUploadPage() {
                                         </button>
                                         <button
                                             onClick={handlePublish}
-                                            disabled={!isTotalScoreValid}
+                                            disabled={!isTotalScoreValid || isUploadingAnswerKey}
                                             className={classNames(
                                                 "px-8 py-3.5 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all",
-                                                isTotalScoreValid
-                                                    ? "bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
-                                                    : "bg-slate-300 text-slate-500 border border-slate-300 cursor-not-allowed opacity-70"
+                                                isUploadingAnswerKey
+                                                    ? "bg-emerald-600 text-white cursor-wait opacity-80"
+                                                    : isTotalScoreValid
+                                                        ? "bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
+                                                        : "bg-slate-300 text-slate-500 border border-slate-300 cursor-not-allowed opacity-70"
                                             )}
-                                            title={!isTotalScoreValid ? `Tổng điểm (${currentTotalScore.toFixed(2)}) chưa bằng 10.0` : undefined}
+                                            title={!isTotalScoreValid ? `Tổng điểm (${currentTotalScore.toFixed(2)}) chưa bằng 10.0` : (isUploadingAnswerKey ? "Vui lòng chờ tiến trình phân tích đáp án hoàn tất" : undefined)}
                                         >
-                                            <CheckCircle size={20} /> Publish assignment
+                                            {isUploadingAnswerKey ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+                                            {isUploadingAnswerKey ? 'Đang phân tích...' : 'Publish assignment'}
                                         </button>
                                     </div>
                                 </div>

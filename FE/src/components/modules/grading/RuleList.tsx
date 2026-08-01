@@ -8,6 +8,7 @@ import HttpTimelineViewer from './evidence/HttpTimelineViewer';
 import IoTestCaseViewer from './evidence/IoTestCaseViewer';
 import SqlTestCaseViewer from './evidence/SqlTestCaseViewer';
 import { FormattedText } from '@/components/ui/FormattedText';
+import { formatLatexMath } from '@/utils/mathHelper';
 
 interface RuleListProps {
   title: string;
@@ -16,8 +17,9 @@ interface RuleListProps {
 
 const renderFormattedText = (text?: string) => {
   if (!text) return null;
+  const processed = formatLatexMath(text);
   // Split by **text** to extract bold parts
-  const parts = text.split(/(\*\*.*?\*\*)/g);
+  const parts = processed.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={index} className="font-bold text-slate-800 dark:text-slate-100">{part.slice(2, -2)}</strong>;

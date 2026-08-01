@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { FormattedText } from '@/components/ui/FormattedText'
+import { formatLatexMath } from '@/utils/mathHelper'
 import { RubricRuleSpecViewer } from '@/components/modules/grading/evidence/RubricRuleSpecViewer'
 
 const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code', onCopy, isCopied }: { code: string; language?: string; onCopy: () => void; isCopied: boolean }) {
@@ -1023,7 +1024,7 @@ export function StudentAssignmentDetail() {
                         </div>
                       </div>
                       <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
-                        <ReactMarkdown>{submission.aiFeedback as string}</ReactMarkdown>
+                        <ReactMarkdown>{formatLatexMath(submission.aiFeedback as string)}</ReactMarkdown>
                       </div>
                     </div>
                   ) : (
