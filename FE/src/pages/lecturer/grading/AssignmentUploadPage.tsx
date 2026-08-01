@@ -31,7 +31,8 @@ const CustomDropdown = ({
     emptyMessage = "Please select a subject first",
     className = "w-48",
     hasError = false,
-    icon
+    icon,
+    disabled = false
 }: {
     value: string,
     onChange: (v: string) => void,
@@ -40,25 +41,31 @@ const CustomDropdown = ({
     emptyMessage?: string,
     className?: string,
     hasError?: boolean,
-    icon?: React.ReactNode
+    icon?: React.ReactNode,
+    disabled?: boolean
 }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
     const selectedOption = normalizedOptions.find(opt => opt.value === value);
+    const isInteractive = !disabled;
 
     return (
         <div className={`relative ${isOpen ? 'z-50' : 'z-10'} ${className}`}>
             <div
                 className={classNames(
-                    "w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-white cursor-pointer flex items-center justify-between shadow-2xs transition-all duration-200 select-none",
+                    "w-full px-3.5 py-2.5 border rounded-xl text-sm outline-none bg-white flex items-center justify-between shadow-2xs transition-all duration-200 select-none",
+                    isInteractive ? 'cursor-pointer' : 'cursor-not-allowed opacity-70',
                     isOpen
                         ? "border-brand-500 ring-4 ring-brand-500/10 shadow-sm"
                         : (hasError
                             ? "border-rose-400 ring-3 ring-rose-500/10 bg-rose-50/30"
                             : "border-slate-200 hover:border-slate-300 hover:shadow-2xs")
                 )}
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    if (!isInteractive) return;
+                    setIsOpen(!isOpen);
+                }}
             >
                 <div className="flex items-center gap-2 min-w-0 pr-1">
                     {icon && <span className="text-slate-400 shrink-0">{icon}</span>}
@@ -66,10 +73,10 @@ const CustomDropdown = ({
                         {selectedOption ? selectedOption.label : (value ? value : placeholder)}
                     </span>
                 </div>
-                <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-brand-600" : ""}`} />
+                <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-brand-600" : ""} ${disabled ? 'opacity-50' : ''}`} />
             </div>
 
-            {isOpen && (
+            {isOpen && isInteractive && (
 
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
@@ -174,6 +181,7 @@ export default function AssignmentUploadPage() {
 
     const currentTotalScore = rubric?.rules ? rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0) : 0;
     const isTotalScoreValid = Math.abs(currentTotalScore - 10) <= 0.01;
+    const isReviewStep = step === 3;
 
     const navigate = useNavigate();
 
@@ -925,6 +933,7 @@ export default function AssignmentUploadPage() {
                                                     className="w-full"
                                                     placeholder="Select a subject..."
                                                     icon={<BookOpen size={15} />}
+                                                    disabled={isReviewStep}
                                                 />
                                             </div>
                                             <div className="col-span-1">
@@ -939,12 +948,19 @@ export default function AssignmentUploadPage() {
                                                     className="w-full"
                                                     placeholder="Select type..."
                                                     icon={<Bookmark size={15} />}
+                                                    disabled={isReviewStep}
                                                 />
                                             </div>
                                             <div className="col-span-1">
                                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assignment title</label>
                                                 <input
-                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none shadow-2xs transition-all"
+                                                    disabled={isReviewStep}
+                                                    className={classNames(
+                                                        "w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold outline-none shadow-2xs transition-all",
+                                                        isReviewStep
+                                                            ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200'
+                                                            : 'focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10'
+                                                    )}
                                                     value={metadata.title}
                                                     onChange={(e) => setMetadata({ ...metadata, title: e.target.value })}
                                                 />
@@ -952,7 +968,13 @@ export default function AssignmentUploadPage() {
                                             <div className="col-span-1">
                                                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Project type</label>
                                                 <select
-                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none shadow-2xs transition-all cursor-pointer"
+                                                    disabled={isReviewStep}
+                                                    className={classNames(
+                                                        "w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-sm font-semibold outline-none shadow-2xs transition-all",
+                                                        isReviewStep
+                                                            ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200'
+                                                            : 'focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 cursor-pointer'
+                                                    )}
                                                     value={metadata.projectType}
                                                     onChange={(e) => setMetadata({ ...metadata, projectType: e.target.value })}
                                                 >
@@ -1106,6 +1128,7 @@ export default function AssignmentUploadPage() {
                                                         options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
                                                         placeholder="Select a semester..."
                                                         className="w-full"
+                                                        disabled={isReviewStep}
                                                     />
                                                 </div>
                                                 <div className="col-span-2 border-r border-slate-200 pr-6">
@@ -1118,12 +1141,16 @@ export default function AssignmentUploadPage() {
                                                             return availableClasses.map((c: any) => (
                                                                 <button
                                                                     key={c.id}
+                                                                    type="button"
+                                                                    disabled={isReviewStep}
                                                                     onClick={() => {
+                                                                        if (isReviewStep) return;
                                                                         setSelectedClasses(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
                                                                         if (validationErrors.classes) setValidationErrors({ ...validationErrors, classes: undefined });
                                                                     }}
                                                                     className={classNames(
                                                                         "px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200",
+                                                                        isReviewStep && 'cursor-not-allowed opacity-70',
                                                                         selectedClasses.includes(c.id)
                                                                             ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1"
                                                                             : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/50"
