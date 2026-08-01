@@ -34,7 +34,7 @@ export function StudentSubjects() {
   const loadData = useCallback((showLoader = false) => {
     let alive = true
     if (showLoader) setLoading(true)
-    
+
     Promise.all([
       api.getStudentSubjects(selectedSemester).catch(() => []),
       api.getAssignments().catch(() => []),
@@ -42,7 +42,7 @@ export function StudentSubjects() {
     ]).then(([subjectsRes, assignmentsRes, submissionsRes]) => {
       if (alive) {
         setSubjects(subjectsRes || [])
-        
+
         // Map real submission data into assignments
         const submissionsMap = new Map((submissionsRes || []).map((s: any) => [s.assignmentId, s]))
         const mergedAssignments = (assignmentsRes || []).map(a => {
@@ -50,15 +50,15 @@ export function StudentSubjects() {
           if (sub) {
             const isPublished = sub.reviewStatus === 'PUBLISHED' || sub.isPublished === true
             const validScore = isPublished ? (sub.finalScore ?? sub.totalScore ?? sub.score ?? sub.Score) : undefined
-            return { 
-              ...a, 
+            return {
+              ...a,
               status: (isPublished && validScore !== undefined && validScore !== null) ? 'Graded' : 'Submitted',
               score: validScore !== null ? validScore : undefined
             }
           }
           return a
         })
-        
+
         // Sort assignments from newest to oldest by creation date
         mergedAssignments.sort((a, b) => {
           const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0
@@ -69,7 +69,7 @@ export function StudentSubjects() {
         setAssignments(mergedAssignments)
       }
     }).finally(() => { if (alive && showLoader) setLoading(false) })
-    
+
     return () => { alive = false }
   }, [selectedSemester])
 
@@ -85,7 +85,7 @@ export function StudentSubjects() {
           loadData(false)
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'aita_last_publish_event' && e.newValue) {
@@ -122,7 +122,7 @@ export function StudentSubjects() {
     const submitted = assignments.filter(a => a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined).length
     const graded = assignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined).length
     const missing = total - submitted
-    
+
     let totalScore = 0
     let gradedCountForScore = 0
     assignments.forEach(a => {
@@ -184,7 +184,7 @@ export function StudentSubjects() {
                 className="self-start md:self-auto shrink-0"
               />
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-2 mt-6">
               {tabs.map(tab => (
                 <button
@@ -199,254 +199,254 @@ export function StudentSubjects() {
           </div>
 
           <div className="space-y-6">
-          {subjects.length === 0 ? (
-            <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-500 shadow-sm flex flex-col items-center">
-              <BookOpen size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
-              You are not enrolled in any subject yet.
-            </div>
-          ) : (
-            subjects.map(sub => {
-              const isExpanded = expandedSubjectId === sub.id
-              const subjectAssignments = assignments.filter(a => (a as any).subjectId === sub.id || (a as any).subjectCode === sub.code || a.class?.includes(sub.code))
-              
-              const hwCount = subjectAssignments.filter(a => a.type !== 'Exam').length
-              const examCount = subjectAssignments.filter(a => a.type === 'Exam').length
-              
-              const submittedHw = subjectAssignments.filter(a => a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined).length
-              const completionRate = subjectAssignments.length > 0 ? Math.round((submittedHw / subjectAssignments.length) * 100) : 0
+            {subjects.length === 0 ? (
+              <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-500 shadow-sm flex flex-col items-center">
+                <BookOpen size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
+                You are not enrolled in any subject yet.
+              </div>
+            ) : (
+              subjects.map(sub => {
+                const isExpanded = expandedSubjectId === sub.id
+                const subjectAssignments = assignments.filter(a => (a as any).subjectId === sub.id || (a as any).subjectCode === sub.code || a.class?.includes(sub.code))
 
-              const displayAssignments = activeTab === 'Assignments' ? subjectAssignments.filter(a => a.type !== 'Exam') :
-                                         activeTab === 'Exams' ? subjectAssignments.filter(a => a.type === 'Exam') :
-                                         activeTab === 'Graded' ? subjectAssignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined) :
-                                         subjectAssignments
+                const hwCount = subjectAssignments.filter(a => a.type !== 'Exam').length
+                const examCount = subjectAssignments.filter(a => a.type === 'Exam').length
 
-              return (
-                <div id={`subject-${sub.id}`} key={sub.id} className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
-                  <div 
-                    className="p-5 flex flex-col lg:flex-row lg:items-center justify-between cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/20 gap-4"
-                    onClick={() => setExpandedSubjectId(isExpanded ? null : sub.id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${getSubjectColor(sub.code)}`}>
-                        {getSubjectIcon(sub.code)}
+                const submittedHw = subjectAssignments.filter(a => a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined).length
+                const completionRate = subjectAssignments.length > 0 ? Math.round((submittedHw / subjectAssignments.length) * 100) : 0
+
+                const displayAssignments = activeTab === 'Assignments' ? subjectAssignments.filter(a => a.type !== 'Exam') :
+                  activeTab === 'Exams' ? subjectAssignments.filter(a => a.type === 'Exam') :
+                    activeTab === 'Graded' ? subjectAssignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined) :
+                      subjectAssignments
+
+                return (
+                  <div id={`subject-${sub.id}`} key={sub.id} className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
+                    <div
+                      className="p-5 flex flex-col lg:flex-row lg:items-center justify-between cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/20 gap-4"
+                      onClick={() => setExpandedSubjectId(isExpanded ? null : sub.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${getSubjectColor(sub.code)}`}>
+                          {getSubjectIcon(sub.code)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">{sub.code}</div>
+                          <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 leading-tight">{sub.name}</h3>
+                          {/* Lecturer info */}
+                          {sub.lecturers && sub.lecturers.length > 0 && (
+                            <div className="flex items-center gap-2 mt-1.5">
+                              {sub.lecturers.map((lec, idx) => (
+                                <div key={lec.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'ml-1' : ''}`}>
+                                  {lec.avatar ? (
+                                    <img src={lec.avatar} alt={lec.name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white border border-slate-200 dark:border-slate-700">
+                                      {lec.name?.split(' ').pop()?.[0]?.toUpperCase() || 'G'}
+                                    </div>
+                                  )}
+                                  <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Lecturer {lec.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm text-slate-500 mt-1.5 font-medium">
+                            <span>{hwCount} assignments</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span>{examCount} exams</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span>{completionRate}% complete</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">{sub.code}</div>
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 leading-tight">{sub.name}</h3>
-                        {/* Lecturer info */}
-                        {sub.lecturers && sub.lecturers.length > 0 && (
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {sub.lecturers.map((lec, idx) => (
-                              <div key={lec.id} className={`flex items-center gap-1.5 ${idx > 0 ? 'ml-1' : ''}`}>
-                                {lec.avatar ? (
-                                  <img src={lec.avatar} alt={lec.name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white border border-slate-200 dark:border-slate-700">
-                                    {lec.name?.split(' ').pop()?.[0]?.toUpperCase() || 'G'}
+
+                      <div className="flex items-center gap-6 lg:ml-auto pr-2 mt-4 lg:mt-0">
+                        {/* These three slots used to be fixed: A1 = 8.0, A2 = 8.2, PE =
+                          "Not scheduled" for every subject. Show real graded work instead. */}
+                        <div className="flex gap-6 items-center">
+                          {(() => {
+                            const graded = subjectAssignments
+                              .map(a => ({ title: a.title, score: (a as any).score ?? (a as any).aiScore }))
+                              .filter(x => x.score !== undefined && x.score !== null)
+                              .slice(0, 3)
+
+                            if (graded.length === 0) {
+                              return <div className="text-sm font-medium text-slate-400">No graded work yet</div>
+                            }
+
+                            return graded.map((g, i) => (
+                              <div key={i} className="flex items-center gap-6">
+                                {i > 0 && <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block" />}
+                                <div className="text-center max-w-[110px]">
+                                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 truncate" title={g.title}>
+                                    {g.title}
                                   </div>
-                                )}
-                                <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Lecturer {lec.name}</span>
+                                  <div className="text-sm font-bold text-emerald-600">
+                                    {Math.round(Number(g.score) * 100) / 100}
+                                  </div>
+                                </div>
                               </div>
-                            ))}
+                            ))
+                          })()}
+                        </div>
+                        <div className="text-slate-400 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-colors ml-4 lg:ml-0">
+                          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#151821] p-6 animate-in slide-in-from-top-2">
+                        {displayAssignments.length === 0 ? (
+                          <div className="text-center p-8 text-slate-500 italic flex flex-col items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                            <FileText size={32} className="text-slate-300 mb-3" />
+                            No data matches this filter.
+                          </div>
+                        ) : (
+                          <div className="space-y-8">
+                            {/* Exercises Section */}
+                            {(activeTab === 'All' || activeTab === 'Assignments' || activeTab === 'Graded') && displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Assignments</h4>
+                                  <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                                    View all assignments ({displayAssignments.filter(a => a.type !== 'Exam').length})
+                                  </button>
+                                </div>
+                                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                                      <tr>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">Due date</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
+                                      {displayAssignments.filter(a => a.type !== 'Exam').map(a => {
+                                        const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
+                                        const score = (a as any).score || (a as any).aiScore
+                                        return (
+                                          <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
+                                            <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
+                                              <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                                  <FileText size={16} />
+                                                </div>
+                                                <span className="line-clamp-1">{a.title}</span>
+                                              </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-slate-500 font-medium">
+                                              {a.due ? new Date(a.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                              <div className="flex justify-center">
+                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'}`}>
+                                                  {isSubmitted ? 'Submitted' : 'Not submitted'}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                                              {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                              <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
+                                                  className={`inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow ${!isSubmitted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-transparent dark:border-emerald-800 dark:hover:bg-emerald-900/30'}`}
+                                                >
+                                                  {!isSubmitted ? 'Submit' : 'Submitted'}
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Exams Section */}
+                            {(activeTab === 'All' || activeTab === 'Exams' || activeTab === 'Graded') && displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exams</h4>
+                                  <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                                    View all exams ({displayAssignments.filter(a => a.type === 'Exam').length})
+                                  </button>
+                                </div>
+                                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                                      <tr>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">Date</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
+                                      {displayAssignments.filter(a => a.type === 'Exam').map(a => {
+                                        const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
+                                        const score = (a as any).score || (a as any).aiScore
+                                        return (
+                                          <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
+                                            <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
+                                              <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500">
+                                                  <Calendar size={16} />
+                                                </div>
+                                                <span className="line-clamp-1">{a.title}</span>
+                                              </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-slate-500 font-medium">
+                                              {a.due ? new Date(a.due).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                              <div className="flex justify-center">
+                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+                                                  {isSubmitted ? 'Completed' : 'Upcoming'}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                                              {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                              <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
+                                                  className="inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-slate-700 dark:hover:bg-slate-800"
+                                                >
+                                                  {isSubmitted ? 'View result' : 'View details'}
+                                                </button>
+                                                <button className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                                  <span className="leading-none text-lg">...</span>
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
-                        <div className="flex items-center gap-2 text-sm text-slate-500 mt-1.5 font-medium">
-                          <span>{hwCount} assignments</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span>{examCount} exams</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span>{completionRate}% complete</span>
-                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-6 lg:ml-auto pr-2 mt-4 lg:mt-0">
-                      {/* These three slots used to be fixed: A1 = 8.0, A2 = 8.2, PE =
-                          "Not scheduled" for every subject. Show real graded work instead. */}
-                      <div className="flex gap-6 items-center">
-                        {(() => {
-                          const graded = subjectAssignments
-                            .map(a => ({ title: a.title, score: (a as any).score ?? (a as any).aiScore }))
-                            .filter(x => x.score !== undefined && x.score !== null)
-                            .slice(0, 3)
-
-                          if (graded.length === 0) {
-                            return <div className="text-sm font-medium text-slate-400">No graded work yet</div>
-                          }
-
-                          return graded.map((g, i) => (
-                            <div key={i} className="flex items-center gap-6">
-                              {i > 0 && <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block" />}
-                              <div className="text-center max-w-[110px]">
-                                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 truncate" title={g.title}>
-                                  {g.title}
-                                </div>
-                                <div className="text-sm font-bold text-emerald-600">
-                                  {Math.round(Number(g.score) * 100) / 100}
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        })()}
-                      </div>
-                      <div className="text-slate-400 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-colors ml-4 lg:ml-0">
-                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                      </div>
-                    </div>
+                    )}
                   </div>
-
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#151821] p-6 animate-in slide-in-from-top-2">
-                      {displayAssignments.length === 0 ? (
-                        <div className="text-center p-8 text-slate-500 italic flex flex-col items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
-                          <FileText size={32} className="text-slate-300 mb-3" />
-                          No data matches this filter.
-                        </div>
-                      ) : (
-                        <div className="space-y-8">
-                          {/* Exercises Section */}
-                          {(activeTab === 'All' || activeTab === 'Assignments' || activeTab === 'Graded') && displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
-                            <div>
-                              <div className="flex items-center justify-between mb-4 px-1">
-                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Assignments</h4>
-                                <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                                  View all assignments ({displayAssignments.filter(a => a.type !== 'Exam').length})
-                                </button>
-                              </div>
-                              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <table className="w-full text-sm text-left">
-                                  <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                                    <tr>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Due date</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
-                                    {displayAssignments.filter(a => a.type !== 'Exam').map(a => {
-                                      const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
-                                      const score = (a as any).score || (a as any).aiScore
-                                      return (
-                                        <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
-                                          <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
-                                            <div className="flex items-center gap-3">
-                                              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
-                                                <FileText size={16} />
-                                              </div>
-                                              <span className="line-clamp-1">{a.title}</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-5 py-4 text-slate-500 font-medium">
-                                            {a.due ? new Date(a.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
-                                          </td>
-                                          <td className="px-5 py-4">
-                                            <div className="flex justify-center">
-                                              <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'}`}>
-                                                {isSubmitted ? 'Submitted' : 'Not submitted'}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                                            {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
-                                          </td>
-                                          <td className="px-5 py-4">
-                                            <div className="flex items-center justify-end gap-2">
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
-                                                className={`inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow ${!isSubmitted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-transparent dark:border-emerald-800 dark:hover:bg-emerald-900/30'}`}
-                                              >
-                                                {!isSubmitted ? 'Submit' : 'Submitted'}
-                                              </button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Exams Section */}
-                          {(activeTab === 'All' || activeTab === 'Exams' || activeTab === 'Graded') && displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
-                            <div>
-                              <div className="flex items-center justify-between mb-4 px-1">
-                                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exams</h4>
-                                <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                                  View all exams ({displayAssignments.filter(a => a.type === 'Exam').length})
-                                </button>
-                              </div>
-                              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <table className="w-full text-sm text-left">
-                                  <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                                    <tr>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider">Date</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
-                                      <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
-                                    {displayAssignments.filter(a => a.type === 'Exam').map(a => {
-                                      const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
-                                      const score = (a as any).score || (a as any).aiScore
-                                      return (
-                                        <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
-                                          <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
-                                            <div className="flex items-center gap-3">
-                                              <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500">
-                                                <Calendar size={16} />
-                                              </div>
-                                              <span className="line-clamp-1">{a.title}</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-5 py-4 text-slate-500 font-medium">
-                                            {a.due ? new Date(a.due).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
-                                          </td>
-                                          <td className="px-5 py-4">
-                                            <div className="flex justify-center">
-                                              <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                                                {isSubmitted ? 'Completed' : 'Upcoming'}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                                            {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
-                                          </td>
-                                          <td className="px-5 py-4">
-                                            <div className="flex items-center justify-end gap-2">
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
-                                                className="inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 dark:bg-transparent dark:border-slate-700 dark:hover:bg-slate-800"
-                                              >
-                                                {isSubmitted ? 'View result' : 'View details'}
-                                              </button>
-                                              <button className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                                <span className="leading-none text-lg">...</span>
-                                              </button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      )
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
+                )
+              })
+            )}
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -454,7 +454,7 @@ export function StudentSubjects() {
           {/* Overview */}
           <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
             <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">Learning overview</h3>
-            
+
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-blue-600 mb-1">{stats.total}</div>
@@ -504,7 +504,7 @@ export function StudentSubjects() {
               </h3>
               <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
             </div>
-            
+
             <div className="space-y-4">
               {stats.upcoming.length > 0 ? stats.upcoming.map(a => {
                 const hours = (new Date(a.due!).getTime() - new Date().getTime()) / (1000 * 3600)
@@ -543,7 +543,7 @@ export function StudentSubjects() {
               </h3>
               <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
             </div>
-            
+
             <div className="space-y-4">
               {stats.upcomingExams.length > 0 ? stats.upcomingExams.map(a => {
                 const days = Math.ceil((new Date(a.due!).getTime() - new Date().getTime()) / (1000 * 3600 * 24))

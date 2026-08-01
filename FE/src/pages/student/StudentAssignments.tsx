@@ -50,8 +50,8 @@ export function StudentAssignments() {
             {assignments.map(a => {
               const isPastDue = a.due && new Date(a.due) < new Date()
               return (
-                <div 
-                  key={a.id} 
+                <div
+                  key={a.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   onClick={() => navigate(`/student/assignments/${a.id}`)}
                 >
@@ -68,7 +68,7 @@ export function StudentAssignments() {
                         </span>
                         {a.due ? (
                           <span className={`flex items-center gap-1 ${isPastDue ? 'text-red-500' : 'text-amber-600'}`}>
-                            <Clock size={12}/> Due: {new Date(a.due).toLocaleString()}
+                            <Clock size={12} /> Due: {new Date(a.due).toLocaleString()}
                             {isPastDue && " (Overdue)"}
                           </span>
                         ) : (

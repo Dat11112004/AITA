@@ -18,7 +18,7 @@ export function StudentOverview() {
     try {
       const notifData = await api.getNotifications(1, 5)
       setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
-    } catch (e) {}
+    } catch (e) { }
   }, [])
 
   const loadData = useCallback(() => {
@@ -132,7 +132,7 @@ export function StudentOverview() {
 
       {/* Urgent Deadline Alert Banner */}
       {urgentAssignment && (
-        <div 
+        <div
           onClick={() => navigate(`/student/assignments/${urgentAssignment.id}`)}
           className="p-4 bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border-2 border-red-500/40 rounded-2xl flex items-center justify-between gap-4 cursor-pointer hover:border-red-500/70 transition-all shadow-lg shadow-red-500/10 animate-pulse"
         >

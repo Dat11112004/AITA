@@ -146,21 +146,21 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
     const isCodeLine =
       !isHeadingLine &&
       (trimmed.startsWith('//') ||
-      trimmed.startsWith('#include') ||
-      trimmed.startsWith('using namespace') ||
-      trimmed.startsWith('class ') ||
-      trimmed.startsWith('struct ') ||
-      trimmed.startsWith('public:') ||
-      trimmed.startsWith('private:') ||
-      trimmed.startsWith('TreeNode*') ||
-      trimmed.startsWith('ListNode*') ||
-      trimmed.startsWith('int main()') ||
-      trimmed.startsWith('return ') ||
-      trimmed.startsWith('std::') ||
-      trimmed.includes('->') ||
-      trimmed.startsWith('import ') ||
-      trimmed.startsWith('def ') ||
-      (currentCodeLines.length > 0 && (trimmed.startsWith('}') || trimmed.startsWith('{') || trimmed.endsWith(';') || trimmed === '')));
+        trimmed.startsWith('#include') ||
+        trimmed.startsWith('using namespace') ||
+        trimmed.startsWith('class ') ||
+        trimmed.startsWith('struct ') ||
+        trimmed.startsWith('public:') ||
+        trimmed.startsWith('private:') ||
+        trimmed.startsWith('TreeNode*') ||
+        trimmed.startsWith('ListNode*') ||
+        trimmed.startsWith('int main()') ||
+        trimmed.startsWith('return ') ||
+        trimmed.startsWith('std::') ||
+        trimmed.includes('->') ||
+        trimmed.startsWith('import ') ||
+        trimmed.startsWith('def ') ||
+        (currentCodeLines.length > 0 && (trimmed.startsWith('}') || trimmed.startsWith('{') || trimmed.endsWith(';') || trimmed === '')));
 
     if (isHeadingLine) {
       flushText();
@@ -317,7 +317,7 @@ export function StudentAssignmentDetail() {
           loadData(false)
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Storage event listener (cross-tab fallback)
     const handleStorage = (e: StorageEvent) => {
@@ -329,7 +329,7 @@ export function StudentAssignmentDetail() {
             setAssignment(prev => prev ? { ...prev, due: parsed.dueDate, stats: { ...(prev as any).stats, dueDate: parsed.dueDate } } as any : prev)
             loadData(false)
           }
-        } catch (err) {}
+        } catch (err) { }
       }
       if (e.key === 'aita_last_publish_event' && e.newValue) {
         console.log('[StudentAssignmentDetail] Storage publish event received!')
@@ -365,7 +365,7 @@ export function StudentAssignmentDetail() {
                 return prev
               })
             }
-          }).catch(() => {})
+          }).catch(() => { })
         }
       }, 5000)
     }
@@ -390,7 +390,7 @@ export function StudentAssignmentDetail() {
         const evtChannel = new BroadcastChannel('aita_submission_events');
         evtChannel.postMessage({ type: 'SUBMISSION_CREATED', assignmentId: id });
         evtChannel.close();
-      } catch (e) {}
+      } catch (e) { }
       localStorage.setItem('aita_submission_event', JSON.stringify({ type: 'SUBMISSION_CREATED', assignmentId: id, timestamp: Date.now() }));
       setToast({
         message: wasAlreadySubmitted
@@ -602,8 +602,8 @@ export function StudentAssignmentDetail() {
             </thead>
             <tbody>
               ${rubricsList.map((r: any, idx: number) => {
-                const rPoints = r.weight ?? r.maxPoints ?? r.maxScore ?? r.points ?? r.score ?? 0;
-                return `
+      const rPoints = r.weight ?? r.maxPoints ?? r.maxScore ?? r.points ?? r.score ?? 0;
+      return `
                 <tr>
                   <td align="center"><strong>${idx + 1}</strong></td>
                   <td>${r.description || r.title || 'Criterion'}</td>
@@ -693,8 +693,8 @@ export function StudentAssignmentDetail() {
 
                 {assignment.due && (
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-sm border ${isPastDue || isNearDeadline
-                      ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800'
-                      : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
+                    ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 border-red-100 dark:border-red-800'
+                    : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
                     }`}>
                     <Calendar size={14} />
                     Due: {new Date(assignment.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -749,24 +749,21 @@ export function StudentAssignmentDetail() {
                 </div>
               </div>
             ) : (
-              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
-                isPastDue 
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${isPastDue
                   ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
                   : isNearDeadline
                     ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
                     : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
-              }`}>
+                }`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
-                    isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
-                  }`}>
+                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                    }`}>
                     <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
-                        isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
-                      }`}>
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
+                        }`}>
                         {isPastDue ? 'CLOSED' : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
                       </span>
                       <span className="text-xs font-semibold">
@@ -821,7 +818,7 @@ export function StudentAssignmentDetail() {
                   {assignment.attachments.map(att => {
                     const isPreviewable = att.fileName.toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif)$/);
                     const fileUrl = `${(import.meta as any).env.VITE_API_URL || '/api'}/assignments/attachments/${att.id}/download?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`;
-                    
+
                     return (
                       <div key={att.id} className="flex flex-col gap-2">
                         <a
@@ -838,7 +835,7 @@ export function StudentAssignmentDetail() {
                             <Download size={14} />
                           </div>
                         </a>
-                        
+
                         {isPreviewable && (
                           <div className="w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white shadow-sm mt-1 mb-4">
                             <div className="bg-slate-50 dark:bg-slate-800/50 p-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
@@ -936,7 +933,7 @@ export function StudentAssignmentDetail() {
                       ⌛ Your submission is being graded and reviewed by the lecturer
                     </h3>
                     <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-                      Your submission has been analysed by the AI and the result saved. 
+                      Your submission has been analysed by the AI and the result saved.
                       The lecturer is reviewing the score and detailed assessment. The official result appears as soon as the lecturer approves it and presses <strong>Publish result</strong>.
                     </p>
                   </div>
@@ -1169,7 +1166,7 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Due date</span>
-                <span className="font-medium text-red-600">{assignment.due ? new Date(assignment.due).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                <span className="font-medium text-red-600">{dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Status</span>
