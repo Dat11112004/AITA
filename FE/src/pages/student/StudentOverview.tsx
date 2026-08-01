@@ -246,66 +246,6 @@ export function StudentOverview() {
               </Link>
             </div>
           </div>
-
-          {/* Notifications Widget */}
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 mt-8">
-            <Bell className="text-brand-500" size={20} /> Notifications
-          </h2>
-
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#151821] overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                Latest
-              </h3>
-              {notifications.some(n => !n.read) && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                >
-                  Mark all as read
-                </button>
-              )}
-            </div>
-
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {notifications.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-sm">
-                  No notifications yet.
-                </div>
-              ) : (
-                notifications.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleNotificationClick(item)}
-                    className={`p-4 transition-colors cursor-pointer group ${!item.read ? 'bg-brand-50/50 dark:bg-brand-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-                  >
-                    <div className="flex gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`text-sm ${!item.read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-200'}`}>
-                          {item.title || 'New notification'}
-                        </h4>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                          {item.message}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-2">
-                          {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
-                        </p>
-                      </div>
-                      {!item.read && (
-                        <button
-                          onClick={(e) => handleMarkAsRead(item.id, e)}
-                          className="shrink-0 p-1.5 h-fit rounded-full bg-white border border-slate-200 text-brand-600 shadow-sm hover:bg-brand-50 dark:bg-slate-800 dark:border-slate-700 dark:text-brand-400 dark:hover:bg-brand-900/50"
-                          title="Mark as read"
-                        >
-                          <Check size={14} strokeWidth={3} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
 
       </div>
