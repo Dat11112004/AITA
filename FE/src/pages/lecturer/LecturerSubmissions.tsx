@@ -468,7 +468,7 @@ export function LecturerSubmissions() {
                         </span>
                         {r.latePenaltyAmount > 0 && (
                           <span className="text-[10px] text-rose-500 font-bold">
-                            (-{r.latePenaltyAmount}đ trễ deadline)
+                            Gốc {r.rawScore ?? r.score}đ (-{r.latePenaltyAmount}đ trễ)
                           </span>
                         )}
                       </div>

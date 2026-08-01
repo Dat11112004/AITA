@@ -435,7 +435,21 @@ export function StudentAssignmentDetail() {
   const displayScore = (submission && isPublished) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
   const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
-  const isLocked = isPastDue && !isSubmitted;
+  const allowLateSubmission = (assignment as any)?.allowLateSubmission ?? (assignment as any)?.metadata?.allowLateSubmission ?? true;
+  const isLocked = isPastDue && !allowLateSubmission;
+  const penaltyType = (assignment as any)?.latePenaltyType || (assignment as any)?.metadata?.latePenaltyType || (assignment as any)?.ExamClass?.[0]?.LatePenaltyType || 'NONE';
+  const penaltyVal = (assignment as any)?.latePenaltyValue ?? (assignment as any)?.metadata?.latePenaltyValue ?? (assignment as any)?.ExamClass?.[0]?.LatePenaltyValue ?? 2;
+
+  let latePolicyText = 'No late penalty';
+  if (!allowLateSubmission) {
+    latePolicyText = 'Late submissions blocked';
+  } else if (penaltyType === 'DAILY_POINTS') {
+    latePolicyText = `-${penaltyVal} pts / 24h late`;
+  } else if (penaltyType === 'FLAT_POINTS') {
+    latePolicyText = `-${penaltyVal} pts flat deduction`;
+  } else if (penaltyType === 'DAILY_PERCENT') {
+    latePolicyText = `-${penaltyVal}% / 24h late`;
+  }
   const fullContent = (assignment as any)?.metadata?.content || (assignment as any)?.content || (assignment as any)?.blueprint?.assignment?.description || (assignment as any)?.details;
   const rubricsList = assignment?.rubrics || (assignment as any)?.rubric?.rules || [];
 
@@ -946,6 +960,57 @@ export function StudentAssignmentDetail() {
                     </h2>
                   </div>
 
+                  {/* Late Submission Audit Card (Thẻ giải trình trừ điểm nộp trễ) */}
+                  {((submission as any)?.latePenaltyAmount > 0 || (submission as any)?.isLate) && (
+                    <div className="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-5 mb-6 shadow-xs transition-all">
+                      <div className="flex items-center justify-between pb-3 border-b border-amber-200/60 dark:border-amber-800/40">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-xl bg-amber-500 text-white font-bold shrink-0 shadow-xs">
+                            <Clock size={16} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                              Giải trình điểm nộp trễ (Late Penalty Audit)
+                            </h4>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+                              Bài nộp của bạn đã quá hạn deadline chính thức
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 text-xs font-black bg-rose-600 text-white rounded-lg shadow-2xs font-mono">
+                          -{(submission as any)?.latePenaltyAmount || 0} điểm
+                        </span>
+                      </div>
+
+                      <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Hạn nộp chính thức</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Thời gian nộp thực tế</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-amber-200/50 dark:border-amber-900/40">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Thời gian nộp trễ</span>
+                          <span className="font-extrabold text-amber-700 dark:text-amber-400">
+                            {(submission as any)?.daysLate ? `Trễ ${(submission as any).daysLate} ngày` : 'Nộp sau deadline'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-200/60 dark:border-amber-800/40 flex items-center justify-between flex-wrap gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                        <span>
+                          📊 Công thức tính điểm: <strong className="text-slate-900 dark:text-white">{((submission as any)?.rawScore ?? (submission as any)?.score ?? displayScore)} điểm gốc</strong> - <strong className="text-rose-600 dark:text-rose-400">{(submission as any)?.latePenaltyAmount || 0} đ phạt trễ</strong> = <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{displayScore} điểm chốt</strong>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {submission.aiFeedback ? (
                     <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-6 shadow-sm mb-6">
                       <div className="flex items-center gap-3 mb-4">
@@ -1111,6 +1176,14 @@ export function StudentAssignmentDetail() {
                 </div>
               ) : (
                 <>
+                  {isPastDue && allowLateSubmission && penaltyType !== 'NONE' && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-900 dark:text-amber-300 font-medium flex items-center gap-2 mb-3">
+                      <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>
+                        <strong>Overdue warning:</strong> Submitting late will automatically deduct {penaltyType === 'DAILY_POINTS' ? `${penaltyVal} pts per 24 hours` : `${penaltyVal} pts flat`}.
+                      </span>
+                    </div>
+                  )}
                   <div className="border-2 border-dashed border-blue-200 dark:border-blue-800/50 rounded-xl p-5 flex flex-col items-center justify-center text-slate-500 bg-white hover:bg-blue-50/50 dark:bg-slate-900/50 transition-colors relative cursor-pointer group">
                     <input
                       type="file"
@@ -1167,6 +1240,12 @@ export function StudentAssignmentDetail() {
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Due date</span>
                 <span className="font-medium text-red-600">{dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Late policy</span>
+                <span className={`font-bold text-xs ${!allowLateSubmission ? 'text-rose-600 dark:text-rose-400' : penaltyType !== 'NONE' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                  {latePolicyText}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Status</span>

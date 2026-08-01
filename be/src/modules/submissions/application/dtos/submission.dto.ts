@@ -89,6 +89,12 @@ export class SubmissionResponseDto {
     let rawScoreValue = submission.rawScore !== undefined && submission.rawScore !== null ? Number(submission.rawScore) : (submission.RawScore !== undefined && submission.RawScore !== null ? Number(submission.RawScore) : null);
     let latePenaltyValue = submission.latePenaltyAmount !== undefined && submission.latePenaltyAmount !== null ? Number(submission.latePenaltyAmount) : (submission.LatePenaltyAmount !== undefined && submission.LatePenaltyAmount !== null ? Number(submission.LatePenaltyAmount) : null);
 
+    const submittedAtDate = (submission.submittedAt || submission.SubmittedAt) ? new Date(submission.submittedAt || submission.SubmittedAt) : null;
+    const dueDate = submission.Exam?.DueDate ? new Date(submission.Exam.DueDate) : null;
+    const isLate = !!(submittedAtDate && dueDate && submittedAtDate > dueDate);
+    const diffMs = (isLate && submittedAtDate && dueDate) ? (submittedAtDate.getTime() - dueDate.getTime()) : 0;
+    const daysLate = diffMs > 0 ? Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))) : 0;
+
     return {
       id: submission.id || submission.Id,
       examId: submission.examId || submission.ExamId,
@@ -107,6 +113,8 @@ export class SubmissionResponseDto {
       latePenaltyAmount: isPublished ? latePenaltyValue : null,
       finalScore: isPublished ? rawFinalScore : null,
       score: isPublished ? (rawFinalScore ?? rawTotalScore) : null,
+      isLate: isLate,
+      daysLate: daysLate,
       isReopened: submission.isReopened ?? submission.IsReopened ?? false,
       reopenReason: submission.reopenReason || submission.ReopenReason || null,
       instructorFeedback: isPublished ? (submission.instructorFeedback || submission.InstructorFeedback) : null,
