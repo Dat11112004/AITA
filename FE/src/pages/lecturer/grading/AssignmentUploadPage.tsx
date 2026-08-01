@@ -416,6 +416,9 @@ export default function AssignmentUploadPage() {
 
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
         if (!selectedSemester) newErrors.semester = "Please select a semester.";
+        if (selectedClasses.length === 0) {
+            newErrors.classes = "Please select at least one class.";
+        }
         if (!metadata.dueDate) {
             newErrors.dueDate = "Please choose a due date.";
         } else if (new Date(metadata.dueDate) < new Date()) {
@@ -1131,7 +1134,7 @@ export default function AssignmentUploadPage() {
                                                     />
                                                 </div>
                                                 <div className="col-span-2 border-r border-slate-200 pr-6">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assign to classes</label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assign to classes <span className="text-rose-500">*</span></label>
                                                     <div className="flex flex-wrap gap-2">
                                                         {(() => {
                                                             const availableClasses = allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code === metadata.subject);
@@ -1141,15 +1144,12 @@ export default function AssignmentUploadPage() {
                                                                 <button
                                                                     key={c.id}
                                                                     type="button"
-                                                                    disabled={isReviewStep}
                                                                     onClick={() => {
-                                                                        if (isReviewStep) return;
                                                                         setSelectedClasses(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
                                                                         if (validationErrors.classes) setValidationErrors({ ...validationErrors, classes: undefined });
                                                                     }}
                                                                     className={classNames(
                                                                         "px-4 py-2 rounded-lg text-sm font-bold border transition-all duration-200",
-                                                                        isReviewStep && 'cursor-not-allowed opacity-70',
                                                                         selectedClasses.includes(c.id)
                                                                             ? "bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1"
                                                                             : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50/50"
