@@ -2,40 +2,40 @@ export const PRODUCT_PILLARS = [
   {
     id: 'lecturer',
     title: 'Lecturer Web Dashboard',
-    subtitle: 'Cổng giảng viên',
+    subtitle: 'Lecturer Portal',
     description:
-      'Quản lý lớp học, tạo bài tập bằng AI, duyệt nội dung, hỗ trợ chấm bài và theo dõi tiến độ sinh viên.',
+      'Manage classes, generate AI assignments, review content, support grading, and track student progress.',
     features: [
-      'Quản lý lớp học và môn học',
-      'Tạo & chỉnh sửa bài tập AI',
-      'Chấm bài & phản hồi',
-      'Báo cáo học tập',
+      'Class and subject management',
+      'Create and edit AI assignments',
+      'Grading and feedback',
+      'Learning reports',
     ],
   },
   {
     id: 'student',
     title: 'Student Learning Portal',
-    subtitle: 'Cổng sinh viên',
+    subtitle: 'Student Portal',
     description:
-      'Truy cập bài tập, nộp source code, nhận phản hồi AI và theo dõi tiến độ cá nhân.',
+      'Access assignments, submit source code, receive AI feedback, and track personal progress.',
     features: [
-      'Nhận & nộp bài trực tuyến',
-      'Nộp mã nguồn',
-      'Phản hồi AI chi tiết',
-      'Đề xuất cải thiện kỹ năng',
+      'Receive and submit assignments online',
+      'Source code submission',
+      'Detailed AI feedback',
+      'Skill improvement recommendations',
     ],
   },
   {
     id: 'ai',
     title: 'AI Engine',
-    subtitle: 'Động cơ trí tuệ nhân tạo',
+    subtitle: 'Artificial Intelligence Engine',
     description:
-      'Tạo bài tập, hỗ trợ đánh giá và phản hồi học tập cá nhân hóa — giảng viên duyệt trước khi công bố.',
+      'Generate assignments, support assessment, and provide personalized learning feedback — reviewed by lecturers before publishing.',
     features: [
       'Exercise Generation AI',
       'AI-assisted Assessment',
       'Learning Feedback AI',
-      'Điều chỉnh độ khó',
+      'Difficulty tuning',
     ],
   },
 ]
@@ -44,42 +44,42 @@ export const AI_MODULES = [
   {
     id: 'exercise-gen',
     name: 'Exercise Generation AI',
-    description: 'Tạo trắc nghiệm, bài lập trình, đề nhóm và điều chỉnh độ khó.',
+    description: 'Create quizzes, coding tasks, group projects, and tune difficulty levels.',
     status: 'ready' as const,
   },
   {
     id: 'assessment',
     name: 'AI-assisted Assessment',
-    description: 'Chấm trắc nghiệm, phân tích code, đánh giá nhóm và đóng góp thành viên.',
+    description: 'Grade quizzes, analyze code, evaluate group work, and assess member contributions.',
     status: 'ready' as const,
   },
   {
     id: 'feedback',
     name: 'Learning Feedback AI',
-    description: 'Gợi ý ôn tập, nhận xét code, hướng nâng cao và phân tích hiệu quả học tập.',
+    description: 'Provide review suggestions, code comments, advanced guidance, and learning performance analysis.',
     status: 'ready' as const,
   },
 ]
 
 export const HOME_FEATURES = [
   {
-    title: 'Giảm tải giảng viên',
-    description: 'Tự động hóa tạo bài, chấm điểm sơ bộ và tổng hợp báo cáo.',
+    title: 'Reduce Lecturer Workload',
+    description: 'Automate assignment creation, preliminary grading, and report aggregation.',
     icon: 'Zap',
   },
   {
-    title: 'Phản hồi nhanh',
-    description: 'Sinh viên nhận nhận xét trong vòng 40–60 giây (theo cấu hình AI).',
+    title: 'Fast Feedback',
+    description: 'Students receive feedback in 40–60 seconds (depending on AI configuration).',
     icon: 'Clock',
   },
   {
-    title: 'Đánh giá chuyên sâu',
-    description: 'Không chỉ test case — còn style, logic, hiệu năng và làm việc nhóm.',
+    title: 'Deep Assessment',
+    description: 'Beyond test cases: evaluates style, logic, performance, and teamwork.',
     icon: 'Code2',
   },
   {
-    title: 'Cá nhân hóa',
-    description: 'Phân tích điểm yếu và đề xuất nội dung ôn tập phù hợp.',
+    title: 'Personalization',
+    description: 'Analyze weak points and recommend suitable review content.',
     icon: 'Target',
   },
 ]

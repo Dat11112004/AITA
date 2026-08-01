@@ -78,7 +78,7 @@ class PromptGenerationStoreManager {
   }) {
     this.setState({
       isGenerating: true,
-      loadingMsg: 'Gemini đang phân tích cấu hình & khởi tạo System Prompt...',
+      loadingMsg: 'Gemini is analyzing configuration and initializing the system prompt...',
       subjectId: params.subjectId,
       promptId: params.promptId || null,
       generatedContent: null,
@@ -91,11 +91,11 @@ class PromptGenerationStoreManager {
       try {
         const res = await aiApi.generatePrompt({
           name: params.name || params.subjectCode || 'Prompt Template',
-          topic: params.topic || `Tạo đề ${params.templateType === 'quiz' ? 'trắc nghiệm' : 'tự luận'} môn ${params.subjectCode}`,
-          category: params.templateType === 'quiz' ? 'Trắc nghiệm' : 'Tự luận',
+          topic: params.topic || `Create a ${params.templateType === 'quiz' ? 'quiz' : 'essay'} for subject ${params.subjectCode}`,
+          category: params.templateType === 'quiz' ? 'Quiz' : 'Essay',
           difficulty: params.difficulty,
           subjectCode: params.subjectCode,
-          additionalNotes: `Số câu: ${params.questionCount}, Ngôn ngữ: ${params.language}, Mô tả: ${params.description}`,
+          additionalNotes: `Question count: ${params.questionCount}, Language: ${params.language}, Description: ${params.description}`,
         });
 
         const apiContent = res?.prompt || (res as any)?.data?.prompt;
@@ -110,14 +110,14 @@ class PromptGenerationStoreManager {
         isGenerating: false,
         loadingMsg: '',
         generatedContent: finalContent,
-        successMsg: 'Đã tự động tạo mẫu Prompt theo cấu hình thành công!',
+        successMsg: 'Prompt template generated successfully from your configuration!',
         isCompleted: true,
       });
     } catch (err: any) {
       this.setState({
         isGenerating: false,
         loadingMsg: '',
-        error: err.message || 'Có lỗi xảy ra khi tạo Prompt bằng AI.',
+        error: err.message || 'An error occurred while generating the prompt with AI.',
         isCompleted: false,
       });
     }
@@ -131,7 +131,7 @@ class PromptGenerationStoreManager {
   }) {
     this.setState({
       isGenerating: true,
-      loadingMsg: 'Gemini đang tối ưu hóa & định dạng lại System Prompt...',
+      loadingMsg: 'Gemini is optimizing and reformatting the system prompt...',
       subjectId: params.subjectId,
       promptId: params.promptId || null,
       generatedContent: null,
@@ -149,21 +149,21 @@ class PromptGenerationStoreManager {
       }
 
       if (!refinedContent) {
-        refinedContent = `Bạn là một chuyên gia/giảng viên hàng đầu thuộc môn học ${params.subjectCode || 'CNTT'}.\n\nNhiệm vụ chính:\n${params.content.trim()}\n\nYêu cầu đầu ra:\n- Trình bày mạch lạc, chuyên nghiệp.\n- Hỗ trợ các biến: {assignment_name}, {student_code}, {requirements}.\n- Định dạng phản hồi: Markdown chuẩn.`;
+        refinedContent = `You are a top expert/lecturer in subject ${params.subjectCode || 'IT'}.\n\nPrimary task:\n${params.content.trim()}\n\nOutput requirements:\n- Present content clearly and professionally.\n- Support variables: {assignment_name}, {student_code}, {requirements}.\n- Response format: standard Markdown.`;
       }
 
       this.setState({
         isGenerating: false,
         loadingMsg: '',
         generatedContent: refinedContent,
-        successMsg: 'Đã chỉnh sửa và định dạng Prompt bằng AI!',
+        successMsg: 'Prompt refined and formatted by AI successfully!',
         isCompleted: true,
       });
     } catch (err: any) {
       this.setState({
         isGenerating: false,
         loadingMsg: '',
-        error: err.message || 'Có lỗi xảy ra khi chỉnh sửa Prompt bằng AI.',
+        error: err.message || 'An error occurred while refining the prompt with AI.',
         isCompleted: false,
       });
     }

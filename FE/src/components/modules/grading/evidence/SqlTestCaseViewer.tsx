@@ -34,10 +34,10 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
       <div className="flex items-center justify-between">
         <h4 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
           <Database size={17} className="text-emerald-500" />
-          <span>Bằng chứng Thực thi SQL (Sandbox Execution Evidence)</span>
+          <span>SQL Execution Evidence (Sandbox Execution Evidence)</span>
         </h4>
         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          {testCases.filter(c => c.passed).length}/{testCases.length} Test Cases Đạt
+          {testCases.filter(c => c.passed).length}/{testCases.length} Test Cases Passed
         </span>
       </div>
 
@@ -86,7 +86,7 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                           ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                           : "bg-rose-500/20 text-rose-700 dark:text-rose-300"
                       )}>
-                        {tc.passed ? 'ĐẠT (PASSED)' : 'KHÔNG ĐẠT (FAILED)'}
+                        {tc.passed ? 'PASSED' : 'FAILED'}
                       </span>
                     </div>
 
@@ -112,7 +112,7 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 transition-colors shrink-0 cursor-pointer"
                   >
                     {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-                    <span>{isExpanded ? 'Thu gọn' : `Xem toàn bộ ${totalExpectedRows} dòng`}</span>
+                    <span>{isExpanded ? 'Collapse' : `View all ${totalExpectedRows} rows`}</span>
                   </button>
                 )}
               </div>
@@ -123,10 +123,10 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <span className="font-semibold flex items-center gap-1">
                       <Table size={14} className="text-emerald-500" />
-                      Đối chiếu kết quả truy vấn thực tế:
+                      Actual query result comparison:
                     </span>
                     <span className="font-mono text-[11px] bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                      {totalExpectedRows} Dòng × {tc.expectedColumns?.length || 0} Cột (Hiển thị đầy đủ)
+                      {totalExpectedRows} Rows × {tc.expectedColumns?.length || 0} Columns (Full display)
                     </span>
                   </div>
 
@@ -136,10 +136,10 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                       <div className="flex items-center justify-between mb-1.5">
                         <h6 className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
                           <Layers size={13} className="text-blue-500" />
-                          Kết quả Kỳ vọng (Đáp án Mẫu)
+                          Expected Result (Reference Answer)
                         </h6>
                         <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                          {totalExpectedRows} dòng
+                          {totalExpectedRows} rows
                         </span>
                       </div>
                       <div className={classNames(
@@ -172,7 +172,7 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                             ) : (
                               <tr>
                                 <td colSpan={(tc.expectedColumns?.length || 1) + 1} className="px-3 py-3 text-center text-slate-400 italic font-sans">
-                                  Không có dữ liệu
+                                  No data
                                 </td>
                               </tr>
                             )}
@@ -186,10 +186,10 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                       <div className="flex items-center justify-between mb-1.5">
                         <h6 className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
                           <FileCode2 size={13} className="text-emerald-500" />
-                          Kết quả Bài làm Sinh viên
+                          Student Submission Result
                         </h6>
                         <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                          {totalActualRows} dòng
+                          {totalActualRows} rows
                         </span>
                       </div>
                       <div className={classNames(
@@ -204,7 +204,7 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                                 <th key={i} className="px-2.5 py-1.5 font-bold border-r border-slate-200/60 dark:border-slate-700/60 last:border-r-0">{col}</th>
                               ))}
                               {(!tc.actualColumns || tc.actualColumns.length === 0) && (
-                                <th className="px-2.5 py-1.5 font-bold">Kết quả</th>
+                                <th className="px-2.5 py-1.5 font-bold">Result</th>
                               )}
                             </tr>
                           </thead>
@@ -225,7 +225,7 @@ export default function SqlTestCaseViewer({ testCases }: Props) {
                             ) : (
                               <tr>
                                 <td colSpan={(tc.actualColumns?.length || 1) + 1} className="px-3 py-3 text-center text-slate-400 italic font-sans">
-                                  Không có dữ liệu
+                                  No data
                                 </td>
                               </tr>
                             )}

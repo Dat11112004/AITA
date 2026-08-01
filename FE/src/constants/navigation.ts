@@ -31,13 +31,13 @@ export const STUDENT_NAV: NavItem[] = [
 ]
 
 export const PUBLIC_NAV = [
-  { label: 'Trang chủ', href: '/' },
-  { label: 'Giới thiệu', href: '/about' },
-  { label: 'Tính năng', href: '/features' },
+  { label: 'Home', href: '/' },
+  { label: 'About', href: '/about' },
+  { label: 'Features', href: '/features' },
   { label: 'Demo', href: '/pillars' },
 ]
 
 export const PORTAL_LINKS = [
-  { role: 'lecturer' as const, label: 'Giảng viên', path: '/login?redirect=/lecturer', description: 'Lớp học, bài tập & chấm điểm' },
-  { role: 'student' as const, label: 'Sinh viên', path: '/login?redirect=/student', description: 'Học tập & phản hồi AI' },
+  { role: 'lecturer' as const, label: 'Lecturer', path: '/login?redirect=/lecturer', description: 'Classes, assignments, and grading' },
+  { role: 'student' as const, label: 'Student', path: '/login?redirect=/student', description: 'Learning and AI feedback' },
 ]

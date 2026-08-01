@@ -55,7 +55,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
         return newFiles;
       });
     } else {
-      alert(`Không tìm thấy file hợp lệ. Vui lòng đảm bảo file có định dạng ${accept}.`);
+      alert(`No valid files found. Please ensure files match the supported format: ${accept}.`);
     }
   };
 
@@ -137,10 +137,10 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
             
             <div className="relative z-10">
               <p className="font-bold text-[22px] dark:text-white text-slate-900 mb-1.5">
-                Kéo & thả file hoặc thư mục vào đây
+                Drag and drop files or a folder here
               </p>
               <p className="text-[15px] text-slate-500">
-                Bạn có thể thả nhiều file {accept} cùng lúc hoặc cả một thư mục.
+                You can drop multiple {accept} files at once or an entire folder.
               </p>
             </div>
             
@@ -150,20 +150,20 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                   className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#5858ff] hover:bg-[#4b4be5] text-white font-semibold transition-colors shadow-sm text-[15px]"
               >
                   <Upload size={18} />
-                  Chọn file
+                    Select files
               </button>
               <button 
                   onClick={() => folderInputRef.current?.click()}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm text-[15px]"
               >
                   <Folder size={18} />
-                  Chọn thư mục
+                    Select folder
               </button>
             </div>
             
             <div className="flex items-center gap-1.5 mt-2 text-[13px] text-slate-500 font-medium relative z-10">
               <Lock size={13} className="text-slate-400" />
-              <span>Dung lượng tối đa: 500MB | Hỗ trợ: {accept}</span>
+              <span>Max size: 500MB | Supported: {accept}</span>
             </div>
           </div>
 
@@ -194,17 +194,17 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                   <div className="flex items-center gap-2">
                       <FileBadge className="text-[#5858ff]" size={20} />
                       <h3 className="text-[16px] font-bold text-slate-900 dark:text-white">
-                          File đã chọn ({selectedFiles.length})
+                          Selected files ({selectedFiles.length})
                       </h3>
                   </div>
                   <div className="flex items-center gap-6">
-                      <span className="text-[14px] text-slate-500">Tổng dung lượng: {totalSizeMB.toFixed(2)} MB</span>
+                        <span className="text-[14px] text-slate-500">Total size: {totalSizeMB.toFixed(2)} MB</span>
                       <button 
                           onClick={removeAllFiles}
                           disabled={isUploading}
                           className="flex items-center gap-1.5 text-[14px] font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
                       >
-                          <Trash2 size={16} /> Xóa tất cả
+                          <Trash2 size={16} /> Remove all
                       </button>
                   </div>
               </div>
@@ -220,7 +220,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                               <div className="flex flex-col">
                                   <span className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{file.name}</span>
                                   <span className="text-[13px] text-slate-500">
-                                      {(file.size / 1024 / 1024).toFixed(2)} MB • Đã thêm lúc {new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                                      {(file.size / 1024 / 1024).toFixed(2)} MB • Added at {new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}
                                   </span>
                               </div>
                           </div>
@@ -249,8 +249,8 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                     <ShieldAlert className="text-[#5858ff] dark:text-indigo-400" size={24} />
                 </div>
                 <div className="flex flex-col justify-center">
-                    <p className="text-[15px] font-bold text-indigo-950 dark:text-indigo-200 mb-1">Sau khi bắt đầu, AI sẽ tự động đánh giá tất cả bài nộp.</p>
-                    <p className="text-[14px] text-indigo-800/70 dark:text-indigo-400/80 font-medium">Bạn có thể theo dõi tiến trình trong trang Giám sát chấm điểm.</p>
+                  <p className="text-[15px] font-bold text-indigo-950 dark:text-indigo-200 mb-1">After starting, AI will automatically evaluate all submissions.</p>
+                  <p className="text-[14px] text-indigo-800/70 dark:text-indigo-400/80 font-medium">You can track progress on the grading monitor page.</p>
                 </div>
             </div>
             <div className="w-full md:w-[350px]">
@@ -261,9 +261,9 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                 >
                     <div className="flex items-center gap-2 font-bold text-[17px] mb-1">
                         <Play size={20} fill="currentColor" />
-                        Bắt đầu chấm điểm ({selectedFiles.length} file)
+                      Start grading ({selectedFiles.length} files)
                     </div>
-                    <span className="text-[13px] opacity-90 font-medium">AI sẽ xử lý trong nền, bạn có thể rời trang.</span>
+                    <span className="text-[13px] opacity-90 font-medium">AI will process in the background; you can leave this page.</span>
                 </button>
             </div>
         </div>
