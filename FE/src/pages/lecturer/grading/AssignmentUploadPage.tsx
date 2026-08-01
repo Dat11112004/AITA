@@ -416,7 +416,6 @@ export default function AssignmentUploadPage() {
 
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
         if (!selectedSemester) newErrors.semester = "Please select a semester.";
-        if (selectedClasses.length === 0) newErrors.classes = "Select at least one class to assign this to.";
         if (!metadata.dueDate) {
             newErrors.dueDate = "Please choose a due date.";
         } else if (new Date(metadata.dueDate) < new Date()) {
