@@ -167,9 +167,9 @@ export function Profile() {
     <>
       <div className="space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500">
         <PageHeader
-          title="Hồ sơ Cá nhân"
-          description="Quản lý thông tin cá nhân và bảo mật tài khoản của bạn."
-          breadcrumbs={[{ label: 'Hồ sơ' }]}
+          title="Profile User"
+          description="Manage your personal information and keep your account secure."
+          breadcrumbs={[{ label: 'Profile' }]}
         />
 
         <div className="grid md:grid-cols-3 gap-8">
