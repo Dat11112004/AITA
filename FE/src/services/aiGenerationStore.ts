@@ -97,7 +97,7 @@ class AiGenerationStoreManager {
 
     this.setState({
       isGenerating: true,
-      loadingMsg: 'Gemini is generating the assignment content...',
+      loadingMsg: 'AITA is generating the assignment content...',
       progress: 20,
       error: null,
       result: null,
