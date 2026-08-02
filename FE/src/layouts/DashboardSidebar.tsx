@@ -66,7 +66,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
         {!collapsed && (
           <div className="min-w-0">
             <p className="text-[15px] font-bold text-white leading-none">AITA</p>
-            <p className="mt-0.5 truncate text-[11px] text-white/50 leading-none">{roleLabel}</p>
+            <p className="mt-0.5 truncate text-[11px] text-white/50 leading-none">{t(`role.${String(role).toLowerCase()}`, roleLabel)}</p>
           </div>
         )}
       </div>
@@ -158,7 +158,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
           `}
         >
           <Home size={18} className="shrink-0 transition-transform group-hover:scale-105" />
-          {!collapsed && <span>Home</span>}
+          {!collapsed && <span>{t('ui.home')}</span>}
           {collapsed && (
             <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
               Home
@@ -177,7 +177,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
             ${collapsed ? 'justify-center px-3' : ''}
           `}
         >
-          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Collapse</span></>}
+          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>{t('ui.collapse')}</span></>}
         </button>
       </div>
     </aside>

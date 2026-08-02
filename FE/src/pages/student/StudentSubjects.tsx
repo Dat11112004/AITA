@@ -521,7 +521,7 @@ export function StudentSubjects() {
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock size={20} className="text-slate-400" />
-                Assignments due soon
+                {t('st.subjects.due_soon')}
               </h3>
               <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">{t('st.subjects.view_all')}</button>
             </div>
@@ -549,7 +549,7 @@ export function StudentSubjects() {
                 )
               }) : (
                 <div className="text-sm font-medium text-slate-400 text-center py-6 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  No assignments due soon
+                  {t('st.subjects.no_due_soon')}
                 </div>
               )}
             </div>
@@ -560,7 +560,7 @@ export function StudentSubjects() {
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar size={20} className="text-slate-400" />
-                Upcoming exams
+                {t('st.subjects.upcoming_exams')}
               </h3>
               <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">{t('st.subjects.view_all')}</button>
             </div>
@@ -587,7 +587,7 @@ export function StudentSubjects() {
                 )
               }) : (
                 <div className="text-sm font-medium text-slate-400 text-center py-6 bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                  No upcoming exams
+                  {t('st.subjects.no_upcoming_exams')}
                 </div>
               )}
             </div>
