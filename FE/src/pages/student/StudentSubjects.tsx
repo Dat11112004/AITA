@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { BookOpen, FileText, Loader2, Calendar, Clock, ChevronDown, ChevronUp, Database, Code, Info, ChevronRight } from 'lucide-react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, type AssignmentRow } from '@/lib/api'
 
 type LecturerInfo = {
@@ -20,6 +21,7 @@ type SubjectInfo = {
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
 
 export function StudentSubjects() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [subjects, setSubjects] = useState<SubjectInfo[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
@@ -191,12 +193,12 @@ export function StudentSubjects() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
               <div>
                 <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
-                  <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">Home</Link>
+                  <Link to="/student" className="hover:text-slate-600 cursor-pointer transition-colors">{t('st.subjects.home')}</Link>
                   <ChevronRight size={14} />
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Results</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{t('st.subjects.results')}</span>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Results & Assignments</h1>
-                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">Track your scores, assignment and exam results, and learning progress for the {selectedSemester} semester.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{t('st.subjects.title')}</h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl text-base">{t('st.subjects.desc', { semester: selectedSemester })}</p>
               </div>
               <SemesterSelector
                 selectedSemester={selectedSemester}
@@ -222,7 +224,7 @@ export function StudentSubjects() {
             {subjects.length === 0 ? (
               <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-500 shadow-sm flex flex-col items-center">
                 <BookOpen size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
-                You are not enrolled in any subject yet.
+                {t('st.subjects.not_enrolled')}
               </div>
             ) : (
               visibleSubjects.map(sub => {
@@ -270,11 +272,11 @@ export function StudentSubjects() {
                             </div>
                           )}
                           <div className="flex items-center gap-2 text-sm text-slate-500 mt-1.5 font-medium">
-                            <span>{hwCount} assignments</span>
+                            <span>{t('st.subjects.n_assignments', { count: hwCount })}</span>
                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                            <span>{examCount} exams</span>
+                            <span>{t('st.subjects.n_exams', { count: examCount })}</span>
                             <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                            <span>{completionRate}% complete</span>
+                            <span>{t('st.subjects.n_complete', { percent: completionRate })}</span>
                           </div>
                         </div>
                       </div>
@@ -290,7 +292,7 @@ export function StudentSubjects() {
                               .slice(0, 3)
 
                             if (graded.length === 0) {
-                              return <div className="text-sm font-medium text-slate-400">No graded work yet</div>
+                              return <div className="text-sm font-medium text-slate-400">{t('st.subjects.no_graded')}</div>
                             }
 
                             return graded.map((g, i) => (
@@ -319,7 +321,7 @@ export function StudentSubjects() {
                         {displayAssignments.length === 0 ? (
                           <div className="text-center p-8 text-slate-500 italic flex flex-col items-center bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
                             <FileText size={32} className="text-slate-300 mb-3" />
-                            No data matches this filter.
+                            {t('st.subjects.no_match')}
                           </div>
                         ) : (
                           <div className="space-y-8">
@@ -327,7 +329,7 @@ export function StudentSubjects() {
                             {displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
                               <div>
                                 <div className="flex items-center justify-between mb-4 px-1">
-                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Assignments</h4>
+                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">{t('st.subjects.assignments')}</h4>
                                   <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
                                     View all assignments ({displayAssignments.filter(a => a.type !== 'Exam').length})
                                   </button>
@@ -336,11 +338,11 @@ export function StudentSubjects() {
                                   <table className="w-full text-sm text-left">
                                     <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                       <tr>
-                                        <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider">Due date</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">{t('st.subjects.col_title')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">{t('st.subjects.col_due')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">{t('st.subjects.col_status')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">{t('st.subjects.col_score')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">{t('st.subjects.col_actions')}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
@@ -393,7 +395,7 @@ export function StudentSubjects() {
                             {displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
                               <div>
                                 <div className="flex items-center justify-between mb-4 px-1">
-                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exams</h4>
+                                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">{t('st.subjects.exams')}</h4>
                                   <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
                                     View all exams ({displayAssignments.filter(a => a.type === 'Exam').length})
                                   </button>
@@ -402,11 +404,11 @@ export function StudentSubjects() {
                                   <table className="w-full text-sm text-left">
                                     <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                       <tr>
-                                        <th className="px-5 py-4 font-semibold tracking-wider">Title</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider">Date</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Status</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">Score</th>
-                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">Actions</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">{t('st.subjects.col_title')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider">{t('st.subjects.col_date')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">{t('st.subjects.col_status')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-center">{t('st.subjects.col_score')}</th>
+                                        <th className="px-5 py-4 font-semibold tracking-wider text-right">{t('st.subjects.col_actions')}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
@@ -472,29 +474,29 @@ export function StudentSubjects() {
         <div className="space-y-6">
           {/* Overview */}
           <div className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
-            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">Learning overview</h3>
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-6">{t('st.subjects.overview')}</h3>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-blue-600 mb-1">{stats.total}</div>
-                <div className="text-sm font-medium text-slate-500">Total assignments</div>
+                <div className="text-sm font-medium text-slate-500">{t('st.subjects.total')}</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-emerald-600 mb-1">{stats.submitted}</div>
-                <div className="text-sm font-medium text-slate-500">Submitted</div>
+                <div className="text-sm font-medium text-slate-500">{t('st.subjects.submitted')}</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-orange-500 mb-1">{stats.missing}</div>
-                <div className="text-sm font-medium text-slate-500">Not submitted</div>
+                <div className="text-sm font-medium text-slate-500">{t('st.subjects.not_submitted')}</div>
               </div>
               <div className="bg-white dark:bg-[#1a1d27] rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="text-3xl font-bold text-slate-700 dark:text-slate-300 mb-1">{stats.graded}</div>
-                <div className="text-sm font-medium text-slate-500">Graded</div>
+                <div className="text-sm font-medium text-slate-500">{t('st.subjects.graded')}</div>
               </div>
             </div>
 
             <div className="mb-6">
-              <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Average score</div>
+              <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">{t('st.subjects.avg_score')}</div>
               <div className="flex items-end justify-between">
                 <div className="text-[2.5rem] leading-none font-bold text-blue-600">{stats.avgScore}</div>
                 <div className="w-28 h-12 relative text-blue-500">
@@ -509,7 +511,7 @@ export function StudentSubjects() {
             {/* "Your ranking: Top 28%" was a fixed string shown to every student.
                 There is no ranking endpoint, so state what the average is based on. */}
             <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
-              <span>Average across <strong className="text-slate-800 dark:text-slate-200">{stats.graded}</strong> graded item(s)</span>
+              <span>{t('st.subjects.avg_across', { count: stats.graded })}</span>
               <Info size={16} className="text-slate-400 ml-auto" />
             </div>
           </div>
@@ -521,7 +523,7 @@ export function StudentSubjects() {
                 <Clock size={20} className="text-slate-400" />
                 Assignments due soon
               </h3>
-              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
+              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">{t('st.subjects.view_all')}</button>
             </div>
 
             <div className="space-y-4">
@@ -560,7 +562,7 @@ export function StudentSubjects() {
                 <Calendar size={20} className="text-slate-400" />
                 Upcoming exams
               </h3>
-              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">View all</button>
+              <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">{t('st.subjects.view_all')}</button>
             </div>
 
             <div className="space-y-4">
