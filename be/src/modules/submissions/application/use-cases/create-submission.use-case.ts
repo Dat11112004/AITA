@@ -44,6 +44,23 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
 
       if (matchingClass) {
         classId = matchingClass.ClassId;
+      } else {
+        // An exam is not always attached to a class (ExamClass can be empty), which made
+        // submission impossible even though the student is plainly enrolled in a class for
+        // its subject. Fall back to that enrolment — the same relationship the subject list
+        // and the lecturer lookup use. Still scoped to classes this student belongs to, so
+        // it cannot open up a subject they are not enrolled in.
+        const subjectId = (exam as any)?.subjectId ?? (exam as any)?.SubjectId
+        if (subjectId) {
+          const enrolledForSubject = await prisma.class.findFirst({
+            where: {
+              SubjectId: subjectId,
+              StudentClass: { some: { UserId: user.id } }
+            },
+            select: { Id: true }
+          });
+          if (enrolledForSubject) classId = enrolledForSubject.Id;
+        }
       }
     }
 
