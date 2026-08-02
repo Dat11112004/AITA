@@ -13,7 +13,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
     email: ['email', 'gmail'],
     subjects: ['môn dạy', 'mon day', 'subjects'],
     classes: ['lớp dạy', 'lop day', 'classes'],
-    avatar: ['hình ảnh', 'hinh anh', 'avatar']
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture']
 }
 
 function getField(row: ImportLecturerRow, key: keyof typeof HEADER_ALIASES): string | undefined {

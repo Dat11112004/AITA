@@ -309,11 +309,18 @@ export function LecturerClassDetail() {
                                 <img 
                                   src={r.avatar} 
                                   alt={r.name} 
-                                  className="w-full h-full object-cover" 
-                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                                  className="w-full h-full object-cover relative z-10" 
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                    const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'block';
+                                  }}
                                 />
                               ) : null}
-                              <span className="font-extrabold text-white text-3xl tracking-wider select-none">
+                              <span 
+                                style={{ display: r.avatar ? 'none' : 'block' }}
+                                className="font-extrabold text-white text-3xl tracking-wider select-none"
+                              >
                                 {initials || 'ST'}
                               </span>
                             </div>

@@ -1,38 +1,25 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar, Bell, Check } from 'lucide-react'
+import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
-import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
 export function StudentOverview() {
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [notifications, setNotifications] = useState<any[]>([])
   const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
-
-  const fetchNotifs = useCallback(async () => {
-    try {
-      const notifData = await api.getNotifications(1, 5)
-      setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
-    } catch (e) { }
-  }, [])
 
   const loadData = useCallback(() => {
     let alive = true
     setLoading(true)
     setError(null)
-    Promise.all([
-      api.getStudentDashboard(),
-      api.getNotifications(1, 5).catch(() => [])
-    ])
-      .then(([data, notifData]) => {
+    api.getStudentDashboard()
+      .then((data) => {
         if (alive) {
           setDashboardData(data || {})
-          setNotifications(Array.isArray(notifData) ? notifData : (notifData?.data || []))
         }
       })
       .catch(err => { if (alive) setError(err) })
@@ -42,12 +29,10 @@ export function StudentOverview() {
 
   useEffect(() => {
     const cleanup = loadData()
-    const unsubscribeNotifs = subscribeNotificationEvents(() => fetchNotifs())
     return () => {
       cleanup()
-      unsubscribeNotifs()
     }
-  }, [loadData, fetchNotifs])
+  }, [loadData])
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
@@ -73,39 +58,6 @@ export function StudentOverview() {
     const hours = Math.floor(diffMs / (1000 * 3600))
     const minutes = Math.floor((diffMs % (1000 * 3600)) / (1000 * 60))
     timeRemainingText = hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`
-  }
-
-  const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, isRead: true } : n))
-    try {
-      await api.markNotificationAsRead(id)
-      emitNotificationEvent()
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const handleNotificationClick = async (item: any) => {
-    if (!item.read && !item.isRead) {
-      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true, isRead: true } : n))
-      api.markNotificationAsRead(item.id).catch(console.error)
-      emitNotificationEvent()
-    }
-    const targetId = item.referenceId || item.ReferenceId
-    if (targetId) {
-      navigate(`/student/assignments/${targetId}`)
-    }
-  }
-
-  const handleMarkAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })))
-    try {
-      await api.markAllNotificationsAsRead()
-      emitNotificationEvent()
-    } catch (e) {
-      console.error(e)
-    }
   }
 
   return (
@@ -241,8 +193,8 @@ export function StudentOverview() {
               )}
             </div>
             <div className="p-3 text-center border-t border-slate-100 dark:border-slate-800">
-              <Link to="/student/assignments" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                View all assignments
+              <Link to="/student/courses" className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                View all subjects
               </Link>
             </div>
           </div>

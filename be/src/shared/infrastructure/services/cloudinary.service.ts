@@ -30,7 +30,7 @@ export class CloudinaryService {
           resolve(result as UploadApiResponse);
         }
       );
-      
+
       // End the stream with the buffer
       uploadStream.end(fileBuffer);
     });
@@ -49,7 +49,7 @@ export class CloudinaryService {
 
     try {
       const timestamp = Math.floor(Date.now() / 1000).toString();
-      
+
       // Generate SHA-1 signature
       // The parameters to sign must be in alphabetical order. 
       // We only have timestamp for a basic URL upload.

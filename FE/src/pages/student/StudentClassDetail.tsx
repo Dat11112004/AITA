@@ -239,15 +239,25 @@ export function StudentClassDetail() {
                         {idx + 1}
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="relative w-[111px] h-[146px]">
-                          <img
-                            src={getAvatarUrl(student.avatar, student.fullName)}
-                            alt={student.fullName}
-                            className="w-full h-full object-cover shadow-sm"
-                            onError={(e) => {
-                              ;(e.target as HTMLElement).setAttribute('src', `https://ui-avatars.com/api/?name=${encodeURIComponent(student.fullName || 'Student')}&background=4f46e5&color=fff&bold=true`)
-                            }}
-                          />
+                        <div className="relative w-[111px] h-[146px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm shrink-0 bg-[#4f46e5] flex items-center justify-center">
+                          {student.avatar ? (
+                            <img
+                              src={student.avatar}
+                              alt={student.fullName}
+                              className="w-full h-full object-cover relative z-10"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                                const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
+                          <span
+                            style={{ display: student.avatar ? 'none' : 'block' }}
+                            className="font-extrabold text-white text-3xl tracking-wider select-none"
+                          >
+                            {((student.fullName || 'ST').trim().split(/\s+/).pop()?.[0] || 'S').toUpperCase()}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4">

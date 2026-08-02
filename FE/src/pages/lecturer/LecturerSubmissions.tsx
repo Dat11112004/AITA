@@ -378,6 +378,7 @@ export function LecturerSubmissions() {
                 key: 'photo',
                 header: 'Photo',
                 render: (r: any) => {
+                  const avatarUrl = r.photo || r.avatar
                   const parts = (r.name || '').trim().split(/\s+/)
                   const initials = parts.length === 1
                     ? parts[0].slice(0, 2).toUpperCase()
@@ -385,15 +386,22 @@ export function LecturerSubmissions() {
                   return (
                     <div className="flex items-center justify-center py-2">
                       <div className="relative w-[111px] h-[146px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm shrink-0 bg-[#4f46e5] flex items-center justify-center">
-                        {r.photo ? (
+                        {avatarUrl ? (
                           <img
-                            src={r.photo}
+                            src={avatarUrl}
                             alt={r.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                            className="w-full h-full object-cover relative z-10"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'block';
+                            }}
                           />
                         ) : null}
-                        <span className="font-extrabold text-white text-3xl tracking-wider select-none">
+                        <span 
+                          style={{ display: avatarUrl ? 'none' : 'block' }}
+                          className="font-extrabold text-white text-3xl tracking-wider select-none"
+                        >
                           {initials || 'ST'}
                         </span>
                       </div>

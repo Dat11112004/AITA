@@ -17,7 +17,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
     fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'tên', 'name'],
     email: ['email', 'gmail'],
     phone: ['số điện thoại', 'so dien thoai', 'sđt', 'sdt', 'phone'],
-    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh']
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture']
 }
 
 function getField(row: ImportLecturerRow, key: keyof typeof HEADER_ALIASES): string | undefined {
@@ -172,12 +172,15 @@ export class ImportLecturersExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
-                    let secureAvatarUrl: string | null = null;
-                    if (avatarUrlRaw && avatarUrlRaw.startsWith('http')) {
+                    let secureAvatarUrl: string | null = (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) ? avatarUrlRaw.trim() : null;
+                    if (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) {
                         try {
-                            secureAvatarUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw);
+                            const uploadedUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw.trim());
+                            if (uploadedUrl) {
+                                secureAvatarUrl = uploadedUrl;
+                            }
                         } catch (err) {
-                            console.warn(`Lỗi upload avatar cho ${email}:`, err);
+                            console.warn(`Lỗi re-upload avatar cho ${email}, sử dụng URL gốc:`, err);
                         }
                     }
 

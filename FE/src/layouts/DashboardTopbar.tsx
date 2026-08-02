@@ -119,12 +119,22 @@ export function DashboardTopbar(_props: Props) {
             "
           >
             {/* Avatar */}
-            <div className={`flex h-9 w-9 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[12px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
+            <div className={`relative flex h-9 w-9 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[12px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
               {user?.avatar ? (
-                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                initials(user?.fullName)
-              )}
+                <img 
+                  src={user.avatar} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover relative z-10" 
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                    const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'block';
+                  }}
+                />
+              ) : null}
+              <span style={{ display: user?.avatar ? 'none' : 'block' }}>
+                {initials(user?.fullName)}
+              </span>
             </div>
             <div className="hidden sm:block text-left min-w-0">
               <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-none truncate max-w-[110px]">
@@ -152,12 +162,22 @@ export function DashboardTopbar(_props: Props) {
             ">
               {/* User info */}
               <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-                <div className={`flex h-11 w-11 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[14px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
+                <div className={`relative flex h-11 w-11 shrink-0 overflow-hidden items-center justify-center rounded-md bg-gradient-to-br ${avatarGradient} text-[14px] font-bold text-white shadow-sm border border-slate-200/50 dark:border-slate-700`}>
                   {user?.avatar ? (
-                    <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    initials(user?.fullName)
-                  )}
+                    <img 
+                      src={user.avatar} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover relative z-10" 
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'block';
+                      }}
+                    />
+                  ) : null}
+                  <span style={{ display: user?.avatar ? 'none' : 'block' }}>
+                    {initials(user?.fullName)}
+                  </span>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 truncate">{user?.fullName}</p>

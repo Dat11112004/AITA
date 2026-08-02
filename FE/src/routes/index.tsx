@@ -46,9 +46,7 @@ import { PromptListBySubject } from '@/pages/lecturer/prompt/PromptListBySubject
 import { PromptCreateEdit } from '@/pages/lecturer/prompt/PromptCreateEdit'
 
 import { StudentOverview } from '@/pages/student/StudentOverview'
-import { StudentAssignments } from '@/pages/student/StudentAssignments'
 import { StudentAssignmentDetail } from '@/pages/student/StudentAssignmentDetail'
-import { StudentAIFeedback } from '@/pages/student/StudentAIFeedback'
 import { StudentSubjects } from '@/pages/student/StudentSubjects'
 import { StudentCourses } from '@/pages/student/StudentCourses'
 import { StudentClasses } from '@/pages/student/StudentClasses'
@@ -158,9 +156,8 @@ export function AppRoutes() {
         <Route path="classes" element={<StudentClasses />} />
         <Route path="subjects" element={<StudentSubjects />} />
         <Route path="classes/:id" element={<StudentClassDetail />} />
-        <Route path="assignments" element={<StudentAssignments />} />
+        <Route path="assignments" element={<Navigate to="/student/courses" replace />} />
         <Route path="assignments/:id" element={<StudentAssignmentDetail />} />
-        <Route path="assignments/:id/feedback" element={<StudentAIFeedback />} />
         <Route path="grading/result/:id" element={<ResultPage />} />
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="profile" element={<Profile />} />

@@ -8,7 +8,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api, type UserRow } from '@/lib/api'
-import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical } from 'lucide-react'
+import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical, ChevronDown } from 'lucide-react'
 
 const ROLE_TABS = [
   { id: 'all', label: 'All' },
@@ -32,8 +32,8 @@ const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && 
-          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
@@ -108,6 +108,7 @@ export function AdminUsers() {
   // Kept separate from `error`, which every panel renders — a delete failure used
   // to surface inside whichever import panel happened to be open.
   const [bulkDeleteResult, setBulkDeleteResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [showLecturerImport, setShowLecturerImport] = useState(false)
   const [showAssignmentImport, setShowAssignmentImport] = useState(false)
@@ -120,7 +121,7 @@ export function AdminUsers() {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [selectedUserDetail, setSelectedUserDetail] = useState<any>(null)
-  const [availableClassCodes, setAvailableClassCodes] = useState<Record<string, {classId: string, classCode: string, studentCount: number}[]>>({})
+  const [availableClassCodes, setAvailableClassCodes] = useState<Record<string, { classId: string, classCode: string, studentCount: number }[]>>({})
   const [semesterFilter, setSemesterFilter] = useState<string>('')
   const [subjectsBySemester, setSubjectsBySemester] = useState<Record<string, any[]>>({})
   const [allSemesters, setAllSemesters] = useState<any[]>([])
@@ -143,16 +144,16 @@ export function AdminUsers() {
       let hasChanges = false;
       const promises: Promise<void>[] = [];
       const newCodesMap = { ...availableClassCodes };
-      
+
       subjects.forEach(subj => {
         const key = `${semesterFilter}_${subj.SubjectCode}`;
         if (!newCodesMap[key]) {
-           promises.push(
-             api.getClassCodes(semesterFilter, subj.SubjectCode).then(codes => {
-               newCodesMap[key] = codes;
-               hasChanges = true;
-             })
-           );
+          promises.push(
+            api.getClassCodes(semesterFilter, subj.SubjectCode).then(codes => {
+              newCodesMap[key] = codes;
+              hasChanges = true;
+            })
+          );
         }
       });
       if (promises.length > 0) {
@@ -209,7 +210,7 @@ export function AdminUsers() {
     try {
       const details = await api.getUser(user.id)
       const classes = [...(details.enrolledClasses || []), ...(details.instructingClasses || [])]
-      
+
       // Deduplicate: keep only one row per subject+semester combo (pick the most-recent)
       const seen = new Map<string, any>();
       for (const c of classes) {
@@ -223,7 +224,7 @@ export function AdminUsers() {
       }
       const dedupedClasses = Array.from(seen.values());
       setEditingUserClasses(dedupedClasses)
-      
+
       // Default filter to the most recent enrolled semester, or the first available semester
       const uniqueSems = Array.from(new Set(classes.map((c: any) => c.semesterCode).filter(Boolean))) as string[];
       uniqueSems.sort((a, b) => {
@@ -282,14 +283,14 @@ export function AdminUsers() {
         const updatedClasses = editingUserClasses
           .filter((c: any) => c.newClassCode && (c.newClassCode !== c.classCode || c.isNew))
           .flatMap((c: any) => {
-             if (c.isNew) {
-               return [{ newClassCode: c.newClassCode, newSubjectCode: c.subjectCode, semesterCode: c.semesterCode, isNew: true }];
-             }
-             return (c.allClassIds || [c.classId]).map((id: string) => ({
-               classId: id,
-               newClassCode: c.newClassCode,
-               newSubjectCode: c.newSubjectCode
-             }))
+            if (c.isNew) {
+              return [{ newClassCode: c.newClassCode, newSubjectCode: c.subjectCode, semesterCode: c.semesterCode, isNew: true }];
+            }
+            return (c.allClassIds || [c.classId]).map((id: string) => ({
+              classId: id,
+              newClassCode: c.newClassCode,
+              newSubjectCode: c.newSubjectCode
+            }))
           });
         if (updatedClasses.length > 0) updateBody.updatedClasses = updatedClasses;
         await api.updateUser(editingUser.id, updateBody)
@@ -404,7 +405,7 @@ export function AdminUsers() {
       formData.append('file', importFile)
 
       const res = await api.importStudentsExcel(formData)
-      
+
       if (res.errorCount > 0) {
         let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
         if (res.errors && res.errors.length > 0) {
@@ -555,33 +556,76 @@ export function AdminUsers() {
             )}
             {!isSelectionMode && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowLecturerImport(true); setShowImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Lecturer
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowAssignmentImport(true); setShowLecturerImport(false); setShowImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Assignment
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                  onClick={() => { setShowImport(true); setShowLecturerImport(false); setShowAssignmentImport(false); setShowForm(false); setError(''); setImportSuccess(''); }}
-                >
-                  <Upload size={16} />
-                  Import Student
-                </Button>
+                <div className="relative">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-2 bg-white dark:bg-[#151821] text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all font-semibold"
+                    onClick={() => setIsImportDropdownOpen(prev => !prev)}
+                  >
+                    <Upload size={16} className="text-brand-600 dark:text-brand-400" />
+                    <span>Import Excel/CSV</span>
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${isImportDropdownOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+
+                  {isImportDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setIsImportDropdownOpen(false)} />
+                      <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-30 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-950/40 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-2.5 transition-colors text-left"
+                          onClick={() => {
+                            setIsImportDropdownOpen(false);
+                            setShowLecturerImport(true);
+                            setShowImport(false);
+                            setShowAssignmentImport(false);
+                            setShowForm(false);
+                            setError('');
+                            setImportSuccess('');
+                          }}
+                        >
+                          <Upload size={14} className="text-slate-400 shrink-0" />
+                          <span>Import Lecturer</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-950/40 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-2.5 transition-colors text-left"
+                          onClick={() => {
+                            setIsImportDropdownOpen(false);
+                            setShowAssignmentImport(true);
+                            setShowLecturerImport(false);
+                            setShowImport(false);
+                            setShowForm(false);
+                            setError('');
+                            setImportSuccess('');
+                          }}
+                        >
+                          <Upload size={14} className="text-slate-400 shrink-0" />
+                          <span>Import Assignment</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-950/40 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-2.5 transition-colors text-left"
+                          onClick={() => {
+                            setIsImportDropdownOpen(false);
+                            setShowImport(true);
+                            setShowLecturerImport(false);
+                            setShowAssignmentImport(false);
+                            setShowForm(false);
+                            setError('');
+                            setImportSuccess('');
+                          }}
+                        >
+                          <Upload size={14} className="text-slate-400 shrink-0" />
+                          <span>Import Student</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
@@ -1217,66 +1261,66 @@ export function AdminUsers() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {semesterFilter && subjectsBySemester[semesterFilter] ? subjectsBySemester[semesterFilter].map((subj: any) => {
-                          const activeSubjectCode = subj.SubjectCode;
-                          const codeKey = `${semesterFilter}_${activeSubjectCode}`;
-                          const rawCodes = availableClassCodes[codeKey] || [];
-                          const seenCodes = new Set<string>();
-                          const codes = rawCodes.filter((cd: any) => {
-                            if (seenCodes.has(cd.classCode)) return false;
-                            seenCodes.add(cd.classCode);
-                            return true;
-                          });
-                          
-                          const draftClass = editingUserClasses.find((c: any) => c.semesterCode === semesterFilter && c.subjectCode === activeSubjectCode);
-                          const originalIndex = draftClass ? editingUserClasses.indexOf(draftClass) : -1;
-                          const currentClassCode = draftClass?.newClassCode || draftClass?.classCode || '';
+                        const activeSubjectCode = subj.SubjectCode;
+                        const codeKey = `${semesterFilter}_${activeSubjectCode}`;
+                        const rawCodes = availableClassCodes[codeKey] || [];
+                        const seenCodes = new Set<string>();
+                        const codes = rawCodes.filter((cd: any) => {
+                          if (seenCodes.has(cd.classCode)) return false;
+                          seenCodes.add(cd.classCode);
+                          return true;
+                        });
 
-                          return (
-                            <tr key={activeSubjectCode} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                              <td className="px-4 py-2.5 font-medium text-slate-600 dark:text-slate-400 text-xs">
-                                {semesterFilter}
-                              </td>
-                              <td className="px-4 py-2">
-                                <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
-                                  {subj.SubjectCode}{subj.SubjectName ? ` - ${subj.SubjectName}` : ''}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2">
-                                <select
-                                  className="w-full text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
-                                  value={currentClassCode}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    const newList = [...editingUserClasses];
-                                    if (originalIndex >= 0) {
-                                      if (!val && draftClass?.isNew) {
-                                        newList.splice(originalIndex, 1);
-                                      } else {
-                                        newList[originalIndex] = { ...newList[originalIndex], newClassCode: val };
-                                      }
-                                    } else if (val) {
-                                      newList.push({
-                                        semesterCode: semesterFilter,
-                                        subjectCode: activeSubjectCode,
-                                        newClassCode: val,
-                                        isNew: true
-                                      });
+                        const draftClass = editingUserClasses.find((c: any) => c.semesterCode === semesterFilter && c.subjectCode === activeSubjectCode);
+                        const originalIndex = draftClass ? editingUserClasses.indexOf(draftClass) : -1;
+                        const currentClassCode = draftClass?.newClassCode || draftClass?.classCode || '';
+
+                        return (
+                          <tr key={activeSubjectCode} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                            <td className="px-4 py-2.5 font-medium text-slate-600 dark:text-slate-400 text-xs">
+                              {semesterFilter}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                                {subj.SubjectCode}{subj.SubjectName ? ` - ${subj.SubjectName}` : ''}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                className="w-full text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all"
+                                value={currentClassCode}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  const newList = [...editingUserClasses];
+                                  if (originalIndex >= 0) {
+                                    if (!val && draftClass?.isNew) {
+                                      newList.splice(originalIndex, 1);
+                                    } else {
+                                      newList[originalIndex] = { ...newList[originalIndex], newClassCode: val };
                                     }
-                                    setEditingUserClasses(newList);
-                                  }}
-                                >
-                                  <option value="">-- No class assigned --</option>
-                                  {!codes.some((cd: any) => cd.classCode === currentClassCode) && currentClassCode && (
-                                    <option key="__current_class__" value={currentClassCode}>{currentClassCode}</option>
-                                  )}
-                                  {codes.map((cd: any) => (
-                                    <option key={cd.classCode} value={cd.classCode}>{cd.classCode}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            </tr>
-                          );
-                        }) : (
+                                  } else if (val) {
+                                    newList.push({
+                                      semesterCode: semesterFilter,
+                                      subjectCode: activeSubjectCode,
+                                      newClassCode: val,
+                                      isNew: true
+                                    });
+                                  }
+                                  setEditingUserClasses(newList);
+                                }}
+                              >
+                                <option value="">-- No class assigned --</option>
+                                {!codes.some((cd: any) => cd.classCode === currentClassCode) && currentClassCode && (
+                                  <option key="__current_class__" value={currentClassCode}>{currentClassCode}</option>
+                                )}
+                                {codes.map((cd: any) => (
+                                  <option key={cd.classCode} value={cd.classCode}>{cd.classCode}</option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      }) : (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-slate-400 text-sm">
                             {semesterFilter ? 'No subject data for this semester.' : 'Please select a semester.'}
@@ -1377,7 +1421,7 @@ export function AdminUsers() {
                   render: (r) => {
                     const u = r as UserRow;
                     const isLocked = u.status !== 'active';
-                    
+
                     const isOnline = (() => {
                       if (!u.lastLoginAt) return false;
                       let timeStr = String(u.lastLoginAt);
@@ -1388,7 +1432,7 @@ export function AdminUsers() {
                       // Active session window: exactly 30 minutes to simulate real-time "Online" status
                       return diff > -60000 && diff < 30 * 60 * 1000;
                     })();
-                    
+
                     let dotColor = 'bg-slate-400';
                     if (isLocked) {
                       dotColor = 'bg-red-500';
@@ -1405,8 +1449,8 @@ export function AdminUsers() {
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span 
-                          className={`absolute -bottom-1 -right-1 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`} 
+                        <span
+                          className={`absolute -bottom-1 -right-1 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`}
                           title={isLocked ? 'Locked' : isOnline ? 'Active' : 'Inactive'}
                         />
                       </div>
@@ -1444,7 +1488,7 @@ export function AdminUsers() {
                     const u = r as UserRow
                     return (
                       <div className="flex gap-1 justify-end pr-2">
-                        <ActionMenu 
+                        <ActionMenu
                           onEdit={() => {
                             if (selectedIds.size === 1) {
                               const id = Array.from(selectedIds)[0]

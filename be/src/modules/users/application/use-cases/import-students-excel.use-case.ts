@@ -25,7 +25,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
     // Cột nợ môn — dùng riêng biệt, lookup KHÔNG bị giới hạn theo mùa hiện tại
     retakeSubjects: ['nợ môn', 'no mon', 'môn nợ', 'mon no', 'retake subjects', 'retake', 'subject debt', 'nợ', 'debt subjects', 'môn học nợ', 'mon hoc no', 'môn học lại', 'mon hoc lai'],
     retakeClasses: ['lớp nợ môn', 'lop no mon', 'lớp nợ', 'lop no', 'lớp học lại', 'lop hoc lai', 'retake classes', 'retake class'],
-    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh'],
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture'],
 }
 
 function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
@@ -208,13 +208,16 @@ export class ImportStudentsExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
-                    // Xử lý upload avatar (nếu có URL hợp lệ)
-                    let secureAvatarUrl: string | null = null;
-                    if (avatarUrlRaw && avatarUrlRaw.startsWith('http')) {
+                    // Xử lý upload avatar (nếu có URL hợp lệ, mặc định dùng URL gốc nếu Cloudinary chưa cấu hình hoặc lỗi)
+                    let secureAvatarUrl: string | null = (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) ? avatarUrlRaw.trim() : null;
+                    if (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) {
                         try {
-                            secureAvatarUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw);
+                            const uploadedUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw.trim());
+                            if (uploadedUrl) {
+                                secureAvatarUrl = uploadedUrl;
+                            }
                         } catch (err) {
-                            console.warn(`Lỗi upload avatar cho ${email}:`, err);
+                            console.warn(`Lỗi re-upload avatar cho ${email}, sử dụng URL gốc:`, err);
                         }
                     }
 
