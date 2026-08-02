@@ -1231,11 +1231,20 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Lecturer</span>
+                {/* Show only the lecturer's own photo. When none is stored, fall back to their
+                    initials — never a stock face. This previously loaded a random portrait from
+                    an external avatar service, presenting a stranger as the class lecturer. */}
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                    <img src={assignment.lecturerAvatar || "https://i.pravatar.cc/100?img=5"} alt="Lecturer" className="w-full h-full object-cover" />
+                  <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                    {assignment.lecturerAvatar ? (
+                      <img src={assignment.lecturerAvatar} alt={assignment.lecturer || 'Lecturer'} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                        {(assignment.lecturer || '?').trim().split(/\s+/).slice(-2).map(w => w[0]).join('').toUpperCase()}
+                      </span>
+                    )}
                   </div>
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Lecturer'}</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.lecturer || 'Not assigned'}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
