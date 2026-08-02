@@ -14,6 +14,7 @@ import {
   List
 } from 'lucide-react'
 import classNames from 'classnames'
+import { useTranslation } from 'react-i18next'
 
 type Student = {
   id: string
@@ -33,6 +34,7 @@ type ClassDetailData = {
 }
 
 export function StudentClassDetail() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -76,7 +78,7 @@ export function StudentClassDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[450px] space-y-4">
         <Loader2 className="w-10 h-10 animate-spin text-brand-600 dark:text-brand-400" />
-        <p className="text-slate-500 dark:text-slate-400 font-medium">Loading class information...</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">{t('st.class.loading')}</p>
       </div>
     )
   }
@@ -86,7 +88,7 @@ export function StudentClassDetail() {
       <div className="max-w-4xl mx-auto py-12 px-4 text-center">
         <div className="bg-white dark:bg-[#151821] rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
           <GraduationCap className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Class information not found</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('st.class.not_found')}</h2>
           <p className="text-slate-500 dark:text-slate-400 mb-6">This class does not exist, or you have not been assigned to it.</p>
           <button
             onClick={() => navigate('/student/classes')}
@@ -111,7 +113,7 @@ export function StudentClassDetail() {
             <ArrowLeft className="w-4 h-4" /> Class list
           </button>
           <PageHeader
-            title={data.subject?.name || data.classCode || 'Class details'}
+            title={data.subject?.name || data.classCode || t('st.class.details')}
             description={`Class code: ${data.classCode || 'N/A'} • ${data.subject?.code || ''}`}
           />
         </div>
@@ -162,7 +164,7 @@ export function StudentClassDetail() {
                 <Users className="w-6 h-6 text-brand-200" />
               </div>
               <div>
-                <p className="text-xs text-brand-200 font-semibold uppercase tracking-wider">Total students</p>
+                <p className="text-xs text-brand-200 font-semibold uppercase tracking-wider">{t('st.class.total_students')}</p>
                 <p className="text-2xl font-black">{data.students?.length || 0} Students</p>
               </div>
             </div>
@@ -189,7 +191,7 @@ export function StudentClassDetail() {
                   'p-1.5 rounded-md text-xs font-medium transition-colors',
                   viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                 )}
-                title="Table view"
+                title={t('st.class.table_view')}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -199,7 +201,7 @@ export function StudentClassDetail() {
                   'p-1.5 rounded-md text-xs font-medium transition-colors',
                   viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                 )}
-                title="Card view"
+                title={t('st.class.card_view')}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
@@ -211,7 +213,7 @@ export function StudentClassDetail() {
         {filteredStudents.length === 0 ? (
           <div className="bg-white dark:bg-[#151821] rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center py-12">
             <UserCheck className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-700 dark:text-slate-300 font-semibold">No matching students found</p>
+            <p className="text-slate-700 dark:text-slate-300 font-semibold">{t('st.class.no_match')}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Try adjusting your search, or check the name / student ID again.</p>
           </div>
         ) : viewMode === 'table' ? (
@@ -222,11 +224,11 @@ export function StudentClassDetail() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     <th className="py-3.5 px-4 w-12 text-center">STT</th>
-                    <th className="py-3.5 px-4">Photo</th>
-                    <th className="py-3.5 px-4">Full name</th>
-                    <th className="py-3.5 px-4">Student ID</th>
+                    <th className="py-3.5 px-4">{t('st.class.col_photo')}</th>
+                    <th className="py-3.5 px-4">{t('st.class.col_name')}</th>
+                    <th className="py-3.5 px-4">{t('st.class.col_id')}</th>
                     <th className="py-3.5 px-4">Email</th>
-                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 px-4 text-center">{t('st.class.col_status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
