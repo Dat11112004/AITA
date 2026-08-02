@@ -3,6 +3,7 @@ import { Search, LogOut, Sun, Moon, ChevronDown, LayoutDashboard } from 'lucide-
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/store/AuthContext'
 import { useTheme } from '@/store/ThemeContext'
+import { useTranslation } from 'react-i18next'
 import { LanguageDropdown } from '@/components/ui/LanguageDropdown'
 import { LiveClock } from '@/components/ui/LiveClock'
 import { NotificationsDropdown } from '@/components/ui/NotificationsDropdown'
@@ -29,6 +30,7 @@ const roleAvatar: Record<string, string> = {
 }
 
 export function DashboardTopbar(_props: Props) {
+  const { t } = useTranslation()
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -62,7 +64,7 @@ export function DashboardTopbar(_props: Props) {
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
-          placeholder="Search..."
+          placeholder={t('ui.search')}
           className="
             h-9 w-full rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 text-sm
             text-slate-800 placeholder:text-slate-400
@@ -141,7 +143,7 @@ export function DashboardTopbar(_props: Props) {
                 {user?.fullName ?? 'Account'}
               </p>
               <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500 leading-none">
-                {roleLabel[user?.role ?? ''] ?? '—'}
+                {user?.role ? t(`role.${user.role}`, roleLabel[user.role] ?? user.role) : '—'}
               </p>
             </div>
             <ChevronDown
