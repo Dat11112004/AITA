@@ -27,9 +27,29 @@ export function StudentSubjects() {
   const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
   const location = useLocation()
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(location.state?.expand || null)
-  const [activeTab, setActiveTab] = useState('All')
+  // The chip row filters by the subjects the student is enrolled in for the selected
+  // semester (previously it filtered by item type: Assignments / Exams / Graded).
+  const [activeSubject, setActiveSubject] = useState('All')
 
-  const tabs = ['All', 'Assignments', 'Exams', 'Graded']
+  // Derived from whatever the API returns, so the chips always match the semester on
+  // screen. Codes are de-duplicated to keep the chip keys unique.
+  const subjectTabs = useMemo(
+    () => ['All', ...Array.from(new Set(subjects.map(s => s.code)))],
+    [subjects]
+  )
+
+  const visibleSubjects = useMemo(
+    () => (activeSubject === 'All' ? subjects : subjects.filter(s => s.code === activeSubject)),
+    [subjects, activeSubject]
+  )
+
+  // Switching semester replaces the subject list; a code picked in the previous semester
+  // would otherwise filter the page down to nothing. Fall back to All when it disappears.
+  useEffect(() => {
+    if (activeSubject !== 'All' && !subjects.some(s => s.code === activeSubject)) {
+      setActiveSubject('All')
+    }
+  }, [subjects, activeSubject])
 
   const loadData = useCallback((showLoader = false) => {
     let alive = true
@@ -186,11 +206,11 @@ export function StudentSubjects() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-6">
-              {tabs.map(tab => (
+              {subjectTabs.map(tab => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${activeTab === tab ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}
+                  onClick={() => setActiveSubject(tab)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${activeSubject === tab ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#151821] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}
                 >
                   {tab}
                 </button>
@@ -205,7 +225,7 @@ export function StudentSubjects() {
                 You are not enrolled in any subject yet.
               </div>
             ) : (
-              subjects.map(sub => {
+              visibleSubjects.map(sub => {
                 const isExpanded = expandedSubjectId === sub.id
                 const subjectAssignments = assignments.filter(a => (a as any).subjectId === sub.id || (a as any).subjectCode === sub.code || a.class?.includes(sub.code))
 
@@ -215,10 +235,9 @@ export function StudentSubjects() {
                 const submittedHw = subjectAssignments.filter(a => a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined).length
                 const completionRate = subjectAssignments.length > 0 ? Math.round((submittedHw / subjectAssignments.length) * 100) : 0
 
-                const displayAssignments = activeTab === 'Assignments' ? subjectAssignments.filter(a => a.type !== 'Exam') :
-                  activeTab === 'Exams' ? subjectAssignments.filter(a => a.type === 'Exam') :
-                    activeTab === 'Graded' ? subjectAssignments.filter(a => a.status === 'Graded' || (a as any).score !== undefined) :
-                      subjectAssignments
+                // Filtering is by subject now, and the card already belongs to one subject,
+                // so every item of that subject is shown.
+                const displayAssignments = subjectAssignments
 
                 return (
                   <div id={`subject-${sub.id}`} key={sub.id} className="bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md">
@@ -305,7 +324,7 @@ export function StudentSubjects() {
                         ) : (
                           <div className="space-y-8">
                             {/* Exercises Section */}
-                            {(activeTab === 'All' || activeTab === 'Assignments' || activeTab === 'Graded') && displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
+                            {displayAssignments.filter(a => a.type !== 'Exam').length > 0 && (
                               <div>
                                 <div className="flex items-center justify-between mb-4 px-1">
                                   <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Assignments</h4>
@@ -371,7 +390,7 @@ export function StudentSubjects() {
                             )}
 
                             {/* Exams Section */}
-                            {(activeTab === 'All' || activeTab === 'Exams' || activeTab === 'Graded') && displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
+                            {displayAssignments.filter(a => a.type === 'Exam').length > 0 && (
                               <div>
                                 <div className="flex items-center justify-between mb-4 px-1">
                                   <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exams</h4>
