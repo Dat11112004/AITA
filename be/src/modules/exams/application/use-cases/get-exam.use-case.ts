@@ -31,6 +31,27 @@ export class GetExamUseCase implements IUseCase<string, ExamResponseDto> {
       }
     }
 
+    // An exam is not always attached to a class (ExamClass can be empty), yet the student is
+    // still enrolled in a class for its subject and has a real lecturer there — which is why
+    // the subject list showed a name and photo while this screen said "Not assigned". Resolve
+    // it the same way the subject list does (student's enrolments -> class -> instructor) so
+    // the two screens can no longer disagree. Only fills a blank; never overrides the above.
+    if (viewerId && !(exam as any).lecturer && (exam as any).subjectId) {
+      const enrolledClass = await prisma.class.findFirst({
+        where: {
+          SubjectId: (exam as any).subjectId,
+          StudentClass: { some: { UserId: viewerId } },
+          InstructorClass: { some: {} }
+        },
+        include: { InstructorClass: { include: { User: true } } }
+      })
+      const instructor = enrolledClass?.InstructorClass?.[0]?.User
+      if (instructor) {
+        (exam as any).lecturer = instructor.FullName;
+        (exam as any).lecturerAvatar = instructor.Avatar;
+      }
+    }
+
     // Attempt to load the AI-generated rubric if it exists
     try {
       const published = await prisma.publishedAssignment.findUnique({
