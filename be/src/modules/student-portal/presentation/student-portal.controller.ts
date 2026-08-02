@@ -95,7 +95,8 @@ export class StudentPortalController extends BaseController {
         } : null,
         lecturers: c.InstructorClass.map(ic => ({
           id: ic.User.Id,
-          name: ic.User.FullName
+          name: ic.User.FullName,
+          avatar: ic.User.Avatar
         }))
       })),
       unreadNotifications

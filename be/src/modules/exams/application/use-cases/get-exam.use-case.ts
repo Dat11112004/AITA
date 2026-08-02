@@ -36,12 +36,20 @@ export class GetExamUseCase implements IUseCase<string, ExamResponseDto> {
     // the subject list showed a name and photo while this screen said "Not assigned". Resolve
     // it the same way the subject list does (student's enrolments -> class -> instructor) so
     // the two screens can no longer disagree. Only fills a blank; never overrides the above.
-    if (viewerId && !(exam as any).lecturer && (exam as any).subjectId) {
+    if (viewerId && (!(exam as any).lecturer || (exam as any).lecturer === 'Not assigned')) {
+      const subjectId = (exam as any).subjectId || (exam as any).SubjectId
+      const subjectCode = (exam as any).subjectCode
+
+      const whereOr = [
+        subjectId ? { SubjectId: subjectId } : null,
+        subjectCode ? { Subject: { SubjectCode: subjectCode } } : null
+      ].filter(Boolean)
+
       const enrolledClass = await prisma.class.findFirst({
         where: {
-          SubjectId: (exam as any).subjectId,
           StudentClass: { some: { UserId: viewerId } },
-          InstructorClass: { some: {} }
+          InstructorClass: { some: {} },
+          ...(whereOr.length > 0 ? { OR: whereOr as any } : {})
         },
         include: { InstructorClass: { include: { User: true } } }
       })
