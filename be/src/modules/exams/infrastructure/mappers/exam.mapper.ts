@@ -46,13 +46,26 @@ export class ExamMapper {
     }
     if (raw.ExamClass) {
       (exam as any).classes = raw.ExamClass.map((ec: any) => ec.ClassId);
-      if (raw.ExamClass.length > 0) {
-        const firstEc = raw.ExamClass[0];
-        if (firstEc.Class?.InstructorClass?.[0]?.User) {
-          const user = firstEc.Class.InstructorClass[0].User;
-          (exam as any).lecturer = user.FullName;
-          (exam as any).lecturerAvatar = user.Avatar;
-        }
+
+      // One entry per class the exam is attached to, so a viewing student can be matched to
+      // the class they are actually enrolled in (see GetExamUseCase). Internal only —
+      // ExamResponseDto maps named fields, so this never reaches the response.
+      (exam as any).classLecturers = raw.ExamClass.map((ec: any) => {
+        const user = ec.Class?.InstructorClass?.[0]?.User;
+        return {
+          classId: ec.ClassId,
+          lecturer: user?.FullName ?? null,
+          lecturerAvatar: user?.Avatar ?? null,
+          studentIds: (ec.Class?.StudentClass ?? []).map((sc: any) => sc.UserId),
+        };
+      });
+
+      // Default for lecturers/admins is unchanged: the exam's first attached class. (It now
+      // skips classes that have no instructor, which can only fill a value that was blank.)
+      const fallback = (exam as any).classLecturers.find((c: any) => c.lecturer);
+      if (fallback) {
+        (exam as any).lecturer = fallback.lecturer;
+        (exam as any).lecturerAvatar = fallback.lecturerAvatar;
       }
     }
     if (raw._count?.Submission !== undefined) {

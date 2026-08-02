@@ -53,7 +53,8 @@ export class ExamsController extends BaseController {
   async getOne(req: Request, res: Response): Promise<void> {
     const id = req.params.id as string
     this.logger.debug(`Received request to get exam details: ${id}`)
-    const result = await this.getExamUseCase.execute(id)
+    // Pass the caller so a student sees the lecturer of the class they belong to.
+    const result = await this.getExamUseCase.execute(id, req.user?.id)
     this.ok(res, result, MESSAGES.SUCCESS)
   }
 

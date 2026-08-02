@@ -14,7 +14,10 @@ export class PrismaExamRepository implements IExamRepository {
             include: {
               InstructorClass: {
                 include: { User: true }
-              }
+              },
+              // Used only to match a viewing student to the class they belong to, so they see
+              // that class's lecturer. Never serialised — ExamResponseDto maps named fields.
+              StudentClass: { select: { UserId: true } }
             }
           }
         }

@@ -9,10 +9,26 @@ import { prisma } from '../../../../database/prisma.js'
 export class GetExamUseCase implements IUseCase<string, ExamResponseDto> {
   constructor(private readonly examRepo: IExamRepository) {}
 
-  async execute(id: string): Promise<ExamResponseDto> {
+  /**
+   * @param viewerId optional id of the requesting user. When that user is enrolled in one of
+   *   the exam's classes, the lecturer shown is the one teaching *their* class rather than
+   *   whichever class happens to be attached first. Omitting it keeps the previous behaviour,
+   *   which is what lecturers and admins continue to get.
+   */
+  async execute(id: string, viewerId?: string): Promise<ExamResponseDto> {
     const exam = await this.examRepo.findById(id)
     if (!exam) {
       throw new NotFoundError(MESSAGES.EXAM_NOT_FOUND)
+    }
+
+    if (viewerId) {
+      const ownClass = ((exam as any).classLecturers ?? []).find(
+        (c: any) => c.lecturer && Array.isArray(c.studentIds) && c.studentIds.includes(viewerId)
+      )
+      if (ownClass) {
+        (exam as any).lecturer = ownClass.lecturer;
+        (exam as any).lecturerAvatar = ownClass.lecturerAvatar;
+      }
     }
 
     // Attempt to load the AI-generated rubric if it exists
