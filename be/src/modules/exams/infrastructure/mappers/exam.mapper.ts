@@ -9,7 +9,7 @@ export class ExamMapper {
       try {
         const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
         if (parsed && parsed.weightPercentage) weightPercentage = Number(parsed.weightPercentage);
-      } catch(e) {}
+      } catch (e) { }
     }
     if (weightPercentage === null || weightPercentage === undefined || isNaN(weightPercentage)) {
       weightPercentage = 10;
@@ -35,7 +35,7 @@ export class ExamMapper {
       raw.CreatedBy,
       raw.DueDate ? new Date(raw.DueDate) : null
     )
-    
+
     // Add additional unmapped fields safely if needed by DTOs or logic
     if (raw.Subject) {
       (exam as any).subjectName = raw.Subject.SubjectName;
@@ -77,7 +77,7 @@ export class ExamMapper {
         const parsed = aiGeneratedContent ? JSON.parse(aiGeneratedContent) : {};
         parsed.weightPercentage = exam.weightPercentage;
         aiGeneratedContent = JSON.stringify(parsed);
-      } catch(e) {}
+      } catch (e) { }
     }
 
     return {

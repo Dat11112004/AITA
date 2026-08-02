@@ -765,10 +765,10 @@ export function StudentAssignmentDetail() {
               </div>
             ) : (
               <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${isPastDue
-                  ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
-                  : isNearDeadline
-                    ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
-                    : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
+                ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
+                : isNearDeadline
+                  ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
+                  : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
                 }`}>
                 <div className="flex items-center gap-3">
                   <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'

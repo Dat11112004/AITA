@@ -3,7 +3,7 @@ import { Exam } from '../../domain/entities/exam.entity.js'
 import { ExamMapper } from '../mappers/exam.mapper.js'
 
 export class PrismaExamRepository implements IExamRepository {
-  constructor(private readonly client: any) {}
+  constructor(private readonly client: any) { }
 
   private get include() {
     return {

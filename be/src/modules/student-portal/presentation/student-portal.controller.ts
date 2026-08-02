@@ -130,10 +130,10 @@ export class StudentPortalController extends BaseController {
     // Filter by season if provided (match normalized season: "Spring 2026" -> "SPRING2026")
     const filtered = seasonFilter
       ? enrolledClasses.filter(c => {
-          if (!c.Semester || !c.Semester.Season) return false
-          const normalizedSeason = c.Semester.Season.toUpperCase().replace(/\s+/g, '')
-          return normalizedSeason === seasonFilter.toUpperCase()
-        })
+        if (!c.Semester || !c.Semester.Season) return false
+        const normalizedSeason = c.Semester.Season.toUpperCase().replace(/\s+/g, '')
+        return normalizedSeason === seasonFilter.toUpperCase()
+      })
       : enrolledClasses
 
     // Each class row = one enrollment; subjects can appear in multiple semesters
