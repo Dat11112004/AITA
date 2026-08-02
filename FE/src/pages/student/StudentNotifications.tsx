@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Bell, Check, Clock, Info, AlertTriangle, Loader2, ExternalLink, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
+import { useTranslation } from 'react-i18next'
 
 type Notification = {
   id: string
@@ -17,6 +18,7 @@ type Notification = {
 }
 
 export function StudentNotifications() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,9 +112,9 @@ export function StudentNotifications() {
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
-          title="Notifications"
-          description="Assignment alerts, deadline reminders and system announcements."
-          breadcrumbs={[{ label: 'Student', path: '/student' }, { label: 'Notifications' }]}
+          title={t('st.notif.title')}
+          description={t('st.notif.desc')}
+          breadcrumbs={[{ label: t('role.student'), path: '/student' }, { label: t('st.notif.title') }]}
         />
         <div className="flex items-center gap-3">
           {unreadCount > 0 && (
@@ -195,7 +197,7 @@ export function StudentNotifications() {
         {filteredNotifications.length === 0 ? (
           <div className="p-16 text-center text-slate-500 flex flex-col items-center">
             <Bell size={48} className="text-slate-200 dark:text-slate-700 mb-4" />
-            <p>There are no notifications in this tab.</p>
+            <p>{t('st.notif.empty')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -239,11 +241,11 @@ export function StudentNotifications() {
                   </div>
                   <div className="mt-4 sm:mt-0 flex shrink-0 items-center gap-2">
                     {!n.read && (
-                      <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Mark as read" className="p-2 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-lg">
+                      <button onClick={(e) => handleMarkAsRead(n.id, e)} title={t('st.notif.mark_read')} className="p-2 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-lg">
                         <Check size={18} />
                       </button>
                     )}
-                    <button onClick={(e) => handleDeleteOne(n.id, e)} title="Delete notification" className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                    <button onClick={(e) => handleDeleteOne(n.id, e)} title={t('st.notif.delete')} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                       <Trash2 size={18} />
                     </button>
                   </div>
