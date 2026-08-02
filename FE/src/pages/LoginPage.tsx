@@ -9,7 +9,7 @@ import { LiveClock } from '@/components/ui/LiveClock'
 import { useAuth } from '@/store/AuthContext'
 import { api, ApiError } from '@/lib/api'
 import type { UserRole } from '@/types'
-import { useLanguage } from '@/store/LanguageContext'
+import { useLanguage, LANGUAGES, type Language } from '@/store/LanguageContext'
 import { useTheme } from '@/store/ThemeContext'
 
 const roleRedirect: Record<string, string> = {
@@ -180,15 +180,17 @@ export function LoginPage() {
         <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
           <LiveClock />
           <div className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800 text-xs font-semibold">
-            <span className="text-sm">{({ vi: '🇻🇳', en: '🇬🇧', ja: '🇯🇵' } as Record<string, string>)[language]}</span>
+            {/* Driven by the shared LANGUAGES list so this control cannot drift out of sync
+                with the languages the app actually supports. */}
+            <span className="text-sm">{LANGUAGES.find(l => l.code === language)?.flag}</span>
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value as any)}
+              onChange={(e) => setLanguage(e.target.value as Language)}
               className="bg-transparent outline-none cursor-pointer text-slate-700 dark:text-slate-300 text-xs font-semibold"
             >
-              <option value="vi">VI</option>
-              <option value="en">EN</option>
-              <option value="ja">JA</option>
+              {LANGUAGES.map(l => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
             </select>
           </div>
           <button type="button" onClick={toggleTheme}

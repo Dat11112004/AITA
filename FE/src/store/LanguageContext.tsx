@@ -2,12 +2,11 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 
-export type Language = 'vi' | 'en' | 'ja'
+export type Language = 'en' | 'vi'
 
 export const LANGUAGES: { code: Language; label: string; flag: string; name: string }[] = [
-  { code: 'vi', label: 'VI', flag: '🇻🇳', name: 'Tiếng Việt' },
   { code: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
-  { code: 'ja', label: 'JA', flag: '🇯🇵', name: '日本語' },
+  { code: 'vi', label: 'VI', flag: '🇻🇳', name: 'Tiếng Việt' },
 ]
 
 export type TranslationKey = string
@@ -24,7 +23,8 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { i18n, t } = useTranslation()
 
-  const language = (i18n.language as Language) || 'vi'
+  // i18n.language may be region-tagged ("en-US"); normalise so state is only ever 'en' | 'vi'
+  const language: Language = String(i18n.language || 'en').toLowerCase().startsWith('vi') ? 'vi' : 'en'
 
   const handleSetLanguage = (lang: Language) => {
     i18n.changeLanguage(lang)
@@ -34,7 +34,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
 
   const toggleLanguage = () => {
-    const order: Language[] = ['vi', 'en', 'ja']
+    const order: Language[] = ['en', 'vi']
     const next = order[(order.indexOf(language) + 1) % order.length]
     handleSetLanguage(next)
   }

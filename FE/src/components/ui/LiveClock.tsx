@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Clock, CheckCircle2, Trash2, AlertCircle, ListTodo, Zap } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNotes } from '@/hooks/useNotes'
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -113,6 +114,7 @@ function QuickNotesPanel({ notes, onToggleStatus, onDelete, onClose }: {
 /*  MAIN LiveClock COMPONENT                                    */
 /* ═════════════════════════════════════════════════════════════ */
 export function LiveClock() {
+  const { i18n } = useTranslation()
   const [time, setTime] = useState(new Date())
   const [isOpen, setIsOpen] = useState(false)
   const [showQuickNotes, setShowQuickNotes] = useState(false)
@@ -147,8 +149,15 @@ export function LiveClock() {
   const formatterTime = new Intl.DateTimeFormat('en-US', {
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   })
-  const dayNamesEn = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-  const dayNameStr = dayNamesEn[time.getDay()]
+  // The weekday was pinned to English, so the clock stayed "SUNDAY" even in Vietnamese.
+  // Read the active language from i18next directly rather than the LanguageProvider context,
+  // because this clock also renders in headers that sit outside that provider.
+  const WEEKDAY_LABELS: Record<string, string[]> = {
+    en: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'],
+    vi: ['CHỦ NHẬT', 'THỨ HAI', 'THỨ BA', 'THỨ TƯ', 'THỨ NĂM', 'THỨ SÁU', 'THỨ BẢY'],
+  }
+  const langKey = String(i18n.language || 'en').toLowerCase().startsWith('vi') ? 'vi' : 'en'
+  const dayNameStr = WEEKDAY_LABELS[langKey][time.getDay()]
   const dd = String(time.getDate()).padStart(2, '0')
   const mm = String(time.getMonth() + 1).padStart(2, '0')
   const yyyy = time.getFullYear()
