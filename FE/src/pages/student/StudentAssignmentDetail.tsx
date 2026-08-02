@@ -282,11 +282,32 @@ export function StudentAssignmentDetail() {
 
     Promise.all([
       gradingApi.getAssignment(id).catch(() => api.getAssignment(id)),
-      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null)
+      api.getSubmissions({ assignmentId: id }).then(res => res?.[0] || null),
+      api.getStudentDashboard().catch(() => null)
     ])
-      .then(([a, s]) => {
+      .then(([a, s, dash]) => {
         if (alive) {
-          setAssignment(a as any)
+          const ass = { ...(a || {}) } as any
+          if ((!ass.lecturer || ass.lecturer === 'Not assigned') && dash?.enrolledClasses && dash.enrolledClasses.length > 0) {
+            const code = (ass.subjectCode || (ass.subjectName?.split('-')?.[0]?.trim()) || ass.title?.split('-')?.[0]?.trim() || '').toUpperCase()
+            
+            let matchClass = dash.enrolledClasses.find((c: any) => {
+              const cSubCode = (c.subject?.code || c.subjectCode || c.code || '').toUpperCase()
+              const cSubId = c.subject?.id || c.subjectId || c.id
+              return (code && cSubCode && cSubCode === code) || (ass.subjectId && cSubId === ass.subjectId)
+            })
+
+            if (!matchClass) {
+              matchClass = dash.enrolledClasses.find((c: any) => c.lecturers && c.lecturers.length > 0)
+            }
+
+            if (matchClass && matchClass.lecturers && matchClass.lecturers.length > 0) {
+              const mainLec = matchClass.lecturers[0]
+              ass.lecturer = mainLec.name || mainLec.fullName
+              ass.lecturerAvatar = mainLec.avatar || mainLec.Avatar
+            }
+          }
+          setAssignment(ass)
           setSubmission(s as SubmissionRow)
         }
       })

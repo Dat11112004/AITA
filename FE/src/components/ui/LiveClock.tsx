@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Clock, CheckCircle2, Trash2, AlertCircle, ListTodo, Zap } from 'lucide-react'
 import { useNotes } from '@/hooks/useNotes'
 
-const DAY_NAMES = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 /* ── Urgency Pill Component ─────────────────────────────────── */
 function UrgencyPill({ urgency, nearestMinutes, totalPending }: {
@@ -13,7 +13,7 @@ function UrgencyPill({ urgency, nearestMinutes, totalPending }: {
   if (totalPending === 0) return null
 
   const config = {
-    critical: { bg: 'bg-red-500/15 dark:bg-red-500/20', text: 'text-red-600 dark:text-red-400', border: 'border-red-300/50 dark:border-red-500/30', label: 'QUÁ HẠN' },
+    critical: { bg: 'bg-red-500/15 dark:bg-red-500/20', text: 'text-red-600 dark:text-red-400', border: 'border-red-300/50 dark:border-red-500/30', label: 'OVERDUE' },
     imminent: { bg: 'bg-orange-500/15 dark:bg-orange-500/20', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-300/50 dark:border-orange-500/30', label: `${nearestMinutes}p` },
     warning: { bg: 'bg-amber-500/15 dark:bg-amber-500/20', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-300/50 dark:border-amber-500/30', label: `${nearestMinutes}p` },
     normal: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-500 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-700/50', label: `${totalPending}` },
@@ -42,7 +42,7 @@ function QuickNotesPanel({ notes, onToggleStatus, onDelete, onClose }: {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400">
             <ListTodo size={14} />
           </div>
-          <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">Ghi Chú Chờ Xử Lý</h3>
+          <h3 className="text-[13px] font-bold text-slate-800 dark:text-slate-200">Pending Notes</h3>
         </div>
         <button onClick={onClose} className="h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
           <X size={14} />
@@ -53,7 +53,7 @@ function QuickNotesPanel({ notes, onToggleStatus, onDelete, onClose }: {
         {notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-slate-400">
             <CheckCircle2 size={28} className="mb-2 opacity-40" />
-            <p className="text-xs font-medium">Tuyệt vời! Không có ghi chú nào.</p>
+            <p className="text-xs font-medium">Great! No pending notes.</p>
           </div>
         ) : (
           notes.map(note => {
@@ -87,7 +87,7 @@ function QuickNotesPanel({ notes, onToggleStatus, onDelete, onClose }: {
                       {note.dateStr.substring(5)} {note.timeStr}
                     </span>
                     {isOverdue && (
-                      <span className="text-[8px] font-black text-red-500 bg-red-100 dark:bg-red-900/40 px-1 py-0.5 rounded uppercase tracking-wider">Quá hạn</span>
+                      <span className="text-[8px] font-black text-red-500 bg-red-100 dark:bg-red-900/40 px-1 py-0.5 rounded uppercase tracking-wider">Overdue</span>
                     )}
                   </div>
                   <p className="text-[12px] leading-snug break-words text-slate-800 dark:text-slate-200">
@@ -144,13 +144,15 @@ export function LiveClock() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const formatterTime = new Intl.DateTimeFormat('vi-VN', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  const formatterTime = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   })
-  const formatterDate = new Intl.DateTimeFormat('vi-VN', {
-    weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit'
-  })
-  const dateStr = formatterDate.format(time).replace(/,/g, '')
+  const dayNamesEn = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  const dayNameStr = dayNamesEn[time.getDay()]
+  const dd = String(time.getDate()).padStart(2, '0')
+  const mm = String(time.getMonth() + 1).padStart(2, '0')
+  const yyyy = time.getFullYear()
+  const dateStr = `${dayNameStr} ${dd}/${mm}/${yyyy}`
 
   const currentYear = time.getFullYear()
   const currentMonth = time.getMonth()
@@ -193,44 +195,10 @@ export function LiveClock() {
   const status = getCurrentStatus(time)
   const { urgencyLevel, totalPending, nearestMinutes } = status
 
-  // Battery level: 100% when no tasks, decreases with urgency
-  const batteryLevel = urgencyLevel === 'critical' ? 8
-    : urgencyLevel === 'imminent' ? 20
-    : urgencyLevel === 'warning' ? 45
-    : totalPending > 0 ? 70
-    : 100
-
-  const shouldFlash = urgencyLevel === 'critical' || urgencyLevel === 'imminent'
-
   // Get pending notes for quick view
   const pendingNotes = notes
     .filter(n => n.status === 'pending')
     .sort((a, b) => `${a.dateStr} ${a.timeStr}`.localeCompare(`${b.dateStr} ${b.timeStr}`))
-
-  // Compute fill color stops based on urgency (Vibrant Orange Theme)
-  const fillColor = urgencyLevel === 'critical'
-    ? 'rgba(239,68,68,0.85)'
-    : urgencyLevel === 'imminent'
-      ? 'rgba(249,115,22,0.85)'
-      : urgencyLevel === 'warning'
-        ? 'rgba(245,158,11,0.85)'
-        : 'rgba(249,115,22,0.82)'
-
-  const borderColor = urgencyLevel === 'critical'
-    ? 'rgba(239,68,68,0.60)'
-    : urgencyLevel === 'imminent'
-      ? 'rgba(249,115,22,0.60)'
-      : urgencyLevel === 'warning'
-        ? 'rgba(245,158,11,0.60)'
-        : isOpen
-          ? 'rgba(249,115,22,0.80)'
-          : 'rgba(249,115,22,0.50)'
-
-  const glowStyle = urgencyLevel === 'critical'
-    ? '0 0 16px -2px rgba(239,68,68,0.40)'
-    : urgencyLevel === 'imminent'
-      ? '0 0 14px -2px rgba(249,115,22,0.40)'
-      : '0 4px 14px -3px rgba(249,115,22,0.30)'
 
   return (
     <div className="relative flex items-center gap-2" ref={wrapperRef}>
@@ -273,52 +241,27 @@ export function LiveClock() {
           setShowQuickNotes(false)
           if (isOpen) setSelectedDate(null)
         }}
-        style={{
-          borderColor,
-          boxShadow: glowStyle,
-        }}
-        className={[
-          'relative flex items-center gap-3 px-3 py-1.5 rounded-xl border overflow-hidden',
-          'transition-all duration-300',
-          isOpen ? 'ring-2 ring-brand-500/20' : 'hover:-translate-y-0.5',
-          // Dark mode base bg so fill sits on top
-          'bg-white/50 dark:bg-slate-900/60',
-          shouldFlash ? 'animate-battery-flash' : '',
-        ].join(' ')}
-        title="Mở lịch"
+        className={`
+          relative flex items-center gap-3 px-3.5 py-1.5 rounded-xl border transition-all duration-200
+          bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200
+          shadow-sm hover:shadow hover:border-slate-300 dark:hover:border-slate-700
+          ${isOpen ? 'ring-2 ring-orange-500/20 border-orange-500/50' : 'hover:-translate-y-0.5'}
+        `}
+        title="Calendar & Clock"
       >
-        {/* ── Battery fill layer (z-0) ── */}
-        <span
-          aria-hidden="true"
-          style={{
-            width: `${batteryLevel}%`,
-            backgroundColor: fillColor,
-            transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1), background-color 0.5s ease',
-          }}
-          className="pointer-events-none absolute inset-y-0 left-0 rounded-xl"
-        />
-
-        {/* ── Tip nub bên phải của pin ── */}
-        <span
-          aria-hidden="true"
-          style={{ backgroundColor: fillColor, transition: 'background-color 0.5s ease' }}
-          className="pointer-events-none absolute -right-[3px] top-1/2 -translate-y-1/2 h-3 w-[5px] rounded-r-sm"
-        />
-
-        {/* ── Content (z above fill) ── */}
-        <div className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm border transition-colors ${
+        <div className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-xs border transition-colors ${
           isOpen 
-            ? 'bg-orange-600 text-white border-orange-700 dark:bg-orange-600 dark:border-orange-500' 
-            : 'bg-white/90 text-orange-600 border-white/80 dark:bg-slate-900/90 dark:border-slate-700 dark:text-orange-400'
+            ? 'bg-orange-500 text-white border-orange-600' 
+            : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
         }`}>
           <CalendarIcon size={14} />
         </div>
 
         <div className="relative z-10 flex flex-col items-start justify-center">
-          <span className="text-[13px] font-extrabold font-mono tracking-wide tabular-nums leading-none text-slate-900 dark:text-white drop-shadow-[0_1px_2px_rgba(255,255,255,0.7)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+          <span className="text-[13px] font-extrabold font-mono tracking-wide tabular-nums leading-none text-slate-900 dark:text-white">
             {formatterTime.format(time)}
           </span>
-          <span className="text-[9px] font-black uppercase mt-1 leading-none tracking-wider text-slate-800 dark:text-slate-200 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
+          <span className="text-[9px] font-black uppercase mt-1 leading-none tracking-wider text-slate-500 dark:text-slate-400">
             {dateStr}
           </span>
         </div>
@@ -350,9 +293,9 @@ export function LiveClock() {
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <button 
                   onClick={handleResetToToday}
-                  className="text-[14px] font-bold text-slate-800 dark:text-slate-100 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                  className="text-[14px] font-bold text-slate-800 dark:text-slate-100 hover:text-brand-600 dark:hover:text-brand-400 transition-colors capitalize"
                 >
-                  Tháng {viewMonth + 1}, {viewYear}
+                  {new Date(viewYear, viewMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
                 </button>
                 <div className="flex items-center gap-1">
                   <button 
@@ -416,7 +359,7 @@ export function LiveClock() {
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <p className="text-[10px] text-slate-400 font-medium tracking-wide">Nhấp vào một ngày để quản lý Ghi chú</p>
+                <p className="text-[10px] text-slate-400 font-medium tracking-wide">Click a date to manage notes</p>
                 {totalPending > 0 && <span className="text-[10px] font-bold text-amber-500 animate-pulse">{totalPending} tasks pending</span>}
               </div>
             </>
@@ -432,9 +375,9 @@ export function LiveClock() {
                 </button>
                 <div>
                   <h4 className="text-[14px] font-bold text-slate-900 dark:text-white leading-none">
-                    Ngày {selectedDate.getDate()} thg {selectedDate.getMonth() + 1}
+                    {selectedDate.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </h4>
-                  <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">Ghi chú & Hạn nộp</p>
+                  <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">Notes & Deadlines</p>
                 </div>
               </div>
 
@@ -442,7 +385,7 @@ export function LiveClock() {
                 {getNotesForDate(formatDateStr(selectedDate)).length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-24 text-slate-400 dark:text-slate-600">
                     <CalendarIcon size={24} className="mb-2 opacity-50" />
-                    <p className="text-xs font-medium">Trống! Chưa có ghi chú lịch.</p>
+                    <p className="text-xs font-medium">Empty! No calendar notes yet.</p>
                   </div>
                 ) : (
                   getNotesForDate(formatDateStr(selectedDate)).map(note => (
@@ -480,7 +423,7 @@ export function LiveClock() {
               {isAddingMode ? (
                 <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 animate-fade-in-up">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500">Tạo mới</span>
+                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500">Create Note</span>
                     <button onClick={() => setIsAddingMode(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
                   </div>
                   <input 
@@ -490,7 +433,7 @@ export function LiveClock() {
                     className="w-full mb-2 h-8 rounded-lg border border-slate-200 text-xs px-2 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                   />
                   <textarea 
-                    placeholder="Mô tả ghi chú hạn nộp, công việc..."
+                    placeholder="Describe note, task, or deadline..."
                     value={newNoteContent}
                     onChange={(e) => setNewNoteContent(e.target.value)}
                     className="w-full h-16 resize-none rounded-lg border border-slate-200 text-xs p-2 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white custom-scrollbar mb-2"
@@ -500,7 +443,7 @@ export function LiveClock() {
                     disabled={!newNoteContent.trim()}
                     className="w-full h-8 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-[#F37021] disabled:opacity-50 transition-colors"
                   >
-                    Lưu Ghi Chú
+                    Save Note
                   </button>
                 </div>
               ) : (
@@ -508,7 +451,7 @@ export function LiveClock() {
                   onClick={() => setIsAddingMode(true)}
                   className="w-full h-10 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-brand-600 hover:border-brand-300 dark:hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
                 >
-                  <Plus size={16} /> Thêm ghi chú mới
+                  <Plus size={16} /> Add new note
                 </button>
               )}
             </div>
