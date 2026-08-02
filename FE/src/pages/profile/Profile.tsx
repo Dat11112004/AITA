@@ -167,7 +167,7 @@ export function Profile() {
     <>
       <div className="space-y-8 p-6 max-w-5xl mx-auto animate-in fade-in duration-500">
         <PageHeader
-          title="Profile User"
+          title="Personal Profile"
           description="Manage your personal information and keep your account secure."
           breadcrumbs={[{ label: 'Profile' }]}
         />

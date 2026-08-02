@@ -9,6 +9,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: 'reports', label: 'Reports', path: '/admin/reports', icon: 'BarChart3', category: 'Analytics & Reports' },
   { id: 'audit-logs', label: 'Audit Logs', path: '/admin/audit-logs', icon: 'FileText', category: 'Analytics & Reports' },
   { id: 'ai-config', label: 'AI Config', path: '/admin/ai-config', icon: 'Bot', category: 'System' },
+  { id: 'profile', label: 'Profile', path: '/admin/profile', icon: 'UserCircle', category: 'System' },
   { id: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', category: 'System' },
 ]
 

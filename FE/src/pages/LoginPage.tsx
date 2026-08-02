@@ -79,9 +79,9 @@ export function LoginPage() {
     e.preventDefault(); setErr(''); setMsg(''); setLoading(true)
     try {
       await api.forgotPassword(email)
-      setMsg('Mã xác thực đã được gửi đến email của bạn')
+      setMsg('A verification code has been sent to your email.')
       setView('forgot_otp_password')
-    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Có lỗi xảy ra') }
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'An error occurred') }
     finally { setLoading(false) }
   }
 
@@ -89,11 +89,11 @@ export function LoginPage() {
     e.preventDefault(); setErr(''); setMsg(''); setLoading(true)
     try {
       await api.resetPassword({ email, otp, newPassword })
-      setMsg('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
+      setMsg('Password changed successfully. Please log in again.')
       setView('login')
       setPassword('')
       setOtp('')
-    } catch (e) { setErr(e instanceof ApiError ? e.message : 'Có lỗi xảy ra') }
+    } catch (e) { setErr(e instanceof ApiError ? e.message : 'An error occurred') }
     finally { setLoading(false) }
   }
 
@@ -134,20 +134,20 @@ export function LoginPage() {
             {/* Hero text */}
             <div className="space-y-3">
               <h2 className="text-4xl font-black text-white leading-tight drop-shadow-lg">
-                Nền tảng học tập<br />
-                <span className="text-yellow-200">thông minh</span>
+                Smart Learning<br />
+                <span className="text-yellow-200">Platform</span>
               </h2>
               <p className="text-sm text-white/80 leading-relaxed max-w-xs drop-shadow">
-                Tự động hóa chấm bài, sinh đề cá nhân hóa và theo dõi tiến độ sinh viên theo thời gian thực tại ĐH FPT.
+                Automated grading, personalized exam generation, and real-time student progress tracking at FPT University.
               </p>
             </div>
 
             {/* Features */}
             <div className="mt-8 space-y-4">
               {[
-                { icon: <Brain size={18} />, title: 'AI chấm điểm thông minh', desc: 'Phản hồi chi tiết tức thì trong vài giây' },
-                { icon: <BookOpen size={18} />, title: 'Quản lý lớp học', desc: 'Theo dõi tiến độ học tập real-time' },
-                { icon: <Users size={18} />, title: 'Phân tích cá nhân hóa', desc: 'Insight học tập riêng cho từng sinh viên' },
+                { icon: <Brain size={18} />, title: 'Smart AI Grading', desc: 'Instant detailed feedback in seconds' },
+                { icon: <BookOpen size={18} />, title: 'Class Management', desc: 'Real-time learning progress tracking' },
+                { icon: <Users size={18} />, title: 'Personalized Analytics', desc: 'Tailored learning insights for every student' },
               ].map((f) => (
                 <div key={f.title} className="flex items-start gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 border border-white/30 backdrop-blur-sm">
@@ -247,10 +247,10 @@ export function LoginPage() {
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
                       <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
-                      Ghi nhớ mật khẩu
+                      Remember me
                     </label>
                     <button type="button" onClick={() => { setView('forgot_email'); setErr(''); setMsg(''); }} className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
-                      Quên mật khẩu?
+                      Forgot password?
                     </button>
                   </div>
                   <SubmitButton loading={loading} text={t('auth.tab.login')} />
@@ -260,15 +260,15 @@ export function LoginPage() {
               {view === 'forgot_email' && (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    Nhập email của bạn để nhận mã khôi phục mật khẩu.
+                    Enter your email address to receive a password reset code.
                   </div>
                   <AuthField id="f-email" icon={<Mail size={16} />} label={t('auth.email')} type="email" value={email} onChange={setEmail} placeholder="you@email.com" autoComplete="email" required />
                   <div className="flex gap-3 mt-6">
                     <button type="button" onClick={() => { setView('login'); setErr(''); setMsg(''); }} className="w-1/3 rounded-xl py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-all border border-transparent dark:border-slate-700">
-                      Hủy
+                      Cancel
                     </button>
                     <div className="w-2/3">
-                      <SubmitButton loading={loading} text="Gửi mã OTP" />
+                      <SubmitButton loading={loading} text="Send OTP Code" />
                     </div>
                   </div>
                 </form>
@@ -277,18 +277,18 @@ export function LoginPage() {
               {view === 'forgot_otp_password' && (
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    Nhập mã xác thực (OTP) đã được gửi đến email và mật khẩu mới của bạn.
+                    Enter the verification code (OTP) sent to your email and your new password.
                   </div>
-                  <AuthField id="r-otp" icon={<CheckCircle2 size={16} />} label="Mã xác thực (OTP)" type="text" value={otp} onChange={setOtp} placeholder="123456" autoComplete="one-time-code" required />
-                  <AuthField id="r-pw" icon={<Lock size={16} />} label="Mật khẩu mới" type={showPw ? 'text' : 'password'} value={newPassword} onChange={setNewPassword} placeholder="Mật khẩu mới" autoComplete="new-password" required
+                  <AuthField id="r-otp" icon={<CheckCircle2 size={16} />} label="Verification Code (OTP)" type="text" value={otp} onChange={setOtp} placeholder="123456" autoComplete="one-time-code" required />
+                  <AuthField id="r-pw" icon={<Lock size={16} />} label="New Password" type={showPw ? 'text' : 'password'} value={newPassword} onChange={setNewPassword} placeholder="New password" autoComplete="new-password" required
                     suffix={<EyeToggle show={showPw} toggle={() => setShowPw(p => !p)} />}
                   />
                   <div className="flex gap-3 mt-6">
                     <button type="button" onClick={() => { setView('login'); setErr(''); setMsg(''); }} className="w-1/3 rounded-xl py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-all border border-transparent dark:border-slate-700">
-                      Hủy
+                      Cancel
                     </button>
                     <div className="w-2/3">
-                      <SubmitButton loading={loading} text="Đổi mật khẩu" />
+                      <SubmitButton loading={loading} text="Change Password" />
                     </div>
                   </div>
                 </form>
@@ -299,7 +299,7 @@ export function LoginPage() {
           {/* Trust badges */}
           <div className="mt-5 flex items-center justify-center gap-5">
             {[
-              { icon: <ShieldCheck size={13} />, label: 'Bảo mật SSL' },
+              { icon: <ShieldCheck size={13} />, label: 'SSL Secured' },
               { icon: <CheckCircle2 size={13} />, label: 'FPT Verified' },
               { icon: <Sparkles size={13} />, label: 'AI Powered' },
             ].map(b => (

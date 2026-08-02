@@ -64,11 +64,11 @@ export default function AssignmentRubricPage() {
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-brand-600 dark:bg-brand-400 rounded-full"></div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-wide">
-              Danh sách tiêu chí Rubric (Assignment Rubric Rules)
+              Assignment Rubric Rules
             </h2>
           </div>
           <span className="text-xs font-bold text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 px-3 py-1.5 rounded-lg border border-brand-200 dark:border-brand-800">
-            Tổng điểm: {(assignment.rubric as any)?.totalWeight || 10} điểm
+            Total Score: {(assignment.rubric as any)?.totalWeight || 10} pts
           </span>
         </div>
         

@@ -40,7 +40,6 @@ import { LecturerSubmissions } from '@/pages/lecturer/LecturerSubmissions'
 import { LecturerSubjects } from '@/pages/lecturer/LecturerSubjects'
 import { LecturerSubjectDetail } from '@/pages/lecturer/LecturerSubjectDetail'
 import { LecturerAIRubric } from '@/pages/lecturer/LecturerAIRubric'
-import { LecturerAssignmentRubric } from '@/pages/lecturer/LecturerAssignmentRubric'
 import { PromptSubjectsList } from '@/pages/lecturer/prompt/PromptSubjectsList'
 import { PromptListBySubject } from '@/pages/lecturer/prompt/PromptListBySubject'
 import { PromptCreateEdit } from '@/pages/lecturer/prompt/PromptCreateEdit'
@@ -119,7 +118,6 @@ export function AppRoutes() {
         <Route path="prompts/:subjectId" element={<PromptListBySubject />} />
         <Route path="prompts/:subjectId/create" element={<PromptCreateEdit />} />
         <Route path="prompts/:subjectId/edit/:promptId" element={<PromptCreateEdit />} />
-        <Route path="assignments/:id/rubric" element={<LecturerAssignmentRubric />} />
         <Route path="rubric-generator" element={<LecturerAIRubric />} />
         <Route path="assignments/:id/submissions" element={<LecturerSubmissions />} />
         <Route path="profile" element={<Profile />} />

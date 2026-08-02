@@ -990,27 +990,80 @@ export function AdminUsers() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
-                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  RollNumber | Full Name | Email | Passed Subjects | Phone Number | Semester | Class | Other Subjects (Re-study/Over) | Avatar{'\n'}
-                  QE180097 | Full Name | qe180097@fpt.edu.vn | SWE201-SE1701 | 0912345678 | 8 | SE18C01 | DBI202-SE1902, PRJ301-SE1803 | https://example.com/avatar.jpg
-                </pre>
+            <div className="space-y-5">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
+                  <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
+                </div>
+                
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
+                  <table className="w-full text-left font-mono">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-2">RollNumber</th>
+                        <th className="px-3 py-2">Full Name</th>
+                        <th className="px-3 py-2">Email</th>
+                        <th className="px-3 py-2">Class</th>
+                        <th className="px-3 py-2">Semester</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-400 text-[11px]">
+                      <tr>
+                        <td className="px-3 py-1.5 font-bold text-brand-600 dark:text-brand-400">QE180097</td>
+                        <td className="px-3 py-1.5">Nguyen Van A</td>
+                        <td className="px-3 py-1.5">qe180097@fpt.edu.vn</td>
+                        <td className="px-3 py-1.5"><span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded font-semibold">SE18C01</span></td>
+                        <td className="px-3 py-1.5">8</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
-                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                />
-              </div>
+              {!importFile ? (
+                <label className="group relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 transition-all cursor-pointer text-center">
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    className="sr-only"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                  />
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    Click to select or drag & drop your Excel file
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Supports <span className="font-semibold text-slate-600 dark:text-slate-300">.XLSX, .XLS, .CSV</span> up to 10MB
+                  </p>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-900/20">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <FileSpreadsheet className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{importFile.name}</p>
+                      <p className="text-xs text-slate-500 font-medium">{(importFile.size / 1024).toFixed(1)} KB • Ready to import</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImportFile(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition shrink-0 ml-2"
+                    title="Remove file"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowImport(false)}>Cancel</Button>
-                <Button onClick={handleImport} disabled={importing} className="bg-brand-600 hover:bg-brand-700 text-white">
+                <Button onClick={handleImport} disabled={importing || !importFile} className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm">
                   {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
                   {importing ? 'Importing...' : 'Perform Import'}
                 </Button>
@@ -1051,28 +1104,78 @@ export function AdminUsers() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
-                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  ID | Full Name | Email | Phone Number | Avatar{'\n'}
-                  GV0001 | Nguyen Van A | nva@fpt.edu.vn | 0912345678 | https://example.com/avatar.jpg{'\n'}
-                  GV0002 | Tran Thi B | ttb@fpt.edu.vn | 0987654321 | https://example.com/avatar2.jpg
-                </pre>
+            <div className="space-y-5">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
+                  <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
+                </div>
+                
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
+                  <table className="w-full text-left font-mono">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-2">ID</th>
+                        <th className="px-3 py-2">Full Name</th>
+                        <th className="px-3 py-2">Email</th>
+                        <th className="px-3 py-2">Phone Number</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-400 text-[11px]">
+                      <tr>
+                        <td className="px-3 py-1.5 font-bold text-brand-600 dark:text-brand-400">GV0001</td>
+                        <td className="px-3 py-1.5">Nguyen Van A</td>
+                        <td className="px-3 py-1.5">nva@fpt.edu.vn</td>
+                        <td className="px-3 py-1.5">0912345678</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
-                  onChange={(e) => setImportLecturerFile(e.target.files?.[0] || null)}
-                />
-              </div>
+              {!importLecturerFile ? (
+                <label className="group relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 transition-all cursor-pointer text-center">
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    className="sr-only"
+                    onChange={(e) => setImportLecturerFile(e.target.files?.[0] || null)}
+                  />
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    Click to select or drag & drop your Excel file
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Supports <span className="font-semibold text-slate-600 dark:text-slate-300">.XLSX, .XLS, .CSV</span> up to 10MB
+                  </p>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-900/20">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <FileSpreadsheet className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{importLecturerFile.name}</p>
+                      <p className="text-xs text-slate-500 font-medium">{(importLecturerFile.size / 1024).toFixed(1)} KB • Ready to import</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImportLecturerFile(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition shrink-0 ml-2"
+                    title="Remove file"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowLecturerImport(false)}>Cancel</Button>
-                <Button onClick={handleLecturerImport} disabled={importingLecturer} className="bg-brand-600 hover:bg-brand-700 text-white">
+                <Button onClick={handleLecturerImport} disabled={importingLecturer || !importLecturerFile} className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm">
                   {importingLecturer ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
                   {importingLecturer ? 'Importing...' : 'Perform Import'}
                 </Button>
@@ -1113,28 +1216,84 @@ export function AdminUsers() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-600 dark:text-slate-400 overflow-x-auto">
-                <span className="text-slate-800 dark:text-slate-200 font-semibold mb-1 block">Excel template includes these columns:</span>
-                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs text-slate-700 dark:text-slate-300 overflow-x-auto whitespace-pre">
-                  Lecturer ID | Full Name | Subject | Class{'\n'}
-                  GV0001 | Nguyen Van A | DBI201 | SE18C01{'\n'}
-                  GV0002 | Tran Thi B | CSD201 | SE18C03
-                </pre>
+            <div className="space-y-5">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
+                  <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
+                </div>
+                
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
+                  <table className="w-full text-left font-mono">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-3 py-2">Lecturer ID</th>
+                        <th className="px-3 py-2">Full Name</th>
+                        <th className="px-3 py-2">Subject</th>
+                        <th className="px-3 py-2">Class</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-400 text-[11px]">
+                      <tr>
+                        <td className="px-3 py-1.5 font-bold text-brand-600 dark:text-brand-400">GV0001</td>
+                        <td className="px-3 py-1.5">Nguyen Van A</td>
+                        <td className="px-3 py-1.5"><span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-semibold text-slate-800 dark:text-slate-200">DBI201</span></td>
+                        <td className="px-3 py-1.5"><span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded font-semibold">SE18C01</span></td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-1.5 font-bold text-brand-600 dark:text-brand-400">GV0002</td>
+                        <td className="px-3 py-1.5">Tran Thi B</td>
+                        <td className="px-3 py-1.5"><span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-semibold text-slate-800 dark:text-slate-200">CSD201</span></td>
+                        <td className="px-3 py-1.5"><span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded font-semibold">SE18C03</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-brand-500"
-                  onChange={(e) => setImportAssignmentFile(e.target.files?.[0] || null)}
-                />
-              </div>
+              {!importAssignmentFile ? (
+                <label className="group relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 transition-all cursor-pointer text-center">
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    className="sr-only"
+                    onChange={(e) => setImportAssignmentFile(e.target.files?.[0] || null)}
+                  />
+                  <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    Click to select or drag & drop your Excel file
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Supports <span className="font-semibold text-slate-600 dark:text-slate-300">.XLSX, .XLS, .CSV</span> up to 10MB
+                  </p>
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-900/20">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <FileSpreadsheet className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{importAssignmentFile.name}</p>
+                      <p className="text-xs text-slate-500 font-medium">{(importAssignmentFile.size / 1024).toFixed(1)} KB • Ready to import</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImportAssignmentFile(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition shrink-0 ml-2"
+                    title="Remove file"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowAssignmentImport(false)}>Cancel</Button>
-                <Button onClick={handleAssignmentImport} disabled={importingAssignment} className="bg-brand-600 hover:bg-brand-700 text-white">
+                <Button onClick={handleAssignmentImport} disabled={importingAssignment || !importAssignmentFile} className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm">
                   {importingAssignment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileSpreadsheet className="w-4 h-4 mr-2" />}
                   {importingAssignment ? 'Importing...' : 'Perform Import'}
                 </Button>
