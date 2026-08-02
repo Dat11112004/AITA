@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/Input'
 import { FormattedText } from '@/components/ui/FormattedText'
 import { formatLatexMath } from '@/utils/mathHelper'
 import { RubricRuleSpecViewer } from '@/components/modules/grading/evidence/RubricRuleSpecViewer'
+import { useTranslation } from 'react-i18next'
 
 const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code', onCopy, isCopied }: { code: string; language?: string; onCopy: () => void; isCopied: boolean }) {
+  const { t } = useTranslation()
   const codeLines = code.split('\n');
 
   return (
@@ -24,7 +26,7 @@ const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code',
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-[11px] font-semibold border border-slate-700 shadow-sm"
         >
           {isCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-          <span>{isCopied ? 'Copied' : 'Copy code'}</span>
+          <span>{isCopied ? 'Copied' : t('st.asg.copy_code')}</span>
         </button>
       </div>
 
@@ -214,6 +216,7 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
 });
 
 const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: string | Date }) {
+  const { t } = useTranslation()
   const [countdownText, setCountdownText] = useState<string>('');
 
   useEffect(() => {
@@ -224,7 +227,7 @@ const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: 
       const diff = dueTime - now;
 
       if (diff <= 0) {
-        setCountdownText('The submission deadline has passed');
+        setCountdownText(t('st.asg.deadline_passed'));
         return;
       }
 
@@ -247,10 +250,11 @@ const CountdownDisplay = memo(function CountdownDisplay({ dueDate }: { dueDate: 
     return () => clearInterval(timer);
   }, [dueDate]);
 
-  return <span>{countdownText || 'Calculating...'}</span>;
+  return <span>{countdownText || t('st.asg.calculating')}</span>;
 });
 
 export function StudentAssignmentDetail() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
@@ -417,14 +421,14 @@ export function StudentAssignmentDetail() {
       setToast({
         message: wasAlreadySubmitted
           ? 'Resubmitted successfully. Your work is now waiting to be re-graded by the lecturer.'
-          : 'Submitted successfully.',
+          : t('st.asg.submit_ok'),
         type: 'success'
       })
       setFile(null)
       setIsResubmitting(false)
       loadData()
     } catch (e: any) {
-      setToast({ message: e.message || 'Submission failed', type: 'error' })
+      setToast({ message: e.message || t('st.asg.submit_fail'), type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
@@ -435,19 +439,19 @@ export function StudentAssignmentDetail() {
     setIsSubmitting(true)
     try {
       await api.submitFeedback(submission.id, appealText)
-      setToast({ message: 'Your feedback has been sent to the lecturer.', type: 'success' })
+      setToast({ message: t('st.asg.feedback_sent'), type: 'success' })
       setShowAppeal(false)
       setAppealText('')
       // Optionally reload the submission to show the updated feedback state if the backend returns it
     } catch (e: any) {
-      setToast({ message: e.message || 'Failed to send feedback', type: 'error' })
+      setToast({ message: e.message || t('st.asg.feedback_fail'), type: 'error' })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (loading) return <div className="flex p-20 justify-center text-brand-600">Loading data...</div>
-  if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">Assignment not found</div>
+  if (loading) return <div className="flex p-20 justify-center text-brand-600">{t('st.asg.loading')}</div>
+  if (!assignment) return <div className="p-20 text-center text-red-500 font-bold">{t('st.asg.not_found')}</div>
 
   const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
@@ -462,9 +466,9 @@ export function StudentAssignmentDetail() {
   const penaltyType = (assignment as any)?.latePenaltyType || (assignment as any)?.metadata?.latePenaltyType || (assignment as any)?.ExamClass?.[0]?.LatePenaltyType || 'NONE';
   const penaltyVal = (assignment as any)?.latePenaltyValue ?? (assignment as any)?.metadata?.latePenaltyValue ?? (assignment as any)?.ExamClass?.[0]?.LatePenaltyValue ?? 2;
 
-  let latePolicyText = 'No late penalty';
+  let latePolicyText = t('st.asg.no_late_penalty');
   if (!allowLateSubmission) {
-    latePolicyText = 'Late submissions blocked';
+    latePolicyText = t('st.asg.late_blocked');
   } else if (penaltyType === 'DAILY_POINTS') {
     latePolicyText = `-${penaltyVal} pts / 24h late`;
   } else if (penaltyType === 'FLAT_POINTS') {
@@ -479,8 +483,8 @@ export function StudentAssignmentDetail() {
     if (!assignment) return
     const title = assignment.title || (assignment as any)?.metadata?.title || 'Bai_Tap'
     const subjectName = assignment.subjectName || (assignment as any)?.subjectCode || (assignment as any)?.class || 'AITA LMS'
-    const dueStr = dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'No due date'
-    const lecturerName = assignment.lecturer || 'Subject lecturer'
+    const dueStr = dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : t('st.asg.no_due')
+    const lecturerName = assignment.lecturer || t('st.asg.subject_lecturer')
 
     let formattedBodyHtml = ''
     if (fullContent) {
@@ -748,7 +752,7 @@ export function StudentAssignmentDetail() {
               <div>
                 <p className="font-extrabold text-sm text-blue-900 dark:text-blue-200 flex items-center gap-2">
                   <span>Giảng viên đã cho phép bạn nộp lại bài!</span>
-                  <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-600 text-white rounded-full">Reopened</span>
+                  <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-600 text-white rounded-full">{t('st.asg.reopened')}</span>
                 </p>
                 <p className="text-xs mt-0.5 opacity-90">
                   {submission.reopenReason ? `Lý do: "${submission.reopenReason}". ` : ''}Hãy tải file bài làm mới lên và ấn "Nộp bài" trước khi hết hạn gia hạn.
@@ -781,7 +785,7 @@ export function StudentAssignmentDetail() {
                 </div>
                 <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0 flex items-center gap-2 text-xs font-bold">
                   <Check size={16} />
-                  <span>Submission complete</span>
+                  <span>{t('st.asg.submission_complete')}</span>
                 </div>
               </div>
             ) : (
@@ -807,7 +811,7 @@ export function StudentAssignmentDetail() {
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold flex items-center gap-1">
-                      {isPastDue ? 'This assignment is closed for official submissions.' : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
+                      {isPastDue ? t('st.asg.closed_official') : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
                     </p>
                   </div>
                 </div>
@@ -831,7 +835,7 @@ export function StudentAssignmentDetail() {
               <button
                 onClick={handleDownloadFormattedDoc}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 text-xs font-bold rounded-lg transition-all border border-blue-200 dark:border-blue-800/60 shadow-sm"
-                title="Download the assignment as a pre-formatted Word file (.docx)"
+                title={t('st.asg.download_docx')}
               >
                 <Download size={14} /> Download (.docx)
               </button>
@@ -970,7 +974,7 @@ export function StudentAssignmentDetail() {
                     </h3>
                     <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
                       Your submission has been analysed by the AI and the result saved.
-                      The lecturer is reviewing the score and detailed assessment. The official result appears as soon as the lecturer approves it and presses <strong>Publish result</strong>.
+                      The lecturer is reviewing the score and detailed assessment. The official result appears as soon as the lecturer approves it and presses <strong>{t('st.asg.publish_result')}</strong>.
                     </p>
                   </div>
                 </div>
@@ -1040,8 +1044,8 @@ export function StudentAssignmentDetail() {
                           <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Overall assessment and improvement plan</p>
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('st.asg.ai_mentor')}</h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t('st.asg.ai_mentor_desc')}</p>
                         </div>
                       </div>
                       <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-sm text-slate-700 dark:text-slate-300">
@@ -1063,11 +1067,11 @@ export function StudentAssignmentDetail() {
                       </button>
                     ) : (
                       <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
-                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">Send an appeal or comment to your lecturer</h4>
+                        <h4 className="font-bold text-sm mb-2 text-slate-700 dark:text-slate-300">{t('st.asg.appeal_title')}</h4>
                         <div className="flex items-end gap-2">
                           <div className="flex-1">
                             <Input
-                              placeholder="Type your question..."
+                              placeholder={t('st.asg.appeal_placeholder')}
                               value={appealText}
                               onChange={(e) => setAppealText(e.target.value)}
                             />
@@ -1119,7 +1123,7 @@ export function StudentAssignmentDetail() {
                         <div className="flex items-center gap-3 overflow-hidden">
                           <FileText size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 group-hover:text-emerald-800 dark:group-hover:text-emerald-200 truncate">
-                            {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || 'Submission file')}
+                            {submission.zipFileUrl.includes('?filename=') ? decodeURIComponent(submission.zipFileUrl.split('?filename=')[1]) : (submission.zipFileUrl.split('/').pop()?.split('?')[0] || t('st.asg.submission_file'))}
                           </span>
                         </div>
                         <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-300 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-700 transition-all shrink-0 ml-2">
@@ -1138,12 +1142,12 @@ export function StudentAssignmentDetail() {
                         className="w-full border-2 border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/80 dark:bg-blue-950/30 dark:hover:bg-blue-900/50 font-bold py-2.5 h-auto rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
                       >
                         <RotateCcw size={16} className="text-blue-600 dark:text-blue-400" />
-                        <span>Resubmit</span>
+                        <span>{t('st.asg.resubmit')}</span>
                       </Button>
                     ) : (
                       <div className="border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 bg-blue-50/50 dark:bg-slate-900/50 space-y-3 animate-in fade-in duration-300">
                         <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                          <strong>⚠️ Note:</strong> Resubmitting replaces your latest file and moves the submission back to <strong>Awaiting re-grading</strong> so the lecturer can grade it again.
+                          <strong>⚠️ Note:</strong> Resubmitting replaces your latest file and moves the submission back to <strong>{t('st.asg.awaiting_regrade')}</strong> so the lecturer can grade it again.
                         </div>
 
                         <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-white dark:bg-slate-900 relative cursor-pointer group">
@@ -1153,7 +1157,7 @@ export function StudentAssignmentDetail() {
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
                           />
                           <UploadCloud size={24} className="mb-1 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Choose a new submission file</p>
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('st.asg.choose_new_file')}</p>
                           <p className="text-[11px] text-slate-400">PDF, DOCX, ZIP (max 10MB)</p>
                         </div>
 
