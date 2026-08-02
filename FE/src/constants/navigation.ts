@@ -25,7 +25,7 @@ export const STUDENT_NAV: NavItem[] = [
   { id: 'overview', label: 'Dashboard', path: '/student', icon: 'LayoutDashboard', category: 'General' },
   { id: 'courses', label: 'Subjects', path: '/student/courses', icon: 'BookOpen', category: 'Learning' },
   { id: 'classes', label: 'Classes', path: '/student/classes', icon: 'Users', category: 'Learning' },
-  { id: 'subjects', label: 'Results', path: '/student/subjects', icon: 'GraduationCap', category: 'Learning' },
+  { id: 'subjects', label: 'Results & Assignments', path: '/student/subjects', icon: 'GraduationCap', category: 'Learning' },
   { id: 'notifications', label: 'Notifications', path: '/student/notifications', icon: 'Bell', category: 'System' },
   { id: 'settings', label: 'Settings', path: '/student/profile', icon: 'Settings', category: 'System' },
 ]

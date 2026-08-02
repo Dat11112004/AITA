@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Search, ArrowRight, Bot, Sparkles, Folder } from 'lucide-react';
 
+const ENGLISH_SUBJECT_DESCRIPTIONS: Record<string, string> = {
+  CSD201: 'Core data structures and algorithms: linked list, stack, queue, tree, binary search tree, heap, hash table, and graph analysis.',
+  DBI202: 'Relational database design and management: ERD modeling, Normalization, primary/foreign keys, SQL constraints, and query optimization.',
+  PRJ301: 'Java Web Application development using Servlet, JSP, JSTL, MVC architecture, JDBC, Session, Cookie, and Filter handling.',
+  PRM392: 'Android Mobile Programming using Java/Kotlin: Activity, Fragment, Intent, RecyclerView, Room Database, and REST API integration.',
+}
+
 export function PromptSubjectsList() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -143,7 +150,7 @@ export function PromptSubjectsList() {
                   {subject.name}
                 </h3>
                 <p className="text-slate-500 text-sm mt-1 line-clamp-2 min-h-[40px]">
-                  {subject.description || 'No subject description yet.'}
+                  {ENGLISH_SUBJECT_DESCRIPTIONS[subject.code] || subject.description || 'No subject description yet.'}
                 </p>
               </div>
 

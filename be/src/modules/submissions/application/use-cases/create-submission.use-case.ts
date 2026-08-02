@@ -26,7 +26,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     if (!exam) throw new NotFoundError(MESSAGES.EXAM_NOT_FOUND)
 
     let classId = dto.data.classId
-    
+
     if (!classId) {
       // Find the intersection of ExamClasses and Student Enrollments
       const { prisma } = await import('../../../../database/prisma.js')
@@ -38,10 +38,10 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
         where: { UserId: user.id },
         select: { ClassId: true }
       });
-      
+
       const enrolledClassIds = new Set(enrollments.map(e => e.ClassId));
       const matchingClass = examClasses.find(ec => enrolledClassIds.has(ec.ClassId));
-      
+
       if (matchingClass) {
         classId = matchingClass.ClassId;
       }
@@ -103,18 +103,18 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       const subjectCode = subjectInfo.subjectCode || subjectInfo.Code || 'UnknownSubject'
       const classCode = classInfo.classCode || classInfo.Code || 'UnknownClass'
       const studentNameSafe = ((user as any).name || (user as any).email || user.id).replace(/[^a-zA-Z0-9]/g, '_')
-      
+
       if (file.size > 10485760) {
         // Fallback to local storage for files > 10MB
         const uploadDir = path.join(process.cwd(), 'uploads', 'submissions', subjectCode, classCode);
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
-        
+
         const fileName = `${studentNameSafe}_${Date.now()}${path.extname(file.originalname) || '.zip'}`;
         localFilePath = path.join(uploadDir, fileName);
         fs.writeFileSync(localFilePath, file.buffer);
-        
+
         // Use relative URL so frontend/API can serve it
         fileUrl = `/uploads/submissions/${subjectCode}/${classCode}/${fileName}?filename=${encodeURIComponent(file.originalname)}`;
       } else {
@@ -167,7 +167,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
           assignmentId: examId,
           submissionId: targetSubmission.id
         });
-      } catch (e) {}
+      } catch (e) { }
 
       // Clean up any deadline warning notifications for this student and assignment
       try {
