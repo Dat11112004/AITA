@@ -965,12 +965,38 @@ export class SubmissionController extends BaseController {
 
     publish = async (req: Request, res: Response) => {
         const id = req.params.id as string;
-        try {
-            await prisma.submission.update({
-                where: { Id: id },
-                data: { ReviewStatus: 'PUBLISHED' }
-            });
-        } catch (e) { }
+
+        // The update used to be wrapped in an empty catch, so publishing a submission that does
+        // not exist still answered "thành công". Let a real failure surface instead.
+        const submission = await prisma.submission.update({
+            where: { Id: id },
+            data: { ReviewStatus: 'PUBLISHED' },
+            select: { Id: true, StudentId: true, Exam: { select: { Title: true, Id: true } } }
+        });
+
+        // This is the moment the score becomes visible to the student, so it is also the moment
+        // they should hear about it. Best-effort: a failed notification must not undo the publish.
+        if (submission.StudentId) {
+            try {
+                const title = submission.Exam?.Title ?? 'bài nộp';
+                const notif = await prisma.notification.create({
+                    data: {
+                        Title: `Đã có điểm: ${title}`,
+                        Message: `Giảng viên đã công bố điểm cho bài "${title}". Vào mục Kết quả để xem điểm và nhận xét.`,
+                        Type: 'GRADE_PUBLISHED',
+                        ReferenceId: submission.Id,
+                        ReferenceType: 'SUBMISSION',
+                        CreatedBy: (req as any).user?.id,
+                    }
+                });
+                await prisma.notificationRecipient.create({
+                    data: { NotificationId: notif.Id, UserId: submission.StudentId, IsRead: false }
+                });
+            } catch (notifErr) {
+                console.error('Failed to create grade-published notification:', notifErr);
+            }
+        }
+
         this.ok(res, { success: true, isPublished: true, reviewStatus: 'PUBLISHED' }, 'Đã công bố kết quả cho học sinh thành công!');
     };
 

@@ -4,6 +4,7 @@ import { ListUserNotificationsUseCase, MarkNotificationAsReadUseCase, MarkAllNot
 import { BroadcastNotificationUseCase } from '../application/use-cases/broadcast-notification.use-case.js'
 import { BaseController } from '../../../shared/presentation/base-controller.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
+import { prisma } from '../../../database/prisma.js'
 
 export class NotificationsController extends BaseController {
     constructor(
@@ -47,16 +48,42 @@ export class NotificationsController extends BaseController {
 
     async broadcast(req: Request, res: Response): Promise<void> {
         const userId = (req as any).user.id
-        const { title, message, type, targetRole } = req.body
-        this.logger.info(`Broadcasting notification: ${title} to ${targetRole}`)
+        const actorRole = (req as any).user.role
+        const { title, message, type, targetRole, classIds } = req.body
+        this.logger.info(`Broadcasting notification: ${title} to ${classIds?.length ? `${classIds.length} class(es)` : targetRole}`)
         const result = await this.broadcastNotificationUseCase.execute({
             title,
             message,
             type,
             targetRole,
-            createdBy: userId
+            classIds,
+            createdBy: userId,
+            actorRole
         })
         this.created(res, result, 'Broadcast notification successful')
+    }
+
+    /** Everything this user has sent, newest first, with how many people received each one. */
+    async listSentNotifications(req: Request, res: Response): Promise<void> {
+        const userId = (req as any).user.id
+        const limit = Math.min(Number((req.query as any).limit) || 50, 200)
+        const rows = await prisma.notification.findMany({
+            where: { CreatedBy: userId },
+            orderBy: { CreatedAt: 'desc' },
+            take: limit,
+            select: {
+                Id: true, Title: true, Message: true, Type: true, CreatedAt: true,
+                _count: { select: { NotificationRecipient: true } },
+            },
+        })
+        this.ok(res, rows.map(r => ({
+            id: r.Id,
+            title: r.Title,
+            message: r.Message,
+            type: r.Type,
+            createdAt: r.CreatedAt,
+            recipientCount: r._count.NotificationRecipient,
+        })), 'Lấy lịch sử thông báo đã gửi thành công')
     }
 
     async deleteNotification(req: Request, res: Response): Promise<void> {

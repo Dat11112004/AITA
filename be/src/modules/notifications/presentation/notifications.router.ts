@@ -17,6 +17,9 @@ export class NotificationsRouter {
         const ctrl = container.get<NotificationsController>(TOKENS.NotificationsController)
 
         this.router.get('/', authenticate, asyncHandler((req, res) => ctrl.listMyNotifications(req, res)))
+        // Sender-side history: the composer is not a recipient, so without this a lecturer had
+        // no way to see what they had already sent.
+        this.router.get('/sent', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => ctrl.listSentNotifications(req, res)))
         this.router.put('/read-all', authenticate, asyncHandler((req, res) => ctrl.markAllAsRead(req, res)))
         this.router.put('/:id/read', authenticate, asyncHandler((req, res) => ctrl.markAsRead(req, res)))
         this.router.delete('/all', authenticate, asyncHandler((req, res) => ctrl.deleteAllNotifications(req, res)))
