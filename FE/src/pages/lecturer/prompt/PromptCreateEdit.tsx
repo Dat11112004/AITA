@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import { promptGenerationStore } from '@/services/promptGenerationStore';
@@ -59,6 +60,7 @@ Yêu cầu đầu ra:
 export function PromptCreateEdit() {
   const { subjectId, promptId } = useParams<{ subjectId: string; promptId?: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const isEditing = Boolean(promptId);
 
@@ -118,7 +120,7 @@ export function PromptCreateEdit() {
         }
       } catch (err) {
         console.error('Failed to fetch prompt details:', err);
-        setError('Failed to load the data.');
+        setError(t('lc.pe.load_failed'));
       } finally {
         setIsLoading(false);
       }
@@ -174,7 +176,7 @@ export function PromptCreateEdit() {
 
   const handleAiRefine = async () => {
     if (!formData.templateContent.trim()) {
-      setError('Enter prompt content before asking the AI to revise it.');
+      setError(t('lc.pe.need_content'));
       return;
     }
     setError(null);
@@ -190,7 +192,7 @@ export function PromptCreateEdit() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.templateContent.trim()) {
-      setError('Enter a prompt name and the system prompt content.');
+      setError(t('lc.pe.need_name_content'));
       return;
     }
 
@@ -213,7 +215,7 @@ export function PromptCreateEdit() {
       navigate(`/lecturer/prompts/${subjectId}`);
     } catch (err: any) {
       console.error('Failed to save prompt:', err);
-      setError(err?.response?.data?.error || err?.message || 'Failed to save the prompt.');
+      setError(err?.response?.data?.error || err?.message || t('lc.pe.save_failed'));
     } finally {
       setIsSaving(false);
     }
@@ -223,12 +225,12 @@ export function PromptCreateEdit() {
     return (
       <div className="p-6 max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-3 border-brand-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-500 font-medium">Loading...</p>
+        <p className="text-slate-500 font-medium">{t('lc.pe.loading')}</p>
       </div>
     );
   }
 
-  const codeLabel = subject?.code || subjectId || 'Subject';
+  const codeLabel = subject?.code || subjectId || t('lc.pe.subject_fallback');
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
@@ -238,21 +240,21 @@ export function PromptCreateEdit() {
           onClick={() => { promptGenerationStore.reset(); navigate(`/lecturer/prompts/${subjectId}`); }}
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 transition-colors font-medium"
         >
-          <ArrowLeft size={16} /> Back to the prompt library
+          <ArrowLeft size={16} /> {t('lc.pe.back')}
         </button>
-        
+
         <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span>Lecturer</span>
+          <span>{t('lc.pe.crumb_lecturer')}</span>
           <ChevronRight size={12} />
-          <span>Prompt suggestions</span>
+          <span>{t('lc.pe.crumb_prompts')}</span>
           <ChevronRight size={12} />
           <span className="font-semibold text-slate-600">{codeLabel}</span>
           <ChevronRight size={12} />
-          <span>{isEditing ? 'Edit' : 'Create'}</span>
+          <span>{isEditing ? t('lc.pe.crumb_edit') : t('lc.pe.crumb_create')}</span>
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white pt-1">
-          Prompt suggestions: {codeLabel}
+          {t('lc.pe.page_title', { code: codeLabel })}
         </h1>
       </div>
 
@@ -280,10 +282,10 @@ export function PromptCreateEdit() {
           </div>
           <div>
             <h2 className="font-bold text-slate-900 dark:text-white text-base">
-              {isEditing ? `Edit prompt: ${codeLabel}` : `Create prompt: ${codeLabel}`}
+              {isEditing ? t('lc.pe.banner_edit', { code: codeLabel }) : t('lc.pe.banner_create', { code: codeLabel })}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-              Configure the system prompt for the AI
+              {t('lc.pe.banner_desc')}
             </p>
           </div>
         </div>
@@ -295,7 +297,7 @@ export function PromptCreateEdit() {
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               <FileText size={14} className="text-indigo-600 dark:text-indigo-400" />
-              PROMPT NAME <span className="text-rose-500">*</span>
+              {t('lc.pe.name_label')} <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <Edit3 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -315,7 +317,7 @@ export function PromptCreateEdit() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 <Terminal size={14} className="text-indigo-600 dark:text-indigo-400" />
-                NỘI DUNG PROMPT SYSTEM <span className="text-rose-500">*</span>
+                {t('lc.pe.content_label')} <span className="text-rose-500">*</span>
               </label>
 
               {/* Two AI Buttons matching Image 2 */}
@@ -327,7 +329,7 @@ export function PromptCreateEdit() {
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl font-bold text-xs border border-indigo-200/80 dark:border-indigo-800/80 transition-all shadow-xs"
                 >
                   <Wand2 size={14} className={isAiGenerating ? 'animate-spin' : ''} />
-                  {isAiGenerating ? 'Generating...' : 'Generate with AI'}
+                  {isAiGenerating ? t('lc.pe.generating') : t('lc.pe.generate_ai')}
                 </button>
 
                 <button
@@ -337,7 +339,7 @@ export function PromptCreateEdit() {
                   className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-xl font-bold text-xs border border-amber-200/80 dark:border-amber-800/80 transition-all shadow-xs"
                 >
                   <Sparkles size={14} />
-                  AI revise
+                  {t('lc.pe.ai_refine')}
                 </button>
               </div>
             </div>
@@ -357,7 +359,7 @@ export function PromptCreateEdit() {
               {/* Code Editor Textarea */}
               <textarea
                 rows={12}
-                placeholder="Type the prompt for generating exams/assignments... or press 'Generate with AI'"
+                placeholder={t('lc.pe.content_placeholder')}
                 value={formData.templateContent}
                 onChange={(e) => setFormData({ ...formData, templateContent: e.target.value })}
                 className="w-full p-5 bg-slate-50/70 dark:bg-slate-950/80 text-slate-800 dark:text-slate-200 text-xs font-mono outline-none resize-y leading-relaxed"
@@ -373,7 +375,7 @@ export function PromptCreateEdit() {
               onClick={() => navigate(`/lecturer/prompts/${subjectId}`)}
               className="px-6 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 transition-all shadow-xs"
             >
-              Cancel
+              {t('lc.pe.cancel')}
             </button>
             <button
               type="submit"
@@ -381,7 +383,7 @@ export function PromptCreateEdit() {
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
             >
               <Save size={16} />
-              {isSaving ? 'Saving...' : 'Save changes'}
+              {isSaving ? t('lc.pe.saving') : t('lc.pe.save')}
             </button>
           </div>
 
@@ -401,10 +403,10 @@ export function PromptCreateEdit() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Automatic AI Prompt Generation
+                    {t('lc.pe.modal_title')}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Subject: <strong className="text-indigo-600 dark:text-indigo-400">{codeLabel}</strong>
+                    {t('lc.pe.modal_subject')} <strong className="text-indigo-600 dark:text-indigo-400">{codeLabel}</strong>
                   </p>
                 </div>
               </div>
@@ -423,7 +425,7 @@ export function PromptCreateEdit() {
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <FileCode size={14} className="text-indigo-600 dark:text-indigo-400" />
-                  CHOOSE A FORMAT <span className="text-rose-500">*</span>
+                  {t('lc.pe.choose_format')} <span className="text-rose-500">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div
@@ -440,8 +442,8 @@ export function PromptCreateEdit() {
                       <CheckSquare size={16} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold">Multiple choice</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">4 options: A, B, C, D</p>
+                      <h4 className="text-sm font-bold">{t('lc.pe.quiz')}</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">{t('lc.pe.quiz_desc')}</p>
                     </div>
                   </div>
 
@@ -459,8 +461,8 @@ export function PromptCreateEdit() {
                       <FileCode size={16} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold">Essay / coding</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">Exercises & test cases</p>
+                      <h4 className="text-sm font-bold">{t('lc.pe.essay')}</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">{t('lc.pe.essay_desc')}</p>
                     </div>
                   </div>
                 </div>
@@ -471,7 +473,7 @@ export function PromptCreateEdit() {
                 {/* Question count */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Hash size={13} className="text-indigo-600" /> Number of questions
+                    <Hash size={13} className="text-indigo-600" /> {t('lc.pe.question_count')}
                   </label>
                   <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800/80">
                     <button
@@ -502,31 +504,32 @@ export function PromptCreateEdit() {
                 {/* Difficulty */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Sliders size={13} className="text-amber-500" /> Difficulty
+                    <Sliders size={13} className="text-amber-500" /> {t('lc.pe.difficulty')}
                   </label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
-                    <option value="Dễ">Easy</option>
-                    <option value="Trung bình">Medium</option>
-                    <option value="Khó">Hard</option>
+                    {/* Values stay Vietnamese: they are interpolated into the prompt sent to the AI. */}
+                    <option value="Dễ">{t('lc.pe.easy')}</option>
+                    <option value="Trung bình">{t('lc.pe.medium')}</option>
+                    <option value="Khó">{t('lc.pe.hard')}</option>
                   </select>
                 </div>
 
                 {/* Language */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                    <Globe size={13} className="text-emerald-500" /> Language
+                    <Globe size={13} className="text-emerald-500" /> {t('lc.pe.language')}
                   </label>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as 'vi' | 'en')}
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
-                    <option value="vi">🇻🇳 Vietnamese</option>
-                    <option value="en">🇬🇧 English</option>
+                    <option value="vi">{t('lc.pe.lang_vi')}</option>
+                    <option value="en">{t('lc.pe.lang_en')}</option>
                   </select>
                 </div>
               </div>
@@ -534,11 +537,11 @@ export function PromptCreateEdit() {
               {/* 3. Topic */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <AlignLeft size={13} className="text-indigo-600" /> Topic for the exercises / questions <span className="text-rose-500">*</span>
+                  <AlignLeft size={13} className="text-indigo-600" /> {t('lc.pe.topic')} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. binary tree, REST API with Express, sorting algorithms..."
+                  placeholder={t('lc.pe.topic_placeholder')}
                   value={topicInput}
                   onChange={(e) => setTopicInput(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
@@ -548,11 +551,11 @@ export function PromptCreateEdit() {
               {/* 4. Detailed description */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Detailed description / extra requirements:
+                  {t('lc.pe.description')}
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Add notes or specific guidance for the AI (e.g. focus on empty-input handling and edge cases...)"
+                  placeholder={t('lc.pe.description_placeholder')}
                   value={descriptionInput}
                   onChange={(e) => setDescriptionInput(e.target.value)}
                   className="w-full p-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 leading-relaxed resize-y"
@@ -568,7 +571,7 @@ export function PromptCreateEdit() {
                 onClick={() => setShowTemplateModal(false)}
                 className="px-5 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 text-xs font-bold"
               >
-                Close
+                {t('lc.pe.close')}
               </button>
               <button
                 type="button"
@@ -578,11 +581,11 @@ export function PromptCreateEdit() {
               >
                 {isAiGenerating ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Generating prompt...
+                    <Loader2 size={16} className="animate-spin" /> {t('lc.pe.generating_prompt')}
                   </>
                 ) : (
                   <>
-                    <Sparkles size={16} /> Generate prompt with AI <ArrowRight size={14} />
+                    <Sparkles size={16} /> {t('lc.pe.generate_prompt')} <ArrowRight size={14} />
                   </>
                 )}
               </button>
