@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
 import {
@@ -7,8 +8,16 @@ import {
   Calendar, ChevronDown, ChevronUp, Book, Code, Users
 } from 'lucide-react'
 
+/**
+ * Sentinel for classes whose semester is missing. It is a grouping key and a sort
+ * marker, not display text, so it stays language-independent and is translated
+ * only where it is rendered.
+ */
+const OTHER_SEASON = 'Other semesters'
+
 export function LecturerClasses() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [semesters, setSemesters] = useState<SemesterRow[]>([])
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
@@ -62,13 +71,13 @@ export function LecturerClasses() {
     const semId = (cls.semester as any)?.id || 'unknown';
     const semesterRecord = semesters.find(s => s.id === semId);
 
-    const seasonName = semesterRecord?.season || 'Other semesters';
-    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Other semester';
+    const seasonName = semesterRecord?.season || OTHER_SEASON;
+    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || t('lc.cls.other_semester');
 
     const subId = (cls.subject as any)?.id || 'unknown';
     const subjectRecord = subjects.find(s => s.id === subId);
-    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Other subject';
-    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || 'Unnamed subject';
+    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || t('lc.cls.other_subject');
+    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || t('lc.cls.unnamed_subject');
 
     if (!groupedData[seasonName]) {
       groupedData[seasonName] = { seasonName, isActive: false, semesters: {} };
@@ -97,8 +106,8 @@ export function LecturerClasses() {
 
   // Calculate averages & sort
   const sortedSeasons = Object.values(groupedData).sort((a, b) => {
-    if (a.seasonName === 'Other semesters') return 1;
-    if (b.seasonName === 'Other semesters') return -1;
+    if (a.seasonName === OTHER_SEASON) return 1;
+    if (b.seasonName === OTHER_SEASON) return -1;
     return b.seasonName.localeCompare(a.seasonName);
   });
 
@@ -163,10 +172,10 @@ export function LecturerClasses() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Users className="w-7 h-7 text-slate-400" />
-            All classes
+            {t('lc.cls.title')}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Browse classes by structure: Season → Semester → Subject → Class.
+            {t('lc.cls.subtitle')}
           </p>
         </div>
 
@@ -175,7 +184,7 @@ export function LecturerClasses() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search classes..."
+              placeholder={t('lc.cls.search')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9 pr-10 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -192,14 +201,14 @@ export function LecturerClasses() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-base font-bold text-slate-800 mb-4">Structured training list</h3>
+        <h3 className="text-base font-bold text-slate-800 mb-4">{t('lc.cls.structured_list')}</h3>
 
         <div className="space-y-4">
           {sortedSeasons.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 shadow-sm">
               <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h4 className="text-base font-semibold text-slate-700">No classes assigned yet</h4>
-              <p className="text-sm text-slate-500 mt-1">You have not been assigned to teach any class in the current semesters.</p>
+              <h4 className="text-base font-semibold text-slate-700">{t('lc.cls.empty_title')}</h4>
+              <p className="text-sm text-slate-500 mt-1">{t('lc.cls.empty_desc')}</p>
             </div>
           ) : (
             sortedSeasons.map(season => {
@@ -220,16 +229,18 @@ export function LecturerClasses() {
                       {getSeasonIcon(season.seasonName)}
                     </div>
                     <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-bold text-slate-800">{season.seasonName}</h2>
+                      <h2 className="text-lg font-bold text-slate-800">
+                        {season.seasonName === OTHER_SEASON ? t('lc.cls.other_seasons') : season.seasonName}
+                      </h2>
                       {season.isActive && (
                         <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                          In progress
+                          {t('lc.cls.in_progress')}
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-slate-500">
-                    <span className="text-sm font-medium text-indigo-600">{semesterCount} semesters</span>
+                    <span className="text-sm font-medium text-indigo-600">{t('lc.cls.semesters_count', { n: semesterCount })}</span>
                     {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
                 </div>
@@ -255,7 +266,7 @@ export function LecturerClasses() {
                                 <Calendar className="w-5 h-5" />
                               </div>
                               <div>
-                                <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode)}</h3>
+                                <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode, t('lc.semester_word'))}</h3>
                                 {(semester.startDate || semester.endDate) && (
                                   <p className="text-xs text-slate-500 mt-0.5">
                                     {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
@@ -264,7 +275,7 @@ export function LecturerClasses() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4 text-slate-500">
-                              <span className="text-sm font-medium text-indigo-600">{subjectCount} subjects</span>
+                              <span className="text-sm font-medium text-indigo-600">{t('lc.cls.subjects_count', { n: subjectCount })}</span>
                               {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                             </div>
                           </div>
@@ -275,10 +286,10 @@ export function LecturerClasses() {
                               <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
                                   <tr>
-                                    <th className="px-6 py-4 font-medium">Subject</th>
-                                    <th className="px-6 py-4 font-medium text-center">Subject code</th>
-                                    <th className="px-6 py-4 font-medium text-center">Classes</th>
-                                    <th className="px-6 py-4 font-medium text-center">Average class size</th>
+                                    <th className="px-6 py-4 font-medium">{t('lc.cls.col.subject')}</th>
+                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.subject_code')}</th>
+                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.classes')}</th>
+                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.avg_size')}</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -302,10 +313,10 @@ export function LecturerClasses() {
                                           <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
                                           <td className="px-6 py-4 text-center">
                                             <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
-                                              {subject.classes.length} classes
+                                              {t('lc.cls.classes_count', { n: subject.classes.length })}
                                             </span>
                                           </td>
-                                          <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} students</td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{t('lc.cls.students_count', { n: subject.avgStudents })}</td>
                                         </tr>
 
                                         {/* Expanded Subject Classes */}
@@ -322,7 +333,7 @@ export function LecturerClasses() {
                                                   >
                                                     <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
                                                     <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
-                                                      Class {cls.code}
+                                                      {t('lc.cls.class_prefix', { code: cls.code })}
                                                     </span>
                                                   </button>
                                                 ))}
