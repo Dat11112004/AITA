@@ -1,0 +1,93 @@
+name: CD — deploy backend to VPS
+
+# ⚠️ MẶC ĐỊNH WORKFLOW NÀY KHÔNG CHẠY. Nó chỉ chạy khi repo có biến DEPLOY_ENABLED = true.
+# Làm vậy để merge file này vào main KHÔNG vô tình deploy đi đâu cả.
+#
+# ====== MUỐN BẬT THÌ LÀM ĐỦ 2 BƯỚC ======
+# 1) Settings → Secrets and variables → Actions → tab "Variables" → New repository variable
+#      DEPLOY_ENABLED = true
+#      DEPLOY_PATH    = /var/www/aita-be        (thư mục trên server, tuỳ bạn đặt)
+#      PM2_APP_NAME   = aita-be                 (tên tiến trình pm2)
+# 2) Cũng trang đó, tab "Secrets" → New repository secret
+#      VPS_HOST     = ip hoặc domain server
+#      VPS_USER     = user ssh
+#      VPS_SSH_KEY  = private key ssh (dán nguyên nội dung file, gồm cả dòng BEGIN/END)
+#      VPS_PORT     = cổng ssh, không có thì mặc định 22
+#
+# Trên server cần có sẵn: Node 22, pm2 (npm i -g pm2), và file be/.env chứa
+# DATABASE_URL + JWT_SECRET. Workflow KHÔNG đụng tới .env trên server.
+#
+# Lưu ý về database: workflow chỉ chạy `prisma migrate deploy` (áp migration đã commit).
+# KHÔNG dùng `prisma db push` trên server vì lệnh đó có thể làm mất dữ liệu.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-be
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy be
+    # Cổng an toàn: chưa đặt DEPLOY_ENABLED=true thì job bị skip, không fail, không deploy
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: be/package-lock.json
+
+      - name: Install dependencies
+        working-directory: be
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: be
+        run: npx prisma generate
+
+      - name: Build
+        working-directory: be
+        run: npm run build
+
+      - name: Copy build to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "be/dist/**,be/package.json,be/package-lock.json,be/prisma/**"
+          target: ${{ vars.DEPLOY_PATH }}
+          strip_components: 1
+
+      - name: Install production deps, migrate & restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ vars.DEPLOY_PATH }}
+            npm ci --omit=dev
+            npx prisma generate
+            npx prisma migrate deploy
+            pm2 describe ${{ vars.PM2_APP_NAME }} > /dev/null 2>&1 \
+              && pm2 restart ${{ vars.PM2_APP_NAME }} --update-env \
+              || pm2 start dist/server.js --name ${{ vars.PM2_APP_NAME }}
+            pm2 save
+            pm2 status ${{ vars.PM2_APP_NAME }}
