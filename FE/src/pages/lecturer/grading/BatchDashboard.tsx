@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import MultiFileUpload from '@/components/modules/grading/MultiFileUpload';
 import { gradingApi as api } from '@/lib/api';
 import { CheckCircle2, Clock, Loader2, ArrowRight, ArrowLeft, Search, AlertCircle, StopCircle, ChevronRight, ChevronDown, Wand2 } from 'lucide-react';
@@ -29,7 +30,8 @@ export default function BatchDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const navigate = useNavigate();
-    const [assignmentTitle, setAssignmentTitle] = useState<string>('Automated Assessment');
+    const { t } = useTranslation();
+    const [assignmentTitle, setAssignmentTitle] = useState<string>(t('lc.bd.assignment_fallback'));
     const { id: assignmentId } = useParams<{ id: string }>();
 
     const [jobs, setJobs] = useState<JobStatus[]>(() => {
@@ -55,7 +57,7 @@ export default function BatchDashboard() {
     useEffect(() => {
         if (assignmentId) {
             api.getAssignment(assignmentId)
-                .then(res => setAssignmentTitle(res.metadata?.title || 'Automated Assessment'))
+                .then(res => setAssignmentTitle(res.metadata?.title || t('lc.bd.assignment_fallback')))
                 .catch(err => console.error("Failed to fetch assignment details:", err));
         }
     }, [assignmentId]);
@@ -153,7 +155,7 @@ export default function BatchDashboard() {
                 fileName: job.fileName,
                 state: 'queued' as const,
                 progressPercent: 0,
-                currentTask: 'Waiting in queue...'
+                currentTask: t('lc.bd.waiting_queue')
             }));
 
             const now = Date.now();
@@ -164,7 +166,7 @@ export default function BatchDashboard() {
             setIsUploading(false);
 
         } catch (err: any) {
-            setError(err.response?.data?.error || err.message || "Failed to submit batch");
+            setError(err.response?.data?.error || err.message || t('lc.bd.submit_failed'));
             setIsUploading(false);
         }
     };
@@ -192,7 +194,7 @@ export default function BatchDashboard() {
             // Optimistically update UI
             setJobs(prevJobs => prevJobs.map(job => {
                 if (ids.includes(job.id)) {
-                    return { ...job, state: 'failed', error: 'Cancelled by user', currentTask: 'Cancelled by user' };
+                    return { ...job, state: 'failed', error: t('lc.bd.cancelled_by_user'), currentTask: t('lc.bd.cancelled_by_user') };
                 }
                 return job;
             }));
@@ -260,7 +262,7 @@ export default function BatchDashboard() {
                 <MultiFileUpload onUpload={handleUpload} isUploading={isUploading} />
                 {error && (
                     <div className="mt-8 p-4 dark:bg-red-500/10 bg-red-50 border dark:border-red-500/30 border-red-200 rounded-lg dark:text-red-400 text-red-600 text-center max-w-3xl mx-auto">
-                        <p className="font-semibold">Upload failed</p>
+                        <p className="font-semibold">{t('lc.bd.upload_failed')}</p>
                         <p className="text-sm mt-1">{error}</p>
                     </div>
                 )}
@@ -277,8 +279,8 @@ export default function BatchDashboard() {
                         <ArrowLeft size={20} />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold dark:text-white text-slate-900">Grading Status</h1>
-                        <p className="text-sm dark:text-slate-400 text-slate-500">AI is grading submissions in real time.</p>
+                        <h1 className="text-2xl font-bold dark:text-white text-slate-900">{t('lc.bd.title')}</h1>
+                        <p className="text-sm dark:text-slate-400 text-slate-500">{t('lc.bd.subtitle')}</p>
                     </div>
                 </div>
                 <button
@@ -287,7 +289,7 @@ export default function BatchDashboard() {
                     className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm"
                 >
                     {isCancelling ? <Loader2 size={16} className="animate-spin" /> : <StopCircle size={16} />}
-                    Cancel All
+                    {t('lc.bd.cancel_all')}
                 </button>
             </div>
 
@@ -297,17 +299,17 @@ export default function BatchDashboard() {
                     <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
                         <CheckCircle2 size={32} />
                     </div>
-                    <h2 className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mb-2">All submissions completed</h2>
-                    <p className="text-emerald-600 dark:text-emerald-400 mb-6 font-medium text-lg">{completedCount} / {totalCount} successfully graded</p>
+                    <h2 className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mb-2">{t('lc.bd.all_done')}</h2>
+                    <p className="text-emerald-600 dark:text-emerald-400 mb-6 font-medium text-lg">{t('lc.bd.graded_count', { done: completedCount, total: totalCount })}</p>
 
                     <div className="flex items-center gap-8 mb-8 text-emerald-700 dark:text-emerald-300">
                         <div className="text-center">
-                            <div className="text-sm opacity-80 uppercase tracking-wider mb-1">Average Score</div>
+                            <div className="text-sm opacity-80 uppercase tracking-wider mb-1">{t('lc.bd.avg_score')}</div>
                             <div className="text-3xl font-bold">{parseFloat(avgScore.toFixed(2))}</div>
                         </div>
                         <div className="w-px h-10 bg-emerald-200 dark:bg-emerald-800"></div>
                         <div className="text-center">
-                            <div className="text-sm opacity-80 uppercase tracking-wider mb-1">Duration</div>
+                            <div className="text-sm opacity-80 uppercase tracking-wider mb-1">{t('lc.bd.duration')}</div>
                             <div className="text-3xl font-bold font-mono">{formatTime(elapsedSeconds)}</div>
                         </div>
                     </div>
@@ -316,7 +318,7 @@ export default function BatchDashboard() {
                         onClick={handleClearBatch}
                         className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
                     >
-                        <ArrowRight size={20} /> View Grading Results
+                        <ArrowRight size={20} /> {t('lc.bd.view_results')}
                     </button>
                 </div>
             ) : (
@@ -366,8 +368,8 @@ export default function BatchDashboard() {
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase">Currently grading</span>
-                                                    <span className="text-xs bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-full font-medium">Current student</span>
+                                                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase">{t('lc.bd.currently_grading')}</span>
+                                                    <span className="text-xs bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-full font-medium">{t('lc.bd.current_student')}</span>
                                                 </div>
                                                 <div className="font-bold text-slate-900 dark:text-white">{currentProcessingJob.studentName}</div>
                                             </div>
@@ -384,7 +386,7 @@ export default function BatchDashboard() {
                                     
                                     <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-3 gap-2">
                                         <div className="flex items-center gap-1">
-                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">Current step</span>
+                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">{t('lc.bd.current_step')}</span>
                                             <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{currentProcessingJob.currentTask}</span>
                                         </div>
                                         <div className="text-sm font-bold text-slate-900 dark:text-white mr-1">{currentProcessingJob.progressPercent}%</div>
@@ -401,7 +403,7 @@ export default function BatchDashboard() {
                             ) : (
                                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-8 border border-slate-100 dark:border-slate-800 text-center flex items-center justify-center min-h-[140px]">
                                     <Loader2 className="animate-spin text-slate-400 mr-2" size={20} />
-                                    <p className="text-sm font-medium text-slate-500">Preparing next submission...</p>
+                                    <p className="text-sm font-medium text-slate-500">{t('lc.bd.preparing_next')}</p>
                                 </div>
                             )}
                         </div>
@@ -416,19 +418,19 @@ export default function BatchDashboard() {
                         onClick={() => setFilterState('all')}
                         className={classNames("pb-3 px-1 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-[2px]", filterState === 'all' ? 'border-brand-600 text-brand-600 dark:border-brand-400 dark:text-brand-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300')}
                     >
-                        All ({totalCount})
+                        {t('lc.bd.tab_all', { n: totalCount })}
                     </button>
                     <button
                         onClick={() => setFilterState('processing')}
                         className={classNames("pb-3 px-1 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-[2px]", filterState === 'processing' ? 'border-brand-600 text-brand-600 dark:border-brand-400 dark:text-brand-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300')}
                     >
-                        Processing ({inProgressCount})
+                        {t('lc.bd.tab_processing', { n: inProgressCount })}
                     </button>
                     <button
                         onClick={() => setFilterState('completed')}
                         className={classNames("pb-3 px-1 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-[2px]", filterState === 'completed' ? 'border-brand-600 text-brand-600 dark:border-brand-400 dark:text-brand-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300')}
                     >
-                        Completed ({completedCount + failedCount})
+                        {t('lc.bd.tab_completed', { n: completedCount + failedCount })}
                     </button>
                 </div>
 
@@ -436,7 +438,7 @@ export default function BatchDashboard() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Search student or assignment..."
+                        placeholder={t('lc.bd.search')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 focus:ring-2 focus:ring-brand-500 outline-none text-sm dark:text-white transition-all hover:bg-white dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900"
@@ -463,7 +465,7 @@ export default function BatchDashboard() {
                                     </div>
                                     <div className="min-w-0">
                                         <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{job.studentName}</div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">Waiting in queue...</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{t('lc.bd.waiting_queue')}</div>
                                     </div>
                                 </div>
                                 <div className="shrink-0 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -494,7 +496,7 @@ export default function BatchDashboard() {
                                         </div>
                                         <div className="min-w-0">
                                             <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{job.studentName}</div>
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Analysing...</div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{t('lc.bd.analysing')}</div>
                                         </div>
                                     </div>
                                     <div className="font-bold text-brand-600 dark:text-brand-400 text-sm shrink-0">{job.progressPercent}%</div>
@@ -523,7 +525,7 @@ export default function BatchDashboard() {
                                     <div className="min-w-0">
                                         <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{job.studentName}</div>
                                         <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                                            {job.state === 'completed' ? 'Completed' : 'Failed to grade'}
+                                            {job.state === 'completed' ? t('lc.bd.completed') : t('lc.bd.failed_to_grade')}
                                         </div>
                                     </div>
                                 </div>
@@ -535,14 +537,14 @@ export default function BatchDashboard() {
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-1 text-sm font-bold text-red-500">
-                                            Failed
+                                            {t('lc.bd.failed')}
                                         </div>
                                     )}
                                     <button
                                         onClick={() => navigate(`/lecturer/grading/result/${job.id}`)}
                                         className="text-xs font-semibold px-3 py-1 rounded border border-slate-200 dark:border-slate-700 text-brand-600 dark:text-brand-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                                     >
-                                        View result
+                                        {t('lc.bd.view_result')}
                                     </button>
                                 </div>
                             </div>
@@ -558,17 +560,17 @@ export default function BatchDashboard() {
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800 animate-fade-in-up">
                         <div className="flex items-center gap-3 mb-4 text-red-600 dark:text-red-400">
                             <AlertCircle size={28} />
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Cancel All Tasks?</h3>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t('lc.bd.modal_title')}</h3>
                         </div>
                         <p className="text-slate-600 dark:text-slate-400 mb-8 text-sm">
-                            Are you sure you want to cancel all queued and processing grading tasks? This action cannot be undone and will mark pending jobs as failed.
+                            {t('lc.bd.modal_desc')}
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setShowCancelDialog(false)}
                                 className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                             >
-                                Go back
+                                {t('lc.bd.go_back')}
                             </button>
                             <button
                                 onClick={() => {
@@ -577,7 +579,7 @@ export default function BatchDashboard() {
                                 }}
                                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-red-500/20"
                             >
-                                Yes, cancel all
+                                {t('lc.bd.confirm_cancel_all')}
                             </button>
                         </div>
                     </div>

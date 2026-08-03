@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +11,7 @@ import { Save, ArrowLeft, Plus, Trash2, FileText } from 'lucide-react'
 export function LecturerAssignmentRubric() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { t } = useTranslation()
   const [file, setFile] = useState<File | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [criteria, setCriteria] = useState<{ id: string, description: string, maxPoints: number }[]>([
@@ -50,10 +52,10 @@ export function LecturerAssignmentRubric() {
       }
 
       await api.saveExamRubric(id, formData)
-      alert('Rubric configuration saved.')
+      alert(t('lc.ar.saved'))
       navigate(-1)
     } catch (error: any) {
-      alert(error.message || 'Failed to save rubric')
+      alert(error.message || t('lc.ar.save_failed'))
     } finally {
       setIsSaving(false)
     }
@@ -66,8 +68,8 @@ export function LecturerAssignmentRubric() {
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
-          title="Rubric & Answer Key Configuration" 
-          breadcrumbs={[{ label: 'Classes', path: '/lecturer/classes' }, { label: 'Rubric Configuration' }]} 
+          title={t('lc.ar.title')}
+          breadcrumbs={[{ label: t('lc.ar.crumb_classes'), path: '/lecturer/classes' }, { label: t('lc.ar.crumb_rubric') }]}
         />
       </div>
 
@@ -75,12 +77,12 @@ export function LecturerAssignmentRubric() {
         <Card className="p-5 border-slate-200">
           <div className="flex items-center gap-2 mb-4 text-brand-700">
             <FileText size={20} />
-            <h3 className="font-bold">1. Upload answer key file (optional)</h3>
+            <h3 className="font-bold">{t('lc.ar.step1')}</h3>
           </div>
           
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
-              You can upload a PDF/DOCX answer key or detailed rubric. The AI grader reads this file and uses it as the basis for scoring.
+              {t('lc.ar.step1_desc')}
             </p>
             <input 
               type="file" 
@@ -93,9 +95,9 @@ export function LecturerAssignmentRubric() {
 
         <Card className="p-5 border-slate-200">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-brand-700">2. Detailed grading criteria (rubric)</h3>
+            <h3 className="font-bold text-brand-700">{t('lc.ar.step2')}</h3>
             <Button size="sm" variant="outline" onClick={handleAddCriterion} className="gap-2">
-              <Plus size={16} /> Add criterion
+              <Plus size={16} /> {t('lc.ar.add_criterion')}
             </Button>
           </div>
 
@@ -104,8 +106,8 @@ export function LecturerAssignmentRubric() {
               <div key={c.id} className="flex gap-4 items-start p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex-1">
                   <Input 
-                    label={`Criterion ${idx + 1}`}
-                    placeholder="e.g. Folder structure follows Clean Architecture"
+                    label={t('lc.ar.criterion', { n: idx + 1 })}
+                    placeholder={t('lc.ar.criterion_placeholder')}
                     value={c.description}
                     onChange={(e) => handleCriterionChange(idx, 'description', e.target.value)}
                   />
@@ -113,7 +115,7 @@ export function LecturerAssignmentRubric() {
                 <div className="w-32">
                   <Input 
                     type="number"
-                    label="Max score"
+                    label={t('lc.ar.max_score')}
                     value={c.maxPoints.toString()}
                     onChange={(e) => handleCriterionChange(idx, 'maxPoints', e.target.value)}
                   />
@@ -129,10 +131,10 @@ export function LecturerAssignmentRubric() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>{t('lc.ar.cancel')}</Button>
           <Button onClick={handleSave} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 text-white gap-2">
             <Save size={16} />
-            {isSaving ? 'Saving...' : 'Save rubric'}
+            {isSaving ? t('lc.ar.saving') : t('lc.ar.save')}
           </Button>
         </div>
       </div>

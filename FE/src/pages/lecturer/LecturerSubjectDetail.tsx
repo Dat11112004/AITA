@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, type SubjectRow } from '@/lib/api'
 
 import {
@@ -15,6 +16,7 @@ type TabType = 'syllabus' | 'clos' | 'sessions' | 'assessment'
 export function LecturerSubjectDetail() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const [subject, setSubject] = useState<SubjectRow | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,7 +33,7 @@ export function LecturerSubjectDetail() {
         if (found) {
           setSubject(found)
         } else {
-          setSubject({ id: code, code: code.toUpperCase(), name: 'Subject', description: '' })
+          setSubject({ id: code, code: code.toUpperCase(), name: t('lc.sub.name_fallback'), description: '' })
         }
       })
       .catch(() => {
@@ -166,7 +168,7 @@ export function LecturerSubjectDetail() {
 
     return {
       code: s.code || subject?.code || 'N/A',
-      name: s.name || subject?.name || 'Subject',
+      name: s.name || subject?.name || t('lc.sub.name_fallback'),
       description,
       credits,
       degreeLevel,
@@ -193,17 +195,17 @@ export function LecturerSubjectDetail() {
   }, [syllabus, sessionSearch])
 
   const tabs: { key: TabType; label: string; icon: any; count?: number }[] = [
-    { key: 'syllabus', label: 'Syllabus Overview', icon: BookOpen },
-    { key: 'clos', label: 'CLO List', icon: GraduationCap, count: syllabus?.clos.length },
-    { key: 'sessions', label: 'Sessions', icon: ClipboardList, count: syllabus?.sessions.length },
-    { key: 'assessment', label: 'Assessment', icon: BarChart3, count: syllabus?.assessments.length },
+    { key: 'syllabus', label: t('lc.sd.tab.syllabus'), icon: BookOpen },
+    { key: 'clos', label: t('lc.sd.tab.clos'), icon: GraduationCap, count: syllabus?.clos.length },
+    { key: 'sessions', label: t('lc.sd.tab.sessions'), icon: ClipboardList, count: syllabus?.sessions.length },
+    { key: 'assessment', label: t('lc.sd.tab.assessment'), icon: BarChart3, count: syllabus?.assessments.length },
   ]
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-4" />
-        <p className="text-sm text-slate-500 font-medium">Loading subject details...</p>
+        <p className="text-sm text-slate-500 font-medium">{t('lc.sd.loading')}</p>
       </div>
     )
   }
@@ -216,7 +218,7 @@ export function LecturerSubjectDetail() {
             onClick={() => navigate('/lecturer/subjects')}
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           >
-            <ArrowLeft size={16} /> Back to Subjects
+            <ArrowLeft size={16} /> {t('lc.sd.back_to_subjects')}
           </button>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
             <Link to="/lecturer" className="hover:underline">Lecturer</Link>
@@ -237,7 +239,7 @@ export function LecturerSubjectDetail() {
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              {subject?.name || 'Subject'}
+              {subject?.name || t('lc.sub.name_fallback')}
             </h1>
           </div>
         </div>
@@ -249,10 +251,10 @@ export function LecturerSubjectDetail() {
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
             <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-              Syllabus Not Provided Yet
+              {t('lc.sd.no_syllabus_title')}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
-              Detailed syllabus content for <strong className="text-slate-700 dark:text-slate-200 font-semibold">{subject?.code || code} - {subject?.name}</strong> has not been provided yet. Please contact the administrator to update.
+              {t('lc.sd.no_syllabus_desc_1')} <strong className="text-slate-700 dark:text-slate-200 font-semibold">{subject?.code || code} - {subject?.name}</strong> {t('lc.sd.no_syllabus_desc_2')}
             </p>
           </div>
           <div className="pt-2">
@@ -260,7 +262,7 @@ export function LecturerSubjectDetail() {
               onClick={() => navigate('/lecturer/subjects')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all"
             >
-              <ArrowLeft size={14} /> Back to Subjects
+              <ArrowLeft size={14} /> {t('lc.sd.back_to_subjects')}
             </button>
           </div>
         </div>
@@ -277,12 +279,12 @@ export function LecturerSubjectDetail() {
           onClick={() => navigate('/lecturer/subjects')}
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
         >
-          <ArrowLeft size={16} /> Back to Subjects
+          <ArrowLeft size={16} /> {t('lc.sd.back_to_subjects')}
         </button>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-          <Link to="/lecturer" className="hover:underline">Lecturer</Link>
+          <Link to="/lecturer" className="hover:underline">{t('lc.sd.crumb_lecturer')}</Link>
           <ChevronRight size={12} />
-          <Link to="/lecturer/subjects" className="hover:underline">Subjects</Link>
+          <Link to="/lecturer/subjects" className="hover:underline">{t('lc.sd.crumb_subjects')}</Link>
           <ChevronRight size={12} />
           <span className="text-slate-700 dark:text-slate-200 font-bold">{syllabus.code}</span>
         </div>
@@ -302,10 +304,10 @@ export function LecturerSubjectDetail() {
                 {syllabus.degreeLevel}
               </span>
               <span className="px-3 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                Semester {subject?.semester || 1}
+                {t('lc.sd.semester_badge', { n: subject?.semester || 1 })}
               </span>
               <span className="px-3 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300">
-                {syllabus.credits} Credits
+                {t('lc.sd.credits_badge', { n: syllabus.credits })}
               </span>
             </div>
           </div>
@@ -315,14 +317,14 @@ export function LecturerSubjectDetail() {
           </h1>
 
           <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-2xl">
-            Detailed course syllabus, Learning Outcomes (CLO/ABET), session schedule, and assessment scheme.
+            {t('lc.sd.hero_desc')}
           </p>
 
           <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-500 dark:text-slate-400 border-t border-emerald-100 dark:border-slate-700/60">
-            <span>Time: <strong className="text-slate-700 dark:text-slate-200">{syllabus.timeAllocation}</strong></span>
-            <span>Prerequisites: <strong className="text-slate-700 dark:text-slate-200">{syllabus.prerequisites}</strong></span>
+            <span>{t('lc.sd.time_label')} <strong className="text-slate-700 dark:text-slate-200">{syllabus.timeAllocation}</strong></span>
+            <span>{t('lc.sd.prereq_label')} <strong className="text-slate-700 dark:text-slate-200">{syllabus.prerequisites}</strong></span>
             <span className="text-slate-400 dark:text-slate-500">
-              Sessions: <strong className="text-slate-600 dark:text-slate-300">{syllabus.sessions.length}</strong>
+              {t('lc.sd.sessions_label')} <strong className="text-slate-600 dark:text-slate-300">{syllabus.sessions.length}</strong>
             </span>
           </div>
         </div>
@@ -364,7 +366,7 @@ export function LecturerSubjectDetail() {
           <div className="lg:col-span-2 space-y-6">
             {/* Description */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Description</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">{t('lc.sd.course_description')}</h3>
               <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-line font-medium">
                 {syllabus.description}
               </p>
@@ -373,8 +375,8 @@ export function LecturerSubjectDetail() {
             {/* Learning Outcomes */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
-                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Course Learning Outcomes (ABET)</h3>
-                <span className="text-xs font-semibold text-slate-400">Upon completing the course</span>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">{t('lc.sd.learning_outcomes')}</h3>
+                <span className="text-xs font-semibold text-slate-400">{t('lc.sd.upon_completing')}</span>
               </div>
 
               <div className="space-y-6">
@@ -404,7 +406,7 @@ export function LecturerSubjectDetail() {
 
             {/* Student Tasks */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Student Tasks</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">{t('lc.sd.student_tasks')}</h3>
               <div className="space-y-2">
                 {syllabus.studentTasksList.map((task: string, idx: number) => (
                   <div key={idx} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-100 dark:border-slate-700/50">
@@ -422,12 +424,13 @@ export function LecturerSubjectDetail() {
           <div className="space-y-6">
             {/* Tools */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
-              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Tools & Software</h3>
+              <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">{t('lc.sd.tools')}</h3>
               <div className="flex flex-col gap-2">
-                {syllabus.tools.map((t: string, i: number) => (
+                {/* Renamed from `t` so it does not shadow the translation function. */}
+                {syllabus.tools.map((tool: string, i: number) => (
                   <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-slate-700/50">
                     <span className="text-xs font-mono text-slate-400 shrink-0">•</span>
-                    <span>{t}</span>
+                    <span>{tool}</span>
                   </div>
                 ))}
               </div>
@@ -436,9 +439,9 @@ export function LecturerSubjectDetail() {
             {/* Assessment Summary */}
             <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">Assessment Weight</h3>
+                <h3 className="text-slate-800 dark:text-slate-100 font-bold text-base">{t('lc.sd.assessment_weight')}</h3>
                 <button onClick={() => setActiveTab('assessment')} className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
-                  View Details
+                  {t('lc.sd.view_details')}
                 </button>
               </div>
               <div className="space-y-2.5">
@@ -462,10 +465,10 @@ export function LecturerSubjectDetail() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                CLO List
+                {t('lc.sd.clo_list')}
               </h3>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-3 py-1 rounded-full">
-                Total: {syllabus.clos.length} CLOs
+                {t('lc.sd.clo_total', { n: syllabus.clos.length })}
               </span>
             </div>
 
@@ -473,9 +476,9 @@ export function LecturerSubjectDetail() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                   <tr>
-                    <th className="p-3 w-24 text-center font-semibold">Code</th>
-                    <th className="p-3 w-28 font-semibold">LO Mapping</th>
-                    <th className="p-3 font-semibold">Description</th>
+                    <th className="p-3 w-24 text-center font-semibold">{t('lc.sd.col.code')}</th>
+                    <th className="p-3 w-28 font-semibold">{t('lc.sd.col.lo_mapping')}</th>
+                    <th className="p-3 font-semibold">{t('lc.sd.col.description')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
@@ -505,9 +508,9 @@ export function LecturerSubjectDetail() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700/50">
             <div>
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                Session Schedule
+                {t('lc.sd.session_schedule')}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lecture topics, delivery types, and student tasks.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('lc.sd.session_subtitle')}</p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -515,7 +518,7 @@ export function LecturerSubjectDetail() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   type="text"
-                  placeholder="Search session, topic..."
+                  placeholder={t('lc.sd.search_session')}
                   value={sessionSearch}
                   onChange={e => setSessionSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-emerald-500 transition-all"
@@ -528,13 +531,13 @@ export function LecturerSubjectDetail() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                 <tr>
-                  <th className="p-3 w-16 text-center font-semibold">No.</th>
-                  <th className="p-3 font-semibold">Topic</th>
-                  <th className="p-3 w-20 text-center font-semibold">Type</th>
-                  <th className="p-3 w-20 text-center font-semibold">CLO</th>
-                  <th className="p-3 w-14 text-center font-semibold">ITU</th>
-                  <th className="p-3 font-semibold">Student Tasks</th>
-                  <th className="p-3 w-32 text-center font-semibold">Materials</th>
+                  <th className="p-3 w-16 text-center font-semibold">{t('lc.sd.col.no')}</th>
+                  <th className="p-3 font-semibold">{t('lc.sd.col.topic')}</th>
+                  <th className="p-3 w-20 text-center font-semibold">{t('lc.sd.col.type')}</th>
+                  <th className="p-3 w-20 text-center font-semibold">{t('lc.sd.col.clo')}</th>
+                  <th className="p-3 w-14 text-center font-semibold">{t('lc.sd.col.itu')}</th>
+                  <th className="p-3 font-semibold">{t('lc.sd.col.student_tasks')}</th>
+                  <th className="p-3 w-32 text-center font-semibold">{t('lc.sd.col.materials')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 text-slate-600 dark:text-slate-300">
@@ -586,7 +589,7 @@ export function LecturerSubjectDetail() {
                           {session.sDownload || 'Slide PDF'}
                         </button>
                       ) : (
-                        <span className="text-slate-400 text-[11px] italic">Textbook</span>
+                        <span className="text-slate-400 text-[11px] italic">{t('lc.sd.textbook')}</span>
                       )}
                     </td>
                   </tr>
@@ -603,10 +606,10 @@ export function LecturerSubjectDetail() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 space-y-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/50">
               <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">
-                Assessment Scheme & Weight Distribution
+                {t('lc.sd.assessment_scheme')}
               </h3>
               <span className="text-xs font-bold px-3 py-1 rounded-full text-emerald-600 bg-emerald-50 dark:bg-emerald-950">
-                Total: {syllabus.totalAssessmentWeight.toFixed(1)}%
+                {t('lc.sd.total_percent', { value: syllabus.totalAssessmentWeight.toFixed(1) })}
               </span>
             </div>
 
@@ -640,7 +643,7 @@ export function LecturerSubjectDetail() {
 
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                <span>Total Assessment Weight</span>
+                <span>{t('lc.sd.total_weight')}</span>
                 <span className="text-emerald-600 dark:text-emerald-400 text-base">
                   {syllabus.totalAssessmentWeight.toFixed(1)}%
                 </span>
@@ -660,7 +663,7 @@ export function LecturerSubjectDetail() {
               </div>
 
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 pt-1">
-                Achieved {syllabus.totalAssessmentWeight.toFixed(1)}% total assessment weight according to curriculum standard.
+                {t('lc.sd.achieved', { value: syllabus.totalAssessmentWeight.toFixed(1) })}
               </p>
             </div>
           </div>
