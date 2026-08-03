@@ -223,7 +223,9 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
         try {
           const { engineSubmissionController } = await import('../../../grading/engine/modules/submissions/routes/index.js');
           if (engineSubmissionController) {
-            engineSubmissionController.executeGradingForSubmission(targetSubmission.id).catch(err => {
+            // Enqueue here, at submit time, so queue position equals submission order.
+            // The slot covers download + unzip + grading, one submission at a time.
+            engineSubmissionController.enqueueContinuousGrading(targetSubmission.id).catch(err => {
               console.error('[ContinuousQueue] Error executing auto-grading job for submission:', targetSubmission.id, err);
             });
           }
