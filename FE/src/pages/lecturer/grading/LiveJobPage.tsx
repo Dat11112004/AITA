@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LiveActivityLog from '@/components/modules/grading/LiveActivityLog';
 import { gradingApi as api } from '@/lib/api';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -7,12 +8,13 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 export default function LiveJobPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
   const assignmentId = searchParams.get('assignmentId') || undefined;
 
   const [error, setError] = useState<string | null>(null);
   const [progressData, setProgressData] = useState<{ percent: number, task: string } | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
-  const [assignmentTitle, setAssignmentTitle] = useState<string>('Automated Assessment');
+  const [assignmentTitle, setAssignmentTitle] = useState<string>(t('lc.lj.assignment_fallback'));
   const [isCancelling, setIsCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   
@@ -23,7 +25,7 @@ export default function LiveJobPage() {
   useEffect(() => {
     if (assignmentId) {
       api.getAssignment(assignmentId)
-        .then(res => setAssignmentTitle(res.metadata?.title || 'Automated Assessment'))
+        .then(res => setAssignmentTitle(res.metadata?.title || t('lc.lj.assignment_fallback')))
         .catch(err => console.error("Failed to fetch assignment details:", err));
     }
   }, [assignmentId]);
@@ -42,7 +44,7 @@ export default function LiveJobPage() {
     if (!id) return;
     
     // We assume the job is already running in the background, we just hook into the stream
-    setProgressData({ percent: 0, task: 'Connecting to live stream...' });
+    setProgressData({ percent: 0, task: t('lc.lj.connecting') });
     startTimeRef.current = Date.now(); // Start timer immediately upon joining
 
     const unsubscribe = api.subscribeToProgress(
@@ -50,7 +52,7 @@ export default function LiveJobPage() {
       (job) => {
         setProgressData({
           percent: job.progressPercent || 0,
-          task: job.currentTask || 'Processing...'
+          task: job.currentTask || t('lc.lj.processing')
         });
 
         if (job.meta) {
@@ -59,16 +61,16 @@ export default function LiveJobPage() {
       },
       async () => {
         try {
-          setProgressData({ percent: 100, task: 'Fetching final report...' });
+          setProgressData({ percent: 100, task: t('lc.lj.fetching_report') });
           const result = await api.getSubmissionResult(id);
           const finalTime = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
           navigate(`/lecturer/grading/result/${result.submissionId}`, { state: { result, gradingTime: finalTime } });
         } catch (err: any) {
-          setError(err.response?.data?.error || err.message || "Failed to fetch result");
+          setError(err.response?.data?.error || err.message || t('lc.lj.fetch_result_failed'));
         }
       },
       (err) => {
-        setError(err.message || "Progress stream failed");
+        setError(err.message || t('lc.lj.stream_failed'));
       }
     );
 
@@ -91,7 +93,7 @@ export default function LiveJobPage() {
           await api.cancelSubmission(id!);
           navigate(-1);
       } catch (err: any) {
-          setError(err.response?.data?.error || err.message || "Failed to cancel job");
+          setError(err.response?.data?.error || err.message || t('lc.lj.cancel_failed'));
       } finally {
           setIsCancelling(false);
       }
@@ -104,11 +106,11 @@ export default function LiveJobPage() {
               onClick={() => navigate(-1)} 
               className="flex items-center gap-2 px-4 py-2 border dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-300 font-medium"
           >
-              <ArrowLeft size={18} /> Back to batch dashboard
+              <ArrowLeft size={18} /> {t('lc.lj.back')}
           </button>
-          
+
           <h1 className="text-xl font-bold dark:text-white flex items-center gap-2">
-              <Loader2 className="animate-spin text-cyan-500" size={24} /> Live AI processing log
+              <Loader2 className="animate-spin text-cyan-500" size={24} /> {t('lc.lj.title')}
           </h1>
           
           <button 
@@ -116,7 +118,7 @@ export default function LiveJobPage() {
               disabled={isCancelling || progressData?.percent === 100}
               className="flex items-center gap-2 px-4 py-2 border border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors text-red-600 dark:text-red-400 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-              {isCancelling ? <Loader2 className="animate-spin" size={18} /> : "Cancel grading"}
+              {isCancelling ? <Loader2 className="animate-spin" size={18} /> : t('lc.lj.cancel_grading')}
           </button>
       </div>
 
@@ -128,7 +130,7 @@ export default function LiveJobPage() {
             </span>
             <div className="flex flex-col items-end">
               <span className="text-emerald-400 font-mono text-xs opacity-80 mb-1">
-                TIME ELAPSED: {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
+                {t('lc.lj.time_elapsed')} {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
               </span>
               <span className="text-emerald-500 font-mono text-lg font-bold shadow-emerald-500/50 drop-shadow-md leading-none">
                 {progressData.percent}%
@@ -150,12 +152,12 @@ export default function LiveJobPage() {
 
       <div className="animate-fade-in">
         {/* We pass a generic filename since we don't have the original filename here unless we fetch it, but that's fine */}
-        <LiveActivityLog activities={activities} fileName={`Submission ${id?.substring(0, 8)}`} assignmentId={assignmentId} />
+        <LiveActivityLog activities={activities} fileName={t('lc.lj.submission_file', { id: id?.substring(0, 8) })} assignmentId={assignmentId} />
       </div>
 
       {error && (
         <div className="mt-8 p-4 dark:bg-red-500/10 bg-red-50 border dark:border-red-500/30 border-red-200 rounded-lg dark:text-red-400 text-red-600 text-center">
-          <p className="font-semibold">Live stream error</p>
+          <p className="font-semibold">{t('lc.lj.stream_error')}</p>
           <p className="text-sm mt-1">{error}</p>
         </div>
       )}
@@ -164,22 +166,22 @@ export default function LiveJobPage() {
       {showCancelModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
               <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4">
-                  <h3 className="text-xl font-bold text-white mb-2">Cancel grading?</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">{t('lc.lj.modal_title')}</h3>
                   <p className="text-slate-400 text-sm mb-6">
-                      Are you sure you want to abort this evaluation? This action will immediately terminate the AI analysis and cannot be undone.
+                      {t('lc.lj.modal_desc')}
                   </p>
                   <div className="flex gap-3 justify-end">
                       <button 
                           onClick={() => setShowCancelModal(false)}
                           className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors font-medium text-sm"
                       >
-                          No, keep running
+                          {t('lc.lj.keep_running')}
                       </button>
                       <button 
                           onClick={confirmCancel}
                           className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors font-medium text-sm shadow-lg shadow-red-500/20"
                       >
-                          Yes, cancel it
+                          {t('lc.lj.confirm_cancel')}
                       </button>
                   </div>
               </div>
