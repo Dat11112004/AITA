@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AssignmentCard } from '@/components/AssignmentCard'
 import { AuroraBackground } from '@/components/AuroraBackground'
+import { Avatar } from '@/components/Avatar'
 import { ErrorView } from '@/components/ErrorView'
 import { HeroCard } from '@/components/HeroCard'
 import { Loading } from '@/components/Loading'
@@ -42,16 +42,28 @@ export default function DashboardScreen() {
           setClasses(mockClasses)
           setAssignments(mockAssignments)
         } else {
-          const [ov, cls, asg] = await Promise.allSettled([
+          // /stats/overview carries no average score, so the hero below had nothing to show.
+          // The real figure is the GPA from /stats/student-progress; fold it in as averageScore
+          // so the hero keeps reading one key (and DEV_PREVIEW's mock still supplies its own).
+          const [ov, cls, asg, prog] = await Promise.allSettled([
             api.getStatsOverview(),
             api.getClasses(),
             api.getAssignments(),
+            api.getStudentProgress(),
           ])
           if (ov.status === 'rejected' && cls.status === 'rejected' && asg.status === 'rejected') {
             const reason = cls.reason
             throw reason instanceof ApiError ? reason : new Error(t('common.error'))
           }
-          setOverview(ov.status === 'fulfilled' ? (ov.value ?? {}) : {})
+          const merged: Record<string, string | number> = ov.status === 'fulfilled' ? { ...(ov.value ?? {}) } : {}
+          const gpa = prog.status === 'fulfilled' ? prog.value?.gpa : undefined
+          if (gpa !== undefined && gpa !== null) merged.averageScore = gpa
+          // The caption says "…qua N bài nộp đã chấm", so N must be the number of scores the
+          // average was computed from (`done`), not /stats/overview's count of every submission —
+          // otherwise a student with 1 submitted-but-unpublished paper reads "0 điểm qua 1 bài đã chấm".
+          const done = prog.status === 'fulfilled' ? prog.value?.done : undefined
+          if (done !== undefined && done !== null) merged.submissions = done
+          setOverview(merged)
           setClasses(cls.status === 'fulfilled' ? (cls.value ?? []) : [])
           setAssignments(asg.status === 'fulfilled' ? (asg.value ?? []) : [])
         }
@@ -90,7 +102,6 @@ export default function DashboardScreen() {
   const avgScore = overview.averageScore
   const submissions = Number(overview.submissions ?? 0)
   const name = user?.fullName ?? user?.email ?? ''
-  const initial = (name.trim()[0] ?? '?').toUpperCase()
 
   return (
     <AuroraBackground>
@@ -110,8 +121,8 @@ export default function DashboardScreen() {
                 {name}
               </Text>
             </View>
-            <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/profile' as any)} style={[styles.avatar, { backgroundColor: a.glassStrong, borderColor: a.glassBorder }]}>
-              <Text style={[styles.avatarText, { color: c.primary }]}>{initial}</Text>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/profile' as any)} accessibilityRole="button">
+              <Avatar name={name} uri={user?.avatar} size={48} />
             </TouchableOpacity>
           </View>
 
@@ -160,7 +171,18 @@ export default function DashboardScreen() {
           ) : (
             <View style={styles.gridRow}>
               {classes.map((cl) => (
-                <SubjectTile key={cl.id} subject={cl.code} caption={cl.name} onPress={() => router.push('/(student)/assignments' as any)} />
+                <SubjectTile
+                  key={cl.id}
+                  subject={cl.code}
+                  caption={cl.name}
+                  // Was routing to the flat assignment list, which is not what tapping a
+                  // class means. Now it opens that class.
+                  onPress={() =>
+                    router.push(
+                      `/(student)/learning/class/${cl.id}?code=${encodeURIComponent(cl.code)}&name=${encodeURIComponent(cl.name)}` as any,
+                    )
+                  }
+                />
               ))}
             </View>
           )}

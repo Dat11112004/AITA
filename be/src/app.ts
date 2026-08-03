@@ -31,7 +31,19 @@ export function createApp() {
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
   app.use(express.json({ limit: '50mb' }))
   app.use(express.urlencoded({ limit: '50mb', extended: true }))
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
+  // Uploaded avatars/attachments are fetched by the web client (:5173) and the Expo web build
+  // (:8081), i.e. from a different origin than this API. helmet() defaults
+  // Cross-Origin-Resource-Policy to same-origin, which made the browser download the image and
+  // then refuse to render it (ERR_BLOCKED_BY_RESPONSE.NotSameOrigin) — the upload looked like
+  // it silently failed. These are public static files, so opt this path out.
+  app.use(
+    '/uploads',
+    (_req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      next()
+    },
+    express.static(path.join(process.cwd(), 'uploads')),
+  )
 
   app.use('/api', routeManager.getRouter())
 

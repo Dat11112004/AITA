@@ -7,6 +7,21 @@ import { secureStore } from './secureStore'
 // SCOPE: mobile is a companion app for STUDENT + LECTURER only (no ADMIN, no heavy authoring). The methods
 // below cover the mobile management surface; admin/config/authoring endpoints are intentionally absent.
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+/** Origin of the API, i.e. BASE without its `/api` suffix — where static uploads are served. */
+const ORIGIN = BASE.replace(/\/api\/?$/, '')
+
+/**
+ * Turn a server-relative file path into something an <Image> can actually load.
+ *
+ * Uploads come back as `/uploads/avatars/<id>.png` (be auth.controller.ts). Handed straight to
+ * an <Image>, the web build resolves that against the Metro origin (:8081) and 404s, and a
+ * native build has no origin at all. Absolute URLs and local `file:`/`blob:` picks pass through.
+ */
+export function fileUrl(path?: string | null): string | undefined {
+  if (!path) return undefined
+  if (/^(https?:|data:|blob:|file:)/i.test(path)) return path
+  return `${ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`
+}
 
 export class ApiError extends Error {
   constructor(
@@ -84,6 +99,124 @@ const qs = (params?: Record<string, string | number | undefined>): string => {
   return clean.length ? `?${new URLSearchParams(clean.map(([k, v]) => [k, String(v)])).toString()}` : ''
 }
 
+// ── Response normalisers ───────────────────────────────────────────────────
+// These types were mirrored from the web FE, but this BE shapes two payloads differently:
+// a submission carries the student/exam nested and calls its state `gradingStatus`, and the
+// class roster returns `name`/`studentId`. Reading the FE's flat names yielded `undefined`,
+// so screens silently rendered their em-dash fallback. Flatten once here, at the boundary,
+// so no screen has to know about either shape.
+const toSubmissionRow = (raw: any): SubmissionRow => ({
+  ...raw,
+  // SubmissionResponseDto nests the student as `{ id, name, email }` — reading `fullName`
+  // (the web's flat name) always yielded undefined, so every row showed its fallback.
+  studentName: raw?.studentName ?? raw?.student?.name ?? raw?.student?.fullName ?? undefined,
+  studentCode: raw?.studentCode ?? raw?.student?.studentCode ?? null,
+  className: raw?.className ?? raw?.class?.code ?? raw?.class?.name ?? undefined,
+  assignmentTitle: raw?.assignmentTitle ?? raw?.exam?.title ?? undefined,
+  status: raw?.status ?? raw?.gradingStatus ?? raw?.reviewStatus ?? '',
+  score: pickScore(raw),
+  aiScore: raw?.aiScore ?? raw?.rawScore ?? null,
+})
+
+/**
+ * The grade to show for a submission.
+ *
+ * `finalScore` is the after-penalty figure, but rows imported or graded through the older
+ * paths carry a literal 0 there while the real mark sits in `totalScore`. Chaining with `??`
+ * kept that 0 (it is not nullish), so a 10-point paper read as 0 for the lecturer while the
+ * student's own screens showed 10. Prefer a non-zero final score, then fall back.
+ */
+function pickScore(raw: any): number | null {
+  const num = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v))
+  const direct = num(raw?.score)
+  if (direct !== null && !Number.isNaN(direct)) return direct
+  const final = num(raw?.finalScore)
+  const total = num(raw?.totalScore)
+  if (final !== null && final > 0) return final
+  if (total !== null && !Number.isNaN(total)) return total
+  return final
+}
+
+// `studentId` on this payload is the student CODE, not a uuid (be get-class-students.use-case.ts).
+// The roster carries no status field, so it is left undefined rather than defaulted to "active" —
+// the UI must not assert a state the API never reported.
+const toStudentRow = (raw: any): StudentRow => ({
+  ...raw,
+  fullName: raw?.fullName ?? raw?.name ?? '',
+  studentCode: raw?.studentCode ?? raw?.studentId ?? null,
+})
+
+/**
+ * `subjectName` on ExamResponseDto is built as `` `${subjectCode || ''} - ${subjectName}` ``
+ * (be/src/modules/exams/application/dtos/exam.dto.ts), so it is "PRJ301 - Java Web
+ * Application Development" — or " - Java Web…" when the subject has no code. Pull out the
+ * short label a student would actually use, preferring the code and falling back to the
+ * name; return undefined rather than a stray dash when neither is usable.
+ */
+const subjectLabel = (raw: any): string | undefined => {
+  const s = typeof raw?.subjectName === 'string' ? raw.subjectName.trim() : ''
+  if (!s) return undefined
+  const [head, ...rest] = s.split(' - ')
+  const code = head.trim()
+  if (code) return code
+  const name = rest.join(' - ').trim()
+  return name || undefined
+}
+
+/**
+ * ExamResponseDto exposes NO `class` field — it has `classes`, an array of class *uuids*,
+ * which is useless as a label. The cards were therefore rendering their "no class" fallback
+ * on every single assignment. Derive the label from `subjectName` here, at the boundary, so
+ * no screen has to know the exam payload's shape.
+ */
+const toAssignmentRow = (raw: any): AssignmentRow => ({
+  ...raw,
+  class: raw?.class ?? raw?.className ?? subjectLabel(raw),
+  due: raw?.due ?? raw?.dueDate ?? null,
+  subjectLabel: typeof raw?.subjectName === 'string' ? raw.subjectName.trim() : undefined,
+})
+
+// The list use-case reports `read` and `isRead` (same value, two names) and `createdAt`
+// as an ISO string or null. Collapse to one boolean so screens never test both.
+const toNotificationRow = (raw: any): NotificationRow => ({
+  ...raw,
+  read: Boolean(raw?.read ?? raw?.isRead ?? false),
+  createdAt: raw?.createdAt ?? null,
+})
+
+/**
+ * `/student-portal/classes/:id` nests everything one level down and names the roster's
+ * display field `fullName` but the lecturers' `name`. Flatten both so a screen renders
+ * people the same way regardless of which list they came from.
+ */
+const toClassDetail = (raw: any): ClassDetail => ({
+  id: raw?.id ?? '',
+  code: raw?.classCode ?? raw?.code ?? '',
+  subject: raw?.subject ?? null,
+  lecturers: (raw?.lecturers ?? []).map((l: any) => ({
+    id: l?.id ?? '',
+    name: l?.name ?? l?.fullName ?? '',
+    email: l?.email ?? null,
+    avatar: l?.avatar ?? null,
+  })),
+  students: (raw?.students ?? []).map((s: any) => ({
+    id: s?.id ?? '',
+    fullName: s?.fullName ?? s?.name ?? '',
+    email: s?.email ?? '',
+    studentCode: s?.studentCode ?? s?.studentId ?? null,
+    avatar: s?.avatar ?? null,
+  })),
+  assignments: (raw?.assignments ?? []).map((a: any) => ({
+    id: a?.id ?? '',
+    title: a?.title ?? '',
+    description: a?.description ?? undefined,
+    status: a?.status ?? '',
+    due: a?.dueDate ?? a?.due ?? null,
+    maxScore: a?.totalPoints ?? a?.maxScore ?? undefined,
+    type: a?.type ?? undefined,
+  })),
+})
+
 export const api = {
   // ─────────────────────────────────────────────────────────────────────────
   // Auth / account — both roles
@@ -96,21 +229,40 @@ export const api = {
   me: () => request<AuthUser>('/auth/me').then((u) => lowercaseRole(u)),
   logout: (refreshToken: string) => request<void>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
   updateProfile: (form: FormData) => request<AuthUser>('/auth/profile', { method: 'PATCH', body: form }).then((u) => lowercaseRole(u)),
-  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+  // BE's ChangePasswordSchema names the first field `oldPassword`, not `currentPassword`
+  // — sending the wrong key made every attempt fail validation.
+  changePassword: (body: { oldPassword: string; newPassword: string }) =>
     request<void>('/auth/change-password', { method: 'POST', body: JSON.stringify(body) }),
   dismissPasswordChange: () => request<void>('/auth/dismiss-password-change', { method: 'POST' }),
   forgotPassword: (email: string) => request<void>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
-  resetPassword: (body: { token: string; newPassword: string }) =>
+  // Reset is an OTP flow, not a token link: BE's ResetPasswordSchema wants the email again
+  // plus the 6-digit code that was mailed out.
+  resetPassword: (body: { email: string; otp: string; newPassword: string }) =>
     request<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify(body) }),
 
   // ─────────────────────────────────────────────────────────────────────────
   // Notifications — both roles (broadcast: lecturer)
   // ─────────────────────────────────────────────────────────────────────────
-  getNotifications: () => request<NotificationRow[]>('/notifications'),
+  getNotifications: (page = 1, limit = 50) =>
+    request<any[]>(`/notifications${qs({ page, limit })}`).then((r) => (r ?? []).map(toNotificationRow)),
   markNotificationRead: (id: string) => request<unknown>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsRead: () => request<unknown>('/notifications/read-all', { method: 'PUT' }),
-  broadcastNotification: (body: { title: string; message: string; classId?: string }) =>
-    request<unknown>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
+  deleteNotification: (id: string) => request<unknown>(`/notifications/${id}`, { method: 'DELETE' }),
+  /**
+   * Send a notification. Supply `classIds` to reach the students enrolled in those classes,
+   * or `targetRole` for a role-wide broadcast — the server requires exactly one of them and
+   * rejects a lecturer who targets a class they do not teach (403).
+   */
+  broadcastNotification: (body: {
+    title: string
+    message: string
+    classIds?: string[]
+    targetRole?: BroadcastAudience
+    type?: string
+  }) => request<{ recipientCount?: number }>('/notifications/broadcast', { method: 'POST', body: JSON.stringify(body) }),
+  /** What this account has SENT (the composer is not a recipient, so the inbox never shows it). */
+  getSentNotifications: (limit = 50) =>
+    request<SentNotification[]>(`/notifications/sent${qs({ limit })}`).then((r) => r ?? []),
 
   // ─────────────────────────────────────────────────────────────────────────
   // Overview & stats
@@ -129,10 +281,20 @@ export const api = {
   getSemesterSubjects: (semesterId: string) => request<SubjectRow[]>(`/semesters/${semesterId}/subjects`),
   getSemesterSubjectClasses: (semesterId: string, subjectId: string) =>
     request<ClassRow[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
-  getAssignments: (params?: Record<string, string>) => request<AssignmentRow[]>(`/assignments${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getAssignment: (id: string) => request<AssignmentRow>(`/assignments/${id}`),
-  getSubmissions: (params?: Record<string, string>) => request<SubmissionRow[]>(`/submissions${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getSubmission: (id: string) => request<SubmissionRow>(`/submissions/${id}`),
+  getAssignments: (params?: Record<string, string>) =>
+    request<any[]>(`/assignments${params ? `?${new URLSearchParams(params).toString()}` : ''}`).then((r) => (r ?? []).map(toAssignmentRow)),
+  getAssignment: (id: string) => request<any>(`/assignments/${id}`).then(toAssignmentRow),
+  getSubmissions: (params?: Record<string, string>) =>
+    request<any[]>(`/submissions${params ? `?${new URLSearchParams(params).toString()}` : ''}`).then((r) => (r ?? []).map(toSubmissionRow)),
+  getSubmission: (id: string) => request<any>(`/submissions/${id}`).then(toSubmissionRow),
+  /**
+   * Submissions for one assignment. BE's ListSubmissionsQuery accepts `examId` (and treats
+   * `assignmentId` as an alias) plus an optional `status`; a STUDENT caller is additionally
+   * narrowed to their own rows server-side, so this is safe for both roles.
+   */
+  getSubmissionsByExam: (examId: string, status?: string) =>
+    request<any[]>(`/submissions${qs({ examId, status })}`).then((r) => (r ?? []).map(toSubmissionRow)),
+  getSubjectStudents: (subjectId: string) => request<any[]>(`/subjects/${subjectId}/students`).then((r) => (r ?? []).map(toStudentRow)),
 
   // Option lists (for pickers in lecturer forms)
   getClassOptions: () => request<OptionItem[]>('/options/classes'),
@@ -143,8 +305,8 @@ export const api = {
   // STUDENT
   // ─────────────────────────────────────────────────────────────────────────
   getStudentDashboard: () => request<StudentDashboard>('/student-portal/dashboard'),
-  getStudentPortalSubjects: () => request<SubjectRow[]>('/student-portal/subjects'),
-  getStudentClassDetail: (id: string) => request<ClassDetail>(`/student-portal/classes/${id}`),
+  getStudentPortalSubjects: () => request<StudentSubject[]>('/student-portal/subjects'),
+  getStudentClassDetail: (id: string) => request<any>(`/student-portal/classes/${id}`).then(toClassDetail),
   submitAssignment: (body: { assignmentId: string; content: string; files?: unknown[] }) =>
     request<SubmissionRow>('/submissions', { method: 'POST', body: JSON.stringify(body) }),
   getSubmissionAiHint: (submissionId: string) => request<any>(`/submissions/${submissionId}/ai-feedback`),
@@ -158,7 +320,7 @@ export const api = {
   createClass: (body: Record<string, unknown>) => request<ClassRow>('/classes', { method: 'POST', body: JSON.stringify(body) }),
   updateClass: (id: string, body: Record<string, unknown>) => request<ClassRow>(`/classes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   updateClassNote: (id: string, note: string) => request<unknown>(`/classes/${id}/note`, { method: 'PATCH', body: JSON.stringify({ note }) }),
-  getClassStudents: (id: string) => request<StudentRow[]>(`/classes/${id}/students`),
+  getClassStudents: (id: string) => request<any[]>(`/classes/${id}/students`).then((r) => (r ?? []).map(toStudentRow)),
   enrollStudents: (id: string, body: { studentIds?: string[]; studentCodes?: string[] }) =>
     request<unknown>(`/classes/${id}/enroll`, { method: 'POST', body: JSON.stringify(body) }),
 
@@ -171,7 +333,7 @@ export const api = {
   // ─────────────────────────────────────────────────────────────────────────
   // LECTURER — grading & submissions
   // ─────────────────────────────────────────────────────────────────────────
-  getRecentSubmissions: () => request<SubmissionRow[]>('/submissions/recent'),
+  getRecentSubmissions: () => request<any[]>('/submissions/recent').then((r) => (r ?? []).map(toSubmissionRow)),
   gradeSubmission: (id: string, body: Record<string, unknown>) => request<SubmissionRow>(`/submissions/${id}/grade`, { method: 'PATCH', body: JSON.stringify(body) }),
   sendSubmissionFeedback: (id: string, body: Record<string, unknown>) => request<unknown>(`/submissions/${id}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   bulkPublishGrades: (body: { submissionIds?: string[]; examId?: string }) =>
@@ -229,6 +391,18 @@ export interface SemesterRow {
   season?: string
   isActive?: boolean
 }
+export interface ExamAttachment {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileType?: string
+}
+export interface RubricRuleRow {
+  id?: string
+  description?: string
+  maxPoints?: number | string
+  criteria?: { id?: string; description?: string; maxPoints?: number | string }[]
+}
 export interface AssignmentRow {
   id: string
   title: string
@@ -239,23 +413,68 @@ export interface AssignmentRow {
   status: string
   description?: string
   maxScore?: number | string
+  /** Full "CODE - Name" from ExamResponseDto; `class` holds just the short code. */
+  subjectLabel?: string
+  subjectId?: string | null
+  weightPercentage?: number | null
+  attachments?: ExamAttachment[] | null
+  rubrics?: RubricRuleRow[] | null
+  latePenaltyType?: string | null
+  latePenaltyValue?: number | null
+  maxLatePenalty?: number | null
+  allowLateSubmission?: boolean | null
 }
 export interface SubmissionRow {
   id: string
   assignmentId: string
+  examId?: string
   submittedAt: string | null
   aiScore?: number | string | null
   status: string
   score?: number | null
   studentName?: string
+  studentCode?: string | null
   className?: string
+  assignmentTitle?: string
+  /** Grading breakdown. BE nulls every score until reviewStatus is PUBLISHED. */
+  isPublished?: boolean
+  reviewStatus?: string
+  gradingStatus?: string
+  totalScore?: number | null
+  rawScore?: number | null
+  finalScore?: number | null
+  latePenaltyAmount?: number | null
+  isLate?: boolean
+  daysLate?: number
+  isReopened?: boolean
+  reopenReason?: string | null
+  /** `parsed.overallFeedback` from the AI grading report — plain text, may be long. */
+  aiFeedback?: string | null
+  instructorFeedback?: string | null
+  gradedAt?: string | null
+  zipFileUrl?: string | null
+  exam?: { id?: string; title?: string; status?: string; dueDate?: string | null } | null
 }
 export interface NotificationRow {
   id: string
   title?: string
   message?: string
-  read?: boolean
-  createdAt?: string
+  type?: string
+  referenceId?: string | null
+  referenceType?: string | null
+  read: boolean
+  createdAt?: string | null
+}
+/** BE's BroadcastNotificationParams.targetRole — there is no per-class option. */
+export type BroadcastAudience = 'ALL' | 'STUDENT' | 'LECTURER'
+export interface SentNotification {
+  id: string
+  title?: string | null
+  message?: string | null
+  type?: string | null
+  createdAt?: string | null
+  /** How many inboxes it actually landed in — 0 means it reached nobody. */
+  recipientCount: number
 }
 export interface StudentRow {
   id: string
@@ -263,6 +482,24 @@ export interface StudentRow {
   fullName: string
   studentCode?: string | null
   status?: string
+  avatar?: string | null
+}
+export interface PersonRow {
+  id: string
+  name: string
+  email?: string | null
+  avatar?: string | null
+}
+/** One row of `/student-portal/subjects` — a subject as the student sees it. */
+export interface StudentSubject {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  lecturers?: PersonRow[]
+  semester?: { id: string; season?: string; code?: string; isActive?: boolean; label?: string | null } | null
+  classId?: string
+  classCode?: string
 }
 export interface OptionItem {
   id: string
@@ -303,4 +540,20 @@ export interface GradingSession {
   [k: string]: unknown
 }
 export type StudentDashboard = Record<string, unknown>
-export type ClassDetail = Record<string, unknown>
+/** Flattened `/student-portal/classes/:id`. */
+export interface ClassDetail {
+  id: string
+  code: string
+  subject: { id?: string; code?: string; name?: string } | null
+  lecturers: PersonRow[]
+  students: StudentRow[]
+  assignments: {
+    id: string
+    title: string
+    description?: string
+    status: string
+    due: string | null
+    maxScore?: number | string
+    type?: string
+  }[]
+}
