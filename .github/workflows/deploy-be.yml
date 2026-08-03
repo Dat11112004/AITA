@@ -73,7 +73,7 @@ jobs:
           target: ${{ vars.DEPLOY_PATH }}
           strip_components: 1
 
-      - name: Install production deps, migrate & restart
+      - name: Install deps, migrate & restart
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -83,7 +83,11 @@ jobs:
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH }}
-            npm ci --omit=dev
+            # Cài ĐẦY ĐỦ, không dùng --omit=dev: `prisma` (CLI) nằm ở devDependencies,
+            # bỏ dev đi thì 2 lệnh prisma bên dưới không có CLI để chạy.
+            # Cũng không `npm prune` sau đó, vì prune có thể xoá node_modules/.prisma
+            # là nơi `prisma generate` sinh client ra.
+            npm ci
             npx prisma generate
             npx prisma migrate deploy
             pm2 describe ${{ vars.PM2_APP_NAME }} > /dev/null 2>&1 \
