@@ -52,14 +52,13 @@ export function Profile() {
     return (localStorage.getItem('aita_default_grading_strategy') as any) || 'CONTINUOUS_QUEUE'
   })
 
-  const handleSaveDefaultStrategy = async (strat: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
+  // Only the default for assignments created from here on. Existing assignments keep
+  // whatever grading mode was chosen for them on the assignment page — this used to call
+  // updateAllGradingStrategies, which rewrote every exam in the database in one click.
+  // AssignmentUploadPage reads this value when publishing a new assignment.
+  const handleSaveDefaultStrategy = (strat: 'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE') => {
     setDefaultGradingStrategy(strat)
     localStorage.setItem('aita_default_grading_strategy', strat)
-    try {
-      await api.updateAllGradingStrategies(strat)
-    } catch (err) {
-      console.error('Failed to update grading strategies across assignments:', err)
-    }
   }
 
   useEffect(() => {
@@ -324,6 +323,10 @@ export function Profile() {
                   <CardHeader title="Default Grading Strategy" />
                 </div>
               </div>
+              <p className="px-6 pt-4 text-xs text-slate-500 dark:text-slate-400">
+                Applies to assignments you create from now on. Assignments that already exist keep
+                the grading mode set on their own page.
+              </p>
               <div className="p-6 grid sm:grid-cols-2 gap-4">
                 {/* Option 1: Continuous Queue */}
                 <div
