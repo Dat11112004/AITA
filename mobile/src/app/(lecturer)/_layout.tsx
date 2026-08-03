@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Platform, useColorScheme } from 'react-native'
 
 import { Aurora, Colors, Layout } from '@/constants/theme'
+import { useNotifications } from '@/store/NotificationsContext'
 
 // Lecturer area — bottom tabs: Home (dashboard), Classes, Grading.
 // Same Aurora Glass floating tab bar as the student area.
@@ -12,6 +13,7 @@ export default function LecturerLayout() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
   const a = Aurora[scheme]
+  const { unread } = useNotifications()
 
   return (
     <Tabs
@@ -38,8 +40,10 @@ export default function LecturerLayout() {
           shadowOffset: { width: 0, height: 12 },
           elevation: 16,
         },
-        tabBarItemStyle: { height: Layout.tabBarHeight, paddingVertical: 8 },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.36 },
+        tabBarItemStyle: { height: Layout.tabBarHeight, paddingVertical: 8, paddingHorizontal: 2 },
+        // Four tabs now: 12px clipped "Thông báo" mid-word, so the label steps down a size.
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.1 },
+        tabBarBadgeStyle: { backgroundColor: c.danger, fontSize: 10, lineHeight: 13, minWidth: 18, height: 18 },
       }}
     >
       <Tabs.Screen
@@ -62,6 +66,17 @@ export default function LecturerLayout() {
           tabBarLabel: t('lecturer.tabs.grading'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'checkmark-done-circle' : 'checkmark-done-circle-outline'} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          tabBarLabel: t('lecturer.tabs.notifications'),
+          // Undefined (not 0) hides the badge entirely — a "0" bubble reads as unread mail.
+          tabBarBadge: unread > 0 ? (unread > 99 ? '99+' : unread) : undefined,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'notifications' : 'notifications-outline'} color={color} size={size} />
           ),
         }}
       />

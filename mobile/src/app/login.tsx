@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useRouter } from 'expo-router'
 import LottieView from 'lottie-react-native'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -34,6 +35,7 @@ function lottieSize(screenHeight: number): number {
 export default function LoginScreen() {
   const { t } = useTranslation()
   const { login } = useAuth()
+  const router = useRouter()
   const { height } = useWindowDimensions()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
@@ -118,6 +120,17 @@ export default function LoginScreen() {
                   {remember ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
                 </View>
                 <Text style={[styles.rememberText, { color: a.onGlassSoft }]}>{t('login.remember')}</Text>
+
+                {/* Recovery has to be reachable from here — a locked-out user cannot get to
+                    it from anywhere else in the app. */}
+                <View style={styles.spacer} />
+                <TouchableOpacity
+                  onPress={() => router.push('/forgot-password' as never)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.forgot, { color: c.primary }]}>{t('auth.forgotLink')}</Text>
+                </TouchableOpacity>
               </Pressable>
 
               <TouchableOpacity onPress={onSubmit} disabled={!canSubmit} activeOpacity={0.88} style={[styles.buttonWrap, Glow.primary, { opacity: canSubmit ? 1 : 0.55 }]}>
@@ -162,6 +175,8 @@ const styles = StyleSheet.create({
   rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   rememberText: { ...Type.body },
+  spacer: { flex: 1 },
+  forgot: { ...Type.body, fontWeight: '700' },
   buttonWrap: { marginTop: 22, borderRadius: Radius.field },
   button: { height: 56, borderRadius: Radius.field, alignItems: 'center', justifyContent: 'center' },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

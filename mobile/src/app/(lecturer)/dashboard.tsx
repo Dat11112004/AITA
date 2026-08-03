@@ -6,6 +6,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useColo
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AuroraBackground } from '@/components/AuroraBackground'
+import { Avatar } from '@/components/Avatar'
 import { ErrorView } from '@/components/ErrorView'
 import { GlassCard } from '@/components/GlassCard'
 import { Loading } from '@/components/Loading'
@@ -63,7 +64,6 @@ export default function LecturerDashboard() {
   if (error) return <AuroraBackground><ErrorView message={error} onRetry={() => load('initial')} /></AuroraBackground>
 
   const name = user?.fullName ?? user?.email ?? ''
-  const initial = (name.trim()[0] ?? '?').toUpperCase()
   const totalStudents = classes.reduce((s, cl) => s + (cl.studentCount ?? 0), 0)
 
   const stats: Stat[] = [
@@ -84,9 +84,7 @@ export default function LecturerDashboard() {
           {/* profile summary — tap to open full profile */}
           <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/profile' as any)}>
             <GlassCard style={styles.profile} glow>
-              <View style={[styles.avatar, { backgroundColor: c.primary }]}>
-                <Text style={styles.avatarText}>{initial}</Text>
-              </View>
+              <Avatar name={name} uri={user?.avatar} size={52} />
               <View style={styles.profileInfo}>
                 <Text style={[styles.profileName, { color: a.onGlass }]} numberOfLines={1}>{name}</Text>
                 <Text style={[styles.profileMeta, { color: a.onGlassSoft }]} numberOfLines={1}>
