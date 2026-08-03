@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, getStoredItem, AUTH_STORAGE_KEYS, type ClassRow, type AssignmentRow } from '@/lib/api'
 import { BookOpen, Loader2, Users, Bell, CheckCircle2, BarChart2, TrendingUp } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
@@ -7,6 +8,7 @@ import { BarChart, DonutChart } from '@/components/ui/Charts'
 
 export function LecturerOverview() {
     const navigate = useNavigate()
+    const { t } = useTranslation()
     const [classes, setClasses] = useState<ClassRow[]>([])
     const [assignments, setAssignments] = useState<AssignmentRow[]>([])
     const [stats, setStats] = useState<any>(null)
@@ -16,7 +18,7 @@ export function LecturerOverview() {
 
     const userStr = getStoredItem(AUTH_STORAGE_KEYS.user)
     const user = userStr ? JSON.parse(userStr) : null
-    const userName = user?.fullName || user?.email || 'Lecturer'
+    const userName = user?.fullName || user?.email || t('lc.role_fallback')
     const userInitials = userName.split(' ').map((n: string) => n[0]).join('').slice(-2).toUpperCase()
 
     const loadData = useCallback(() => {
@@ -54,7 +56,7 @@ export function LecturerOverview() {
     const groupedClasses: Record<string, { semesterName: string, classes: ClassRow[] }> = {}
     classes.forEach(cls => {
         const semId = (cls.semester as any)?.id || 'unknown'
-        const semCode = (cls.semester as any)?.code || 'Other semester'
+        const semCode = (cls.semester as any)?.code || t('lc.ov.other_semester')
 
         if (!groupedClasses[semId]) {
             groupedClasses[semId] = { semesterName: semCode, classes: [] }
@@ -106,7 +108,8 @@ export function LecturerOverview() {
         const scores = gradedSubs.map(s => Number(s.totalScore ?? s.TotalScore ?? s.finalScore ?? s.FinalScore ?? 0));
         const gpa = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
         const numericGpa = parseFloat(gpa as string) || 0;
-        const status = gpa === '—' ? 'No data' : (numericGpa >= 8.0 ? 'Excellent' : (numericGpa >= 7.0 ? 'Good' : 'Needs support'));
+        // Stable key, not a display string, so the badge styling below keeps working in any language.
+        const status = gpa === '—' ? 'none' : (numericGpa >= 8.0 ? 'excellent' : (numericGpa >= 7.0 ? 'good' : 'support'));
         const needsHelpCount = gpa === '—' ? 0 : scores.filter(s => s < 5).length;
 
         return {
@@ -137,7 +140,7 @@ export function LecturerOverview() {
                 return !Number.isNaN(t) && t > start && t <= end
             }).length
             return {
-                label: weeksAgo === 0 ? 'This week' : `-${weeksAgo}w`,
+                label: weeksAgo === 0 ? t('lc.ov.this_week') : `-${weeksAgo}w`,
                 value: count,
                 color: '#3b82f6',
             }
@@ -160,9 +163,9 @@ export function LecturerOverview() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-2">
                 <div>
                     <h1 className="text-[28px] md:text-[32px] font-black text-slate-900 dark:text-white tracking-tight">
-                        Good morning, {userName}!
+                        {t('lc.ov.greeting', { name: userName })}
                     </h1>
-                    <p className="text-slate-500 font-medium mt-1">Have a productive day.</p>
+                    <p className="text-slate-500 font-medium mt-1">{t('lc.ov.subtitle')}</p>
                 </div>
             </div>
 
@@ -172,28 +175,28 @@ export function LecturerOverview() {
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <BookOpen size={64} className="text-brand-600" />
                     </div>
-                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Total classes</h3>
+                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">{t('lc.ov.kpi.classes')}</h3>
                     <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.classes || 0}</p>
                 </div>
                 <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <Users size={64} className="text-emerald-600" />
                     </div>
-                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Total students</h3>
+                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">{t('lc.ov.kpi.students')}</h3>
                     <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.students || 0}</p>
                 </div>
                 <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <Bell size={64} className="text-amber-500" />
                     </div>
-                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Assignments to grade</h3>
+                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">{t('lc.ov.kpi.to_grade')}</h3>
                     <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{stats?.pending || 0}</p>
                 </div>
                 <div className="bg-white dark:bg-[#151821] p-6 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-800 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <CheckCircle2 size={64} className="text-blue-600" />
                     </div>
-                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">Assignments graded</h3>
+                    <h3 className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mb-2 relative z-10">{t('lc.ov.kpi.graded')}</h3>
                     <p className="text-4xl font-black text-slate-900 dark:text-white relative z-10">{gradedSubmissions}</p>
                 </div>
             </div>
@@ -204,7 +207,7 @@ export function LecturerOverview() {
                 {/* Left Column (grading progress & shortcuts) */}
                 <div className="lg:col-span-3 flex flex-col gap-8">
                     <div className="bg-white dark:bg-[#151821] p-6 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col items-center justify-center min-h-[320px] relative overflow-hidden h-full">
-                        <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white w-full text-center mb-6 z-10 tracking-tight">Grading progress</h2>
+                        <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white w-full text-center mb-6 z-10 tracking-tight">{t('lc.ov.grading_progress')}</h2>
                         <div className="z-10 bg-white/50 dark:bg-transparent rounded-full p-4 backdrop-blur-sm flex-1 flex items-center justify-center">
                             {totalSubmissions > 0 ? (
                                 <DonutChart
@@ -215,7 +218,7 @@ export function LecturerOverview() {
                                     size={180}
                                 />
                             ) : (
-                                <div className="flex h-[180px] items-center justify-center text-slate-400 text-sm font-medium">No data yet</div>
+                                <div className="flex h-[180px] items-center justify-center text-slate-400 text-sm font-medium">{t('lc.ov.no_data_yet')}</div>
                             )}
                         </div>
                     </div>
@@ -227,16 +230,16 @@ export function LecturerOverview() {
                     {/* Student and class performance statistics */}
                     <div className="bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800">
                         <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
-                            <TrendingUp size={18} className="text-emerald-500" /> Student & performance statistics
+                            <TrendingUp size={18} className="text-emerald-500" /> {t('lc.ov.perf_stats')}
                         </h2>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-[14px]">
                                 <thead>
                                     <tr className="border-b border-slate-100 dark:border-slate-800">
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Class name</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Total students</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Submitted (%)</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">Average score (GPA)</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">{t('lc.ov.col.class')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.students')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.submitted')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">{t('lc.ov.col.gpa')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -249,7 +252,7 @@ export function LecturerOverview() {
                                         </tr>
                                     ))}
                                     {classStats.length === 0 && (
-                                        <tr><td colSpan={4} className="text-center py-8 text-slate-400 font-medium">No class data yet</td></tr>
+                                        <tr><td colSpan={4} className="text-center py-8 text-slate-400 font-medium">{t('lc.ov.no_class_data')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -259,16 +262,16 @@ export function LecturerOverview() {
                     {/* Detailed statistics - GPA bar chart */}
                     <div className="bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col">
                         <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center gap-2">
-                            <BarChart2 size={18} className="text-brand-500" /> Detailed statistics
+                            <BarChart2 size={18} className="text-brand-500" /> {t('lc.ov.detail_stats')}
                         </h2>
-                        <p className="text-[13px] text-slate-500 mb-8 font-semibold">Average class score (GPA)</p>
+                        <p className="text-[13px] text-slate-500 mb-8 font-semibold">{t('lc.ov.avg_class_gpa')}</p>
                         <div className="flex-1 min-h-[220px] flex items-end">
                             {gpaChartData.length > 0 ? (
                                 <div className="w-full pb-4">
                                     <BarChart data={gpaChartData} height={200} />
                                 </div>
                             ) : (
-                                <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm font-medium">Not enough data for the chart</div>
+                                <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm font-medium">{t('lc.ov.not_enough_chart')}</div>
                             )}
                         </div>
                     </div>
@@ -283,12 +286,12 @@ export function LecturerOverview() {
                             <table className="w-full text-left text-[14px]">
                                 <thead>
                                     <tr className="border-b border-slate-100 dark:border-slate-800">
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Class name</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Total students</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Submitted (%)</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Average score (GPA)</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Category</th>
-                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">Needs support</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">{t('lc.ov.col.class')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.students')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.submitted')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.gpa')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.category')}</th>
+                                        <th className="pb-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right">{t('lc.ov.col.needs_support')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -299,17 +302,17 @@ export function LecturerOverview() {
                                             <td className="py-4 text-center font-semibold text-slate-600 dark:text-slate-400">{cls.submitPercent}%</td>
                                             <td className="py-4 text-center font-bold text-slate-700 dark:text-slate-300">{cls.gpa}</td>
                                             <td className="py-4 text-center">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${cls.status === 'Excellent' ? 'bg-emerald-100 text-emerald-700' :
-                                                        cls.status === 'Good' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${cls.status === 'excellent' ? 'bg-emerald-100 text-emerald-700' :
+                                                        cls.status === 'good' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
                                                     }`}>
-                                                    {cls.status}
+                                                    {t(`lc.ov.status.${cls.status}`)}
                                                 </span>
                                             </td>
                                             <td className="py-4 text-right font-bold text-rose-600">{cls.needsHelpCount}</td>
                                         </tr>
                                     ))}
                                     {classStats.length === 0 && (
-                                        <tr><td colSpan={6} className="text-center py-8 text-slate-400 font-medium">Chưa có dữ liệu</td></tr>
+                                        <tr><td colSpan={6} className="text-center py-8 text-slate-400 font-medium">{t('lc.ov.no_class_data')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -320,9 +323,9 @@ export function LecturerOverview() {
                         read no data at all. Now counts real submissions per week. */}
                     <div className="lg:col-span-5 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800 flex flex-col">
                         <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center gap-2">
-                            <TrendingUp size={18} className="text-blue-500" /> Submissions per week
+                            <TrendingUp size={18} className="text-blue-500" /> {t('lc.ov.weekly_subs')}
                         </h2>
-                        <p className="text-[13px] text-slate-500 mb-6 font-semibold">Last 6 weeks</p>
+                        <p className="text-[13px] text-slate-500 mb-6 font-semibold">{t('lc.ov.last_6_weeks')}</p>
                         <div className="flex-1 min-h-[200px] flex items-end">
                             {weeklySubmissionData.some(d => d.value > 0) ? (
                                 <div className="w-full pb-4">
@@ -330,7 +333,7 @@ export function LecturerOverview() {
                                 </div>
                             ) : (
                                 <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm font-medium">
-                                    No submissions in the last 6 weeks
+                                    {t('lc.ov.no_subs_6w')}
                                 </div>
                             )}
                         </div>
@@ -341,16 +344,16 @@ export function LecturerOverview() {
                 {/* To-Do List */}
                 <div className="lg:col-span-12 bg-white dark:bg-[#151821] p-7 rounded-3xl shadow-[0_4px_24px_-8px_rgba(0,0,0,0.08)] border border-slate-100/50 dark:border-slate-800">
                     <h2 className="text-[18px] font-extrabold text-slate-900 dark:text-white mb-6 tracking-tight flex items-center gap-2">
-                        <CheckCircle2 size={18} className="text-brand-500" /> Action list
+                        <CheckCircle2 size={18} className="text-brand-500" /> {t('lc.ov.action_list')}
                     </h2>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-[14px]">
                             <thead>
                                 <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
-                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] rounded-tl-lg">Lecturer</th>
-                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">Action</th>
-                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">Task</th>
-                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right rounded-tr-lg">KPI (deadline)</th>
+                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] rounded-tl-lg">{t('lc.ov.col.lecturer')}</th>
+                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-center">{t('lc.ov.col.action')}</th>
+                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px]">{t('lc.ov.col.task')}</th>
+                                    <th className="py-3 px-4 font-bold text-slate-500 uppercase tracking-wider text-[11px] text-right rounded-tr-lg">{t('lc.ov.col.kpi')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -361,17 +364,17 @@ export function LecturerOverview() {
                                             {userName}
                                         </td>
                                         <td className="py-4 px-4 text-center">
-                                            <span className="bg-rose-100 text-rose-600 border border-rose-200 text-xs px-3 py-1 rounded-full font-bold shadow-sm">{item.needsGrading} items</span>
+                                            <span className="bg-rose-100 text-rose-600 border border-rose-200 text-xs px-3 py-1 rounded-full font-bold shadow-sm">{t('lc.ov.items', { n: item.needsGrading })}</span>
                                         </td>
-                                        <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">Grading: <span className="text-brand-600 dark:text-brand-400 hover:underline">{item.title}</span></td>
-                                        <td className="py-4 px-4 text-right font-medium text-slate-500 dark:text-slate-400">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'None'}</td>
+                                        <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">{t('lc.ov.grading_label')} <span className="text-brand-600 dark:text-brand-400 hover:underline">{item.title}</span></td>
+                                        <td className="py-4 px-4 text-right font-medium text-slate-500 dark:text-slate-400">{item.dueDate ? new Date(item.dueDate).toLocaleDateString() : t('lc.ov.no_deadline')}</td>
                                     </tr>
                                 )) : (
                                     <tr>
                                         <td colSpan={4} className="py-12 text-center">
                                             <div className="flex flex-col items-center justify-center text-slate-400">
                                                 <CheckCircle2 size={40} className="text-emerald-200 mb-3" />
-                                                <p className="font-bold text-slate-600">All done - you have no outstanding tasks.</p>
+                                                <p className="font-bold text-slate-600">{t('lc.ov.all_done')}</p>
                                             </div>
                                         </td>
                                     </tr>
