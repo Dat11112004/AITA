@@ -590,6 +590,13 @@ export default function AssignmentPage() {
                 </label>
               )}
               <button
+                onClick={() => setIsGradingSettingsModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <Settings size={20} />
+                {t('lc.ap.gs.button')}
+              </button>
+              <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
               >
