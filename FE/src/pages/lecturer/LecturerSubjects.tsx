@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, type SubjectRow } from '@/lib/api'
 import {
   BookOpen, Search, Loader2, ArrowRight, Library, ChevronDown, Check,
@@ -12,6 +13,7 @@ type ViewMode = 'teaching' | 'all'
 
 export function LecturerSubjects() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [allSubjects, setAllSubjects] = useState<SubjectRow[]>([])
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
@@ -54,7 +56,7 @@ export function LecturerSubjects() {
           result.push({
             id: subId,
             code: (cls.subject as any)?.code || 'N/A',
-            name: (cls.subject as any)?.name || 'Subject',
+            name: (cls.subject as any)?.name || t('lc.sub.name_fallback'),
           })
         }
       }
@@ -90,8 +92,8 @@ export function LecturerSubjects() {
   }
 
   const viewOptions: { value: ViewMode; label: string; desc: string }[] = [
-    { value: 'teaching', label: 'Subjects I teach', desc: 'Only subjects assigned to you' },
-    { value: 'all', label: 'All subjects', desc: 'Every subject in the system' },
+    { value: 'teaching', label: t('lc.sub.opt.teaching'), desc: t('lc.sub.opt.teaching_desc') },
+    { value: 'all', label: t('lc.sub.opt.all'), desc: t('lc.sub.opt.all_desc') },
   ]
 
   return (
@@ -104,13 +106,13 @@ export function LecturerSubjects() {
               <Library size={22} />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-              {viewMode === 'teaching' ? 'Manage Subjects' : 'All Subjects'}
+              {viewMode === 'teaching' ? t('lc.sub.title_teaching') : t('lc.sub.title_all')}
             </h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             {viewMode === 'teaching'
-              ? 'View the syllabus, CLOs, schedule and assessments for the subjects you teach.'
-              : 'Every subject available in AITA.'
+              ? t('lc.sub.desc_teaching')
+              : t('lc.sub.desc_all')
             }
           </p>
         </div>
@@ -119,7 +121,7 @@ export function LecturerSubjects() {
           <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <BookOpen size={16} className="text-emerald-600 dark:text-emerald-400" />
             <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              {teachingSubjects.length} <span className="font-normal text-emerald-600/70 dark:text-emerald-400/70">subjects taught</span>
+              {teachingSubjects.length} <span className="font-normal text-emerald-600/70 dark:text-emerald-400/70">{t('lc.sub.taught_label')}</span>
             </span>
           </div>
         </div>
@@ -131,7 +133,7 @@ export function LecturerSubjects() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by subject name or code..."
+            placeholder={t('lc.sub.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-11 pl-10 pr-4 bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 text-sm"
@@ -190,7 +192,7 @@ export function LecturerSubjects() {
           </div>
 
           <div className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#151821] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm whitespace-nowrap">
-            Total: <span className="text-emerald-600 dark:text-emerald-400">{filteredSubjects.length}</span> subjects
+            {t('lc.sub.total_prefix')} <span className="text-emerald-600 dark:text-emerald-400">{filteredSubjects.length}</span> {t('lc.sub.total_suffix')}
           </div>
         </div>
       </div>
@@ -203,13 +205,13 @@ export function LecturerSubjects() {
       ) : filteredSubjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-[#151821]/50 text-center">
           <Library size={40} className="text-slate-400 mb-3" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">No subjects found</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('lc.sub.none_found')}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {search
-              ? 'Try a different search keyword.'
+              ? t('lc.sub.try_other')
               : viewMode === 'teaching'
-                ? 'You have not been assigned to teach any subject.'
-                : 'There are no subjects in the system yet.'
+                ? t('lc.sub.none_assigned')
+                : t('lc.sub.none_in_system')
             }
           </p>
         </div>
@@ -235,12 +237,12 @@ export function LecturerSubjects() {
                     {hasSyl && (
                       <span className="text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-md flex items-center gap-1">
                         <FileText size={10} />
-                        Syllabus
+                        {t('lc.sub.syllabus')}
                       </span>
                     )}
                     {!hasSyl && (
                       <span className="text-[10px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-md">
-                        No syllabus yet
+                        {t('lc.sub.no_syllabus')}
                       </span>
                     )}
                   </div>
@@ -259,13 +261,13 @@ export function LecturerSubjects() {
                     {sub.credit && (
                       <span className="flex items-center gap-1">
                         <GraduationCap size={12} />
-                        {sub.credit} credits
+                        {t('lc.sub.credits', { n: sub.credit })}
                       </span>
                     )}
                     {clsCount > 0 && (
                       <span className="flex items-center gap-1">
                         <Layers size={12} />
-                        {clsCount} classes
+                        {t('lc.sub.classes', { n: clsCount })}
                       </span>
                     )}
                   </div>
