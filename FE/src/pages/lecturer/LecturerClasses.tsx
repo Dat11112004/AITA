@@ -1,0 +1,352 @@
+import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
+import { formatSemesterCode } from '@/utils/semester'
+import {
+  Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
+  Calendar, ChevronDown, ChevronUp, Book, Code, Users
+} from 'lucide-react'
+
+export function LecturerClasses() {
+  const navigate = useNavigate()
+  const [classes, setClasses] = useState<ClassRow[]>([])
+  const [semesters, setSemesters] = useState<SemesterRow[]>([])
+  const [subjects, setSubjects] = useState<SubjectRow[]>([])
+
+  const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Expanded state
+  const [expandedSeasons, setExpandedSeasons] = useState<Record<string, boolean>>({})
+  const [expandedSemesters, setExpandedSemesters] = useState<Record<string, boolean>>({})
+  const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({}) // For showing classes
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [clsData, semData, subData] = await Promise.all([
+        api.getClasses(),
+        api.getSemesters(),
+        api.getSubjects(1, 1000)
+      ])
+      setClasses(clsData || [])
+      setSemesters(semData || [])
+      setSubjects(subData || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Grouping Logic
+  type SubjectGroup = { subjectId: string; subjectCode: string; subjectName: string; classes: ClassRow[]; avgStudents: number }
+  type SemesterGroup = { semesterId: string; semesterCode: string; startDate?: string; endDate?: string; isActive: boolean; subjects: Record<string, SubjectGroup> }
+  type SeasonGroup = { seasonName: string; isActive: boolean; semesters: Record<string, SemesterGroup> }
+
+  const groupedData: Record<string, SeasonGroup> = {};
+
+  const filteredClasses = classes.filter(c => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q) || (c.subject as any)?.code?.toLowerCase().includes(q)
+    }
+    return true
+  })
+
+  filteredClasses.forEach(cls => {
+    const semId = (cls.semester as any)?.id || 'unknown';
+    const semesterRecord = semesters.find(s => s.id === semId);
+
+    const seasonName = semesterRecord?.season || 'Other semesters';
+    const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || 'Other semester';
+
+    const subId = (cls.subject as any)?.id || 'unknown';
+    const subjectRecord = subjects.find(s => s.id === subId);
+    const subjectCode = subjectRecord?.code || (cls.subject as any)?.code || 'Other subject';
+    const subjectName = subjectRecord?.name || (cls.subject as any)?.name || 'Unnamed subject';
+
+    if (!groupedData[seasonName]) {
+      groupedData[seasonName] = { seasonName, isActive: false, semesters: {} };
+    }
+    const seasonGroup = groupedData[seasonName];
+    if (semesterRecord?.isActive) seasonGroup.isActive = true;
+
+    if (!seasonGroup.semesters[semId]) {
+      seasonGroup.semesters[semId] = {
+        semesterId: semId,
+        semesterCode,
+        startDate: semesterRecord?.startDate,
+        endDate: semesterRecord?.endDate,
+        isActive: semesterRecord?.isActive || false,
+        subjects: {}
+      };
+    }
+    const semesterGroup = seasonGroup.semesters[semId];
+
+    if (!semesterGroup.subjects[subId]) {
+      semesterGroup.subjects[subId] = { subjectId: subId, subjectCode, subjectName, classes: [], avgStudents: 0 };
+    }
+
+    semesterGroup.subjects[subId].classes.push(cls);
+  });
+
+  // Calculate averages & sort
+  const sortedSeasons = Object.values(groupedData).sort((a, b) => {
+    if (a.seasonName === 'Other semesters') return 1;
+    if (b.seasonName === 'Other semesters') return -1;
+    return b.seasonName.localeCompare(a.seasonName);
+  });
+
+  sortedSeasons.forEach(season => {
+    Object.values(season.semesters).forEach(semester => {
+      Object.values(semester.subjects).forEach(subject => {
+        const totalStudents = subject.classes.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+        subject.avgStudents = subject.classes.length > 0 ? Math.round(totalStudents / subject.classes.length) : 0;
+      });
+    });
+  });
+
+  // Auto-expand first season and its first semester on load
+  useEffect(() => {
+    if (sortedSeasons.length > 0 && Object.keys(expandedSeasons).length === 0) {
+      const firstSeason = sortedSeasons[0];
+      setExpandedSeasons({ [firstSeason.seasonName]: true });
+
+      const semestersList = Object.values(firstSeason.semesters);
+      if (semestersList.length > 0) {
+        setExpandedSemesters({ [semestersList[0].semesterId]: true });
+      }
+    }
+  }, [sortedSeasons.length])
+
+  const toggleSeason = (name: string) => setExpandedSeasons(prev => ({ ...prev, [name]: !prev[name] }))
+  const toggleSemester = (id: string) => setExpandedSemesters(prev => ({ ...prev, [id]: !prev[id] }))
+  const toggleSubject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedSubjects(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const getSeasonIcon = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('hè') || lower.includes('summer')) return <Sun className="w-6 h-6 text-indigo-500" />
+    if (lower.includes('xuân') || lower.includes('spring')) return <Leaf className="w-6 h-6 text-pink-500" />
+    if (lower.includes('thu') || lower.includes('fall')) return <Wind className="w-6 h-6 text-orange-500" />
+    if (lower.includes('đông') || lower.includes('winter')) return <CloudRain className="w-6 h-6 text-blue-500" />
+    return <Sun className="w-6 h-6 text-indigo-500" />
+  }
+
+  const getSeasonBg = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('hè') || lower.includes('summer')) return 'bg-indigo-50'
+    if (lower.includes('xuân') || lower.includes('spring')) return 'bg-pink-50'
+    if (lower.includes('thu') || lower.includes('fall')) return 'bg-orange-50'
+    return 'bg-indigo-50'
+  }
+
+  const formatDate = (d?: string) => {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-600" /></div>
+
+  return (
+    <div className="max-w-[1200px] mx-auto space-y-6 px-6 lg:px-8">
+
+      {/* Header matching the design */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Users className="w-7 h-7 text-slate-400" />
+            All classes
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Browse classes by structure: Season → Semester → Subject → Class.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search classes..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 pr-10 py-2 border border-slate-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-500 font-sans">⌘</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-500 font-sans">K</kbd>
+            </div>
+          </div>
+          <button className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+            <Filter className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h3 className="text-base font-bold text-slate-800 mb-4">Structured training list</h3>
+
+        <div className="space-y-4">
+          {sortedSeasons.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-500 shadow-sm">
+              <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h4 className="text-base font-semibold text-slate-700">No classes assigned yet</h4>
+              <p className="text-sm text-slate-500 mt-1">You have not been assigned to teach any class in the current semesters.</p>
+            </div>
+          ) : (
+            sortedSeasons.map(season => {
+            const isExpanded = expandedSeasons[season.seasonName];
+            const semesterCount = Object.keys(season.semesters).length;
+            const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
+
+            return (
+              <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+
+                {/* Season Header */}
+                <div
+                  onClick={() => toggleSeason(season.seasonName)}
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getSeasonBg(season.seasonName)}`}>
+                      {getSeasonIcon(season.seasonName)}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-bold text-slate-800">{season.seasonName}</h2>
+                      {season.isActive && (
+                        <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                          In progress
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-slate-500">
+                    <span className="text-sm font-medium text-indigo-600">{semesterCount} semesters</span>
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </div>
+
+                {/* Season Content */}
+                {isExpanded && (
+                  <div className="p-4 pt-0 border-t border-slate-100 space-y-4">
+                    {sortedSemesters.map(semester => {
+                      const isSemExpanded = expandedSemesters[semester.semesterId];
+                      const subjectCount = Object.keys(semester.subjects).length;
+                      const sortedSubjects = Object.values(semester.subjects).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+
+                      return (
+                        <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
+
+                          {/* Semester Header */}
+                          <div
+                            onClick={() => toggleSemester(semester.semesterId)}
+                            className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
+                                <Calendar className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode)}</h3>
+                                {(semester.startDate || semester.endDate) && (
+                                  <p className="text-xs text-slate-500 mt-0.5">
+                                    {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-slate-500">
+                              <span className="text-sm font-medium text-indigo-600">{subjectCount} subjects</span>
+                              {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                            </div>
+                          </div>
+
+                          {/* Semester Content (Subject Table) */}
+                          {isSemExpanded && (
+                            <div className="bg-white overflow-x-auto">
+                              <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
+                                  <tr>
+                                    <th className="px-6 py-4 font-medium">Subject</th>
+                                    <th className="px-6 py-4 font-medium text-center">Subject code</th>
+                                    <th className="px-6 py-4 font-medium text-center">Classes</th>
+                                    <th className="px-6 py-4 font-medium text-center">Average class size</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {sortedSubjects.map(subject => {
+                                    const isSubjExpanded = expandedSubjects[subject.subjectId];
+
+                                    return (
+                                      <React.Fragment key={subject.subjectId}>
+                                        <tr
+                                          onClick={(e) => toggleSubject(subject.subjectId, e)}
+                                          className="hover:bg-slate-50/50 group cursor-pointer"
+                                        >
+                                          <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                                                {subject.subjectCode.includes('PR') ? <Code className="w-4 h-4" /> : <Book className="w-4 h-4" />}
+                                              </div>
+                                              <span className="font-semibold text-slate-700">{subject.subjectName}</span>
+                                            </div>
+                                          </td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
+                                          <td className="px-6 py-4 text-center">
+                                            <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                                              {subject.classes.length} classes
+                                            </span>
+                                          </td>
+                                          <td className="px-6 py-4 text-center text-slate-600">{subject.avgStudents} students</td>
+                                        </tr>
+
+                                        {/* Expanded Subject Classes */}
+                                        {/* Was `> 1`, so a subject with a single class expanded to nothing. */}
+                                        {isSubjExpanded && subject.classes.length > 0 && (
+                                          <tr className="bg-slate-50/50">
+                                            <td colSpan={4} className="p-0 border-b border-indigo-100">
+                                              <div className="px-8 py-4 flex flex-wrap gap-2.5">
+                                                {subject.classes.map(cls => (
+                                                  <button
+                                                    key={cls.id}
+                                                    onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                                                    className="group/btn flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 hover:shadow hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                  >
+                                                    <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
+                                                    <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
+                                                      Class {cls.code}
+                                                    </span>
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          }))}
+        </div>
+      </div>
+    </div>
+  )
+}

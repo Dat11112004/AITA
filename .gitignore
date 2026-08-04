@@ -1,0 +1,42 @@
+# Root
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+
+# Backend
+be/node_modules/
+be/dist/
+be/.env
+be/prisma/*.sqlite
+be/prisma/*.sqlite-journal
+
+# Frontend
+FE/node_modules/
+FE/dist/
+FE/dist-ssr/
+FE/.env
+FE/*.local
+
+# AI
+ai/venv/
+ai/.env
+ai/__pycache__/
+ai/*.pyc
+.bible/
+temp/
+cycles/
+
+# Bible / PM tooling — OWNER-ONLY (needs Plane/Outline; not committed to the product repo)
+/scripts/
+/config.json
+/.mcp.json
+/.claude/commands/
+/.claude/skills/po/
+/docs/pm.md
+/docs/index.md
+
+# NOTE: .claude/skills/aita-* (coding-convention skills) ARE committed on purpose —
+# collaborators/AI tools need them to follow the project's code conventions.
