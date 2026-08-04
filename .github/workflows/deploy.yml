@@ -21,5 +21,6 @@ jobs:
           script: |
             cd /www/wwwroot/AITA/AITA-main
             git pull origin ${{ github.ref_name }}
-            docker compose up -d --build
+            docker compose build --no-cache
+            docker compose up -d
             docker exec -i aita-backend npx prisma db push
