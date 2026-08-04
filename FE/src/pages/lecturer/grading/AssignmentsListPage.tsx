@@ -8,6 +8,14 @@ import {
   ChevronRight, ChevronLeft, LayoutGrid, Trash2, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+/**
+ * Tab sentinels. They are grouping keys and sort markers, not display text, so
+ * they stay language-independent and are translated only where they are rendered.
+ */
+const TAB_ALL = 'All';
+const TAB_OTHER = 'Other';
 
 // -- Helpers --
 const getProjectTypeInfo = (type: string = '') => {
@@ -59,11 +67,12 @@ export default function AssignmentsListPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState(TAB_ALL);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [deletingAssignment, setDeletingAssignment] = useState<PublishedAssignment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -76,7 +85,7 @@ export default function AssignmentsListPage() {
       setAssignments(prev => prev.filter(a => a.id !== deletingAssignment.id));
       setDeletingAssignment(null);
     } catch (err: any) {
-      alert(err.message || 'This assignment could not be deleted');
+      alert(err.message || t('lc.al.delete_failed'));
     } finally {
       setIsDeleting(false);
     }
@@ -101,7 +110,7 @@ export default function AssignmentsListPage() {
       }
       setSubjects(Array.from(uniqueSubjects).sort());
     } catch (err: any) {
-      setError(err.message || 'Failed to load assignments');
+      setError(err.message || t('lc.al.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -113,7 +122,7 @@ export default function AssignmentsListPage() {
 
   // Derive Tabs from subjects
   const tabs = useMemo(() => {
-    const counts: Record<string, number> = { 'All': assignments.length };
+    const counts: Record<string, number> = { [TAB_ALL]: assignments.length };
 
     // Initialize all lecturer's subjects to 0
     subjects.forEach(sub => {
@@ -130,17 +139,16 @@ export default function AssignmentsListPage() {
           counts[sub] = 1;
         }
       } else {
-        const fallback = 'Other';
-        counts[fallback] = (counts[fallback] || 0) + 1;
+        counts[TAB_OTHER] = (counts[TAB_OTHER] || 0) + 1;
       }
     });
 
     // Sort logic to ensure 'All' is first, 'Other' is last
     return Object.entries(counts).sort((a, b) => {
-      if (a[0] === 'All') return -1;
-      if (b[0] === 'All') return 1;
-      if (a[0] === 'Other') return 1;
-      if (b[0] === 'Other') return -1;
+      if (a[0] === TAB_ALL) return -1;
+      if (b[0] === TAB_ALL) return 1;
+      if (a[0] === TAB_OTHER) return 1;
+      if (b[0] === TAB_OTHER) return -1;
       return a[0].localeCompare(b[0]);
     });
   }, [assignments, subjects]);
@@ -149,9 +157,9 @@ export default function AssignmentsListPage() {
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
       // Tab filter
-      const sub = (a.metadata as any)?.subject || 'Other';
+      const sub = (a.metadata as any)?.subject || TAB_OTHER;
 
-      if (activeTab !== 'All' && sub !== activeTab) return false;
+      if (activeTab !== TAB_ALL && sub !== activeTab) return false;
 
       // Search filter
       if (searchQuery) {
@@ -184,8 +192,8 @@ export default function AssignmentsListPage() {
             <ListTodo size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold dark:text-white text-slate-900">Manage Assignments</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage and grade assignments by subject.</p>
+            <h1 className="text-2xl font-bold dark:text-white text-slate-900">{t('lc.al.title')}</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{t('lc.al.subtitle')}</p>
           </div>
         </div>
         <button
@@ -193,7 +201,7 @@ export default function AssignmentsListPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap"
         >
           <Plus size={18} />
-          New assignment
+          {t('lc.al.new_assignment')}
         </button>
       </div>
 
@@ -201,7 +209,7 @@ export default function AssignmentsListPage() {
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
         <div className="relative w-full md:w-64">
           <select className="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl px-10 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all font-medium text-sm">
-            <option>All subjects</option>
+            <option>{t('lc.al.all_subjects')}</option>
           </select>
           <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -213,7 +221,7 @@ export default function AssignmentsListPage() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search assignments..."
+            placeholder={t('lc.al.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-full pl-10 pr-4 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all text-sm shadow-sm"
@@ -234,7 +242,7 @@ export default function AssignmentsListPage() {
                   : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
             >
-              {name}
+              {name === TAB_ALL ? t('lc.al.tab_all') : name === TAB_OTHER ? t('lc.al.tab_other') : name}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive
                   ? 'bg-white/20 text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
@@ -256,8 +264,8 @@ export default function AssignmentsListPage() {
       {!loading && filteredAssignments.length === 0 && !error && (
         <div className="text-center py-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
           <ListTodo size={48} className="mx-auto mb-4 dark:text-slate-600 text-slate-300" />
-          <h3 className="text-xl font-medium dark:text-slate-300 text-slate-600 mb-2">No assignments found</h3>
-          <p className="dark:text-slate-500 text-slate-400 text-sm">Try changing the filter or create a new assignment.</p>
+          <h3 className="text-xl font-medium dark:text-slate-300 text-slate-600 mb-2">{t('lc.al.none_found')}</h3>
+          <p className="dark:text-slate-500 text-slate-400 text-sm">{t('lc.al.none_hint')}</p>
         </div>
       )}
 
@@ -277,7 +285,7 @@ export default function AssignmentsListPage() {
           const createdStr = new Date(stats.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
           const deadlineStr = stats.dueDate
             ? new Date(stats.dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : 'Not set';
+            : t('lc.al.not_set');
 
           return (
             <div
@@ -293,8 +301,8 @@ export default function AssignmentsListPage() {
               {/* Middle: Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-[15px] font-bold text-slate-800 dark:text-white uppercase truncate" title={assignment.metadata?.title || 'Untitled'}>
-                    {assignment.metadata?.title || 'Untitled'}
+                  <h3 className="text-[15px] font-bold text-slate-800 dark:text-white uppercase truncate" title={assignment.metadata?.title || t('lc.al.untitled')}>
+                    {assignment.metadata?.title || t('lc.al.untitled')}
                   </h3>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${typeInfo.lightBg} ${typeInfo.color} ${typeInfo.border} border whitespace-nowrap`}>
                     {typeInfo.tag}
@@ -302,21 +310,21 @@ export default function AssignmentsListPage() {
                 </div>
 
                 <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mb-3 pr-4">
-                  {assignment.metadata?.description || 'No description provided.'}
+                  {assignment.metadata?.description || t('lc.al.no_description')}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-slate-500 dark:text-slate-400 font-medium">
                   <div className="flex items-center gap-1.5">
                     <Calendar size={14} className="text-slate-400" />
-                    <span>Created: {createdStr}</span>
+                    <span>{t('lc.al.created', { value: createdStr })}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock size={14} className="text-slate-400" />
-                    <span>Due: {deadlineStr}</span>
+                    <span>{t('lc.al.due', { value: deadlineStr })}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Users size={14} className="text-slate-400" />
-                    <span>{stats.totalStudents} students</span>
+                    <span>{t('lc.al.students', { n: stats.totalStudents })}</span>
                   </div>
                 </div>
               </div>
@@ -329,14 +337,14 @@ export default function AssignmentsListPage() {
                       {stats.submitted}/{stats.totalStudents}
                     </div>
                     <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-0.5">
-                      Submitted
+                      {t('lc.al.submitted')}
                     </div>
                   </div>
 
                   <div className="text-center flex flex-col items-center">
                     <CircularProgress value={stats.percentage} />
                     <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mt-1">
-                      Completed
+                      {t('lc.al.completed')}
                     </div>
                   </div>
                 </div>
@@ -349,7 +357,7 @@ export default function AssignmentsListPage() {
                     setDeletingAssignment(assignment);
                   }}
                   className="p-2.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50"
-                  title="Delete assignment"
+                  title={t('lc.al.delete_title')}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -363,7 +371,7 @@ export default function AssignmentsListPage() {
       {!loading && filteredAssignments.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            Showing <span className="font-medium text-slate-700 dark:text-slate-300">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-medium text-slate-700 dark:text-slate-300">{Math.min(currentPage * itemsPerPage, filteredAssignments.length)}</span> of <span className="font-medium text-slate-700 dark:text-slate-300">{filteredAssignments.length}</span> assignments
+            {t('lc.al.showing_prefix')} <span className="font-medium text-slate-700 dark:text-slate-300">{(currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-medium text-slate-700 dark:text-slate-300">{Math.min(currentPage * itemsPerPage, filteredAssignments.length)}</span> {t('lc.al.showing_of')} <span className="font-medium text-slate-700 dark:text-slate-300">{filteredAssignments.length}</span> {t('lc.al.showing_suffix')}
           </div>
 
           <div className="flex items-center gap-1">
@@ -411,8 +419,8 @@ export default function AssignmentsListPage() {
                   <Trash2 size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirm assignment deletion</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">This action cannot be undone</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('lc.al.del.title')}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t('lc.al.del.subtitle')}</p>
                 </div>
               </div>
               <button
@@ -426,10 +434,10 @@ export default function AssignmentsListPage() {
             {/* Body */}
             <div className="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
               <p>
-                Delete the assignment <strong className="text-slate-900 dark:text-white">{deletingAssignment.metadata?.title || 'assignment'}</strong>?
+                {t('lc.al.del.body_prefix')} <strong className="text-slate-900 dark:text-white">{deletingAssignment.metadata?.title || t('lc.al.del.assignment_fallback')}</strong>?
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-rose-50/60 dark:bg-rose-950/30 p-3 rounded-xl border border-rose-100 dark:border-rose-900/40">
-                ⚠️ The brief, the rubric and every student submission for this assignment will also be permanently deleted.
+                {t('lc.al.del.warning')}
               </p>
             </div>
 
@@ -441,7 +449,7 @@ export default function AssignmentsListPage() {
                 disabled={isDeleting}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('lc.al.del.cancel')}
               </button>
               <button
                 type="button"
@@ -454,7 +462,7 @@ export default function AssignmentsListPage() {
                 ) : (
                   <Trash2 size={16} />
                 )}
-                <span>{isDeleting ? 'Deleting...' : 'Confirm delete'}</span>
+                <span>{isDeleting ? t('lc.al.del.deleting') : t('lc.al.del.confirm')}</span>
               </button>
             </div>
 

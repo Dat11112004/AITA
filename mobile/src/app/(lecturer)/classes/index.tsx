@@ -21,6 +21,7 @@ export default function LecturerClassesScreen() {
   const a = Aurora[scheme]
 
   const [rows, setRows] = useState<ClassRow[]>([])
+  const [codeFilter, setCodeFilter] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,18 +50,51 @@ export default function LecturerClassesScreen() {
   if (loading) return <AuroraBackground><Loading /></AuroraBackground>
   if (error) return <AuroraBackground><ErrorView message={error} onRetry={() => load('initial')} /></AuroraBackground>
 
+  // One lecturer teaches the same subject to several cohorts, so the useful cut is by class
+  // code (SE17C01, SE18C01…) — that is what tells two otherwise identical rows apart.
+  const codes = [...new Set(rows.map((r) => r.code).filter(Boolean))].sort()
+  const visible = codeFilter ? rows.filter((r) => r.code === codeFilter) : rows
+
   return (
     <AuroraBackground>
       <SafeAreaView edges={['top', 'bottom']} style={styles.fill}>
         <FlatList
-          data={rows}
+          data={visible}
           keyExtractor={(x) => x.id}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <View style={styles.head}>
               <Text style={[styles.title, { color: a.onGlass }]}>{t('lecturer.classesTitle')}</Text>
-              <Text style={[styles.subtitle, { color: a.onGlassSoft }]}>{t('lecturer.classCount', { count: rows.length })}</Text>
+              <Text style={[styles.subtitle, { color: a.onGlassSoft }]}>
+                {t('lecturer.classCount', { count: visible.length })}
+              </Text>
+
+              {codes.length > 1 ? (
+                <View style={styles.filters}>
+                  {[null, ...codes].map((code) => {
+                    const active = codeFilter === code
+                    const n = code ? rows.filter((r) => r.code === code).length : rows.length
+                    return (
+                      <TouchableOpacity
+                        key={code ?? '__all'}
+                        activeOpacity={0.85}
+                        onPress={() => setCodeFilter(code)}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        style={[
+                          styles.chip,
+                          { backgroundColor: active ? c.primarySoft : a.glass, borderColor: active ? c.primary : a.glassBorder },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: active ? c.primary : a.onGlassSoft }]}>
+                          {(code ?? t('assignments.filterAll')) + ' · ' + n}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+              ) : null}
             </View>
           }
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} tintColor={c.primary} colors={[c.primary]} />}
@@ -104,6 +138,9 @@ const styles = StyleSheet.create({
   head: { marginBottom: 16, gap: 3 },
   title: { ...Type.greeting, fontWeight: '800' },
   subtitle: { ...Type.body, fontWeight: '600' },
+  filters: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 12 },
+  chip: { borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 },
+  chipText: { ...Type.chip, fontWeight: '700' },
   sep: { height: 12 },
   empty: { ...Type.bodyLg, textAlign: 'center', marginTop: 40 },
   card: {},

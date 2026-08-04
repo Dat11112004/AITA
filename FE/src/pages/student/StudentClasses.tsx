@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+import { useTranslation } from 'react-i18next'
 
 type ClassInfo = {
   id: string
@@ -21,6 +22,7 @@ type ClassInfo = {
 }
 
 export function StudentClasses() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [classes, setClasses] = useState<ClassInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,7 +71,7 @@ export function StudentClasses() {
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
-          title="My Classes"
+          title={t('st.classes.title')}
           description={`Classes you are enrolled in for the ${selectedSemester} semester.`}
           breadcrumbs={[{ label: 'Student', path: '/student' }, { label: 'Classes' }]}
         />

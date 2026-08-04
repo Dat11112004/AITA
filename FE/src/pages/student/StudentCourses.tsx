@@ -5,10 +5,12 @@ import { BookOpen, Search, Loader2, ArrowRight, BookMarked, ChevronDown, Check }
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
 
 import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+import { useTranslation } from 'react-i18next'
 
 type ViewMode = 'enrolled' | 'all'
 
 export function StudentCourses() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<any>(null)
@@ -74,8 +76,8 @@ export function StudentCourses() {
   })
 
   const viewOptions: { value: ViewMode; label: string; desc: string }[] = [
-    { value: 'enrolled', label: 'My Subjects', desc: 'Only subjects from this semester' },
-    { value: 'all', label: 'All Subjects', desc: 'Every subject in the system' },
+    { value: 'enrolled', label: t('st.courses.my_subjects'), desc: t('st.courses.my_subjects_desc') },
+    { value: 'all', label: t('st.courses.all_subjects'), desc: t('st.courses.all_subjects_desc') },
   ]
 
   return (
@@ -88,13 +90,13 @@ export function StudentCourses() {
               <BookOpen size={22} />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-              {viewMode === 'enrolled' ? 'Current Subjects' : 'All Subjects'}
+              {viewMode === 'enrolled' ? t('st.courses.current_subjects') : t('st.courses.all_subjects')}
             </h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             {viewMode === 'enrolled'
               ? `Subjects you are enrolled in for the ${selectedSemester} semester.`
-              : 'Every subject available in the system.'
+              : t('st.courses.all_available')
             }
           </p>
         </div>
@@ -114,7 +116,7 @@ export function StudentCourses() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search subjects by name or code..."
+            placeholder={t('st.courses.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-11 pl-10 pr-4 bg-white dark:bg-[#151821] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 text-sm"
@@ -192,10 +194,10 @@ export function StudentCourses() {
       ) : filteredSubjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-[#151821]/50 text-center">
           <BookMarked size={40} className="text-slate-400 mb-3" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">No subjects found</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('st.courses.none_found')}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {search
-              ? 'Try a different search keyword'
+              ? t('st.courses.try_other')
               : viewMode === 'enrolled'
                 ? 'You are not enrolled in any subject this semester.'
                 : 'There are no subjects in the system yet.'

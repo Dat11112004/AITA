@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { GraduationCap, Home, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { NavItem, UserRole } from '@/types'
 import { Icon } from '@/components/icons/IconMap'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   navItems: NavItem[]
@@ -43,6 +44,7 @@ const sidebarTheme: Record<UserRole, {
 }
 
 export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggleCollapse }: Props) {
+  const { t } = useTranslation()
   const location = useLocation()
   const theme = sidebarTheme[role]
 
@@ -64,7 +66,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
         {!collapsed && (
           <div className="min-w-0">
             <p className="text-[15px] font-bold text-white leading-none">AITA</p>
-            <p className="mt-0.5 truncate text-[11px] text-white/50 leading-none">{roleLabel}</p>
+            <p className="mt-0.5 truncate text-[11px] text-white/50 leading-none">{t(`role.${String(role).toLowerCase()}`, roleLabel)}</p>
           </div>
         )}
       </div>
@@ -83,7 +85,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
             <div key={item.id} className={showCategory && index > 0 ? "mt-2 pt-5 border-t border-white/[0.08] flex flex-col" : "flex flex-col"}>
               {showCategory && !collapsed && (
                 <div className="px-3 pb-2 text-[11px] font-extrabold uppercase tracking-widest text-indigo-300/70 mb-1 flex items-center gap-2">
-                  {item.category}
+                  {t(`nav.cat.${String(item.category).toLowerCase().replace(/[^a-z]+/g, '_')}`, String(item.category))}
                 </div>
               )}
               {showCategory && collapsed && index > 0 && (
@@ -114,7 +116,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
               />
 
               {!collapsed && (
-                <span className="truncate leading-tight">{item.label}</span>
+                <span className="truncate leading-tight">{t(`nav.item.${item.id}`, item.label)}</span>
               )}
 
               {!collapsed && item.badge && (
@@ -134,7 +136,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
                   group-hover:opacity-100 group-hover:scale-100
                   transition-all duration-150
                 ">
-                  {item.label}
+                  {t(`nav.item.${item.id}`, item.label)}
                   <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-slate-900" />
                 </div>
               )}
@@ -156,7 +158,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
           `}
         >
           <Home size={18} className="shrink-0 transition-transform group-hover:scale-105" />
-          {!collapsed && <span>Home</span>}
+          {!collapsed && <span>{t('ui.home')}</span>}
           {collapsed && (
             <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
               Home
@@ -175,7 +177,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
             ${collapsed ? 'justify-center px-3' : ''}
           `}
         >
-          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>Collapse</span></>}
+          {collapsed ? <ChevronRight size={18} /> : <><ChevronLeft size={18} /><span>{t('ui.collapse')}</span></>}
         </button>
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -30,6 +31,7 @@ import { Tabs } from '@/components/ui/Tabs'
 export function LecturerSubmissions() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [assignment, setAssignment] = useState<AssignmentRow | null>(null)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [classStudents, setClassStudents] = useState<any[]>([])
@@ -51,7 +53,7 @@ export function LecturerSubmissions() {
   const [customPenaltyRate, setCustomPenaltyRate] = useState<number | ''>(1.0)
   const [flatPenaltyAmount, setFlatPenaltyAmount] = useState<number | ''>(1.0)
   const [scoreCap, setScoreCap] = useState<number | ''>(7.0)
-  const [reopenReason, setReopenReason] = useState<string>('Sinh viên xin mở lại bài nộp để cải thiện điểm')
+  const [reopenReason, setReopenReason] = useState<string>('')
   const [isReopening, setIsReopening] = useState(false)
 
   // Filtering
@@ -95,7 +97,7 @@ export function LecturerSubmissions() {
         studentsList = submissionList.map(s => ({
           id: s.studentId || s.id,
           studentId: s.studentId || s.id,
-          name: s.student || 'Student',
+          name: s.student || t('lc.sm.student_fallback'),
           avatar: (s as any).avatar || null,
           email: (s as any).email || '',
         }))
@@ -103,7 +105,7 @@ export function LecturerSubmissions() {
 
       setClassStudents(studentsList)
     } catch (e: any) {
-      setError(e.message || 'Failed to load class submissions')
+      setError(e.message || t('lc.sm.load_failed'))
     } finally {
       setLoading(false)
     }
@@ -133,7 +135,7 @@ export function LecturerSubmissions() {
       setGradingSub(null)
       load()
     } catch (error: any) {
-      alert(error.message || 'Grading failed')
+      alert(error.message || t('lc.sm.grading_failed'))
     } finally {
       setIsGrading(false)
     }
@@ -146,8 +148,8 @@ export function LecturerSubmissions() {
       await api.gradeSubmission(gradingSub.id, {
         score: accepted && score !== '' ? Number(score) : (gradingSub.score as number),
         feedback: accepted
-          ? `[Appeal approved] ${feedback}`
-          : `[Appeal rejected] ${feedback || 'Your appeal does not match the rubric.'}`,
+          ? `${t('lc.sm.appeal_approved_prefix')} ${feedback}`
+          : `${t('lc.sm.appeal_rejected_prefix')} ${feedback || t('lc.sm.appeal_default_reason')}`,
       })
       if (sendNotification) {
         console.log(`Notification sent to ${gradingSub.student} regarding appeal`)
@@ -155,7 +157,7 @@ export function LecturerSubmissions() {
       setGradingSub(null)
       load()
     } catch (error: any) {
-      alert(error.message || 'Failed to process the appeal')
+      alert(error.message || t('lc.sm.appeal_failed'))
     } finally {
       setIsGrading(false)
     }
@@ -170,7 +172,7 @@ export function LecturerSubmissions() {
     setCustomPenaltyRate(1.0)
     setFlatPenaltyAmount(1.0)
     setScoreCap(7.0)
-    setReopenReason('Sinh viên xin mở lại bài nộp để cải thiện điểm')
+    setReopenReason(t('lc.sm.reopen_default_reason'))
   }
 
   const handleReopen = async () => {
@@ -187,11 +189,11 @@ export function LecturerSubmissions() {
         scoreCap: scoreCap !== '' ? Number(scoreCap) : undefined,
         reason: reopenReason,
       })
-      alert('Đã mở lại bài nộp và thiết lập hạn nộp mới thành công!')
+      alert(t('lc.sm.reopen_success'))
       setReopenTarget(null)
       load()
     } catch (e: any) {
-      alert(e.message || 'Mở lại bài nộp thất bại')
+      alert(e.message || t('lc.sm.reopen_failed'))
     } finally {
       setIsReopening(false)
     }
@@ -201,26 +203,26 @@ export function LecturerSubmissions() {
     if (!id) return
     try {
       await api.startGradingSession(id)
-      alert('AI grading session started.')
+      alert(t('lc.sm.ai_session_started'))
       load()
     } catch (e: any) {
-      alert(e.message || 'Failed to start the grading session')
+      alert(e.message || t('lc.sm.ai_session_failed'))
     }
   }
 
   const handleBulkPublish = async () => {
-    if (!id || !window.confirm('Publish scores to all students?')) return
+    if (!id || !window.confirm(t('lc.sm.publish_confirm'))) return
     try {
       await api.bulkPublishGrades(id)
-      alert('Scores published to all students.')
+      alert(t('lc.sm.publish_success'))
       load()
     } catch (e: any) {
-      alert(e.message || 'Failed to publish scores')
+      alert(e.message || t('lc.sm.publish_failed'))
     }
   }
 
   if (loading) return <LoadingSpinner />
-  if (error || !assignment) return <ErrorState message={error || 'Assignment not found'} onRetry={load} />
+  if (error || !assignment) return <ErrorState message={error || t('lc.sm.not_found')} onRetry={load} />
 
   // Map class students to their submission and grade
   const rosterRows = classStudents.map(st => {
@@ -235,7 +237,7 @@ export function LecturerSubmissions() {
     return {
       id: st.id || st.studentId,
       photo: st.avatar || null,
-      name: st.name || 'Unknown Student',
+      name: st.name || t('lc.sm.unknown_student'),
       studentId: st.studentId || st.id || '—',
       email: st.email || '',
       submission: sub || null,
@@ -291,16 +293,16 @@ export function LecturerSubmissions() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-400 text-xs font-bold uppercase tracking-wider">
-                {assignment.type || 'Assignment'} Roster
+                {t('lc.sm.roster_badge', { type: assignment.type || t('lc.sm.type_assignment') })}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
               {assignment.title}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
-              <span>Class: <strong className="text-slate-700 dark:text-slate-300">{assignment.class || 'All Enrolled Classes'}</strong></span>
+              <span>{t('lc.sm.class_label')} <strong className="text-slate-700 dark:text-slate-300">{assignment.class || t('lc.sm.all_classes')}</strong></span>
               <span>•</span>
-              <span>Due: <strong className="text-slate-700 dark:text-slate-300 font-mono">{assignment.due?.slice(0, 10) || 'No deadline'}</strong></span>
+              <span>{t('lc.sm.due_label')} <strong className="text-slate-700 dark:text-slate-300 font-mono">{assignment.due?.slice(0, 10) || t('lc.sm.no_deadline')}</strong></span>
             </p>
           </div>
         </div>
@@ -313,7 +315,7 @@ export function LecturerSubmissions() {
               className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
             >
               <BrainCircuit size={16} />
-              Batch Grade with AI
+              {t('lc.sm.batch_ai')}
             </Button>
           ) : (
             <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl text-xs font-bold shadow-2xs">
@@ -321,7 +323,7 @@ export function LecturerSubmissions() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              AI Background Grading Active
+              {t('lc.sm.ai_active')}
             </div>
           )}
           <Button
@@ -329,7 +331,7 @@ export function LecturerSubmissions() {
             onClick={handleBulkPublish}
             className="bg-brand-600 hover:bg-brand-700 text-white font-bold gap-2 shadow-sm hover:shadow-md transition-all active:scale-95 rounded-xl px-4 py-2 text-xs"
           >
-            <CheckCircle2 size={16} /> Publish All Scores
+            <CheckCircle2 size={16} /> {t('lc.sm.publish_all')}
           </Button>
         </div>
       </div>
@@ -344,25 +346,25 @@ export function LecturerSubmissions() {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
-                placeholder="Search student or MSSV..."
+                placeholder={t('lc.sm.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-xs border border-slate-200 dark:border-slate-700/80 rounded-xl bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-800 dark:text-slate-200 shadow-2xs"
               />
             </div>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Showing {filteredRows.length} of {totalStudents}
+              {t('lc.sm.showing', { shown: filteredRows.length, total: totalStudents })}
             </span>
           </div>
 
           <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200/80 dark:border-slate-800 w-max overflow-x-auto custom-scrollbar">
             <Tabs
               items={[
-                { id: 'all', label: `All (${totalStudents})` },
-                { id: 'graded', label: `Graded (${gradedCount})` },
-                { id: 'pending', label: `Pending (${pendingCount})` },
-                { id: 'not_submitted', label: `Not Submitted (${notSubmittedCount})` },
-                { id: 'appeal', label: `Appeals (${appealCount})` }
+                { id: 'all', label: t('lc.sm.tab.all', { n: totalStudents }) },
+                { id: 'graded', label: t('lc.sm.tab.graded', { n: gradedCount }) },
+                { id: 'pending', label: t('lc.sm.tab.pending', { n: pendingCount }) },
+                { id: 'not_submitted', label: t('lc.sm.tab.not_submitted', { n: notSubmittedCount }) },
+                { id: 'appeal', label: t('lc.sm.tab.appeal', { n: appealCount }) }
               ]}
               activeId={filter}
               onChange={setFilter}
@@ -376,7 +378,7 @@ export function LecturerSubmissions() {
             columns={[
               {
                 key: 'photo',
-                header: 'Photo',
+                header: t('lc.sm.col.photo'),
                 render: (r: any) => {
                   const avatarUrl = r.photo || r.avatar
                   const parts = (r.name || '').trim().split(/\s+/)
@@ -411,7 +413,7 @@ export function LecturerSubmissions() {
               },
               {
                 key: 'name',
-                header: 'Student Name',
+                header: t('lc.sm.col.name'),
                 render: (r: any) => (
                   <div className="py-1">
                     <p className="font-bold text-slate-900 dark:text-slate-100 text-sm tracking-tight hover:text-brand-600 transition-colors">
@@ -423,7 +425,7 @@ export function LecturerSubmissions() {
               },
               {
                 key: 'studentId',
-                header: 'Student Code',
+                header: t('lc.sm.col.code'),
                 render: (r: any) => (
                   <div className="py-1">
                     <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
@@ -434,30 +436,30 @@ export function LecturerSubmissions() {
               },
               {
                 key: 'status',
-                header: 'Status',
+                header: t('lc.sm.col.status'),
                 render: (r: any) => (
                   <div className="flex flex-col gap-1 w-max py-1">
                     {r.status === 'graded' ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-bold">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Graded
+                        <CheckCircle2 size={13} className="text-emerald-500" /> {t('lc.sm.status.graded')}
                       </span>
                     ) : r.status === 'pending' ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60 text-xs font-bold">
-                        <Clock size={13} className="text-amber-500" /> Submitted
+                        <Clock size={13} className="text-amber-500" /> {t('lc.sm.status.submitted')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-medium border border-slate-200/60 dark:border-slate-700/50">
-                        Not Submitted
+                        {t('lc.sm.status.not_submitted')}
                       </span>
                     )}
                     {r.isReopened && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 text-[11px] font-bold">
-                        <RotateCcw size={12} /> Đã Mở Lại
+                        <RotateCcw size={12} /> {t('lc.sm.reopened_badge')}
                       </span>
                     )}
                     {r.hasAppeal && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 text-[11px] font-bold">
-                        <AlertCircle size={12} /> Appeal Filed
+                        <AlertCircle size={12} /> {t('lc.sm.appeal_badge')}
                       </span>
                     )}
                   </div>
@@ -465,7 +467,7 @@ export function LecturerSubmissions() {
               },
               {
                 key: 'score',
-                header: 'Score',
+                header: t('lc.sm.col.score'),
                 render: (r: any) => (
                   <div className="py-1 font-mono">
                     {r.score !== null ? (
@@ -476,7 +478,7 @@ export function LecturerSubmissions() {
                         </span>
                         {r.latePenaltyAmount > 0 && (
                           <span className="text-[10px] text-rose-500 font-bold">
-                            Gốc {r.rawScore ?? r.score}đ (-{r.latePenaltyAmount}đ trễ)
+                            {t('lc.sm.penalty_note', { raw: r.rawScore ?? r.score, penalty: r.latePenaltyAmount })}
                           </span>
                         )}
                       </div>
@@ -499,23 +501,23 @@ export function LecturerSubmissions() {
                         className="bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-950/40 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1.5 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
                       >
                         <FileCheck size={14} />
-                        {r.hasAppeal ? 'Review Appeal' : r.status === 'graded' ? 'Edit Grade' : 'Grade'}
+                        {r.hasAppeal ? t('lc.sm.action.review_appeal') : r.status === 'graded' ? t('lc.sm.action.edit_grade') : t('lc.sm.action.grade')}
                       </button>
                     ) : (
                       <button
                         disabled
                         className="text-slate-400 dark:text-slate-600 text-xs font-medium cursor-not-allowed bg-slate-50 dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 opacity-60"
                       >
-                        No Submission
+                        {t('lc.sm.action.no_submission')}
                       </button>
                     )}
                     <button
                       onClick={() => openReopenModal(r)}
                       className="bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-1.5 shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                      title="Mở lại bài nộp / Gia hạn hạn nộp"
+                      title={t('lc.sm.action.reopen_title')}
                     >
                       <RotateCcw size={14} />
-                      Mở lại
+                      {t('lc.sm.action.reopen')}
                     </button>
                   </div>
                 )
@@ -533,7 +535,7 @@ export function LecturerSubmissions() {
           <Card className="w-full max-w-2xl bg-white dark:bg-[#12151e] shadow-2xl border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Grading Portal</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{t('lc.sm.modal.grading_portal')}</span>
                 <h3 className="font-black text-lg text-slate-900 dark:text-white">{gradingSub.student}</h3>
               </div>
               <Button variant="outline" size="sm" className="p-2 border-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setGradingSub(null)}>
@@ -543,22 +545,22 @@ export function LecturerSubmissions() {
 
             <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
               <div>
-                <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">Submission Content</h4>
+                <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">{t('lc.sm.modal.submission_content')}</h4>
                 <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
-                  {gradingSub.content || 'The student did not submit any text content.'}
+                  {gradingSub.content || t('lc.sm.modal.no_text')}
                 </div>
               </div>
 
               {gradingSub.zipFileUrl && (
                 <div>
-                  <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">Attachment</h4>
+                  <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">{t('lc.sm.modal.attachment')}</h4>
                   <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 rounded-xl border border-blue-100 dark:border-blue-900/40">
                         <FileDown size={20} />
                       </div>
                       <div>
-                        <p className="font-bold text-xs text-slate-900 dark:text-white">Attached Submission Archive</p>
+                        <p className="font-bold text-xs text-slate-900 dark:text-white">{t('lc.sm.modal.archive')}</p>
                         <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs">{gradingSub.zipFileUrl}</p>
                       </div>
                     </div>
@@ -567,7 +569,7 @@ export function LecturerSubmissions() {
                       onClick={() => window.open(gradingSub.zipFileUrl, '_blank')}
                       className="gap-2 text-xs rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-2xs hover:bg-slate-50"
                     >
-                      <FileDown size={14} /> Download File
+                      <FileDown size={14} /> {t('lc.sm.modal.download')}
                     </Button>
                   </div>
                 </div>
@@ -578,7 +580,7 @@ export function LecturerSubmissions() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-bold text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2 uppercase tracking-wider">
-                        <MessageSquareX size={16} /> Student Appeal Statement
+                        <MessageSquareX size={16} /> {t('lc.sm.modal.appeal_statement')}
                       </p>
                       <p className="text-xs text-rose-700 dark:text-rose-400 mt-2 whitespace-pre-wrap p-3 bg-white/80 dark:bg-black/40 rounded-xl border border-rose-100 dark:border-rose-900/40 shadow-2xs font-medium">
                         "{gradingSub.studentFeedback}"
@@ -588,19 +590,19 @@ export function LecturerSubmissions() {
 
                   <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl">
                     <p className="text-[11px] font-extrabold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                      <BrainCircuit size={14} /> Scores On Record
+                      <BrainCircuit size={14} /> {t('lc.sm.modal.scores_on_record')}
                     </p>
                     <div className="text-xs text-indigo-700 dark:text-indigo-300 space-y-1">
                       <p>
-                        AI Preliminary Score:{' '}
+                        {t('lc.sm.modal.ai_prelim')}{' '}
                         <span className="font-mono font-bold">
-                          {gradingSub.aiScore != null ? `${gradingSub.aiScore}/100` : 'Not available'}
+                          {gradingSub.aiScore != null ? `${gradingSub.aiScore}/100` : t('lc.sm.modal.not_available')}
                         </span>
                       </p>
                       <p>
-                        Official Score:{' '}
+                        {t('lc.sm.modal.official_score')}{' '}
                         <span className="font-mono font-bold">
-                          {gradingSub.score != null ? `${gradingSub.score}/10` : 'Not graded yet'}
+                          {gradingSub.score != null ? `${gradingSub.score}/10` : t('lc.sm.modal.not_graded')}
                         </span>
                       </p>
                     </div>
@@ -611,10 +613,10 @@ export function LecturerSubmissions() {
               {gradingSub.aiScore != null && (
                 <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl">
                   <p className="font-bold text-xs text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles size={14} /> AI Score Evaluation
+                    <Sparkles size={14} /> {t('lc.sm.modal.ai_eval')}
                   </p>
                   <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">
-                    Preliminary Grade: <span className="font-mono font-bold text-sm">{gradingSub.aiScore}/100</span>
+                    {t('lc.sm.modal.prelim_grade')} <span className="font-mono font-bold text-sm">{gradingSub.aiScore}/100</span>
                   </p>
                   {!!gradingSub.aiFeedback && (
                     <p className="mt-2 text-xs italic opacity-90 text-indigo-700 dark:text-indigo-300 leading-relaxed">
@@ -627,7 +629,7 @@ export function LecturerSubmissions() {
               <div className="grid grid-cols-4 gap-4 pt-2">
                 <div className="col-span-1">
                   <Input
-                    label="Score (/ 10)"
+                    label={t('lc.sm.modal.score_label')}
                     type="number"
                     step="0.5"
                     min="0"
@@ -639,12 +641,12 @@ export function LecturerSubmissions() {
                 </div>
                 <div className="col-span-3">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Lecturer Feedback / Comments
+                    {t('lc.sm.modal.feedback_label')}
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="Provide constructive feedback for the student..."
+                    placeholder={t('lc.sm.modal.feedback_placeholder')}
                     className="w-full min-h-[90px] p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none text-xs leading-relaxed font-medium"
                   />
                   <div className="mt-2 flex items-center gap-2">
@@ -657,7 +659,7 @@ export function LecturerSubmissions() {
                     />
                     <label htmlFor="notifyStudent" className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
                       <Bell size={13} className="text-brand-500" />
-                      Notify the student via email / app immediately
+                      {t('lc.sm.modal.notify')}
                     </label>
                   </div>
                 </div>
@@ -666,7 +668,7 @@ export function LecturerSubmissions() {
 
             <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between bg-slate-50/50 dark:bg-slate-900/40">
               <Button variant="outline" size="sm" onClick={() => setGradingSub(null)} className="rounded-xl border-slate-200 text-xs">
-                Cancel
+                {t('lc.sm.modal.cancel')}
               </Button>
 
               {gradingSub.studentFeedback ? (
@@ -678,7 +680,7 @@ export function LecturerSubmissions() {
                     variant="outline"
                     className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50 text-xs rounded-xl"
                   >
-                    <X size={14} className="mr-1" /> Reject Appeal
+                    <X size={14} className="mr-1" /> {t('lc.sm.modal.reject_appeal')}
                   </Button>
                   <Button
                     size="sm"
@@ -686,7 +688,7 @@ export function LecturerSubmissions() {
                     disabled={isGrading || score === ''}
                     className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
                   >
-                    <CheckCircle2 size={14} className="mr-1" /> Approve & Save Score
+                    <CheckCircle2 size={14} className="mr-1" /> {t('lc.sm.modal.approve_save')}
                   </Button>
                 </div>
               ) : (
@@ -696,7 +698,7 @@ export function LecturerSubmissions() {
                   disabled={isGrading || score === ''}
                   className="bg-brand-600 hover:bg-brand-700 text-white text-xs rounded-xl font-bold"
                 >
-                  {isGrading ? 'Saving...' : <><Save size={14} className="mr-1.5" /> Save Score</>}
+                  {isGrading ? t('lc.sm.modal.saving') : <><Save size={14} className="mr-1.5" /> {t('lc.sm.modal.save_score')}</>}
                 </Button>
               )}
             </div>
@@ -711,7 +713,7 @@ export function LecturerSubmissions() {
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <RotateCcw size={12} /> Cấu hình mở lại bài nộp
+                  <RotateCcw size={12} /> {t('lc.sm.ro.title')}
                 </span>
                 <h3 className="font-black text-lg text-slate-900 dark:text-white">
                   {reopenTarget.name} ({reopenTarget.studentId})
@@ -727,7 +729,7 @@ export function LecturerSubmissions() {
               <div>
                 <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
                   <Calendar size={14} className="text-brand-500" />
-                  Hạn nộp gia hạn mới (New Extended Due Date):
+                  {t('lc.sm.ro.new_due')}
                 </label>
                 <input
                   type="datetime-local"
@@ -740,7 +742,7 @@ export function LecturerSubmissions() {
               {/* Penalty Mode Selection */}
               <div>
                 <label className="block font-bold text-slate-800 dark:text-slate-200 mb-2">
-                  Chính sách phạt trễ deadline cho lượt nộp này:
+                  {t('lc.sm.ro.policy')}
                 </label>
                 <div className="space-y-2.5">
                   <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${penaltyMode === 'WAIVE' ? 'bg-emerald-50/80 border-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800' : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-800'}`}>
@@ -752,8 +754,8 @@ export function LecturerSubmissions() {
                       className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
                     />
                     <div>
-                      <p className="font-bold text-emerald-900 dark:text-emerald-300">🟢 Miễn phạt trễ (Waive Late Penalty)</p>
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400">Trừ 0 điểm. Sinh viên nộp lại trong hạn gia hạn sẽ lấy nguyên điểm thô lần nộp mới.</p>
+                      <p className="font-bold text-emerald-900 dark:text-emerald-300">{t('lc.sm.ro.waive')}</p>
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400">{t('lc.sm.ro.waive_desc')}</p>
                     </div>
                   </label>
 
@@ -766,11 +768,11 @@ export function LecturerSubmissions() {
                       className="mt-0.5 text-amber-600 focus:ring-amber-500"
                     />
                     <div className="w-full">
-                      <p className="font-bold text-amber-900 dark:text-amber-300">🟡 Giảm nhẹ / Tùy chỉnh mức trừ điểm trễ theo ngày</p>
-                      <p className="text-[11px] text-amber-700 dark:text-amber-400 mb-2">Giảm mức phạt trễ dằn mặt nhẹ hơn so với mức phạt mặc định.</p>
+                      <p className="font-bold text-amber-900 dark:text-amber-300">{t('lc.sm.ro.custom')}</p>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-400 mb-2">{t('lc.sm.ro.custom_desc')}</p>
                       {penaltyMode === 'CUSTOM_RATE' && (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="font-medium text-slate-700 dark:text-slate-300">Trừ trễ:</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.deduct')}</span>
                           <input
                             type="number"
                             step="0.5"
@@ -779,7 +781,7 @@ export function LecturerSubmissions() {
                             onChange={(e) => setCustomPenaltyRate(e.target.value === '' ? '' : Number(e.target.value))}
                             className="w-24 p-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-950 font-bold text-center"
                           />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">điểm / 24h trễ</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.per_24h')}</span>
                         </div>
                       )}
                     </div>
@@ -794,11 +796,11 @@ export function LecturerSubmissions() {
                       className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                     />
                     <div className="w-full">
-                      <p className="font-bold text-indigo-900 dark:text-indigo-300">🟠 Trừ điểm cố định (Flat Penalty)</p>
-                      <p className="text-[11px] text-indigo-700 dark:text-indigo-400 mb-2">Chỉ trừ cố định một số điểm nhất định cho lượt nộp lại này.</p>
+                      <p className="font-bold text-indigo-900 dark:text-indigo-300">{t('lc.sm.ro.flat')}</p>
+                      <p className="text-[11px] text-indigo-700 dark:text-indigo-400 mb-2">{t('lc.sm.ro.flat_desc')}</p>
                       {penaltyMode === 'FLAT_AMOUNT' && (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="font-medium text-slate-700 dark:text-slate-300">Trừ tổng:</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.deduct_total')}</span>
                           <input
                             type="number"
                             step="0.5"
@@ -807,7 +809,7 @@ export function LecturerSubmissions() {
                             onChange={(e) => setFlatPenaltyAmount(e.target.value === '' ? '' : Number(e.target.value))}
                             className="w-24 p-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-950 font-bold text-center"
                           />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">điểm trực tiếp vào bài nộp</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.points_direct')}</span>
                         </div>
                       )}
                     </div>
@@ -822,11 +824,11 @@ export function LecturerSubmissions() {
                       className="mt-0.5 text-purple-600 focus:ring-purple-500"
                     />
                     <div className="w-full">
-                      <p className="font-bold text-purple-900 dark:text-purple-300">🔵 Giới hạn điểm tối đa (Score Ceiling / Cap)</p>
-                      <p className="text-[11px] text-purple-700 dark:text-purple-400 mb-2">Bài nộp lại làm tốt mấy cũng chỉ đạt tối đa mức điểm quy định.</p>
+                      <p className="font-bold text-purple-900 dark:text-purple-300">{t('lc.sm.ro.cap')}</p>
+                      <p className="text-[11px] text-purple-700 dark:text-purple-400 mb-2">{t('lc.sm.ro.cap_desc')}</p>
                       {penaltyMode === 'SCORE_CAP' && (
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="font-medium text-slate-700 dark:text-slate-300">Tối đa đạt:</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.max_reach')}</span>
                           <input
                             type="number"
                             step="0.5"
@@ -836,7 +838,7 @@ export function LecturerSubmissions() {
                             onChange={(e) => setScoreCap(e.target.value === '' ? '' : Number(e.target.value))}
                             className="w-24 p-1.5 rounded-lg border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-950 font-bold text-center"
                           />
-                          <span className="font-medium text-slate-700 dark:text-slate-300">/ 10 điểm</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{t('lc.sm.ro.out_of_10')}</span>
                         </div>
                       )}
                     </div>
@@ -851,8 +853,8 @@ export function LecturerSubmissions() {
                       className="mt-0.5 text-rose-600 focus:ring-rose-500"
                     />
                     <div>
-                      <p className="font-bold text-rose-900 dark:text-rose-300">🔴 Giữ nguyên quy định phạt trễ gốc hệ thống</p>
-                      <p className="text-[11px] text-rose-700 dark:text-rose-400">Áp dụng trừ trễ theo cấu hình mặc định của đề bài.</p>
+                      <p className="font-bold text-rose-900 dark:text-rose-300">{t('lc.sm.ro.system')}</p>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-400">{t('lc.sm.ro.system_desc')}</p>
                     </div>
                   </label>
                 </div>
@@ -861,12 +863,12 @@ export function LecturerSubmissions() {
               {/* Reason textarea */}
               <div>
                 <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1">
-                  Ghi chú / Lý do mở lại bài:
+                  {t('lc.sm.ro.reason_label')}
                 </label>
                 <textarea
                   value={reopenReason}
                   onChange={(e) => setReopenReason(e.target.value)}
-                  placeholder="Ghi chú lý do gia hạn cho sinh viên..."
+                  placeholder={t('lc.sm.ro.reason_placeholder')}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium"
                 />
               </div>
@@ -874,7 +876,7 @@ export function LecturerSubmissions() {
 
             <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-between bg-slate-50/50 dark:bg-slate-900/40">
               <Button variant="outline" size="sm" onClick={() => setReopenTarget(null)} className="rounded-xl border-slate-200 text-xs">
-                Hủy
+                {t('lc.sm.ro.cancel')}
               </Button>
               <Button
                 size="sm"
@@ -883,7 +885,7 @@ export function LecturerSubmissions() {
                 className="bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-xl font-bold gap-1.5"
               >
                 <RotateCcw size={14} />
-                {isReopening ? 'Đang mở...' : 'Xác nhận Mở Lại Bài Nộp'}
+                {isReopening ? t('lc.sm.ro.opening') : t('lc.sm.ro.confirm')}
               </Button>
             </div>
           </Card>

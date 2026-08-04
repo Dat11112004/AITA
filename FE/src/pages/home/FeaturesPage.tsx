@@ -1,106 +1,40 @@
 import {
   Upload,
   Bot,
-  Brain,
   LayoutDashboard,
   TrendingUp,
-  MessageSquare,
   BookOpen,
   Bell,
   ClipboardList,
   Sparkles,
-  GitBranch,
   BarChart3,
   Megaphone,
   Users,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 
+// Only features that actually exist in the product are listed. Discussion Forum, Teamwork
+// Assessment and Adaptive Practice were removed: a codebase scan found no implementation for
+// any of them, so advertising them here was inaccurate.
 const STUDENT_FEATURES = [
-  {
-    id: 'FE-S-01',
-    icon: Upload,
-    title: 'Exercise Submission',
-    desc: 'Cho phép sinh viên upload bài tập lập trình (mã nguồn). Hỗ trợ nhiều định dạng file và thực thi deadline, ổn định quy trình nộp bài.',
-  },
-  {
-    id: 'FE-S-02',
-    icon: Bot,
-    title: 'AI Code Feedback',
-    desc: 'AI phân tích mã nguồn sinh viên theo các tham số cụ thể — trả về lỗi kiến trúc, metrics chất lượng code, và gợi ý cải thiện logic ngữ nghĩa.',
-  },
-  {
-    id: 'FE-S-03',
-    icon: Brain,
-    title: 'Adaptive Practice',
-    desc: 'Hệ thống tạo hoặc trình bày bài tập lập trình dựa trên trình độ hiện tại và kết quả trước đó. AI phân loại độ khó và đề xuất lộ trình học tối ưu.',
-  },
-  {
-    id: 'FE-S-04',
-    icon: LayoutDashboard,
-    title: 'Course Dashboard',
-    desc: 'Cho phép sinh viên xem tổng quan các môn học, deadline sắp tới, và thông báo khẩn cấp. Dashboard cung cấp trạng thái khóa học chính xác.',
-  },
-  {
-    id: 'FE-S-05',
-    icon: TrendingUp,
-    title: 'Progress Tracking',
-    desc: 'Theo dõi tiến độ và kết quả học tập thời gian thực — biểu đồ hiệu suất, thời gian hoàn thành ước tính, và trạng thái xử lý bài tập (đã chấm/đã nộp).',
-  },
-  {
-    id: 'FE-S-06',
-    icon: MessageSquare,
-    title: 'Discussion Forum',
-    desc: 'Tính năng diễn đàn thảo luận, cho phép sinh viên kết nối với bạn bè và giảng viên qua video call hoặc chat — nhận tư vấn học thuật chuyên sâu.',
-  },
-  {
-    id: 'FE-S-07',
-    icon: BookOpen,
-    title: 'Assignment History & Repository',
-    desc: 'Xem và quản lý bài tập đã nộp, mã nguồn, điểm số và feedback. Hệ thống lưu trữ lịch sử nộp bài giúp sinh viên theo dõi tiến trình học tập.',
-  },
-  {
-    id: 'FE-S-08',
-    icon: Bell,
-    title: 'Assignment Reminder & Notification',
-    desc: 'Thông báo tự động và nhắc nhở deadline bài tập, kết quả chấm bài, thông báo khóa học và sự kiện học thuật quan trọng.',
-  },
+  { id: 'FE-S-01', icon: Upload, key: 'features.s.submission' },
+  { id: 'FE-S-02', icon: Bot, key: 'features.s.ai_feedback' },
+  { id: 'FE-S-03', icon: LayoutDashboard, key: 'features.s.dashboard' },
+  { id: 'FE-S-04', icon: TrendingUp, key: 'features.s.progress' },
+  { id: 'FE-S-05', icon: BookOpen, key: 'features.s.history' },
+  { id: 'FE-S-06', icon: Bell, key: 'features.s.notify' },
 ]
 
 const LECTURER_FEATURES = [
-  {
-    id: 'FE-L-01',
-    icon: ClipboardList,
-    title: 'Course Management',
-    desc: 'Hiển thị danh sách yêu cầu học thuật từ khoa. Giảng viên xem chi tiết môn học (giáo trình, sinh viên đăng ký, TA), chấp nhận/từ chối vai trò, và nhận cập nhật thời gian thực.',
-  },
-  {
-    id: 'FE-L-02',
-    icon: Sparkles,
-    title: 'AI Exercise Generation',
-    desc: 'AI tạo bài tập lập trình và test case mới. Hệ thống phân tích cấp độ môn, quy mô bài, mục tiêu học tập để cung cấp bài tập phù hợp và đề xuất tiêu chí (SOPs).',
-  },
-  {
-    id: 'FE-L-03',
-    icon: GitBranch,
-    title: 'Teamwork Assessment',
-    desc: 'Tích hợp version control (Git), hiển thị biểu đồ đóng góp tối ưu, thời gian làm việc ước tính, và cảnh báo đóng góp thời gian thực.',
-  },
-  {
-    id: 'FE-L-04',
-    icon: BarChart3,
-    title: 'Grading Dashboard',
-    desc: 'Quản lý nhiệm vụ đánh giá — danh sách bài tập hiện tại/đã hoàn thành, cập nhật trạng thái, báo cáo chấm bài, xem mã nguồn sinh viên, và gợi ý coaching sau chấm bài.',
-  },
-  {
-    id: 'FE-L-05',
-    icon: Megaphone,
-    title: 'Notification System',
-    desc: 'Quản lý và phân phối thông báo học thuật — nhắc nhở deadline, lịch thi, kết quả chấm, cảnh báo đạo văn, và thông báo khẩn cấp đến sinh viên và giảng viên.',
-  },
+  { id: 'FE-L-01', icon: ClipboardList, key: 'features.l.classes' },
+  { id: 'FE-L-02', icon: Sparkles, key: 'features.l.ai_gen' },
+  { id: 'FE-L-03', icon: BarChart3, key: 'features.l.grading' },
+  { id: 'FE-L-04', icon: Megaphone, key: 'features.l.notify' },
 ]
 
 function FeatureGrid({ features, color }: { features: typeof STUDENT_FEATURES; color: string }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {features.map((f) => (
@@ -116,11 +50,11 @@ function FeatureGrid({ features, color }: { features: typeof STUDENT_FEATURES; c
               <f.icon size={16} className={color === 'orange' ? 'text-[#F37021]' : color === 'blue' ? 'text-blue-500' : 'text-slate-600'} />
             </div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-              {f.title}
+              {t(`${f.key}.title`)}
             </h3>
           </div>
           <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 font-light">
-            {f.desc}
+            {t(`${f.key}.desc`)}
           </p>
         </Card>
       ))}
@@ -129,6 +63,7 @@ function FeatureGrid({ features, color }: { features: typeof STUDENT_FEATURES; c
 }
 
 export function FeaturesPage() {
+  const { t } = useTranslation()
   return (
     <div className="bg-bg-light-orange dark:bg-[#07090e] text-slate-900 dark:text-white overflow-x-hidden antialiased">
       {/* ============ HERO ============ */}
@@ -145,16 +80,16 @@ export function FeaturesPage() {
         <div className="relative mx-auto max-w-7xl px-6 sm:px-8 z-10">
           <div className="max-w-3xl space-y-4">
             <span className="text-[10px] font-mono font-bold tracking-[0.2em] text-[#F37021] uppercase border border-orange-500/20 bg-orange-500/5 px-3 py-1 rounded">
-              TÍNH NĂNG
+              {t('features.badge')}
             </span>
             <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl leading-[1.1]">
-              Hệ thống{' '}
+              {t('features.title')}{' '}
               <span className="bg-gradient-to-r from-[#F37021] to-orange-400 bg-clip-text text-transparent">
-                toàn diện
+                {t('features.title_accent')}
               </span>
             </h1>
             <p className="text-base leading-relaxed text-slate-600 dark:text-slate-400 font-light max-w-xl">
-              Cung cấp bộ tính năng tối ưu cho 2 vai trò: Sinh viên, Giảng viên, giảm thiểu thao tác thừa, tối đa hóa trải nghiệm học thuật.
+              {t('features.desc')}
             </p>
           </div>
         </div>
@@ -167,10 +102,10 @@ export function FeaturesPage() {
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
                 <Users className="text-[#F37021]" size={24} />
-                Tính năng Sinh viên
+                {t('features.student.title')}
               </h2>
             </div>
-            <span className="text-xs font-mono text-slate-400">{STUDENT_FEATURES.length} features</span>
+            <span className="text-xs font-mono text-slate-400">{t('features.count', { count: STUDENT_FEATURES.length })}</span>
           </div>
           <FeatureGrid features={STUDENT_FEATURES} color="orange" />
         </div>
@@ -182,10 +117,10 @@ export function FeaturesPage() {
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
                 <ClipboardList className="text-blue-500" size={24} />
-                Tính năng Giảng viên
+                {t('features.lecturer.title')}
               </h2>
             </div>
-            <span className="text-xs font-mono text-slate-400">{LECTURER_FEATURES.length} features</span>
+            <span className="text-xs font-mono text-slate-400">{t('features.count', { count: LECTURER_FEATURES.length })}</span>
           </div>
           <FeatureGrid features={LECTURER_FEATURES} color="blue" />
         </div>

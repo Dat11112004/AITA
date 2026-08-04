@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { Search, ArrowRight, Bot, Sparkles, Folder } from 'lucide-react';
 
@@ -15,6 +16,7 @@ export function PromptSubjectsList() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -56,7 +58,7 @@ export function PromptSubjectsList() {
                     id: sub.id || sub.code,
                     code: sub.code,
                     name: sub.name || sub.code,
-                    description: sub.description || 'No subject description yet.',
+                    description: sub.description || t('lc.pr.no_description'),
                     semester: sub.semester
                   });
                 }
@@ -101,8 +103,8 @@ export function PromptSubjectsList() {
             <Bot size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Manage Prompt Suggestions</h1>
-            <p className="text-slate-500 text-sm">Pick a subject to view, edit or create AI prompt templates</p>
+            <h1 className="text-2xl font-bold text-slate-900">{t('lc.pr.title')}</h1>
+            <p className="text-slate-500 text-sm">{t('lc.pr.subtitle')}</p>
           </div>
         </div>
 
@@ -110,7 +112,7 @@ export function PromptSubjectsList() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Search subjects..."
+            placeholder={t('lc.pr.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:bg-white transition-all"
@@ -121,14 +123,14 @@ export function PromptSubjectsList() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-600 border-t-transparent mb-4"></div>
-          <p className="text-slate-500 font-medium">Loading subjects...</p>
+          <p className="text-slate-500 font-medium">{t('lc.pr.loading')}</p>
         </div>
       ) : filteredSubjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-slate-200 text-center">
           <Folder size={48} className="text-slate-300 mb-3" />
-          <h3 className="text-lg font-bold text-slate-800">No subjects found</h3>
+          <h3 className="text-lg font-bold text-slate-800">{t('lc.pr.none_found')}</h3>
           <p className="text-slate-500 text-sm max-w-md mt-1">
-            {searchQuery ? 'No subject matches your search.' : 'You have not been assigned to teach any subject, or none was found.'}
+            {searchQuery ? t('lc.pr.no_match') : t('lc.pr.none_assigned')}
           </p>
         </div>
       ) : (
@@ -150,12 +152,12 @@ export function PromptSubjectsList() {
                   {subject.name}
                 </h3>
                 <p className="text-slate-500 text-sm mt-1 line-clamp-2 min-h-[40px]">
-                  {ENGLISH_SUBJECT_DESCRIPTIONS[subject.code] || subject.description || 'No subject description yet.'}
+                  {ENGLISH_SUBJECT_DESCRIPTIONS[subject.code] || subject.description || t('lc.pr.no_description')}
                 </p>
               </div>
 
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-brand-600 group-hover:text-brand-700">
-                <span>Manage prompts</span>
+                <span>{t('lc.pr.manage')}</span>
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </div>
             </div>

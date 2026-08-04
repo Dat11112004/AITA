@@ -14,15 +14,36 @@ export function createApp() {
 
   app.use(helmet())
   // Accept both :5173 and :5174 for frontend dev
-  app.use(cors({
-    origin: true,
+  const corsOptions = {
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+      // :8081 = Expo/Metro web (mobile app reviewed in the browser)
+      const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:8081']
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error('CORS not allowed'))
+      }
+    },
     credentials: true
-  }))
+  }
+  app.use(cors(corsOptions))
   app.use(requestLogger)
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
   app.use(express.json({ limit: '50mb' }))
   app.use(express.urlencoded({ limit: '50mb', extended: true }))
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
+  // Uploaded avatars/attachments are fetched by the web client (:5173) and the Expo web build
+  // (:8081), i.e. from a different origin than this API. helmet() defaults
+  // Cross-Origin-Resource-Policy to same-origin, which made the browser download the image and
+  // then refuse to render it (ERR_BLOCKED_BY_RESPONSE.NotSameOrigin) — the upload looked like
+  // it silently failed. These are public static files, so opt this path out.
+  app.use(
+    '/uploads',
+    (_req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      next()
+    },
+    express.static(path.join(process.cwd(), 'uploads')),
+  )
 
   app.use('/api', routeManager.getRouter())
 

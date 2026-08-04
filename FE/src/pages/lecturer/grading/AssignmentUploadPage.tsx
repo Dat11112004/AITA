@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FileUpload from '@/components/modules/grading/FileUpload';
 import { gradingApi as api, api as mainApi, type SubjectRow } from '@/lib/api';
 import { aiGenerationStore } from '@/services/aiGenerationStore';
@@ -27,8 +28,8 @@ const CustomDropdown = ({
     value,
     onChange,
     options,
-    placeholder = "Select...",
-    emptyMessage = "Please select a subject first",
+    placeholder,
+    emptyMessage,
     className = "w-48",
     hasError = false,
     icon,
@@ -44,7 +45,12 @@ const CustomDropdown = ({
     icon?: React.ReactNode,
     disabled?: boolean
 }) => {
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
+
+    // Defaults live here rather than in the parameter list so they can be translated.
+    const placeholderText = placeholder ?? t('lc.up.select_placeholder');
+    const emptyMessageText = emptyMessage ?? t('lc.up.empty_message');
 
     const normalizedOptions = options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
     const selectedOption = normalizedOptions.find(opt => opt.value === value);
@@ -70,7 +76,7 @@ const CustomDropdown = ({
                 <div className="flex items-center gap-2 min-w-0 pr-1">
                     {icon && <span className="text-slate-400 shrink-0">{icon}</span>}
                     <span className={classNames("truncate font-semibold text-[13.5px]", value ? "text-slate-800" : "text-slate-400 font-normal")}>
-                        {selectedOption ? selectedOption.label : (value ? value : placeholder)}
+                        {selectedOption ? selectedOption.label : (value ? value : placeholderText)}
                     </span>
                 </div>
                 <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-brand-600" : ""} ${disabled ? 'opacity-50' : ''}`} />
@@ -83,7 +89,7 @@ const CustomDropdown = ({
                     <div className="absolute z-50 min-w-full w-max max-w-xs mt-1.5 bg-white border border-slate-100 rounded-2xl shadow-[0_12px_32px_-8px_rgba(15,23,42,0.15)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 py-1.5 max-h-60 overflow-y-auto">
                         {normalizedOptions.length === 0 ? (
                             <div className="px-4 py-3 text-xs text-slate-400 font-medium text-center italic">
-                                {emptyMessage}
+                                {emptyMessageText}
                             </div>
                         ) : (
                             normalizedOptions.map(opt => {
@@ -114,6 +120,7 @@ const CustomDropdown = ({
 
 
 export default function AssignmentUploadPage() {
+    const { t } = useTranslation();
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [inputMethod, setInputMethod] = useState<'file' | 'text'>('text');
     const [textPrompt, setTextPrompt] = useState('');
@@ -151,7 +158,7 @@ export default function AssignmentUploadPage() {
             }
         } catch (err: any) {
             console.error("Failed to parse Answer Key file:", err);
-            setError("Cannot parse SQL Answer Key file: " + (err.message || 'File read error'));
+            setError(t('lc.up.parse_sql_failed') + (err.message || t('lc.up.file_read_error')));
         } finally {
             setIsUploadingAnswerKey(false);
         }
@@ -366,9 +373,9 @@ export default function AssignmentUploadPage() {
 
     const handleGenerateContent = async () => {
         const newErrors: { semester?: string, subjectCode?: string, assignmentType?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Please select a semester.";
-        if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
-        if (!selectedAssignmentType) newErrors.assignmentType = "Please select an assignment type.";
+        if (!selectedSemester) newErrors.semester = t('lc.up.need_semester');
+        if (!subjectCode) newErrors.subjectCode = t('lc.up.need_subject');
+        if (!selectedAssignmentType) newErrors.assignmentType = t('lc.up.need_type');
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -383,9 +390,9 @@ export default function AssignmentUploadPage() {
 
     const handleFileUpload = async (file: File) => {
         const newErrors: { semester?: string, subjectCode?: string, assignmentType?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Please select a semester.";
-        if (!subjectCode) newErrors.subjectCode = "Please select a subject code.";
-        if (!selectedAssignmentType) newErrors.assignmentType = "Please select an assignment type.";
+        if (!selectedSemester) newErrors.semester = t('lc.up.need_semester');
+        if (!subjectCode) newErrors.subjectCode = t('lc.up.need_subject');
+        if (!selectedAssignmentType) newErrors.assignmentType = t('lc.up.need_type');
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
@@ -410,24 +417,24 @@ export default function AssignmentUploadPage() {
         if (!rubric || !blueprint) return;
         
         if (isUploadingAnswerKey) {
-            setError("The system is currently analyzing and extracting test cases from the SQL answer key file. Please wait until this process is complete before publishing.");
+            setError(t('lc.up.sql_analyzing'));
             return;
         }
 
         const newErrors: { semester?: string, classes?: string, dueDate?: string } = {};
-        if (!selectedSemester) newErrors.semester = "Please select a semester.";
+        if (!selectedSemester) newErrors.semester = t('lc.up.need_semester');
         if (selectedClasses.length === 0) {
-            newErrors.classes = "Please select at least one class.";
+            newErrors.classes = t('lc.up.need_class');
         }
         if (!metadata.dueDate) {
-            newErrors.dueDate = "Please choose a due date.";
+            newErrors.dueDate = t('lc.up.need_due');
         } else if (new Date(metadata.dueDate) < new Date()) {
-            newErrors.dueDate = "The due date cannot be in the past.";
+            newErrors.dueDate = t('lc.up.due_in_past');
         }
 
         if (Object.keys(newErrors).length > 0) {
             setValidationErrors(newErrors);
-            setError("Please fill in all required fields.");
+            setError(t('lc.up.fill_required'));
             return;
         }
 
@@ -438,25 +445,25 @@ export default function AssignmentUploadPage() {
             if (rule.scoringStrategy === 'StdInOutProbe') {
                 const testCases = rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases || [];
                 if (testCases.length < 3) {
-                    setError(`Rule "${rule.title}" requires at least 3 test cases for I/O testing (has ${testCases.length}). Please add more test cases.`);
+                    setError(t('lc.up.need_testcases', { title: rule.title, n: testCases.length }));
                     return;
                 }
             }
         }
 
         if (existingTotalWeight + (metadata.weightPercentage || 0) > 70) {
-            setError(`The combined weight of Assignment/Lab items cannot exceed 70%. It is currently ${existingTotalWeight}%.`);
+            setError(t('lc.up.weight_exceeds', { value: existingTotalWeight }));
             return;
         }
 
         const totalScore = rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0);
         if (Math.abs(totalScore - 10) > 0.01) {
-            setError(`TOTAL SCORE WARNING: Current total score is ${totalScore.toFixed(2)} / 10.0. The system requires the total score of all criteria to be exactly 10.0.`);
+            setError(t('lc.up.total_score_warning', { value: totalScore.toFixed(2) }));
             return;
         }
 
         setIsLoading(true);
-        setLoadingMsg('Finalizing and publishing assignment...');
+        setLoadingMsg(t('lc.up.finalizing'));
         try {
             const defaultGradingStrategy = localStorage.getItem('aita_default_grading_strategy') || 'CONTINUOUS_QUEUE';
             const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content, gradingStrategy: defaultGradingStrategy };
@@ -464,7 +471,7 @@ export default function AssignmentUploadPage() {
             aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
         } catch (err: any) {
-            setError(err.response?.data?.error || err.message || "Failed to publish assignment");
+            setError(err.response?.data?.error || err.message || t('lc.up.publish_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -504,7 +511,7 @@ export default function AssignmentUploadPage() {
 
     const getSemesterLabel = (s: any) => {
         const parts = [s.season, s.code].filter(v => v && v !== 'undefined');
-        return parts.length > 0 ? parts.join(' - ') : 'Other semester';
+        return parts.length > 0 ? parts.join(' - ') : t('lc.up.other_semester');
     };
 
     return (
@@ -535,17 +542,17 @@ export default function AssignmentUploadPage() {
                                     <h1 className="text-3xl font-black text-slate-900 mb-1 tracking-tight">
                                         AI assignment creator
                                     </h1>
-                                    <p className="text-slate-500 font-medium text-base">Create assignments intelligently with AI</p>
+                                    <p className="text-slate-500 font-medium text-base">{t('lc.up.subtitle')}</p>
                                 </div>
                             </div>
 
                             {/* Progress Steps */}
                             <div className="flex items-center justify-start gap-5 pl-14">
-                                <StepIndicator current={step} step={1} title="Input" />
+                                <StepIndicator current={step} step={1} title={t('lc.up.step1')} />
                                 <div className="w-16 h-[1px] bg-slate-200"></div>
-                                <StepIndicator current={step} step={2} title="Edit content" />
+                                <StepIndicator current={step} step={2} title={t('lc.up.step2')} />
                                 <div className="w-16 h-[1px] bg-slate-200"></div>
-                                <StepIndicator current={step} step={3} title="Review rubric" />
+                                <StepIndicator current={step} step={3} title={t('lc.up.step3')} />
                             </div>
                         </div>
 
@@ -573,7 +580,7 @@ export default function AssignmentUploadPage() {
                         <div className="flex flex-col items-center justify-center p-20 border border-slate-200 rounded-2xl bg-slate-50 text-center">
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-600 mb-6"></div>
                             <h2 className="text-2xl text-slate-800 font-bold mb-2">{loadingMsg}</h2>
-                            <p className="text-slate-500 mb-6">Please wait while the AI processes your request...</p>
+                            <p className="text-slate-500 mb-6">{t('lc.up.please_wait')}</p>
                             <button
                                 onClick={handleCancelGeneration}
                                 className="px-6 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors shadow-sm"
@@ -607,8 +614,8 @@ export default function AssignmentUploadPage() {
                                                 <Type size={isDrawerOpen ? 22 : 28} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'text' ? "text-brand-600" : "text-slate-900")}>Write a prompt</h3>
-                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Describe the assignment in plain language and let the AI draft it.</p>}
+                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'text' ? "text-brand-600" : "text-slate-900")}>{t('lc.up.write_prompt')}</h3>
+                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">{t('lc.up.write_prompt_desc')}</p>}
                                             </div>
                                             <div className={classNames(
                                                 "rounded-full flex items-center justify-center shrink-0 transition-colors shadow-sm",
@@ -638,8 +645,8 @@ export default function AssignmentUploadPage() {
                                                 <UploadCloud size={isDrawerOpen ? 22 : 28} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'file' ? "text-brand-600" : "text-slate-900")}>Upload a file</h3>
-                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">Upload a document (PDF, Word, TXT) for the AI to analyse and build an assignment from.</p>}
+                                                <h3 className={classNames("font-bold truncate", isDrawerOpen ? "text-[15px] mb-0" : "text-[17px] mb-1", inputMethod === 'file' ? "text-brand-600" : "text-slate-900")}>{t('lc.up.upload_file')}</h3>
+                                                {!isDrawerOpen && <p className="text-[13px] text-slate-500 leading-snug">{t('lc.up.upload_file_desc')}</p>}
                                             </div>
                                             <div className={classNames(
                                                 "rounded-full flex items-center justify-center shrink-0 transition-colors shadow-sm",
@@ -672,7 +679,7 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, semester: undefined }));
                                                                     }}
                                                                     options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                                    placeholder="Select semester..."
+                                                                    placeholder={t('lc.up.select_semester')}
                                                                     className="w-48 md:w-52"
                                                                     icon={<Calendar size={15} />}
                                                                     hasError={!!validationErrors.semester}
@@ -700,7 +707,7 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
                                                                     }}
                                                                     options={availableSubjectsForInput as string[]}
-                                                                    placeholder="Select subject..."
+                                                                    placeholder={t('lc.up.select_subject')}
                                                                     className="w-40 md:w-44"
                                                                     icon={<BookOpen size={15} />}
                                                                     hasError={!!validationErrors.subjectCode}
@@ -727,7 +734,7 @@ export default function AssignmentUploadPage() {
                                                                         setValidationErrors(prev => ({ ...prev, assignmentType: undefined }));
                                                                     }}
                                                                     options={availableAssignmentTypes}
-                                                                    placeholder={subjectCode ? "Select type..." : "Select subject first"}
+                                                                    placeholder={subjectCode ? t('lc.up.select_type') : t('lc.up.select_subject_first')}
                                                                     className="w-44 md:w-48"
                                                                     icon={<Bookmark size={15} />}
                                                                     hasError={!!validationErrors.assignmentType}
@@ -760,7 +767,7 @@ export default function AssignmentUploadPage() {
                                                 <div className="relative flex-1 flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-2xs focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/10 transition-all">
                                                     <textarea
                                                         className="w-full flex-1 bg-transparent p-4 pb-10 text-slate-800 placeholder-slate-400 outline-none resize-none text-[14.5px] leading-relaxed rounded-2xl"
-                                                        placeholder="Type your requirements here...&#10;&#10;Example: Create a full React and Node.js assignment where students build a shopping cart.&#10;Include JWT authentication, a PostgreSQL database and a checkout page."
+                                                        placeholder={t('lc.up.prompt_placeholder')}
                                                         value={textPrompt}
                                                         onChange={(e) => setTextPrompt(e.target.value)}
                                                     />
@@ -800,7 +807,7 @@ export default function AssignmentUploadPage() {
                                                                     setValidationErrors(prev => ({ ...prev, semester: undefined }));
                                                                 }}
                                                                 options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                                placeholder="Select semester..."
+                                                                placeholder={t('lc.up.select_semester')}
                                                                 className="w-48 md:w-52"
                                                                 icon={<Calendar size={15} />}
                                                                 hasError={!!validationErrors.semester}
@@ -828,7 +835,7 @@ export default function AssignmentUploadPage() {
                                                                     setValidationErrors(prev => ({ ...prev, subjectCode: undefined }));
                                                                 }}
                                                                 options={availableSubjectsForInput as string[]}
-                                                                placeholder="Select subject..."
+                                                                placeholder={t('lc.up.select_subject')}
                                                                 className="w-40 md:w-44"
                                                                 icon={<BookOpen size={15} />}
                                                                 hasError={!!validationErrors.subjectCode}
@@ -855,7 +862,7 @@ export default function AssignmentUploadPage() {
                                                                     setValidationErrors(prev => ({ ...prev, assignmentType: undefined }));
                                                                 }}
                                                                 options={availableAssignmentTypes}
-                                                                placeholder={subjectCode ? "Select type..." : "Select subject first"}
+                                                                placeholder={subjectCode ? t('lc.up.select_type') : t('lc.up.select_subject_first')}
                                                                 className="w-44 md:w-48"
                                                                 icon={<Bookmark size={15} />}
                                                                 hasError={!!validationErrors.assignmentType}
@@ -873,7 +880,7 @@ export default function AssignmentUploadPage() {
 
                                             <div className="flex-1 flex items-center justify-center border border-slate-200/90 border-dashed rounded-2xl bg-slate-50/50 p-6">
                                                 <div className="w-full max-w-xl">
-                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx,.sql,.zip,.txt" errorMessage="Supported formats: PDF, DOCX, SQL, ZIP, TXT" />
+                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx,.sql,.zip,.txt" errorMessage={t('lc.up.supported_formats')} />
                                                 </div>
                                             </div>
                                         </div>
@@ -902,7 +909,7 @@ export default function AssignmentUploadPage() {
                                         </div>
                                     </div>
                                     <div className="mt-6 flex justify-between">
-                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">Back</button>
+                                        <button onClick={() => { aiGenerationStore.reset(); setStep(1); }} className="text-slate-500 hover:text-slate-800 font-medium px-6 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">{t('lc.up.back')}</button>
                                         <button
                                             onClick={handleParseRubric}
                                             className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all"
@@ -917,14 +924,14 @@ export default function AssignmentUploadPage() {
                             {step === 3 && rubric && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-slate-900">
                                     <div className="mb-6">
-                                        <h2 className="text-xl font-bold text-slate-900 mb-2">Review & adjust scoring criteria</h2>
+                                        <h2 className="text-xl font-bold text-slate-900 mb-2">{t('lc.up.review_title')}</h2>
                                         <p className="text-slate-500 text-sm mb-4">
                                             Edit titles, descriptions, and scores. Ensure the total score adds up to <strong className="text-slate-900">10 points</strong>.
                                         </p>
 
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50/80 p-5 rounded-2xl border border-slate-200/90 shadow-2xs mb-5">
                                             <div className="col-span-1">
-                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Subject code</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{t('lc.up.subject_code')}</label>
                                                 <CustomDropdown
                                                     value={metadata.subject || ''}
                                                     onChange={(v) => {
@@ -933,13 +940,13 @@ export default function AssignmentUploadPage() {
                                                     }}
                                                     options={teacherSubjects}
                                                     className="w-full"
-                                                    placeholder="Select a subject..."
+                                                    placeholder={t('lc.up.select_a_subject')}
                                                     icon={<BookOpen size={15} />}
                                                     disabled={isReviewStep}
                                                 />
                                             </div>
                                             <div className="col-span-1">
-                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assignment type</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{t('lc.up.assignment_type')}</label>
                                                 <CustomDropdown
                                                     value={selectedAssignmentType || metadata.category || ''}
                                                     onChange={(v) => {
@@ -948,13 +955,13 @@ export default function AssignmentUploadPage() {
                                                     }}
                                                     options={availableAssignmentTypes.length > 0 ? availableAssignmentTypes : ['Assignment', 'Lab']}
                                                     className="w-full"
-                                                    placeholder="Select type..."
+                                                    placeholder={t('lc.up.select_type')}
                                                     icon={<Bookmark size={15} />}
                                                     disabled={isReviewStep}
                                                 />
                                             </div>
                                             <div className="col-span-1">
-                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Assignment title</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{t('lc.up.assignment_title')}</label>
                                                 <input
                                                     disabled={isReviewStep}
                                                     className={classNames(
@@ -968,7 +975,7 @@ export default function AssignmentUploadPage() {
                                                 />
                                             </div>
                                             <div className="col-span-1">
-                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Project type</label>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{t('lc.up.project_type')}</label>
                                                 <select
                                                     disabled={isReviewStep}
                                                     className={classNames(
@@ -1002,9 +1009,9 @@ export default function AssignmentUploadPage() {
                                                         </div>
                                                         <div>
                                                             <h3 className="font-bold text-slate-900 text-[15px] flex items-center gap-2">
-                                                                SQL Answer Key & Setup Script <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-semibold">Optional / Recommended</span>
+                                                                SQL Answer Key & Setup Script <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-semibold">{t('lc.up.optional_recommended')}</span>
                                                             </h3>
-                                                            <p className="text-slate-500 text-xs mt-0.5">Upload a DB script file (.sql, .zip, .docx, .txt) containing the reference DDL/DML so the system can auto-grade student SQL submissions.</p>
+                                                            <p className="text-slate-500 text-xs mt-0.5">{t('lc.up.sql_desc')}</p>
                                                         </div>
                                                     </div>
                                                     {answerKeyText && (
@@ -1012,7 +1019,7 @@ export default function AssignmentUploadPage() {
                                                             onClick={() => setShowAnswerKeyEditor(!showAnswerKeyEditor)}
                                                             className="px-3.5 py-1.5 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100/50 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
                                                         >
-                                                            <Code size={14} /> {showAnswerKeyEditor ? 'Hide SQL Editor' : 'View & Edit SQL Script'}
+                                                            <Code size={14} /> {showAnswerKeyEditor ? t('lc.up.hide_sql_editor') : t('lc.up.view_edit_sql')}
                                                         </button>
                                                     )}
                                                 </div>
@@ -1032,7 +1039,7 @@ export default function AssignmentUploadPage() {
                                                                         </span>
                                                                     </div>
                                                                     <div className="text-xs text-slate-500 mt-0.5">
-                                                                        {answerKeyText ? `${answerKeyText.split('\n').length} SQL script lines` : 'Loaded into SQL grading configuration'}
+                                                                        {answerKeyText ? t('lc.up.sql_lines', { n: answerKeyText.split('\n').length }) : t('lc.up.loaded_into_config')}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1047,7 +1054,7 @@ export default function AssignmentUploadPage() {
                                                                     ) : (
                                                                         <Upload size={14} />
                                                                     )}
-                                                                    {isUploadingAnswerKey ? 'Analyzing...' : 'Replace answer key file'}
+                                                                    {isUploadingAnswerKey ? t('lc.up.analyzing') : t('lc.up.replace_answer_key')}
                                                                     <input
                                                                         type="file"
                                                                         accept=".sql,.zip,.docx,.txt"
@@ -1063,7 +1070,7 @@ export default function AssignmentUploadPage() {
 
                                                         {showAnswerKeyEditor && (
                                                             <div className="mt-2 pt-3 border-t border-slate-100">
-                                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">SQL Answer Script Content (Setup Script):</label>
+                                                                <label className="block text-xs font-bold text-slate-700 mb-1.5">{t('lc.up.sql_content_label')}</label>
                                                                 <textarea
                                                                     className="w-full h-48 bg-slate-900 text-emerald-400 font-mono text-xs p-3 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                                     value={answerKeyText}
@@ -1098,9 +1105,9 @@ export default function AssignmentUploadPage() {
                                                         <label className="cursor-pointer flex flex-col items-center gap-2 py-3 px-6 text-center">
                                                             <UploadCloud size={24} className={classNames("text-emerald-600", isUploadingAnswerKey ? "animate-spin" : "animate-bounce")} />
                                                             <span className="text-sm font-bold text-slate-700">
-                                                                {isUploadingAnswerKey ? 'Reading and analyzing answer key file...' : 'Upload reference answer file (.sql, .zip, .docx, .txt)'}
+                                                                {isUploadingAnswerKey ? t('lc.up.reading_analyzing') : t('lc.up.upload_reference')}
                                                             </span>
-                                                            <span className="text-xs text-slate-400">This SQL script will auto-load reference data into Docker SQL Server during grading</span>
+                                                            <span className="text-xs text-slate-400">{t('lc.up.sql_autoload_note')}</span>
                                                             <input
                                                                 type="file"
                                                                 accept=".sql,.zip,.docx,.txt"
@@ -1123,23 +1130,23 @@ export default function AssignmentUploadPage() {
                                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
                                             <div className="grid grid-cols-4 gap-6">
                                                 <div className="col-span-1 border-r border-slate-200 pr-6">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Semester</label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{t('lc.up.semester')}</label>
                                                     <CustomDropdown
                                                         value={selectedSemester}
                                                         onChange={(val) => setSelectedSemester(val)}
                                                         options={semesters.map((s: any) => ({ value: s.id, label: getSemesterLabel(s) }))}
-                                                        placeholder="Select a semester..."
+                                                        placeholder={t('lc.up.select_a_semester')}
                                                         className="w-full"
                                                         disabled={isReviewStep}
                                                     />
                                                 </div>
                                                 <div className="col-span-2 border-r border-slate-200 pr-6">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Assign to classes <span className="text-rose-500">*</span></label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{t('lc.up.assign_classes')} <span className="text-rose-500">*</span></label>
                                                     <div className="flex flex-wrap gap-2">
                                                         {(() => {
                                                             const availableClasses = allClasses.filter((c: any) => c.semester?.id === selectedSemester && c.subject?.code === metadata.subject);
-                                                            if (!metadata.subject) return <div className="text-sm text-slate-500 mt-2 italic">Please pick a subject code above first.</div>;
-                                                            if (availableClasses.length === 0) return <div className="text-sm text-slate-500 mt-2 italic">No classes found for this subject and semester.</div>;
+                                                            if (!metadata.subject) return <div className="text-sm text-slate-500 mt-2 italic">{t('lc.up.pick_subject_first')}</div>;
+                                                            if (availableClasses.length === 0) return <div className="text-sm text-slate-500 mt-2 italic">{t('lc.up.no_classes')}</div>;
                                                             return availableClasses.map((c: any) => (
                                                                 <button
                                                                     key={c.id}
@@ -1167,7 +1174,7 @@ export default function AssignmentUploadPage() {
                                                     )}
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Due date <span className="text-rose-500">*</span></label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{t('lc.up.due_date')} <span className="text-rose-500">*</span></label>
                                                     <DateTimePicker
                                                         value={metadata.dueDate || ''}
                                                         onChange={(val) => {
@@ -1204,9 +1211,9 @@ export default function AssignmentUploadPage() {
                                                                     : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
                                                             }`}
                                                         >
-                                                            <option value="NONE">No late penalty</option>
+                                                            <option value="NONE">{t('lc.up.no_late_penalty')}</option>
                                                             <option value="DAILY_POINTS">Deduct points by day (-X pts/24h)</option>
-                                                            <option value="FLAT_POINTS">Flat deduction (X points)</option>
+                                                            <option value="FLAT_POINTS">{t('lc.up.flat_deduction')}</option>
                                                         </select>
                                                         {metadata.allowLateSubmission !== false && metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
                                                             <div className="relative flex items-center shrink-0">
@@ -1214,7 +1221,7 @@ export default function AssignmentUploadPage() {
                                                                     type="number"
                                                                     step="0.5"
                                                                     min="0"
-                                                                    placeholder="Penalty"
+                                                                    placeholder={t('lc.up.penalty_placeholder')}
                                                                     value={metadata.latePenaltyValue !== undefined && metadata.latePenaltyValue !== null ? metadata.latePenaltyValue : 2}
                                                                     onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
                                                                     className="w-28 pl-3 pr-7 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-[#151821] text-center text-rose-600 dark:text-rose-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
@@ -1258,8 +1265,8 @@ export default function AssignmentUploadPage() {
                                                                 </div>
                                                                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                                                                     {metadata.allowLateSubmission !== false
-                                                                        ? `Students can submit after the deadline (auto-deduct ${metadata.latePenaltyValue || 2} points based on policy).`
-                                                                        : 'At due date time, the system will automatically lock and completely block further student submissions.'}
+                                                                        ? t('lc.up.late_allowed_note', { n: metadata.latePenaltyValue || 2 })
+                                                                        : t('lc.up.lock_note')}
                                                                 </p>
                                                             </div>
                                                         </label>
@@ -1287,7 +1294,7 @@ export default function AssignmentUploadPage() {
                                                             </h4>
                                                             <p className="text-xs opacity-90 mt-0.5">
                                                                 {isTotalScoreValid
-                                                                    ? "The score structure is valid. The assignment is ready to publish."
+                                                                    ? t('lc.up.score_valid')
                                                                     : `The system requires the sum of all criteria to be exactly 10.0. Current difference: ${Math.abs(currentTotalScore - 10).toFixed(2)} points.`}
                                                             </p>
                                                         </div>
@@ -1315,7 +1322,7 @@ export default function AssignmentUploadPage() {
                                                                                 className="w-full bg-transparent text-brand-600 font-extrabold border-b-2 border-transparent hover:border-slate-200 focus:border-brand-500 outline-none text-xl"
                                                                                 value={rule.title}
                                                                                 onChange={(e) => handleRuleChange(index, 'title', e.target.value)}
-                                                                                placeholder="Rule Title"
+                                                                                placeholder={t('lc.up.rule_title_placeholder')}
                                                                             />
                                                                             <button
                                                                                 type="button"
@@ -1323,7 +1330,7 @@ export default function AssignmentUploadPage() {
                                                                                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 shrink-0"
                                                                             >
                                                                                 <Edit3 size={13} />
-                                                                                <span>{editingRuleIndex === index ? 'Done' : 'Edit text'}</span>
+                                                                                <span>{editingRuleIndex === index ? t('lc.up.done') : t('lc.up.edit_text')}</span>
                                                                             </button>
                                                                         </div>
 
@@ -1344,7 +1351,7 @@ export default function AssignmentUploadPage() {
                                                                                         e.target.style.height = e.target.scrollHeight + 'px';
                                                                                     }}
                                                                                     rows={4}
-                                                                                    placeholder="Rule Description (Markdown supported)"
+                                                                                    placeholder={t('lc.up.rule_desc_placeholder')}
                                                                                 />
                                                                                 <div className="flex justify-end">
                                                                                     <button
@@ -1364,7 +1371,7 @@ export default function AssignmentUploadPage() {
                                                                     </div>
                                                                     <div className="flex flex-col items-end gap-3 w-32 border-l border-slate-100 pl-4">
                                                                         <div className="flex flex-col items-end gap-1">
-                                                                            <label className="text-xs font-bold text-slate-400 uppercase">Score</label>
+                                                                            <label className="text-xs font-bold text-slate-400 uppercase">{t('lc.up.score_label')}</label>
                                                                             <input
                                                                                 type="number"
                                                                                 value={rule.weight}
@@ -1406,7 +1413,7 @@ export default function AssignmentUploadPage() {
                                                                                 <div key={tc.id || tcIdx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                                                                                     <div className="flex gap-6">
                                                                                         <div className="flex-1">
-                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Standard input (stdin)</label>
+                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdin_label')}</label>
                                                                                             <textarea
                                                                                                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
                                                                                                 value={tc.input || ''}
@@ -1415,7 +1422,7 @@ export default function AssignmentUploadPage() {
                                                                                             />
                                                                                         </div>
                                                                                         <div className="flex-1">
-                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Expected output (stdout)</label>
+                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdout_label')}</label>
                                                                                             <textarea
                                                                                                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
                                                                                                 value={tc.expectedOutput || ''}
@@ -1443,8 +1450,8 @@ export default function AssignmentUploadPage() {
                                                                 const updatedRubric = { ...rubric };
                                                                 updatedRubric.rules.push({
                                                                     id: `rule-custom-${Date.now()}`,
-                                                                    title: "New Rule",
-                                                                    description: "Describe the requirement here",
+                                                                    title: t('lc.up.new_rule_title'),
+                                                                    description: t('lc.up.new_rule_desc'),
                                                                     category: "Functional",
                                                                     weight: 5,
                                                                     scoringStrategy: "Boolean",
@@ -1466,7 +1473,7 @@ export default function AssignmentUploadPage() {
                                                 setStep(2);
                                             }
                                         }} className="text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 font-bold px-6 py-3 rounded-xl shadow-sm">
-                                            {inputMethod === 'file' ? 'Back to upload' : 'Back to edit content'}
+                                            {inputMethod === 'file' ? t('lc.up.back_to_upload') : t('lc.up.back_to_edit')}
                                         </button>
                                         <button
                                             onClick={handlePublish}
@@ -1479,10 +1486,10 @@ export default function AssignmentUploadPage() {
                                                         ? "bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
                                                         : "bg-slate-300 text-slate-500 border border-slate-300 cursor-not-allowed opacity-70"
                                             )}
-                                            title={!isTotalScoreValid ? `Total score (${currentTotalScore.toFixed(2)}) is not equal to 10.0` : (isUploadingAnswerKey ? "Please wait for answer key analysis to finish" : undefined)}
+                                            title={!isTotalScoreValid ? t('lc.up.total_not_10', { value: currentTotalScore.toFixed(2) }) : (isUploadingAnswerKey ? t('lc.up.wait_answer_key') : undefined)}
                                         >
                                             {isUploadingAnswerKey ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
-                                            {isUploadingAnswerKey ? 'Analyzing...' : 'Publish assignment'}
+                                            {isUploadingAnswerKey ? t('lc.up.analyzing') : t('lc.up.publish')}
                                         </button>
                                     </div>
                                 </div>
@@ -1497,7 +1504,7 @@ export default function AssignmentUploadPage() {
                                     <Info size={20} />
                                 </div>
                                 <div className="flex-1">
-                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">Missing information</h4>
+                                    <h4 className="text-[15px] font-bold text-slate-900 leading-tight">{t('lc.up.missing_info')}</h4>
                                     <p className="text-sm text-slate-600 mt-1">{error}</p>
                                 </div>
                                 <button
@@ -1529,7 +1536,7 @@ export default function AssignmentUploadPage() {
 
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
-                        <h2 className="text-[22px] font-black text-slate-900 tracking-tight">Prompt suggestions</h2>
+                        <h2 className="text-[22px] font-black text-slate-900 tracking-tight">{t('lc.up.prompt_suggestions')}</h2>
                         <button onClick={() => setIsDrawerOpen(false)} className="text-slate-400 hover:text-slate-800 transition-colors p-1 rounded-full">
                             <X size={20} />
                         </button>
@@ -1541,7 +1548,7 @@ export default function AssignmentUploadPage() {
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Search templates..."
+                                placeholder={t('lc.up.search_templates')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-sm placeholder:font-normal"
@@ -1555,7 +1562,7 @@ export default function AssignmentUploadPage() {
                     <div className="flex-1 flex border-t border-slate-100 min-h-0 overflow-hidden">
                         {/* LEFT COLUMN: Subjects */}
                         <div className="w-1/3 border-r border-slate-100 overflow-y-auto bg-white p-6 flex flex-col gap-4">
-                            <h3 className="font-bold text-[18px] text-slate-900 mb-2">Subject categories</h3>
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-2">{t('lc.up.subject_categories')}</h3>
                             <div className="flex flex-col gap-3">
                                 {teacherSubjects.map(subj => {
                                     const isSelected = subj === drawerSubjectCode;
@@ -1594,7 +1601,7 @@ export default function AssignmentUploadPage() {
 
                         {/* RIGHT COLUMN: Content */}
                         <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6 relative">
-                            <h3 className="font-bold text-[18px] text-slate-900 mb-4">Suggested content</h3>
+                            <h3 className="font-bold text-[18px] text-slate-900 mb-4">{t('lc.up.suggested_content')}</h3>
                             {(() => {
                                 const filtered = drawerPromptTemplates.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -1604,8 +1611,8 @@ export default function AssignmentUploadPage() {
                                             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
                                                 <Search className="text-slate-400" size={24} />
                                             </div>
-                                            <p className="text-slate-600 font-bold mb-1">No templates yet</p>
-                                            <p className="text-slate-400 text-xs">Create one under Manage Prompts.</p>
+                                            <p className="text-slate-600 font-bold mb-1">{t('lc.up.no_templates')}</p>
+                                            <p className="text-slate-400 text-xs">{t('lc.up.no_templates_hint')}</p>
                                         </div>
                                     );
                                 }
@@ -1686,8 +1693,8 @@ export default function AssignmentUploadPage() {
 
             {/* Preview Dialog */}
             {previewTemplateId !== null && (() => {
-                const t = drawerPromptTemplates.find(x => x.id === previewTemplateId) || promptTemplates.find(x => x.id === previewTemplateId);
-                if (!t) return null;
+                const tpl = drawerPromptTemplates.find(x => x.id === previewTemplateId) || promptTemplates.find(x => x.id === previewTemplateId);
+                if (!tpl) return null;
                 return (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center font-sans p-4">
                         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setPreviewTemplateId(null)}></div>
@@ -1696,10 +1703,10 @@ export default function AssignmentUploadPage() {
                                 <div>
                                     <div className="flex gap-2 mb-1">
                                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">{subjectCode}</span>
-                                        {t.category && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">{t.category}</span>}
-                                        {t.projectTypeId && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">{t.projectTypeId}</span>}
+                                        {tpl.category && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">{tpl.category}</span>}
+                                        {tpl.projectTypeId && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">{tpl.projectTypeId}</span>}
                                     </div>
-                                    <h2 className="text-xl font-bold text-slate-900">{t.name}</h2>
+                                    <h2 className="text-xl font-bold text-slate-900">{tpl.name}</h2>
                                 </div>
                                 <button onClick={() => setPreviewTemplateId(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-800 transition-colors">
                                     <X size={18} />
@@ -1709,20 +1716,20 @@ export default function AssignmentUploadPage() {
                             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
                                 <div>
                                     <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                                        Prompt content (editable)
+                                        {t('lc.up.prompt_content_editable')}
                                     </h3>
                                     <textarea
                                         className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-700 text-[14px] leading-relaxed resize-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-sans"
                                         value={previewContent}
                                         onChange={(e) => setPreviewContent(e.target.value)}
-                                        placeholder="Edit the prompt here before applying it..."
+                                        placeholder={t('lc.up.edit_prompt_placeholder')}
                                     />
                                 </div>
                             </div>
 
                             <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
                                 <button onClick={() => setPreviewTemplateId(null)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors text-sm">
-                                    Close
+                                    {t('lc.up.close')}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -1732,16 +1739,16 @@ export default function AssignmentUploadPage() {
                                             setMetadata((prev: any) => ({ ...prev, subject: drawerSubjectCode }));
                                             setValidationErrors((prev: any) => ({ ...prev, subjectCode: undefined }));
                                         }
-                                        mainApi.incrementPromptUsage(t.id).catch(console.error);
-                                        if (t.projectTypeId) {
-                                            setMetadata((prev: any) => ({ ...prev, projectType: t.projectTypeId! }));
+                                        mainApi.incrementPromptUsage(tpl.id).catch(console.error);
+                                        if (tpl.projectTypeId) {
+                                            setMetadata((prev: any) => ({ ...prev, projectType: tpl.projectTypeId! }));
                                         }
                                         setPreviewTemplateId(null);
                                         setIsDrawerOpen(false);
                                     }}
                                     className="px-6 py-2.5 rounded-xl font-bold text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition-colors flex items-center gap-2 text-sm"
                                 >
-                                    Use template <ArrowRight size={16} />
+                                    {t('lc.up.use_template')} <ArrowRight size={16} />
                                 </button>
                             </div>
                         </div>

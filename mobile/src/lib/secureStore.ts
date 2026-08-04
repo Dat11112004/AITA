@@ -3,7 +3,7 @@ import { Platform } from 'react-native'
 
 // Mobile equivalent of the web's localStorage token store (FE/src/lib/api.ts AUTH_STORAGE_KEYS).
 // Native → expo-secure-store (encrypted keychain). Web (expo start --web) → localStorage fallback.
-const KEYS = { token: 'aita_token', refresh: 'aita_refresh', user: 'aita_user' } as const
+const KEYS = { token: 'aita_token', refresh: 'aita_refresh', user: 'aita_user', pushPref: 'aita_push_reminders' } as const
 type Key = (typeof KEYS)[keyof typeof KEYS]
 
 const isWeb = Platform.OS === 'web'
@@ -42,6 +42,11 @@ export const secureStore = {
     return s ? (JSON.parse(s) as T) : null
   },
   setUser: (u: unknown | null) => setItem(KEYS.user, u == null ? null : JSON.stringify(u)),
+  /** Deadline-reminder opt-in. Survives logout on purpose — it is a device preference. */
+  async getPushPref(): Promise<boolean> {
+    return (await getItem(KEYS.pushPref)) === '1'
+  },
+  setPushPref: (on: boolean) => setItem(KEYS.pushPref, on ? '1' : null),
   async clear(): Promise<void> {
     await Promise.all([removeItem(KEYS.token), removeItem(KEYS.refresh), removeItem(KEYS.user)])
   },

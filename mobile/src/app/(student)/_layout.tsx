@@ -4,14 +4,20 @@ import { useTranslation } from 'react-i18next'
 import { Platform, useColorScheme } from 'react-native'
 
 import { Aurora, Colors, Layout } from '@/constants/theme'
+import { useNotifications } from '@/store/NotificationsContext'
 
-// Student area (v1) — bottom tabs. "Trang chủ" = dashboard; "Bài tập" = assignments stack.
-// Add more tabs (AI feedback, notifications) in later phases.
+/**
+ * Student area — bottom tabs.
+ *
+ * Five destinations now, so the label size drops a step: at 12px "Thông báo" no longer fits
+ * a fifth of the pill and was being clipped mid-word.
+ */
 export default function StudentLayout() {
   const { t } = useTranslation()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
   const a = Aurora[scheme]
+  const { unread } = useNotifications()
 
   return (
     <Tabs
@@ -38,23 +44,15 @@ export default function StudentLayout() {
           shadowOffset: { width: 0, height: 12 },
           elevation: 16,
         },
-        // Vertical padding stays small: the item's own 5pt inset plus a 24pt icon already
-        // eat most of the bar. At paddingVertical:12 the label box measured 8px against
-        // ~14px of text and was clipped to nothing.
-        tabBarItemStyle: { height: Layout.tabBarHeight, paddingVertical: 8 },
-        // Figma: 12/700 active, 12/400 inactive, 0.03em tracking.
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.36 },
-        // The Figma has no filled header bar — screens open straight onto the ground.
-        headerStyle: { backgroundColor: c.background },
-        headerTintColor: c.text,
-        headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700' },
+        tabBarItemStyle: { height: Layout.tabBarHeight, paddingVertical: 8, paddingHorizontal: 2 },
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.1 },
+        tabBarBadgeStyle: { backgroundColor: c.danger, fontSize: 10, lineHeight: 13, minWidth: 18, height: 18 },
+        headerShown: false,
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
-          headerShown: false, // greeting is the header, per the Figma
           tabBarLabel: t('tabs.home'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />
@@ -64,10 +62,38 @@ export default function StudentLayout() {
       <Tabs.Screen
         name="assignments"
         options={{
-          headerShown: false,
           tabBarLabel: t('tabs.assignments'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'document-text' : 'document-text-outline'} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="learning"
+        options={{
+          tabBarLabel: t('tabs.learning'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'library' : 'library-outline'} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="results"
+        options={{
+          tabBarLabel: t('tabs.results'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          tabBarLabel: t('tabs.notifications'),
+          // Undefined (not 0) hides the badge entirely — a "0" bubble reads as unread mail.
+          tabBarBadge: unread > 0 ? (unread > 99 ? '99+' : unread) : undefined,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'notifications' : 'notifications-outline'} color={color} size={size} />
           ),
         }}
       />

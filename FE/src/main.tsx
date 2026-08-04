@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/store/ThemeContext'
 import { LanguageProvider } from '@/store/LanguageContext'
 import { ReactQueryProvider } from '@/store/ReactQueryProvider'
 import App from './App'
-import '@/utils/i18n'
+import './utils/i18n'
 import './styles/index.css'
 
 createRoot(document.getElementById('root')!).render(

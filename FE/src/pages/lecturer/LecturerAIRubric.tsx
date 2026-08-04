@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +10,7 @@ import { Sparkles, Save, ArrowLeft, Loader2, FileCheck2 } from 'lucide-react'
 
 export function LecturerAIRubric() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [form, setForm] = useState({ topic: '', difficulty: 'medium', totalScore: 10 })
   const [file, setFile] = useState<File | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -31,7 +33,7 @@ export function LecturerAIRubric() {
       const res = await api.generateRubricAI(formData)
       setGeneratedContent(res)
     } catch (error: any) {
-      alert(error.message || 'Failed to generate the rubric')
+      alert(error.message || t('lc.rb.generate_failed'))
     } finally {
       setIsGenerating(false)
     }
@@ -41,10 +43,10 @@ export function LecturerAIRubric() {
     if (!generatedContent) return
     setIsSaving(true)
     try {
-      alert('Rubric saved.')
+      alert(t('lc.rb.saved'))
       navigate(-1)
     } catch (error: any) {
-      alert(error.message || 'Failed to save rubric')
+      alert(error.message || t('lc.rb.save_failed'))
     } finally {
       setIsSaving(false)
     }
@@ -57,8 +59,8 @@ export function LecturerAIRubric() {
           <ArrowLeft size={16} />
         </Button>
         <PageHeader 
-          title="Generate a grading rubric with AI" 
-          breadcrumbs={[{ label: 'Grading', path: '/lecturer/grading/assignments' }, { label: 'AI Rubric Generator' }]} 
+          title={t('lc.rb.title')}
+          breadcrumbs={[{ label: t('lc.rb.crumb_grading'), path: '/lecturer/grading/assignments' }, { label: t('lc.rb.crumb_generator') }]}
         />
       </div>
 
@@ -67,41 +69,41 @@ export function LecturerAIRubric() {
           <Card className="p-5 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-slate-900 border-emerald-100 dark:border-emerald-900/50">
             <div className="flex items-center gap-2 mb-4 text-emerald-700 dark:text-emerald-400">
               <FileCheck2 size={20} />
-              <h3 className="font-bold">Rubric generation settings</h3>
+              <h3 className="font-bold">{t('lc.rb.settings')}</h3>
             </div>
             
             <div className="space-y-4">
               <Input 
-                label="Topic / assignment requirements" 
-                placeholder="e.g. Build a login API using JWT..." 
+                label={t('lc.rb.topic_label')}
+                placeholder={t('lc.rb.topic_placeholder')}
                 value={form.topic}
                 onChange={(e) => setForm({ ...form, topic: e.target.value })}
               />
               
               <Select 
-                label="Difficulty"
+                label={t('lc.rb.difficulty')}
                 options={[
-                  { value: 'easy', label: 'Easy (basic)' },
-                  { value: 'medium', label: 'Medium (applied)' },
-                  { value: 'hard', label: 'Hard (advanced)' },
+                  { value: 'easy', label: t('lc.rb.easy') },
+                  { value: 'medium', label: t('lc.rb.medium') },
+                  { value: 'hard', label: t('lc.rb.hard') },
                 ]}
                 value={form.difficulty}
                 onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
               />
 
               <div>
-                <label className="block text-sm font-medium mb-1">Exam / assignment file (PDF, Word)</label>
+                <label className="block text-sm font-medium mb-1">{t('lc.rb.file_label')}</label>
                 <input 
                   type="file" 
                   accept=".pdf,.doc,.docx,.txt"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                 />
-                <p className="text-xs text-slate-500 mt-1">The AI reads this file; if it has no scoring scale, the AI distributes the points across the criteria itself.</p>
+                <p className="text-xs text-slate-500 mt-1">{t('lc.rb.file_hint')}</p>
               </div>
               
               <Input 
-                label="Total maximum score"
+                label={t('lc.rb.total_score')}
                 type="number"
                 value={form.totalScore.toString()}
                 onChange={(e) => setForm({ ...form, totalScore: Number(e.target.value) || 10 })}
@@ -113,9 +115,9 @@ export function LecturerAIRubric() {
                 disabled={isGenerating || !form.topic.trim()}
               >
                 {isGenerating ? (
-                  <><Loader2 size={18} className="animate-spin mr-2" /> Processing...</>
+                  <><Loader2 size={18} className="animate-spin mr-2" /> {t('lc.rb.processing')}</>
                 ) : (
-                  <><Sparkles size={18} className="mr-2" /> Generate rubric</>
+                  <><Sparkles size={18} className="mr-2" /> {t('lc.rb.generate')}</>
                 )}
               </Button>
             </div>
@@ -125,10 +127,10 @@ export function LecturerAIRubric() {
         <div className="md:col-span-2">
           <Card className="h-full min-h-[400px] border border-slate-200 dark:border-slate-800 flex flex-col">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
-              <CardHeader title="AI result" />
+              <CardHeader title={t('lc.rb.result')} />
               {generatedContent && (
                 <Button size="sm" onClick={handleSave} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                  {isSaving ? 'Saving...' : <><Save size={16} className="mr-2"/> Save to system</>}
+                  {isSaving ? t('lc.rb.saving') : <><Save size={16} className="mr-2"/> {t('lc.rb.save_to_system')}</>}
                 </Button>
               )}
             </div>
@@ -137,14 +139,14 @@ export function LecturerAIRubric() {
               {!generatedContent && !isGenerating && (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
                   <Sparkles size={48} className="mb-4 opacity-20" />
-                  <p>Enter the settings and press "Generate rubric" to start.</p>
+                  <p>{t('lc.rb.empty_hint')}</p>
                 </div>
               )}
               
               {isGenerating && (
                 <div className="h-full flex flex-col items-center justify-center text-emerald-500">
                   <Loader2 size={48} className="animate-spin mb-4" />
-                  <p className="font-medium animate-pulse">AI is analysing and building the criteria...</p>
+                  <p className="font-medium animate-pulse">{t('lc.rb.analysing')}</p>
                 </div>
               )}
 
@@ -153,7 +155,7 @@ export function LecturerAIRubric() {
                   <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
                     <Sparkles className="text-amber-500 shrink-0 mt-0.5" size={20} />
                     <div className="text-sm text-amber-800">
-                      <strong>Note:</strong> Review the criteria and point allocation the AI produced. You can change them before saving.
+                      <strong>{t('lc.rb.note_label')}</strong> {t('lc.rb.note_desc')}
                     </div>
                   </div>
                   <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 font-mono text-sm whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">

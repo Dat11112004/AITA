@@ -45,7 +45,8 @@ export class PrismaStatsRepository implements IStatsRepository {
             classes: classIds.length,
             exams,
             submissions: subs.length,
-            graded: subs.filter((s: any) => s.GradingStatus === 'Graded').length,
+            // Published, not GradingStatus — see getStudentProgress for why that column lies.
+            graded: subs.filter((s: any) => s.ReviewStatus === PrismaStatsRepository.PUBLISHED).length,
         }
     }
 
@@ -58,28 +59,54 @@ export class PrismaStatsRepository implements IStatsRepository {
         })
         const classIds = classes.map((c: any) => c.Id)
 
+        // Same gate as the student side: a score counts once it is PUBLISHED. Filtering on
+        // GradingStatus === 'Graded' returned nothing at all for imported data, where that
+        // column is null, so every lecturer saw an average of 0.
         const submissions = await this.prisma.submission.findMany({
-            where: { ClassId: { in: classIds }, GradingStatus: 'Graded' },
+            where: { ClassId: { in: classIds }, ReviewStatus: PrismaStatsRepository.PUBLISHED },
             select: { TotalScore: true, FinalScore: true },
         })
+        const allInClasses = await this.prisma.submission.count({ where: { ClassId: { in: classIds } } })
 
-        const scores = submissions.map((s: any) => Number(s.TotalScore ?? s.FinalScore ?? 0)).filter((n: number) => n > 0)
+        const scores = submissions
+            .map((s: any) => PrismaStatsRepository.scoreOf(s))
+            .filter((n: number | null): n is number => n !== null && n > 0)
         const avg = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0
 
         return {
             avgScore: Math.round(avg * 100) / 100,
-            submitRate: submissions.length ? '78%' : '—',
+            // Was the string '78%' regardless of the data — a made-up number on a real report.
+            submitRate: allInClasses ? `${Math.round((submissions.length / allInClasses) * 100)}%` : '—',
             passRate: scores.length ? `${Math.round((scores.filter((s: number) => s >= 5).length / scores.length) * 100)}%` : '—',
         }
     }
 
+    /**
+     * A score counts once the lecturer has PUBLISHED it — that is the same gate
+     * SubmissionResponseDto applies. Keying off GradingStatus === 'Graded' (the previous
+     * behaviour) both missed published rows, because imported data leaves that column null,
+     * and leaked scores that were graded but not yet published.
+     */
+    private static readonly PUBLISHED = 'PUBLISHED'
+
+    /** FinalScore is the after-penalty score, but stays 0 when nothing ever computed it. */
+    private static scoreOf(s: any): number | null {
+        const final = s.FinalScore === null || s.FinalScore === undefined ? null : Number(s.FinalScore)
+        const total = s.TotalScore === null || s.TotalScore === undefined ? null : Number(s.TotalScore)
+        if (final !== null && final > 0) return final
+        if (total !== null) return total
+        return final
+    }
+
     async getStudentProgress(studentId: string) {
         const subs = await this.prisma.submission.findMany({
-            where: { StudentId: studentId, GradingStatus: 'Graded' },
+            where: { StudentId: studentId, ReviewStatus: PrismaStatsRepository.PUBLISHED },
             include: { Exam: true } as any,
         })
 
-        const scores = subs.map((s: any) => Number(s.TotalScore ?? 0)).filter((n: number) => n > 0)
+        const scores = subs
+            .map((s: any) => PrismaStatsRepository.scoreOf(s))
+            .filter((n: number | null): n is number => n !== null)
         const gpa = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0
 
         return {
@@ -89,7 +116,7 @@ export class PrismaStatsRepository implements IStatsRepository {
             streak: subs.length > 0 ? String(subs.length) : '0',
             history: subs.map((s: any) => ({
                 assignment: s.Exam?.Title,
-                score: s.TotalScore,
+                score: PrismaStatsRepository.scoreOf(s),
                 date: s.SubmittedAt?.toISOString(),
             })),
         }
@@ -102,15 +129,22 @@ export class PrismaStatsRepository implements IStatsRepository {
             orderBy: { SubmittedAt: 'desc' },
         })
 
-        return subs.map((s: any) => ({
-            id: s.Id,
-            assignment: s.Exam?.Title,
-            className: s.Class?.ClassCode,
-            submittedAt: s.SubmittedAt?.toISOString(),
-            totalScore: s.TotalScore,
-            finalScore: s.FinalScore,
-            status: s.GradingStatus?.toLowerCase(),
-        }))
+        return subs.map((s: any) => {
+            const published = s.ReviewStatus === PrismaStatsRepository.PUBLISHED
+            return {
+                id: s.Id,
+                assignment: s.Exam?.Title,
+                className: s.Class?.ClassCode,
+                submittedAt: s.SubmittedAt?.toISOString(),
+                // Hidden until published, so the history list cannot show a number the
+                // detail screen (correctly) refuses to show.
+                totalScore: published ? s.TotalScore : null,
+                finalScore: published ? PrismaStatsRepository.scoreOf(s) : null,
+                reviewStatus: s.ReviewStatus,
+                published,
+                status: s.GradingStatus?.toLowerCase(),
+            }
+        })
     }
 
     async getActivityLogs(params: { action?: string; limit?: number }) {

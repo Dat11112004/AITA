@@ -96,9 +96,9 @@ export function HomePage() {
               {/* Stats Cyber Layout */}
               <div className="grid grid-cols-3 gap-6 pt-10 border-t border-orange-500/10 dark:border-white/[0.05] max-w-lg mx-auto lg:mx-0">
                 {[
-                  { value: '24/7', label: 'AI COGNITIVE' },
-                  { value: '80%', label: 'AUTOMATION' },
-                  { value: '3', label: 'CORE AGENTS' },
+                  { value: t('home.stat.roles.value'), label: t('home.stat.roles.label') },
+                  { value: t('home.stat.ai.value'), label: t('home.stat.ai.label') },
+                  { value: t('home.stat.review.value'), label: t('home.stat.review.label') },
                 ].map((item) => (
                   <div key={item.label} className="group">
                     <p className="text-3xl font-black font-mono tracking-tight text-slate-900 dark:text-white group-hover:text-[#F37021] transition-colors">
@@ -134,10 +134,10 @@ export function HomePage() {
                   {/* Internal Analytics Matrix */}
                   <div className="mt-6 grid grid-cols-2 gap-3">
                     {[
-                      { icon: BrainCircuit, title: 'AI Generated', value: '128 Exercises' },
-                      { icon: CheckCircle2, title: 'Auto Grading', value: '356 Submissions' },
-                      { icon: LineChart, title: 'Analytics', value: 'Realtime Tracking' },
-                      { icon: ShieldCheck, title: 'Lecturer Review', value: 'Human Verified' },
+                      { icon: BrainCircuit, title: t('home.hud.generate.title'), value: t('home.hud.generate.value') },
+                      { icon: CheckCircle2, title: t('home.hud.grading.title'), value: t('home.hud.grading.value') },
+                      { icon: LineChart, title: t('home.hud.progress.title'), value: t('home.hud.progress.value') },
+                      { icon: ShieldCheck, title: t('home.hud.review.title'), value: t('home.hud.review.value') },
                     ].map((item) => (
                       <div
                         key={item.title}
@@ -157,8 +157,8 @@ export function HomePage() {
                   {/* Progress Matrix Line */}
                   <div className="mt-5 rounded-xl border border-white/[0.03] bg-white/[0.01] p-4 font-mono">
                     <div className="flex items-center justify-between text-[11px]">
-                      <p className="text-slate-400"> STUDENT_PROGRESS_RATE</p>
-                      <p className="text-emerald-400 font-bold">+12%</p>
+                      <p className="text-slate-400"> {t('home.hud.progress_label')}</p>
+                      <p className="text-emerald-400 font-bold">{t('home.hud.progress_state')}</p>
                     </div>
                     <div className="mt-3 h-1 rounded-full bg-slate-900 overflow-hidden">
                       <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-[#F37021] to-amber-500" />

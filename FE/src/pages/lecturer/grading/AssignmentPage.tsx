@@ -3,6 +3,7 @@ import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
 import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import classNames from 'classnames';
 
@@ -68,6 +69,7 @@ function CustomSelect({ value, onChange, options, className, label }: { value: s
 export default function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [assignment, setAssignment] = useState<PublishedAssignment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,7 @@ export default function AssignmentPage() {
       setTimeout(() => setUploadAnswerKeySuccess(null), 5000);
     } catch (err: any) {
       console.error("Failed to update Answer Key:", err);
-      setError(err.response?.data?.error || err.message || "Failed to update Answer Key");
+      setError(err.response?.data?.error || err.message || t('lc.ap.answer_key_failed'));
     } finally {
       setIsUploadingAnswerKey(false);
       // Reset file input
@@ -271,7 +273,7 @@ export default function AssignmentPage() {
       }
     } catch (err: any) {
       console.error('Failed to delete history', err);
-      setError('Failed to delete the grading result');
+      setError(t('lc.ap.delete_result_failed'));
     }
   };
 
@@ -283,7 +285,7 @@ export default function AssignmentPage() {
       navigate(`/lecturer/grading/live/${res.submissionId}?assignmentId=${id || ''}`);
     } catch (err) {
       console.error("Failed to grade submission", err);
-      setError("Failed to start grading process.");
+      setError(t('lc.ap.start_grading_failed'));
     }
   };
 
@@ -301,7 +303,7 @@ export default function AssignmentPage() {
           fileName: job.fileName,
           state: 'queued' as const,
           progressPercent: 0,
-          currentTask: 'Waiting in queue...'
+          currentTask: t('lc.ap.waiting_queue')
         }));
 
         const jobsKey = `batchJobs_${id}`;
@@ -323,11 +325,11 @@ export default function AssignmentPage() {
 
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
-        setError("No submissions are eligible for grading (not submitted, or already graded).");
+        setError(t('lc.ap.none_eligible'));
       }
     } catch (err) {
       console.error("Failed to batch grade", err);
-      setError("Failed to start batch grading process.");
+      setError(t('lc.ap.batch_failed'));
     } finally {
       setLoading(false);
     }
@@ -348,7 +350,7 @@ export default function AssignmentPage() {
           fileName: job.fileName,
           state: 'queued' as const,
           progressPercent: 0,
-          currentTask: 'Waiting in queue...'
+          currentTask: t('lc.ap.waiting_queue')
         }));
 
         const jobsKey = `batchJobs_${id}`;
@@ -370,11 +372,11 @@ export default function AssignmentPage() {
 
         navigate(`/lecturer/grading/assignments/${id}/submit`);
       } else {
-        setError("None of the selected students have a submission eligible for grading.");
+        setError(t('lc.ap.none_selected_eligible'));
       }
     } catch (err) {
       console.error("Failed to grade selected", err);
-      setError("Failed to start grading process for selected students.");
+      setError(t('lc.ap.selected_failed'));
     } finally {
       setLoading(false);
     }
@@ -399,12 +401,12 @@ export default function AssignmentPage() {
     if (item.status === 'Graded') {
       navigate(`/lecturer/grading/result/${item.id}`);
     } else if (item.status === 'Submitted') {
-      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} has submitted but has no grading result yet. Press "Grade".`);
+      setError(t('lc.ap.submitted_no_result', { name: item.studentName || item.studentCode || item.studentId }));
       setTimeout(() => setError(null), 4000);
     } else if (item.status === 'Grading') {
       navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
     } else {
-      setError(`Sinh viên ${item.studentName || item.studentCode || item.studentId} has not submitted, so there is nothing to show.`);
+      setError(t('lc.ap.not_submitted_nothing', { name: item.studentName || item.studentCode || item.studentId }));
       setTimeout(() => setError(null), 4000);
     }
   };
@@ -444,7 +446,7 @@ export default function AssignmentPage() {
     if (newDueDate) {
       const startDate = (assignment as any)?.stats?.createdAt;
       if (startDate && new Date(newDueDate) < new Date(startDate)) {
-        setDeadlineModalError("The due date cannot be earlier than the assignment creation date.");
+        setDeadlineModalError(t('lc.ap.due_before_created'));
         return;
       }
     }
@@ -482,7 +484,7 @@ export default function AssignmentPage() {
       }));
     } catch (err: any) {
       console.error(err);
-      setDeadlineModalError(err.message || "Failed to update the due date.");
+      setDeadlineModalError(err.message || t('lc.ap.due_update_failed'));
     } finally {
       setSavingDeadline(false);
     }
@@ -517,7 +519,7 @@ export default function AssignmentPage() {
 
   // Calendar helpers for embedded modal calendar
   const selectedDateObj = newDueDate ? new Date(newDueDate) : null;
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = Array.from({ length: 12 }, (_, i) => t(`lc.ap.month.${i + 1}`));
 
   const handlePrevMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
   const handleNextMonth = () => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
@@ -537,8 +539,8 @@ export default function AssignmentPage() {
     setNewDueDate(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
   };
 
-  if (loading && !assignment) return <div className="text-center py-20 text-slate-400">Loading assignment...</div>;
-  if (!assignment) return <div className="text-center py-20 text-red-400">Assignment not found</div>;
+  if (loading && !assignment) return <div className="text-center py-20 text-slate-400">{t('lc.ap.loading')}</div>;
+  if (!assignment) return <div className="text-center py-20 text-red-400">{t('lc.ap.not_found')}</div>;
 
   return (
     <div className="max-w-6xl mx-auto pb-2 -mt-2 sm:-mt-4">
@@ -567,7 +569,7 @@ export default function AssignmentPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 text-brand-600 dark:text-brand-400 mb-2">
               <BookOpen size={20} />
-              <span className="font-semibold uppercase tracking-wider text-sm">Assignment details</span>
+              <span className="font-semibold uppercase tracking-wider text-sm">{t('lc.ap.badge_details')}</span>
             </div>
             <div className="flex items-center gap-3">
               {((assignment?.metadata as any)?.projectType === 'database' || (assignment?.metadata as any)?.subject?.toUpperCase().includes('DBI') || assignment?.rubric?.rules?.some((r: any) => r.scoringStrategy === 'SqlExecutionProbe')) && (
@@ -577,7 +579,7 @@ export default function AssignmentPage() {
                   ) : (
                     <Database size={20} />
                   )}
-                  <span>{isUploadingAnswerKey ? 'Updating...' : 'Update Answer Key'}</span>
+                  <span>{isUploadingAnswerKey ? t('lc.ap.updating') : t('lc.ap.update_answer_key')}</span>
                   <input
                     type="file"
                     accept=".sql,.txt"
@@ -587,6 +589,13 @@ export default function AssignmentPage() {
                   />
                 </label>
               )}
+              <button
+                onClick={() => setIsGradingSettingsModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
+              >
+                <Settings size={20} />
+                {t('lc.ap.gs.button')}
+              </button>
               <button
                 onClick={() => navigate(`/lecturer/grading/assignments/${id}/rubric`)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors shadow-sm text-base"
@@ -623,7 +632,7 @@ export default function AssignmentPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || 'Assignment'}</h1>
+            <h1 className="text-3xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || t('lc.ap.assignment_fallback')}</h1>
           </div>
 
           {assignment.metadata?.projectType && (
@@ -639,7 +648,7 @@ export default function AssignmentPage() {
         <div className="p-6">
           <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-3">
             <ListChecks size={22} className="text-brand-500" />
-            <h2 className="text-xl font-semibold dark:text-white text-slate-800">Details</h2>
+            <h2 className="text-xl font-semibold dark:text-white text-slate-800">{t('lc.ap.details')}</h2>
           </div>
           <div className="space-y-4">
             {assignment.metadata?.description ? (
@@ -647,7 +656,7 @@ export default function AssignmentPage() {
                 {assignment.metadata.description}
               </p>
             ) : (
-              <p className="dark:text-slate-500 text-slate-400 italic">No description provided.</p>
+              <p className="dark:text-slate-500 text-slate-400 italic">{t('lc.ap.no_description')}</p>
             )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800/80 mt-4">
               <div className="flex items-center gap-2.5 text-base font-medium text-slate-700 dark:text-slate-300">
@@ -659,7 +668,7 @@ export default function AssignmentPage() {
                   <strong className="text-brand-600 dark:text-brand-400 font-bold ml-1">
                     {(assignment as any)?.stats?.dueDate
                       ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-                      : 'Not set'}
+                      : t('lc.ap.not_set')}
                   </strong>
                 </span>
               </div>
@@ -669,7 +678,7 @@ export default function AssignmentPage() {
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-sm font-semibold transition-all border border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-600 shadow-sm whitespace-nowrap"
               >
                 <Clock size={16} className="text-brand-500" />
-                <span>Adjust due date</span>
+                <span>{t('lc.ap.adjust_due')}</span>
               </button>
             </div>
           </div>
@@ -696,7 +705,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.totalStudents}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Students <br /><span className="font-normal opacity-80">Total</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{t('lc.ap.stat_students')} <br /><span className="font-normal opacity-80">{t('lc.ap.stat_total')}</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -705,7 +714,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.submitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Submitted <br /><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{t('lc.ap.stat_submitted')} <br /><span className="font-normal opacity-80">{stats.submittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -714,7 +723,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.notSubmitted}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Not submitted <br /><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{t('lc.ap.stat_not_submitted')} <br /><span className="font-normal opacity-80">{stats.notSubmittedPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -723,7 +732,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.grading}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Grading <br /><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{t('lc.ap.stat_grading')} <br /><span className="font-normal opacity-80">{stats.gradingPercentage}%</span></div>
               </div>
             </div>
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center gap-4 shadow-sm">
@@ -732,7 +741,7 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900 dark:text-white leading-none mb-1">{stats.averageScore}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">Average score <br /><span className="font-normal opacity-80">/10</span></div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight font-medium">{t('lc.ap.stat_avg')} <br /><span className="font-normal opacity-80">/10</span></div>
               </div>
             </div>
           </div>
@@ -749,7 +758,7 @@ export default function AssignmentPage() {
             </div>
             <input
               type="text"
-              placeholder="Search students or student IDs..."
+              placeholder={t('lc.ap.search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 w-full border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-slate-50 dark:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:text-slate-200"
@@ -758,50 +767,50 @@ export default function AssignmentPage() {
 
           <div className="flex items-center gap-4">
             <CustomSelect
-              label="Status:"
+              label={t('lc.ap.f.status')}
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: 'ALL', label: 'All' },
-                { value: 'NotSubmitted', label: 'Not submitted' },
-                { value: 'Submitted', label: 'Submitted' },
-                { value: 'Grading', label: 'Grading' },
-                { value: 'Graded', label: 'Graded' }
+                { value: 'ALL', label: t('lc.ap.f.all') },
+                { value: 'NotSubmitted', label: t('lc.ap.st.not_submitted') },
+                { value: 'Submitted', label: t('lc.ap.st.submitted') },
+                { value: 'Grading', label: t('lc.ap.st.grading') },
+                { value: 'Graded', label: t('lc.ap.st.graded') }
               ]}
             />
             <CustomSelect
-              label="Score range:"
+              label={t('lc.ap.f.score_range')}
               value={scoreRangeFilter}
               onChange={setScoreRangeFilter}
               options={[
-                { value: 'ALL', label: 'All' },
+                { value: 'ALL', label: t('lc.ap.f.all') },
                 { value: '9-10', label: '9 - 10' },
                 { value: '8-9', label: '8 - 8.9' },
                 { value: '7-8', label: '7 - 7.9' },
                 { value: '5-7', label: '5 - 6.9' },
-                { value: '<5', label: 'Below 5' }
+                { value: '<5', label: t('lc.ap.f.below5') }
               ]}
             />
             <CustomSelect
-              label="Sort:"
+              label={t('lc.ap.f.sort')}
               value={sortOrder}
               onChange={setSortOrder}
               options={[
-                { value: 'score_desc', label: 'Score high → low' },
-                { value: 'score_asc', label: 'Score low → high' },
-                { value: 'name_asc', label: 'Name A → Z' },
-                { value: 'time_desc', label: 'Recently submitted' }
+                { value: 'score_desc', label: t('lc.ap.f.score_desc') },
+                { value: 'score_asc', label: t('lc.ap.f.score_asc') },
+                { value: 'name_asc', label: t('lc.ap.f.name_asc') },
+                { value: 'time_desc', label: t('lc.ap.f.time_desc') }
               ]}
             />
             <CustomSelect
-              label="Class:"
+              label={t('lc.ap.f.class')}
               value={classFilter}
               onChange={(v) => {
                 setClassFilter(v);
                 setPage(1);
               }}
               options={[
-                { value: 'ALL', label: 'All classes' },
+                { value: 'ALL', label: t('lc.ap.f.all_classes') },
                 ...classList.map(c => ({ value: c.id, label: c.className || c.classCode }))
               ]}
             />
@@ -814,26 +823,26 @@ export default function AssignmentPage() {
             className={classNames("flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors", viewMode === 'table' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-            Table
+            {t('lc.ap.view_table')}
           </button>
           <button
             onClick={() => setViewMode('card')}
             className={classNames("flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors", viewMode === 'card' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-600 dark:text-brand-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            Cards
+            {t('lc.ap.view_cards')}
           </button>
         </div>
       </div>
 
       {selectedIds.size > 0 && (
         <div className="bg-brand-50 border border-brand-200 dark:bg-brand-900/20 dark:border-brand-800 rounded-lg p-3 mb-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
-          <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">{selectedIds.size} students selected</span>
+          <span className="text-brand-700 dark:text-brand-300 font-medium text-sm px-2">{t('lc.ap.selected_count', { n: selectedIds.size })}</span>
           <button
             onClick={() => handleGradeSelected()}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            <Hourglass size={16} /> Grade {selectedIds.size} submissions
+            <Hourglass size={16} /> {t('lc.ap.grade_selected', { n: selectedIds.size })}
           </button>
         </div>
       )}
@@ -841,8 +850,8 @@ export default function AssignmentPage() {
       {history.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <Clock className="mx-auto h-12 w-12 text-slate-400 mb-4" />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-200 mb-2">No history found</h3>
-          <p className="text-slate-500 dark:text-slate-400">You haven't graded any submissions for this assignment yet.</p>
+          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-200 mb-2">{t('lc.ap.no_history')}</h3>
+          <p className="text-slate-500 dark:text-slate-400">{t('lc.ap.no_history_desc')}</p>
         </div>
       ) : viewMode === 'table' ? (
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto mb-12 relative">
@@ -862,14 +871,14 @@ export default function AssignmentPage() {
                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                   />
                 </th>
-                <th className="py-4 px-4">Student</th>
-                <th className="py-4 px-4">Student ID</th>
-                <th className="py-4 px-4">Class</th>
-                <th className="py-4 px-4">Submitted at</th>
-                <th className="py-4 px-4 min-w-[120px]">Score</th>
-                <th className="py-4 px-4 text-center">Grade</th>
-                <th className="py-4 px-4 text-center">Status</th>
-                <th className="py-4 px-4 text-center">Actions</th>
+                <th className="py-4 px-4">{t('lc.ap.col.student')}</th>
+                <th className="py-4 px-4">{t('lc.ap.col.student_id')}</th>
+                <th className="py-4 px-4">{t('lc.ap.col.class')}</th>
+                <th className="py-4 px-4">{t('lc.ap.col.submitted_at')}</th>
+                <th className="py-4 px-4 min-w-[120px]">{t('lc.ap.col.score')}</th>
+                <th className="py-4 px-4 text-center">{t('lc.ap.col.grade')}</th>
+                <th className="py-4 px-4 text-center">{t('lc.ap.col.status')}</th>
+                <th className="py-4 px-4 text-center">{t('lc.ap.col.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -920,7 +929,7 @@ export default function AssignmentPage() {
                       ) : (
                         <>
                           <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400">(On time)</div>
+                          <div className="text-xs text-emerald-600 dark:text-emerald-400">{t('lc.ap.on_time')}</div>
                         </>
                       )}
                     </td>
@@ -946,25 +955,25 @@ export default function AssignmentPage() {
                       {item.status === 'Graded' && (
                         <div className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          Graded
+                          {t('lc.ap.st.graded')}
                         </div>
                       )}
                       {item.status === 'Grading' && (
                         <div className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-medium">
                           <Hourglass size={16} className="animate-pulse" />
-                          Grading
+                          {t('lc.ap.st.grading')}
                         </div>
                       )}
                       {item.status === 'Submitted' && (
                         <div className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 text-sm font-medium">
                           <CheckCircle2 size={16} />
-                          Submitted
+                          {t('lc.ap.st.submitted')}
                         </div>
                       )}
                       {item.status === 'NotSubmitted' && (
                         <div className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-sm font-medium">
                           <Clock size={16} />
-                          Not submitted
+                          {t('lc.ap.st.not_submitted')}
                         </div>
                       )}
                     </td>
@@ -974,7 +983,7 @@ export default function AssignmentPage() {
                           onClick={() => handleViewHistory(item.id)}
                           className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors"
                         >
-                          <Eye size={16} /> Xem
+                          <Eye size={16} /> {t('lc.ap.act.view')}
                         </button>
                       )}
                       {item.status === 'Grading' && (
@@ -984,10 +993,10 @@ export default function AssignmentPage() {
                             navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
                           }}
                           className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-400 rounded-lg text-sm font-semibold transition-all cursor-pointer border border-amber-200/80 dark:border-amber-800/80 shadow-sm"
-                          title="Click to watch background grading in real time"
+                          title={t('lc.ap.watch_live_title')}
                         >
                           <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                          Grading...
+                          {t('lc.ap.act.grading')}
                         </button>
                       )}
                       {item.status === 'Submitted' && (
@@ -996,7 +1005,7 @@ export default function AssignmentPage() {
                           className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 rounded-lg text-sm font-semibold transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                          Grade
+                          {t('lc.ap.act.grade')}
                         </button>
                       )}
                       {item.status === 'NotSubmitted' && (
@@ -1063,12 +1072,12 @@ export default function AssignmentPage() {
 
                   <div>
                     <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex justify-between">
-                      <span>FINAL SCORE</span>
+                      <span>{t('lc.ap.final_score')}</span>
                       <span className="normal-case tracking-normal">
-                        {item.status === 'Graded' && <span className="text-emerald-500">Graded</span>}
-                        {item.status === 'Grading' && <span className="text-amber-500">Grading</span>}
-                        {item.status === 'Submitted' && <span className="text-blue-500">Submitted</span>}
-                        {item.status === 'NotSubmitted' && <span className="text-slate-400">Not submitted</span>}
+                        {item.status === 'Graded' && <span className="text-emerald-500">{t('lc.ap.st.graded')}</span>}
+                        {item.status === 'Grading' && <span className="text-amber-500">{t('lc.ap.st.grading')}</span>}
+                        {item.status === 'Submitted' && <span className="text-blue-500">{t('lc.ap.st.submitted')}</span>}
+                        {item.status === 'NotSubmitted' && <span className="text-slate-400">{t('lc.ap.st.not_submitted')}</span>}
                       </span>
                     </div>
                     {item.status === 'Graded' ? (
@@ -1093,7 +1102,7 @@ export default function AssignmentPage() {
                       onClick={() => handleViewHistory(item.id)}
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
                     >
-                      <Eye size={16} /> View result
+                      <Eye size={16} /> {t('lc.ap.act.view_result')}
                     </button>
                   )}
                   {item.status === 'Grading' && (
@@ -1103,10 +1112,10 @@ export default function AssignmentPage() {
                         navigate(`/lecturer/grading/live/${item.id}?assignmentId=${id || ''}`);
                       }}
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 border border-amber-200/80 dark:border-amber-800/80 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-sm"
-                      title="Click to watch background grading in real time"
+                      title={t('lc.ap.watch_live_title')}
                     >
                       <Loader2 size={16} className="animate-spin text-amber-600 dark:text-amber-400" />
-                      Grading...
+                      {t('lc.ap.act.grading')}
                     </button>
                   )}
                   {item.status === 'Submitted' && (
@@ -1115,7 +1124,7 @@ export default function AssignmentPage() {
                       className="flex-1 flex items-center justify-center gap-2 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                      Grade
+                      {t('lc.ap.act.grade')}
                     </button>
                   )}
                   {item.status === 'NotSubmitted' && (
@@ -1135,7 +1144,7 @@ export default function AssignmentPage() {
       {totalPages > 0 && history.length > 0 && (
         <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4 mt-4">
           <div className="text-sm text-slate-500 dark:text-slate-400">
-            Showing <span className="font-medium text-slate-900 dark:text-white">{Math.min((page - 1) * limit + 1, totalItems)}</span> - <span className="font-medium text-slate-900 dark:text-white">{Math.min(page * limit, totalItems)}</span> of <span className="font-medium text-slate-900 dark:text-white">{totalItems}</span> students
+            {t('lc.ap.showing_prefix')} <span className="font-medium text-slate-900 dark:text-white">{Math.min((page - 1) * limit + 1, totalItems)}</span> - <span className="font-medium text-slate-900 dark:text-white">{Math.min(page * limit, totalItems)}</span> {t('lc.ap.showing_of')} <span className="font-medium text-slate-900 dark:text-white">{totalItems}</span> {t('lc.ap.showing_suffix')}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -1184,9 +1193,13 @@ export default function AssignmentPage() {
               <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
                 <AlertCircle size={24} strokeWidth={2.5} />
               </div>
-              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">Confirm deletion</h3>
+              <h3 className="text-xl font-bold text-center text-slate-900 dark:text-white mb-2">{t('lc.ap.del.title')}</h3>
               <p className="text-center text-slate-500 dark:text-slate-400 text-sm">
-                Delete {deleteModalId === 'BULK' ? `${selectedIds.size} grading results` : 'this grading result'}? This cannot be undone.
+                {t('lc.ap.del.body', {
+                  target: deleteModalId === 'BULK'
+                    ? t('lc.ap.del.bulk', { n: selectedIds.size })
+                    : t('lc.ap.del.single'),
+                })}
               </p>
             </div>
             <div className="flex border-t border-slate-100 dark:border-slate-700/50">
@@ -1194,14 +1207,14 @@ export default function AssignmentPage() {
                 onClick={() => setDeleteModalId(null)}
                 className="flex-1 px-4 py-3.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               >
-                Cancel
+                {t('lc.ap.del.cancel')}
               </button>
               <div className="w-px bg-slate-100 dark:bg-slate-700/50"></div>
               <button
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
               >
-                Delete
+                {t('lc.ap.del.confirm')}
               </button>
             </div>
           </div>
@@ -1225,7 +1238,7 @@ export default function AssignmentPage() {
                     Adjust the due date
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] font-medium">
-                    {assignment?.metadata?.title || 'Assignment'}
+                    {assignment?.metadata?.title || t('lc.ap.assignment_fallback')}
                   </p>
                 </div>
               </div>
@@ -1250,12 +1263,12 @@ export default function AssignmentPage() {
               <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
                   <Calendar size={15} className="text-slate-400" />
-                  <span>Current due date:</span>
+                  <span>{t('lc.ap.dl.current_due')}</span>
                 </div>
                 <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
                   {(assignment as any)?.stats?.dueDate
                     ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-                    : 'Not set'}
+                    : t('lc.ap.not_set')}
                 </span>
               </div>
 
@@ -1349,12 +1362,12 @@ export default function AssignmentPage() {
 
               {/* Result Preview Banner */}
               <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">New due date:</span>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">{t('lc.ap.dl.new_due')}</span>
                 <span className="font-bold text-brand-600 dark:text-brand-400">
                   {selectedDateObj ? (
                     `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} 23:59`
                   ) : (
-                    'No date selected'
+                    t('lc.ap.dl.no_date')
                   )}
                 </span>
               </div>
@@ -1382,7 +1395,7 @@ export default function AssignmentPage() {
                 ) : (
                   <Save size={16} />
                 )}
-                <span>Update due date</span>
+                <span>{t('lc.ap.dl.update')}</span>
               </button>
             </div>
 
@@ -1404,10 +1417,10 @@ export default function AssignmentPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Grading mode settings
+                    {t('lc.ap.gs.title')}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px] font-medium">
-                    {assignment?.metadata?.title || 'Assignment'}
+                    {assignment?.metadata?.title || t('lc.ap.assignment_fallback')}
                   </p>
                 </div>
               </div>
@@ -1444,23 +1457,23 @@ export default function AssignmentPage() {
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        ⚡ Background queue grading
+                        {t('lc.ap.gs.queue_title')}
                       </h4>
                       {selectedGradingStrategy === 'CONTINUOUS_QUEUE' && (
                         <span className="px-2.5 py-0.5 bg-emerald-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
-                          In use
+                          {t('lc.ap.gs.in_use')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Each submission enters a FIFO queue as it arrives and the AI autograder starts on it immediately.
+                      {t('lc.ap.gs.queue_desc')}
                     </p>
                     <div className="pt-2 flex items-center gap-2">
                       <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg border border-emerald-200/60 dark:border-emerald-500/20">
-                        🚀 First in, first graded
+                        {t('lc.ap.gs.queue_tag1')}
                       </span>
                       <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
-                        Fully automated
+                        {t('lc.ap.gs.queue_tag2')}
                       </span>
                     </div>
                   </div>
@@ -1489,23 +1502,23 @@ export default function AssignmentPage() {
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        📦 Batch grade once
+                        {t('lc.ap.gs.batch_title')}
                       </h4>
                       {selectedGradingStrategy === 'BATCH_POST_DEADLINE' && (
                         <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[11px] font-extrabold rounded-full uppercase tracking-wider">
-                          In use
+                          {t('lc.ap.gs.in_use')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Submissions stay pending. Batch grading starts only when the lecturer presses Grade all.
+                      {t('lc.ap.gs.batch_desc')}
                     </p>
                     <div className="pt-2 flex items-center gap-2">
                       <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold rounded-lg border border-amber-200/60 dark:border-amber-500/20">
-                        ⚖️ Triggered manually
+                        {t('lc.ap.gs.batch_tag1')}
                       </span>
                       <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-lg">
-                        Batch grades when the lecturer presses Grade all
+                        {t('lc.ap.gs.batch_tag2')}
                       </span>
                     </div>
                   </div>
@@ -1517,14 +1530,14 @@ export default function AssignmentPage() {
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between shrink-0">
               <span className="text-xs text-slate-400 font-medium">
-                {savingStrategy ? 'Saving settings...' : 'Click a mode to apply it'}
+                {savingStrategy ? t('lc.ap.gs.saving') : t('lc.ap.gs.click_hint')}
               </span>
               <button
                 type="button"
                 onClick={() => setIsGradingSettingsModalOpen(false)}
                 className="px-5 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
               >
-                Close
+                {t('lc.ap.gs.close')}
               </button>
             </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import {
@@ -10,6 +11,7 @@ import {
 export function PromptListBySubject() {
   const { subjectId } = useParams<{ subjectId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [prompts, setPrompts] = useState<any[]>([]);
   const [subject, setSubject] = useState<any>(null);
@@ -62,11 +64,11 @@ export function PromptListBySubject() {
       await api.deletePromptTemplate(id);
       setPrompts((prev) => prev.filter((p) => p.id !== id));
       if (selectedPrompt?.id === id) setSelectedPrompt(null);
-      setToastMessage(`Prompt template "${name}" deleted`);
+      setToastMessage(t('lc.pl.deleted_toast', { name }));
       setConfirmDeletePrompt(null);
     } catch (err) {
       console.error('Failed to delete prompt:', err);
-      setToastMessage('The prompt could not be deleted.');
+      setToastMessage(t('lc.pl.delete_failed'));
     } finally {
       setDeletingId(null);
     }
@@ -75,7 +77,7 @@ export function PromptListBySubject() {
   const handleCopyContent = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    setToastMessage('Prompt content copied to the clipboard.');
+    setToastMessage(t('lc.pl.copied_toast'));
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -110,7 +112,7 @@ export function PromptListBySubject() {
           <button
             onClick={() => navigate('/lecturer/prompts')}
             className="p-2.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-            title="Back to subject list"
+            title={t('lc.pl.back_title')}
           >
             <ArrowLeft size={20} />
           </button>
@@ -118,14 +120,14 @@ export function PromptListBySubject() {
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 font-bold text-xs rounded-lg border border-brand-200 dark:border-brand-800 flex items-center gap-1.5">
                 <BookOpen size={12} />
-                {subject?.code || 'SUBJECT'}
+                {subject?.code || t('lc.pl.subject_fallback')}
               </span>
               <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
-                {prompts.length} prompt templates
+                {t('lc.pl.count', { n: prompts.length })}
               </span>
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {subject?.name || 'Prompt list'}
+              {subject?.name || t('lc.pl.title_fallback')}
             </h1>
           </div>
         </div>
@@ -135,7 +137,7 @@ export function PromptListBySubject() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Search prompts..."
+              placeholder={t('lc.pl.search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-slate-800 dark:text-slate-200"
@@ -153,7 +155,7 @@ export function PromptListBySubject() {
             onClick={() => navigate(`/lecturer/prompts/${subjectId}/create`)}
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-500/15 active:scale-[0.98] transition-all whitespace-nowrap"
           >
-            <Plus size={18} /> New prompt
+            <Plus size={18} /> {t('lc.pl.new_prompt')}
           </button>
         </div>
       </div>
@@ -161,7 +163,7 @@ export function PromptListBySubject() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
           <div className="animate-spin rounded-full h-10 w-10 border-3 border-brand-600 border-t-transparent mb-4"></div>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading prompt templates...</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">{t('lc.pl.loading')}</p>
         </div>
       ) : filteredPrompts.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center">
@@ -169,19 +171,19 @@ export function PromptListBySubject() {
             <Bot size={32} />
           </div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-            {searchQuery ? 'No prompts found' : 'No prompt templates yet'}
+            {searchQuery ? t('lc.pl.none_found') : t('lc.pl.none_yet')}
           </h3>
           <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mt-1.5 mb-6">
             {searchQuery
-              ? 'No prompt template matches your search. Try a different keyword.'
-              : 'Create the first prompt template for this subject to standardise how assignments are generated.'}
+              ? t('lc.pl.no_match')
+              : t('lc.pl.create_first_desc')}
           </p>
           {!searchQuery && (
             <button
               onClick={() => navigate(`/lecturer/prompts/${subjectId}/create`)}
               className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all"
             >
-              <Plus size={18} /> Create the first prompt
+              <Plus size={18} /> {t('lc.pl.create_first')}
             </button>
           )}
         </div>
@@ -209,12 +211,12 @@ export function PromptListBySubject() {
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                             <Tag size={12} className="text-brand-500" />
-                            {prompt.category || 'Chung'}
+                            {prompt.category || t('lc.pl.category_general')}
                           </span>
                           {prompt.temperature != null && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700/60">
                               <Sliders size={11} />
-                              Temp: {prompt.temperature}
+                              {t('lc.pl.temp', { value: prompt.temperature })}
                             </span>
                           )}
                         </div>
@@ -225,12 +227,12 @@ export function PromptListBySubject() {
                       {prompt.isActive !== false ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/80">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          Enabled
+                          {t('lc.pl.enabled')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
                           <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                          Disabled
+                          {t('lc.pl.disabled')}
                         </span>
                       )}
                     </div>
@@ -238,7 +240,7 @@ export function PromptListBySubject() {
 
                   {vars.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Variables:</span>
+                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{t('lc.pl.variables')}</span>
                       {vars.slice(0, 4).map((v, i) => (
                         <span key={i} className="text-[11px] font-mono font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
                           {v}
@@ -255,7 +257,7 @@ export function PromptListBySubject() {
                   <div className="relative group/box">
                     <div className="flex items-center justify-between px-3 py-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-t-xl text-[11px] font-mono text-slate-600 dark:text-slate-400 border-t border-x border-slate-200 dark:border-slate-700/80">
                       <span className="flex items-center gap-1.5 font-semibold">
-                        <Terminal size={12} className="text-brand-500" /> System Prompt Template
+                        <Terminal size={12} className="text-brand-500" /> {t('lc.pl.system_template')}
                       </span>
                       <button
                         onClick={() => handleCopyContent(prompt.templateContent, prompt.id)}
@@ -263,11 +265,11 @@ export function PromptListBySubject() {
                       >
                         {isCopying ? (
                           <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <Check size={12} /> Copied
+                            <Check size={12} /> {t('lc.pl.copied')}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1">
-                            <Copy size={12} /> Copy
+                            <Copy size={12} /> {t('lc.pl.copy')}
                           </span>
                         )}
                       </button>
@@ -281,31 +283,31 @@ export function PromptListBySubject() {
                 <div className="px-5 py-3 bg-slate-50/60 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
                     <Zap size={14} className="text-amber-500" />
-                    <span>Uses: <strong className="text-slate-700 dark:text-slate-200">{prompt.usageCount || 0}</strong></span>
+                    <span>{t('lc.pl.uses')} <strong className="text-slate-700 dark:text-slate-200">{prompt.usageCount || 0}</strong></span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setSelectedPrompt(prompt)}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-brand-200 dark:hover:border-brand-800"
-                      title="View prompt details"
+                      title={t('lc.pl.view_title')}
                     >
-                      <Eye size={14} /> Xem
+                      <Eye size={14} /> {t('lc.pl.view')}
                     </button>
                     <button
                       onClick={() => navigate(`/lecturer/prompts/${subjectId}/edit/${prompt.id}`)}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-brand-200 dark:hover:border-brand-800"
-                      title="Edit prompt"
+                      title={t('lc.pl.edit_title')}
                     >
-                      <Edit3 size={14} /> Edit
+                      <Edit3 size={14} /> {t('lc.pl.edit')}
                     </button>
                     <button
                       onClick={() => setConfirmDeletePrompt({ id: prompt.id, name: prompt.name })}
                       disabled={deletingId === prompt.id}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-all font-medium text-xs border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
-                      title="Delete prompt"
+                      title={t('lc.pl.delete_title')}
                     >
-                      <Trash2 size={14} /> Delete
+                      <Trash2 size={14} /> {t('lc.pl.delete')}
                     </button>
                   </div>
                 </div>
@@ -330,7 +332,7 @@ export function PromptListBySubject() {
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     <span>{subject?.code}</span>
                     <span>•</span>
-                    <span>Category: {selectedPrompt.category || 'General'}</span>
+                    <span>{t('lc.pl.category_label', { value: selectedPrompt.category || t('lc.pl.category_general') })}</span>
                   </div>
                 </div>
               </div>
@@ -346,7 +348,7 @@ export function PromptListBySubject() {
               {extractVariables(selectedPrompt.templateContent).length > 0 && (
                 <div className="space-y-1.5 bg-indigo-50/50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
                   <p className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
-                    <Code2 size={14} /> Variables used in this prompt:
+                    <Code2 size={14} /> {t('lc.pl.vars_used')}
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {extractVariables(selectedPrompt.templateContent).map((v, i) => (
@@ -360,8 +362,8 @@ export function PromptListBySubject() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  <span>Full prompt content</span>
-                  <span>Temp: {selectedPrompt.temperature ?? 0.7}</span>
+                  <span>{t('lc.pl.full_content')}</span>
+                  <span>{t('lc.pl.temp', { value: selectedPrompt.temperature ?? 0.7 })}</span>
                 </div>
                 <div className="bg-slate-900 text-slate-100 dark:bg-slate-950 p-4 rounded-xl font-mono text-xs leading-relaxed whitespace-pre-wrap border border-slate-800 max-h-72 overflow-y-auto custom-scrollbar select-all">
                   {selectedPrompt.templateContent}
@@ -371,7 +373,7 @@ export function PromptListBySubject() {
 
             <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Uses: <strong className="text-slate-700 dark:text-slate-200">{selectedPrompt.usageCount || 0}</strong>
+                {t('lc.pl.uses')} <strong className="text-slate-700 dark:text-slate-200">{selectedPrompt.usageCount || 0}</strong>
               </span>
 
               <div className="flex items-center gap-3">
@@ -379,7 +381,7 @@ export function PromptListBySubject() {
                   onClick={() => handleCopyContent(selectedPrompt.templateContent, selectedPrompt.id)}
                   className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm transition-all"
                 >
-                  <Copy size={16} /> Copy
+                  <Copy size={16} /> {t('lc.pl.copy')}
                 </button>
                 <button
                   onClick={() => {
@@ -389,7 +391,7 @@ export function PromptListBySubject() {
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-sm shadow-sm transition-all"
                 >
-                  <Edit3 size={16} /> Edit
+                  <Edit3 size={16} /> {t('lc.pl.edit')}
                 </button>
               </div>
             </div>
@@ -416,10 +418,10 @@ export function PromptListBySubject() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Xác nhận xoá prompt
+                    {t('lc.pl.del.title')}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Hành động này không thể hoàn tác
+                    {t('lc.pl.del.subtitle')}
                   </p>
                 </div>
               </div>
@@ -434,7 +436,7 @@ export function PromptListBySubject() {
             {/* Body */}
             <div className="p-6 space-y-3">
               <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Bạn có chắc chắn muốn xoá prompt template{' '}
+                {t('lc.pl.del.body')}{' '}
                 <strong className="text-slate-900 dark:text-white font-semibold">
                   "{confirmDeletePrompt.name}"
                 </strong>
@@ -442,7 +444,7 @@ export function PromptListBySubject() {
               </p>
               <div className="bg-rose-50/60 dark:bg-rose-950/30 p-3.5 rounded-xl border border-rose-100 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-400 flex items-start gap-2.5">
                 <Trash2 size={16} className="shrink-0 mt-0.5 text-rose-500" />
-                <span>Prompt template này sẽ bị xoá vĩnh viễn khỏi môn học và không thể khôi phục lại.</span>
+                <span>{t('lc.pl.del.warning')}</span>
               </div>
             </div>
 
@@ -454,7 +456,7 @@ export function PromptListBySubject() {
                 disabled={deletingId !== null}
                 className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-all disabled:opacity-50"
               >
-                Huỷ
+                {t('lc.pl.del.cancel')}
               </button>
               <button
                 type="button"
@@ -465,12 +467,12 @@ export function PromptListBySubject() {
                 {deletingId === confirmDeletePrompt.id ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Đang xoá...</span>
+                    <span>{t('lc.pl.del.deleting')}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 size={16} />
-                    <span>Xoá prompt</span>
+                    <span>{t('lc.pl.del.confirm')}</span>
                   </>
                 )}
               </button>

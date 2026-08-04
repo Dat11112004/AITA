@@ -12,6 +12,8 @@ interface AuthState {
   status: Status
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  /** Replace the signed-in user after an edit (profile screen). */
+  applyUser: (next: AuthUser) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -122,7 +124,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('guest')
   }, [])
 
-  return <AuthContext.Provider value={{ user, status, login, logout }}>{children}</AuthContext.Provider>
+  /**
+   * Adopt a fresh user object after the profile is edited, and mirror it into secure
+   * storage so a cold start shows the new name/avatar instead of the stale cached one.
+   */
+  const applyUser = useCallback(async (next: AuthUser) => {
+    setUser(next)
+    if (!DEV_PREVIEW) await secureStore.setUser(next)
+  }, [])
+
+  return (
+    <AuthContext.Provider value={{ user, status, login, logout, applyUser }}>{children}</AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthState {

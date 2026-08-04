@@ -49,6 +49,14 @@ export class SubmissionQueue extends EventEmitter {
     }
 }
 
-// Global instance to be used across requests
+// Global instance to be used across requests.
+// Used by lecturer-triggered batch grading ("chấm dồn"): 3 submissions evaluate in parallel
+// so grading a whole class after the deadline stays fast.
 export const globalSubmissionQueue = new SubmissionQueue(3);
+
+// Background grading ("chấm ngầm"): strictly one submission at a time, in the order the
+// students submitted. A submission is enqueued the moment it is created, so its position in
+// this queue is its submission order — downloading and unzipping happen inside the slot too,
+// not before it.
+export const continuousSubmissionQueue = new SubmissionQueue(1);
 

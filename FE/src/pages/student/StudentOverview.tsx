@@ -4,8 +4,10 @@ import { api } from '@/lib/api'
 import { BookOpen, ArrowRight, Loader2, Clock, CheckCircle2, FileText, Calendar } from 'lucide-react'
 import { APIError } from '@/components/common/ErrorState'
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
+import { useTranslation } from 'react-i18next'
 
 export function StudentOverview() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -94,7 +96,7 @@ export function StudentOverview() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">DEADLINE APPROACHING</span>
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-red-600 text-white rounded-full">{t('st.overview.deadline_approaching')}</span>
                 <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">{urgentAssignment.title}</h4>
               </div>
               <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-semibold">

@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { DocumentExtractor } from '../../../assignment/DocumentExtractor';
-import { globalSubmissionQueue } from '../../../application/queue/SubmissionQueue';
+import { globalSubmissionQueue, continuousSubmissionQueue, SubmissionQueue } from '../../../application/queue/SubmissionQueue';
 import { globalJobManager } from '../../../application/queue/SubmissionJobManager';
 import { SubmissionHistoryRepository } from '../../../infrastructure/file-system/SubmissionHistoryRepository';
 
@@ -214,7 +214,7 @@ export class SubmissionController extends BaseController {
         }
     }
 
-    public executeGradingForSubmission = async (submissionId: string): Promise<void> => {
+    public executeGradingForSubmission = async (submissionId: string, queue: SubmissionQueue | null = globalSubmissionQueue): Promise<void> => {
         const submissionRecord = await prisma.submission.findUnique({
             where: { Id: submissionId },
             include: { User_Submission_StudentIdToUser: true }
@@ -325,7 +325,41 @@ export class SubmissionController extends BaseController {
         };
 
         globalJobManager.initJob(submissionId);
-        this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir);
+
+        if (queue === null) {
+            // Inline: the caller already holds a continuous-queue slot and must keep holding it
+            // until this submission is fully graded, otherwise the next one would start early.
+            await this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir, null);
+        } else {
+            // Queued: hand off and return, so HTTP callers such as gradeExisting respond
+            // immediately instead of waiting for the whole evaluation.
+            void this.enqueueSubmissionJob(submissionId, publishedAssignment, engineSubmission, extractDir, queue);
+        }
+    };
+
+    /**
+     * Background grading ("chấm ngầm").
+     *
+     * Called the moment a student submits, so the position in continuousSubmissionQueue is the
+     * submission order. The slot covers the whole pipeline - download, unzip and evaluation -
+     * so only one submission is worked on at a time and an earlier submission with a large file
+     * can no longer be overtaken by a later one with a small file.
+     *
+     * The status is set to Processing up front, before the slot is awaited, so that a lecturer
+     * pressing "grade all" cannot pick the same submission up a second time while it waits.
+     */
+    public enqueueContinuousGrading = (submissionId: string): Promise<void> => {
+        globalJobManager.initJob(submissionId);
+
+        const reserve = prisma.submission
+            .update({ where: { Id: submissionId }, data: { GradingStatus: 'Processing' } })
+            .catch(err => {
+                console.error(`[ContinuousQueue] Could not reserve submission ${submissionId}:`, err);
+            });
+
+        return reserve.then(() =>
+            continuousSubmissionQueue.enqueue(() => this.executeGradingForSubmission(submissionId, null))
+        );
     };
 
     /**
@@ -376,7 +410,9 @@ export class SubmissionController extends BaseController {
                     IsLatest: true,
                     ZipFileUrl: { not: null }
                 },
-                include: { User_Submission_StudentIdToUser: true }
+                include: { User_Submission_StudentIdToUser: true },
+                // Grade in submission order rather than whatever order SQL Server returns.
+                orderBy: { SubmittedAt: 'asc' }
             });
 
             if (pendingSubmissions.length === 0) {
@@ -587,8 +623,17 @@ export class SubmissionController extends BaseController {
         }
     };
 
-    public enqueueSubmissionJob(submissionId: string, publishedAssignment: any, submission: Submission, extractDir: string) {
-        globalSubmissionQueue.enqueue(async () => {
+    /**
+     * Runs the evaluation for one submission.
+     *
+     * `queue` selects how it is scheduled:
+     *   globalSubmissionQueue (default) - batch grading, up to 3 in parallel.
+     *   null                            - run inline; used when the caller already holds a
+     *                                     slot in continuousSubmissionQueue, so the work is
+     *                                     not queued twice.
+     */
+    public enqueueSubmissionJob(submissionId: string, publishedAssignment: any, submission: Submission, extractDir: string, queue: SubmissionQueue | null = globalSubmissionQueue) {
+        const job = async () => {
             let sandboxHandle: SandboxHandle | null = null;
             try {
                 const checkCancelled = () => {
@@ -744,7 +789,9 @@ export class SubmissionController extends BaseController {
                     await fs.rm(extractDir, { recursive: true, force: true });
                 } catch (cleanupErr) { }
             }
-        }).catch(err => {
+        };
+
+        return (queue ? queue.enqueue(job) : job()).catch(err => {
             console.error(`[SubmissionController] Queue error for ${submissionId}:`, err);
         });
     }
@@ -918,12 +965,38 @@ export class SubmissionController extends BaseController {
 
     publish = async (req: Request, res: Response) => {
         const id = req.params.id as string;
-        try {
-            await prisma.submission.update({
-                where: { Id: id },
-                data: { ReviewStatus: 'PUBLISHED' }
-            });
-        } catch (e) { }
+
+        // The update used to be wrapped in an empty catch, so publishing a submission that does
+        // not exist still answered "thành công". Let a real failure surface instead.
+        const submission = await prisma.submission.update({
+            where: { Id: id },
+            data: { ReviewStatus: 'PUBLISHED' },
+            select: { Id: true, StudentId: true, Exam: { select: { Title: true, Id: true } } }
+        });
+
+        // This is the moment the score becomes visible to the student, so it is also the moment
+        // they should hear about it. Best-effort: a failed notification must not undo the publish.
+        if (submission.StudentId) {
+            try {
+                const title = submission.Exam?.Title ?? 'bài nộp';
+                const notif = await prisma.notification.create({
+                    data: {
+                        Title: `Đã có điểm: ${title}`,
+                        Message: `Giảng viên đã công bố điểm cho bài "${title}". Vào mục Kết quả để xem điểm và nhận xét.`,
+                        Type: 'GRADE_PUBLISHED',
+                        ReferenceId: submission.Id,
+                        ReferenceType: 'SUBMISSION',
+                        CreatedBy: (req as any).user?.id,
+                    }
+                });
+                await prisma.notificationRecipient.create({
+                    data: { NotificationId: notif.Id, UserId: submission.StudentId, IsRead: false }
+                });
+            } catch (notifErr) {
+                console.error('Failed to create grade-published notification:', notifErr);
+            }
+        }
+
         this.ok(res, { success: true, isPublished: true, reviewStatus: 'PUBLISHED' }, 'Đã công bố kết quả cho học sinh thành công!');
     };
 
