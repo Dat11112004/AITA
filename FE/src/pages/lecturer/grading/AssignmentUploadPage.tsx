@@ -523,7 +523,7 @@ export default function AssignmentUploadPage() {
 
                 {/* Clean Background to match mockup */}
 
-                <div className="max-w-6xl mx-auto w-full flex flex-col flex-1 relative z-10 px-6 lg:px-12 pt-5 pb-6">
+                <div className={classNames("mx-auto w-full flex flex-col flex-1 relative z-10 pt-5 pb-6 transition-all duration-300", isDrawerOpen ? "max-w-full px-4 sm:px-6" : "max-w-6xl px-6 lg:px-12")}>
                     <div className="mb-3 animate-fade-in">
                         <button onClick={() => { aiGenerationStore.reset(); navigate(`/lecturer/grading/assignments`); }} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
                             <ArrowLeft size={20} />
@@ -662,8 +662,8 @@ export default function AssignmentUploadPage() {
                                         <>
                                             <div className="border border-slate-200/90 rounded-[24px] p-5 md:p-6 bg-white flex flex-col flex-1 min-h-[460px] shadow-2xs">
                                                 {/* Clean Single-Row Selection Bar */}
-                                                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-4 flex items-center gap-4 shadow-2xs">
-                                                    <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                                                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-4 shadow-2xs max-w-full">
+                                                    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 max-w-full">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
                                                                 Semester <span className="text-rose-500">*</span>
@@ -790,8 +790,8 @@ export default function AssignmentUploadPage() {
                                     ) : (
                                         <div className="border border-slate-200/90 rounded-[24px] p-5 md:p-6 bg-white flex flex-col flex-1 min-h-[460px] shadow-2xs">
                                             {/* Clean Single-Row Selection Bar for File Upload */}
-                                            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-6 flex items-center gap-4 shadow-2xs">
-                                                <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                                            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 md:p-4 mb-6 shadow-2xs max-w-full">
+                                                <div className="flex flex-wrap items-center gap-x-5 gap-y-3 max-w-full">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">
                                                             Semester <span className="text-rose-500">*</span>
@@ -1582,7 +1582,7 @@ export default function AssignmentUploadPage() {
                                                     : "bg-white border-slate-200 text-slate-700 hover:border-brand-300 font-medium"
                                             )}
                                         >
-                                            <span className="text-[14px]">[{subj}]</span>
+                                            <span className="text-[14px] font-semibold">{subj}</span>
                                             {isSelected && (
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-900">
                                                     <polyline points="20 6 9 17 4 12"></polyline>

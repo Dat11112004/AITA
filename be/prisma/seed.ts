@@ -82,10 +82,36 @@ async function main() {
       Email: 'student@fpt.edu.vn',
       PasswordHash: await hash('student123'),
       FullName: 'Trần Thị Sinh',
-      StudentCode: 'HE170001',
+      StudentCode: 'HE170000',
       Status: 'Active',
     },
   })
+
+  // Create 3 specific student accounts requested for PRM, CSD, PRN classes
+  const seedStudentsData = [
+    { email: 'student1@fpt.edu.vn', name: 'Lê Văn An', code: 'HE170001' },
+    { email: 'student2@fpt.edu.vn', name: 'Phạm Thị Bình', code: 'HE170002' },
+    { email: 'student3@fpt.edu.vn', name: 'Hoàng Văn Cường', code: 'HE170003' },
+  ]
+
+  const seededStudents = [student]
+  for (const st of seedStudentsData) {
+    const sUser = await prisma.user.upsert({
+      where: { Email: st.email },
+      update: {
+        FullName: st.name,
+        StudentCode: st.code,
+      },
+      create: {
+        Email: st.email,
+        PasswordHash: await hash('student123'),
+        FullName: st.name,
+        StudentCode: st.code,
+        Status: 'Active',
+      },
+    })
+    seededStudents.push(sUser)
+  }
 
   // Assign roles
   await prisma.userRole.upsert({
@@ -100,11 +126,13 @@ async function main() {
     create: { UserId: lecturer.Id, RoleId: lecturerRole.Id },
   })
 
-  await prisma.userRole.upsert({
-    where: { UserId_RoleId: { UserId: student.Id, RoleId: studentRole.Id } },
-    update: {},
-    create: { UserId: student.Id, RoleId: studentRole.Id },
-  })
+  for (const stUser of seededStudents) {
+    await prisma.userRole.upsert({
+      where: { UserId_RoleId: { UserId: stUser.Id, RoleId: studentRole.Id } },
+      update: {},
+      create: { UserId: stUser.Id, RoleId: studentRole.Id },
+    })
+  }
 
   // Create subjects
   const defaultSubjects: Array<{ code: string; name: string; desc: string; semester: number; syllabus?: any }> = [
@@ -141,8 +169,11 @@ async function main() {
     })
   }
 
-  // Fetch PRJ301 to use as default subject for subsequent dummy test items below
-  const subject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'PRJ301' } })
+  // Fetch subjects for class creation
+  const prjSubject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'PRJ301' } })
+  const prmSubject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'PRM392' } })
+  const csdSubject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'CSD201' } })
+  const prnSubject = await prisma.subject.findUniqueOrThrow({ where: { SubjectCode: 'PRN212' } })
 
   // Create semester
   const semester = await prisma.semester.upsert({
@@ -157,37 +188,48 @@ async function main() {
     },
   })
 
-  // Create class
-  const cls = await prisma.class.upsert({
-    where: {
-      ClassCode_SubjectId_SemesterId: {
-        ClassCode: 'PRJ301-SE1701',
-        SubjectId: subject.Id,
-        SemesterId: semester.Id,
+  // Create classes for target subjects (PRM, CSD, PRN) and assign Lecturer Nguyễn Văn Giảng + Students
+  const targetClassesConfig = [
+    { code: 'PRJ301-SE1701', subjectId: prjSubject.Id },
+    { code: 'PRM392-SE1701', subjectId: prmSubject.Id },
+    { code: 'CSD201-SE1701', subjectId: csdSubject.Id },
+    { code: 'PRN212-SE1701', subjectId: prnSubject.Id },
+  ]
+
+  for (const cfg of targetClassesConfig) {
+    const cls = await prisma.class.upsert({
+      where: {
+        ClassCode_SubjectId_SemesterId: {
+          ClassCode: cfg.code,
+          SubjectId: cfg.subjectId,
+          SemesterId: semester.Id,
+        },
       },
-    },
-    update: {},
-    create: {
-      ClassCode: 'PRJ301-SE1701',
-      SubjectId: subject.Id,
-      SemesterId: semester.Id,
-      Status: 'Active',
-    },
-  })
+      update: {},
+      create: {
+        ClassCode: cfg.code,
+        SubjectId: cfg.subjectId,
+        SemesterId: semester.Id,
+        Status: 'Active',
+      },
+    })
 
-  // Assign instructor to class
-  await prisma.instructorClass.upsert({
-    where: { UserId_ClassId: { UserId: lecturer.Id, ClassId: cls.Id } },
-    update: {},
-    create: { UserId: lecturer.Id, ClassId: cls.Id },
-  })
+    // Assign Lecturer Nguyễn Văn Giảng as instructor for the class
+    await prisma.instructorClass.upsert({
+      where: { UserId_ClassId: { UserId: lecturer.Id, ClassId: cls.Id } },
+      update: {},
+      create: { UserId: lecturer.Id, ClassId: cls.Id },
+    })
 
-  // Enroll student in class
-  await prisma.studentClass.upsert({
-    where: { UserId_ClassId: { UserId: student.Id, ClassId: cls.Id } },
-    update: {},
-    create: { UserId: student.Id, ClassId: cls.Id },
-  })
+    // Enroll all 3 students (and default student) into the class
+    for (const stUser of seededStudents) {
+      await prisma.studentClass.upsert({
+        where: { UserId_ClassId: { UserId: stUser.Id, ClassId: cls.Id } },
+        update: {},
+        create: { UserId: stUser.Id, ClassId: cls.Id },
+      })
+    }
+  }
 
   // Exams will be created by lecturer through + Tạo Lab / Bài tập
 
@@ -197,14 +239,16 @@ async function main() {
       UserId: admin.Id,
       Action: 'Created',
       EntityName: 'Database',
-      NewValue: JSON.stringify({ users: 3, classes: 1 }),
+      NewValue: JSON.stringify({ users: 6, classes: 4 }),
     },
   })
 
   console.log('✅ Seed xong!')
-  console.log('   admin@fpt.edu.vn / admin123')
-  console.log('   lecturer@fpt.edu.vn / lecturer123')
-  console.log('   student@fpt.edu.vn / student123')
+  console.log('   Quản trị: admin@fpt.edu.vn / admin123')
+  console.log('   Giảng viên Nguyễn Văn Giảng: lecturer@fpt.edu.vn / lecturer123')
+  console.log('   Học sinh 1 (Lê Văn An): student1@fpt.edu.vn / student123 (môn PRM, CSD, PRN)')
+  console.log('   Học sinh 2 (Phạm Thị Bình): student2@fpt.edu.vn / student123 (môn PRM, CSD, PRN)')
+  console.log('   Học sinh 3 (Hoàng Văn Cường): student3@fpt.edu.vn / student123 (môn PRM, CSD, PRN)')
 }
 
 main()
