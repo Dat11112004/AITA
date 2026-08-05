@@ -13,7 +13,7 @@ export class GeminiAiProvider implements IAiProvider {
     }
 
 
-    public async parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[]): Promise<ParsedBlueprint> {
+    public async parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[], subject?: string | null): Promise<ParsedBlueprint> {
         const hasImages = documentImages && documentImages.length > 0;
         const systemPrompt = `You are an expert software architect and academic grader at FPT University.
 
@@ -249,7 +249,7 @@ OUTPUT FORMAT (JSON OBJECT)
                 // happens only when another type clearly outscores the one the AI chose. The table
                 // and the rule live in ProjectTypeDetector, so adding a type means adding a row
                 // there rather than another special case here.
-                const typeDecision = detectProjectType(blueprint.projectType as string, prompt);
+                const typeDecision = detectProjectType(blueprint.projectType as string, prompt, subject);
                 if (typeDecision.changed) {
                     console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
                     blueprint.projectType = typeDecision.projectType as any;

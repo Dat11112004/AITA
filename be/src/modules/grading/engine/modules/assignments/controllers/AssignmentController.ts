@@ -156,7 +156,7 @@ export class AssignmentController extends BaseController {
 
     parseRubric = async (req: Request, res: Response): Promise<void> => {
         try {
-            const { content, documentImageKey } = req.body;
+            const { content, documentImageKey, subject } = req.body;
             if (!content) throw new BadRequestError('No content');
 
             const requirementParser = new RequirementParserService(this.aiProvider);
@@ -175,7 +175,7 @@ export class AssignmentController extends BaseController {
                 console.log(`[AssignmentController] parseRubric: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
             }
 
-            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
+            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages, subject);
             const rubric = await rubricGenerator.generateRubricAsync(draftBlueprint);
 
             this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
@@ -209,7 +209,8 @@ export class AssignmentController extends BaseController {
 
     parseRequirements = async (req: Request, res: Response): Promise<void> => {
         try {
-            const { content, documentImageKey } = req.body;
+            // `subject` is optional: older callers omit it and fall back to keyword scoring.
+            const { content, documentImageKey, subject } = req.body;
             if (!content) throw new BadRequestError('No content');
             const requirementParser = new RequirementParserService(this.aiProvider);
 
@@ -226,7 +227,7 @@ export class AssignmentController extends BaseController {
                 console.log(`[AssignmentController] parseRequirements: Retrieved ${documentImages.length} cached images for key: ${documentImageKey}`);
             }
 
-            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages);
+            const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages, subject);
             this.ok(res, { blueprint: draftBlueprint }, 'Requirements parsed');
         } catch (error) {
             throw new Error('Error parsing requirements');

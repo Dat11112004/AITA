@@ -1,3 +1,5 @@
+import { getSubjectPolicy, normaliseSubjectCode } from './SubjectProjectTypes.js';
+
 /**
  * Keyword evidence for the project types that can be recognised from prompt text.
  *
@@ -76,7 +78,27 @@ export interface ProjectTypeDecision {
  * so a well-evidenced algorithm or database prompt still overrides it - the case this fallback
  * was written for.
  */
-export function detectProjectType(aiProjectType: string, prompt: string): ProjectTypeDecision {
+export function detectProjectType(aiProjectType: string, prompt: string, subject?: string | null): ProjectTypeDecision {
+    // The subject is the one deterministic fact here: the lecturer picked it on the form, and
+    // DBI202 is a SQL course no matter which words the prompt happens to contain. Where a
+    // subject is mapped, its policy settles the question and the keyword table is not consulted.
+    const policy = getSubjectPolicy(subject);
+    if (policy) {
+        const code = normaliseSubjectCode(subject);
+        if (policy.allowed.includes(aiProjectType)) {
+            return {
+                projectType: aiProjectType,
+                changed: false,
+                reason: `subject ${code} allows "${aiProjectType}"`
+            };
+        }
+        return {
+            projectType: policy.fallback,
+            changed: true,
+            reason: `subject ${code} cannot produce "${aiProjectType}" (allowed: ${policy.allowed.join('/')}), using "${policy.fallback}"`
+        };
+    }
+
     const lowerPrompt = (prompt || '').toLowerCase();
 
     const scores = Object.entries(PROJECT_TYPE_SIGNALS).map(([type, signals]) => ({
