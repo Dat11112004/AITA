@@ -23,6 +23,19 @@ Gợi ý: dynamic programming hoặc greedy.`
 const FRONTEND_PROMPT = `Xây dựng giao diện quản lý sản phẩm bằng React, gọi API bằng fetch,
 hiển thị danh sách dạng bảng, có phân trang và tìm kiếm. Yêu cầu responsive trên mobile.`
 
+// An app that *uses* a database is not a SQL exercise. Both of these were relabelled
+// "database" when the signal list still counted "cơ sở dữ liệu", "primary key", "transaction"
+// and a bare "index" - the last one matching index.jsp.
+const PRJ301_PROMPT = `Xây dựng ứng dụng web quản lý bán hàng bằng Java Servlet/JSP theo mô hình MVC.
+Sinh viên phải kết nối cơ sở dữ liệu bằng JDBC, viết các truy vấn lấy danh sách sản phẩm.
+Trang index.jsp hiển thị danh sách, có phân trang. Quản lý phiên đăng nhập bằng Session.
+Yêu cầu transaction khi đặt hàng. Bảng Product có primary key, bảng Order có foreign key.`
+
+const PRM392_PROMPT = `Xây dựng ứng dụng Android quản lý chi tiêu cá nhân.
+Dùng Room database để lưu trữ giao dịch offline, đồng bộ với REST API khi có mạng.
+Trigger cập nhật tổng chi tiêu mỗi khi thêm giao dịch mới.
+Yêu cầu xử lý transaction khi chuyển tiền giữa hai ví.`
+
 describe('detectProjectType', () => {
     describe('database prompts', () => {
         test('keeps "database" when the AI classified a DBI202 prompt correctly', () => {
@@ -55,6 +68,27 @@ describe('detectProjectType', () => {
             const result = detectProjectType('algorithm', ALGORITHM_PROMPT)
             expect(result.projectType).toBe('algorithm')
             expect(result.changed).toBe(false)
+        })
+    })
+
+    describe('apps that merely use a database', () => {
+        test('leaves a PRJ301 Java web assignment as the AI classified it', () => {
+            expect(detectProjectType('backend', PRJ301_PROMPT).projectType).toBe('backend')
+            expect(detectProjectType('fullstack', PRJ301_PROMPT).projectType).toBe('fullstack')
+        })
+
+        test('leaves a PRM392 Android assignment as mobile', () => {
+            const result = detectProjectType('mobile', PRM392_PROMPT)
+            expect(result.projectType).toBe('mobile')
+            expect(result.changed).toBe(false)
+        })
+
+        test('does not treat index.jsp as a database index', () => {
+            expect(detectProjectType('backend', 'Trang index.jsp hiển thị danh sách sản phẩm.').changed).toBe(false)
+        })
+
+        test('does not treat a UI trigger or a money transfer transaction as SQL', () => {
+            expect(detectProjectType('mobile', 'Trigger cập nhật giao diện sau mỗi transaction chuyển tiền.').changed).toBe(false)
         })
     })
 

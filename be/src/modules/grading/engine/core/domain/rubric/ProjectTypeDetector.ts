@@ -30,24 +30,34 @@ export const PROJECT_TYPE_SIGNALS: Record<string, RegExp[]> = {
         // Vietnamese patterns
         /đọc input/, /in ra màn hình/, /nhập.*từ bàn phím/, /xuất.*kết quả/
     ],
+    // Only signals that mean "writing SQL is the deliverable". Using a database is not the
+    // same thing: a Java web app or an Android app with Room hits "cơ sở dữ liệu", "primary
+    // key", "transaction" and even "index" (from index.jsp) without being a SQL exercise, and
+    // counting those relabelled PRJ301 and PRM392 assignments as database work.
     database: [
-        // Query language
-        /\bsql\b/, /\bselect\b[\s\S]{0,80}\bfrom\b/, /\binner join\b/, /\bleft join\b/, /\bjoin\b/,
-        /\bgroup by\b/, /\border by\b/, /\bhaving\b/, /\bsubquer(y|ies)\b/, /\bcte\b/,
-        // Schema & objects
-        /\bschema\b/, /\bprimary key\b/, /\bforeign key\b/, /\bnormaliz/, /\berd\b/,
-        /\bstored procedure\b/, /\btrigger\b/, /\bindex(ing|es)?\b/,
-        /\btransaction\b/, /\bdeadlock\b/, /\bacid\b/, /\bquery optimi[sz]/,
-        // Engines
-        /\bsql server\b/, /\bmysql\b/, /\bpostgres(ql)?\b/, /\boracle\b/, /\bt-sql\b/,
+        // Query language written by the student
+        /\bsql\b/, /\bselect\b[\s\S]{0,80}\bfrom\b/, /\binner join\b/, /\bleft join\b/,
+        /\bouter join\b/, /\bgroup by\b/, /\bhaving\b/, /\bsubquer(y|ies)\b/, /\bctes?\b/,
+        /\bddl\b/, /\bdml\b/,
+        // Database objects authored as the answer
+        /\bstored procedure/, /\bcreate trigger\b/, /\bcreate index\b/, /\bindexing\b/,
+        /\bnormaliz/, /\berd\b/, /\bdeadlock\b/, /\bacid\b/, /\bquery optimi[sz]/,
+        // Engines and dialects
+        /\bsql server\b/, /\bmysql\b/, /\bpostgres(ql)?\b/, /\bt-sql\b/, /\bpl\/sql\b/,
         // Vietnamese patterns
-        /cơ sở dữ liệu/, /truy vấn/, /bảng dữ liệu/, /khoá chính/, /khóa chính/,
-        /khoá ngoại/, /khóa ngoại/, /chuẩn hoá/, /chuẩn hóa/, /lược đồ/
+        /câu lệnh sql/, /truy vấn sql/, /chuẩn hoá/, /chuẩn hóa/, /lược đồ quan hệ/,
+        /lược đồ cơ sở dữ liệu/, /thủ tục lưu trữ/
     ]
 };
 
-/** Signals needed before the detector will contradict the AI at all. */
+/** Signals needed before the detector will contradict a type that has signals of its own. */
 export const MIN_SIGNALS = 2;
+/**
+ * Bar for contradicting a type with no signal list - backend, frontend, fullstack, mobile,
+ * desktop, unity. Those score 0 by definition, so a low bar would let any two stray keywords
+ * relabel them. The AI read the whole prompt; overruling it needs more than a passing mention.
+ */
+export const MIN_SIGNALS_VS_UNSCORED = 3;
 /** How far ahead the challenger must be. A prompt covering both subjects keeps the AI's call. */
 export const MIN_LEAD = 2;
 
@@ -75,6 +85,7 @@ export function detectProjectType(aiProjectType: string, prompt: string): Projec
     }));
 
     const best = scores.reduce((a, b) => (b.score > a.score ? b : a));
+    const aiTypeHasSignals = Object.prototype.hasOwnProperty.call(PROJECT_TYPE_SIGNALS, aiProjectType);
     const currentScore = scores.find(s => s.type === aiProjectType)?.score ?? 0;
     const tally = scores.map(s => `${s.type}=${s.score}`).join(', ');
 
@@ -82,7 +93,9 @@ export function detectProjectType(aiProjectType: string, prompt: string): Projec
         return { projectType: aiProjectType, changed: false, reason: `AI classification agrees with the text (${tally})` };
     }
 
-    if (best.score >= MIN_SIGNALS && best.score - currentScore >= MIN_LEAD) {
+    const required = aiTypeHasSignals ? MIN_SIGNALS : MIN_SIGNALS_VS_UNSCORED;
+
+    if (best.score >= required && best.score - currentScore >= MIN_LEAD) {
         return {
             projectType: best.type,
             changed: true,
