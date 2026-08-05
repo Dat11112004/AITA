@@ -44,5 +44,20 @@ jobs:
           script: |
             cd /www/wwwroot/AITA/AITA-main
             docker compose build --no-cache
-            docker compose up -d --force-recreate
-            docker exec -i aita-backend npx prisma db push
+            # Only the app containers are recreated. A blanket --force-recreate
+            # also restarts mssql, and SQL Server needs ~30-60s before it
+            # accepts connections, which is what broke `prisma db push` here.
+            docker compose up -d mssql
+            docker compose up -d --force-recreate backend frontend
+            # The backend may still come up before the database answers, so
+            # give the schema push a few attempts instead of one shot.
+            pushed=0
+            for attempt in $(seq 1 20); do
+              if docker exec -i aita-backend npx prisma db push; then
+                pushed=1
+                break
+              fi
+              echo "database not ready yet, retrying in 10s (attempt $attempt/20)"
+              sleep 10
+            done
+            [ "$pushed" = "1" ]
