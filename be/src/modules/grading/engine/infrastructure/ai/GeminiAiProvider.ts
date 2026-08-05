@@ -4,6 +4,7 @@ import { IAiProvider, ParsedBlueprint, ParsedRequirement, DocumentImage } from '
 import OpenAI from 'openai';
 import { config } from '../../config';
 import { AiClientManager } from './AiClientManager';
+import { detectProjectType } from '../../core/domain/rubric/ProjectTypeDetector';
 import * as crypto from 'crypto';
 
 export class GeminiAiProvider implements IAiProvider {
@@ -235,37 +236,25 @@ OUTPUT FORMAT (JSON OBJECT)
                 }
 
                 // ═══════════════════════════════════════════════════════
-                // CODE-LEVEL ALGORITHM DETECTION FALLBACK
+                // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
                 // ═══════════════════════════════════════════════════════
-                // If the AI misclassifies an algorithm problem as "backend" or "frontend" (e.g., because
-                // the teacher mentioned "Node.js" or "React"), we detect it here using keyword analysis
-                // on the ORIGINAL prompt text and forcefully correct the projectType.
-                if (blueprint.projectType !== "algorithm") {
-                    const lowerPrompt = prompt.toLowerCase();
-                    const algoSignals = [
-                        // I/O patterns
-                        /\bstdin\b/, /\bstdout\b/, /\bstandard input\b/, /\bstandard output\b/,
-                        /\bread.*input\b/, /\bprint.*output\b/, /\bconsole.*input\b/,
-                        // Classic algorithm names
-                        /\btwo sum\b/, /\bthree sum\b/, /\bfibonacci\b/, /\bprime\b/,
-                        /\bpalindrome\b/, /\banagram\b/, /\bsubstring\b/, /\bsubarray\b/,
-                        /\bknapsack\b/, /\blongest common\b/, /\bshortest path\b/,
-                        // Data structures & techniques
-                        /\blinked list\b/, /\bbinary tree\b/, /\bgraph\b/, /\bheap\b/, /\bstack\b/, /\bqueue\b/,
-                        /\bsort(ing)?\b/, /\bbinary search\b/, /\bbfs\b/, /\bdfs\b/,
-                        /\bdynamic programming\b/, /\bhash\s*map\b/, /\bhash\s*table\b/,
-                        /\bgreedy\b/, /\brecursion\b/, /\bbacktracking\b/, /\bdivide and conquer\b/,
-                        // Complexity analysis
-                        /\bo\(n\)/, /\bo\(n\^2\)/, /\bo\(log\s*n\)/, /\bo\(n\s*log\s*n\)/,
-                        /\btime complexity\b/, /\bspace complexity\b/,
-                        // Vietnamese patterns
-                        /đọc input/, /in ra màn hình/, /nhập.*từ bàn phím/, /xuất.*kết quả/
-                    ];
-                    const matchCount = algoSignals.filter(rx => rx.test(lowerPrompt)).length;
-                    if (matchCount >= 2) {
-                        console.log(`[GeminiAiProvider] Algorithm detection override: ${matchCount} signals found. Reclassifying from "${blueprint.projectType}" to "algorithm".`);
-                        blueprint.projectType = "algorithm" as any;
-                    }
+                // Catches the AI misreading a prompt - the original case being an algorithm problem
+                // called "backend" because the teacher mentioned Node.js. It used to count algorithm
+                // keywords only and rewrite anything that was not already "algorithm", so a DBI202
+                // prompt asking students to analyse "Time Complexity" and "Space Complexity" scored
+                // two signals and became an algorithm - graded through a stdin/stdout judge, with the
+                // SQL vocabulary all over the same prompt never counted at all.
+                //
+                // Every type that can be detected from text brings its own signals, and a rewrite
+                // happens only when another type clearly outscores the one the AI chose. The table
+                // and the rule live in ProjectTypeDetector, so adding a type means adding a row
+                // there rather than another special case here.
+                const typeDecision = detectProjectType(blueprint.projectType as string, prompt);
+                if (typeDecision.changed) {
+                    console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
+                    blueprint.projectType = typeDecision.projectType as any;
+                } else {
+                    console.log(`[GeminiAiProvider] Project type "${blueprint.projectType}": ${typeDecision.reason}.`);
                 }
 
                 // ═══════════════════════════════════════════════════════
