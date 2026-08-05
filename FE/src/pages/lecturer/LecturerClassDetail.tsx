@@ -76,8 +76,10 @@ export function LecturerClassDetail() {
     const handleFocus = () => loadData()
     window.addEventListener('focus', handleFocus)
     const interval = setInterval(() => {
-      loadData()
-    }, 5000)
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData()
+      }
+    }, 30000)
 
     return () => {
       window.removeEventListener('focus', handleFocus)
