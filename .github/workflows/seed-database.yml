@@ -1,0 +1,39 @@
+name: Seed AITA database
+
+# Run by hand from the Actions tab. The deploy workflow seeds accounts only, on
+# purpose: the full seed rewrites subject descriptions and syllabi, which is
+# right when you are filling a fresh database and wrong on every push to main.
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'full = subjects, semester, classes, enrolments and accounts. accounts = roles and the six accounts only.'
+        type: choice
+        options:
+          - full
+          - accounts
+        default: full
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run the seed on the server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script_stop: true
+          # `npx tsx`, not `prisma db seed`: prisma spawns the configured
+          # command without node_modules/.bin on PATH and dies with ENOENT.
+          script: |
+            cd /www/wwwroot/AITA/AITA-main
+            if [ "${{ inputs.scope }}" = "accounts" ]; then
+              docker exec -e SEED_SCOPE=accounts -i aita-backend npx tsx prisma/seed.ts
+            else
+              docker exec -i aita-backend npx tsx prisma/seed.ts
+            fi
