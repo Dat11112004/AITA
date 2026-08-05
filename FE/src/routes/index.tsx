@@ -6,7 +6,6 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import { HomePage } from '@/pages/home/HomePage'
 import { AboutPage } from '@/pages/home/AboutPage'
 import { FeaturesPage } from '@/pages/home/FeaturesPage'
-import { PillarsPage } from '@/pages/home/PillarsPage'
 import BatchDashboard from '@/pages/lecturer/grading/BatchDashboard'
 import LiveJobPage from '@/pages/lecturer/grading/LiveJobPage'
 import AssignmentsListPage from '@/pages/lecturer/grading/AssignmentsListPage'
@@ -60,7 +59,6 @@ export function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="features" element={<FeaturesPage />} />
-        <Route path="pillars" element={<PillarsPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

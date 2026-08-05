@@ -35,7 +35,6 @@ export const PUBLIC_NAV = [
   { label: 'Home', href: '/' },
   { label: 'About', href: '/about' },
   { label: 'Features', href: '/features' },
-  { label: 'Demo', href: '/pillars' },
 ]
 
 export const PORTAL_LINKS = [
