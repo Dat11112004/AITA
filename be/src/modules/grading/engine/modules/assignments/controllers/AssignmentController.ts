@@ -10,6 +10,7 @@ import { TestSuiteGeneratorService } from '../../../assignment/TestSuiteGenerato
 import { PublishedAssignmentRepository, globalAssignmentRepository } from '../../../assignment/PublishedAssignmentRepository';
 import { GeminiAiProvider } from '../../../infrastructure/ai/GeminiAiProvider';
 import { PublishedAssignment } from '../../../core/domain/submission/PublishedAssignment';
+import { isSqlGradedRule, findSqlRulesMissingAnswerKey, buildMissingAnswerKeyMessage } from '../../../core/domain/rubric/AnswerKeyGuard';
 import { DocumentImage } from '../../../core/contracts/IAiProvider';
 import { BadRequestError } from '../../../shared/errors';
 import { v4 as uuidv4 } from 'uuid';
@@ -247,6 +248,15 @@ export class AssignmentController extends BaseController {
     publish = async (req: Request, res: Response): Promise<void> => {
         try {
             const { metadata, blueprint, rubric } = req.body;
+
+            // A SqlExecutionProbe rule only has test cases once an answer key has been uploaded
+            // and parsed. Publishing without one is silently destructive - see AnswerKeyGuard.
+            const sqlRules = (rubric?.rules ?? []).filter(isSqlGradedRule);
+            const rulesMissingKey = findSqlRulesMissingAnswerKey(rubric?.rules);
+            if (rulesMissingKey.length > 0) {
+                throw new BadRequestError(buildMissingAnswerKeyMessage(rulesMissingKey, sqlRules.length));
+            }
+
             const testSuiteGen = new TestSuiteGeneratorService();
             const testSuites = await testSuiteGen.generateTestSuitesAsync(blueprint);
 
