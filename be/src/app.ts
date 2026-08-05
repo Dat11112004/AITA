@@ -13,16 +13,28 @@ export function createApp() {
   const app = express()
 
   app.use(helmet())
-  // Accept both :5173 and :5174 for frontend dev
+  // Accept both :5173 and :5174 for frontend dev.
+  // :8081 = Expo/Metro web (mobile app reviewed in the browser).
+  const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:8081']
+  // Anything deployed lives on some other origin, so CORS_ORIGIN carries it:
+  // either '*' or a comma-separated list.
+  const configuredOrigins = env.CORS_ORIGIN.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const allowEveryOrigin = configuredOrigins.includes('*')
+  const allowedOrigins = new Set([...devOrigins, ...configuredOrigins])
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-      // :8081 = Expo/Metro web (mobile app reviewed in the browser)
-      const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:8081']
-      if (!origin || allowedOrigins.includes(origin)) {
+      // No Origin header at all means a same-origin GET, curl or another server.
+      if (!origin || allowEveryOrigin || allowedOrigins.has(origin)) {
         callback(null, true)
-      } else {
-        callback(new Error('CORS not allowed'))
+        return
       }
+      // Answer without the CORS headers and let the browser refuse the response.
+      // Passing an Error here instead turned every request from an unlisted
+      // origin into a 500 — and browsers send Origin on every POST, same-origin
+      // included, so a deployed site could not log in at all.
+      callback(null, false)
     },
     credentials: true
   }

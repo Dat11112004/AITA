@@ -231,7 +231,7 @@ Source of truth: `src/config/env.ts` (parsed/validated with Zod at startup).
 | `JWT_EXPIRES_IN` | no | `7d` | token lifetime |
 | `PORT` | no | `3001` | FE dev proxy expects `3001` |
 | `NODE_ENV` | no | `development` | non‑prod leaks `String(err)` in errors |
-| `CORS_ORIGIN` | no | `http://localhost:5173` | set to the FE origin in prod |
+| `CORS_ORIGIN` | no | `http://localhost:5173` | set to the FE origin in prod; accepts `*` or a comma‑separated list. The dev origins (`5173`/`5174`/`3000`/`8081`) are always allowed on top of it |
 | `AI_ENDPOINT` | no | `http://localhost:8000` | base URL of the Python service |
 | `AI_STUB_MODE` | no | **ON when unset** | real Gemini only when explicitly `false` |
 
