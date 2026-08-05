@@ -1600,22 +1600,22 @@ export function AdminUsers() {
                     }
 
                     return (
-                      <div className="relative inline-block">
+                      <div className="relative w-[111px] h-[146px] rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-800">
                         {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className={`w-10 h-10 rounded-full object-cover shadow-sm ${isLocked ? 'opacity-50 grayscale' : ''}`} />
+                          <img src={u.avatar} alt={u.name} className={`w-full h-full object-cover ${isLocked ? 'opacity-50 grayscale' : ''}`} />
                         ) : (
-                          <div className={`w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-base shadow-sm ${isLocked ? 'opacity-50' : ''}`}>
+                          <div className={`w-full h-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-3xl ${isLocked ? 'opacity-50' : ''}`}>
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <span
-                          className={`absolute -bottom-0.5 -right-0.5 block w-3 h-3 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`}
+                          className={`absolute bottom-1.5 right-1.5 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`}
                           title={isLocked ? 'Locked' : isOnline ? 'Active' : 'Inactive'}
                         />
                       </div>
                     );
                   },
-                  className: 'w-16'
+                  className: 'w-[140px]'
                 },
                 {
                   key: 'name',
