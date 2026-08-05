@@ -61,3 +61,9 @@ jobs:
               sleep 10
             done
             [ "$pushed" = "1" ]
+            # `db push` only syncs the schema, so the server has never had the
+            # base roles and accounts - lecturer@ and student@ answer 401 there
+            # while admin@ works. The seed is every-upsert with no deleteMany,
+            # and existing users carry `update: {}`, so it fills in what is
+            # missing and never touches a password anyone has changed.
+            docker exec -i aita-backend npx prisma db seed
