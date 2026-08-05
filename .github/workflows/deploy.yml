@@ -63,7 +63,16 @@ jobs:
             [ "$pushed" = "1" ]
             # `db push` only syncs the schema, so the server has never had the
             # base roles and accounts - lecturer@ and student@ answer 401 there
-            # while admin@ works. The seed is every-upsert with no deleteMany,
-            # and existing users carry `update: {}`, so it fills in what is
-            # missing and never touches a password anyone has changed.
-            docker exec -i aita-backend npx prisma db seed
+            # while admin@ works.
+            #
+            # Called through `npx tsx` rather than `prisma db seed`: prisma
+            # spawns the configured command without node_modules/.bin on PATH,
+            # so it died with "ENOENT: tsx prisma/seed.ts". The container's own
+            # CMD is `npx tsx src/server.ts`, so this form is known to work.
+            #
+            # SEED_SCOPE=accounts seeds only roles, the six accounts and their
+            # role rows - all upserts, no deleteMany, and existing users carry
+            # `update: {}` so no changed password is reset. The full seed is
+            # deliberately avoided here: it rewrites subject descriptions and
+            # syllabi that lecturers edit in the app.
+            docker exec -e SEED_SCOPE=accounts -i aita-backend npx tsx prisma/seed.ts

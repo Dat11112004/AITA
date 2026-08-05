@@ -31,6 +31,13 @@ async function main() {
 
   const hash = (p: string) => bcrypt.hash(p, 10)
 
+  // The deploy runs this on every push to main, and everything below the role
+  // assignments rewrites content people edit through the app: the subject
+  // upserts overwrite SubjectName/Description/SyllabusData, and the audit log
+  // gains a row per run. SEED_SCOPE=accounts stops after roles and users, which
+  // is all a deployed server needs for people to be able to log in.
+  const accountsOnly = process.env.SEED_SCOPE === 'accounts'
+
   // Create roles first
   const adminRole = await prisma.role.upsert({
     where: { RoleName: 'ADMIN' },
@@ -132,6 +139,14 @@ async function main() {
       update: {},
       create: { UserId: stUser.Id, RoleId: studentRole.Id },
     })
+  }
+
+  if (accountsOnly) {
+    console.log('✅ Seed (chỉ tài khoản) xong — không đụng tới môn học, lớp, học kỳ.')
+    console.log('   Quản trị: admin@fpt.edu.vn / admin123')
+    console.log('   Giảng viên: lecturer@fpt.edu.vn / lecturer123')
+    console.log('   Sinh viên: student@fpt.edu.vn, student1-3@fpt.edu.vn / student123')
+    return
   }
 
   // Create subjects
