@@ -30,10 +30,22 @@ jobs:
           script_stop: true
           # `npx tsx`, not `prisma db seed`: prisma spawns the configured
           # command without node_modules/.bin on PATH and dies with ENOENT.
+          #
+          # No `-i`: nothing is piped in, and the run above exited 1 after two
+          # seconds having printed nothing at all, which is what an exec
+          # fighting the ssh session's stdin looks like. `2>&1` so the seed's
+          # own errors reach the log as output instead of vanishing, and the
+          # checks below say which half failed when it happens again.
           script: |
             cd /www/wwwroot/AITA/AITA-main
+            echo "--- containers ---"
+            docker ps --format '{{.Names}} | {{.Status}}'
+            echo "--- seed file and runner inside the container ---"
+            docker exec aita-backend ls -l prisma/seed.ts 2>&1
+            docker exec aita-backend sh -c 'ls prisma/data/syllabi | wc -l' 2>&1
+            echo "--- seeding, scope: ${{ inputs.scope }} ---"
             if [ "${{ inputs.scope }}" = "accounts" ]; then
-              docker exec -e SEED_SCOPE=accounts -i aita-backend npx tsx prisma/seed.ts
+              docker exec -e SEED_SCOPE=accounts aita-backend npx tsx prisma/seed.ts 2>&1
             else
-              docker exec -i aita-backend npx tsx prisma/seed.ts
+              docker exec aita-backend npx tsx prisma/seed.ts 2>&1
             fi
