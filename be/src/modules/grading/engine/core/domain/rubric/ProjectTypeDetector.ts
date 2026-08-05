@@ -1,0 +1,98 @@
+/**
+ * Keyword evidence for the project types that can be recognised from prompt text.
+ *
+ * The AI classifies a prompt on its own; this is the safety net for when it misreads one.
+ * The net used to count algorithm keywords only and rewrite anything that was not already
+ * "algorithm", which meant a DBI202 prompt asking students to analyse "Time Complexity" and
+ * "Space Complexity" scored two signals and was graded as an algorithm through a stdin/stdout
+ * judge - while the SQL vocabulary filling the same prompt counted for nothing.
+ *
+ * Each detectable type brings its own signals and a rewrite needs a clear win, so adding a
+ * type means adding a row here rather than another special case at the call site.
+ */
+export const PROJECT_TYPE_SIGNALS: Record<string, RegExp[]> = {
+    algorithm: [
+        // I/O patterns
+        /\bstdin\b/, /\bstdout\b/, /\bstandard input\b/, /\bstandard output\b/,
+        /\bread.*input\b/, /\bprint.*output\b/, /\bconsole.*input\b/,
+        // Classic algorithm names
+        /\btwo sum\b/, /\bthree sum\b/, /\bfibonacci\b/, /\bprime\b/,
+        /\bpalindrome\b/, /\banagram\b/, /\bsubstring\b/, /\bsubarray\b/,
+        /\bknapsack\b/, /\blongest common\b/, /\bshortest path\b/,
+        // Data structures & techniques
+        /\blinked list\b/, /\bbinary tree\b/, /\bgraph\b/, /\bheap\b/, /\bstack\b/, /\bqueue\b/,
+        /\bsort(ing)?\b/, /\bbinary search\b/, /\bbfs\b/, /\bdfs\b/,
+        /\bdynamic programming\b/, /\bhash\s*map\b/, /\bhash\s*table\b/,
+        /\bgreedy\b/, /\brecursion\b/, /\bbacktracking\b/, /\bdivide and conquer\b/,
+        // Complexity analysis
+        /\bo\(n\)/, /\bo\(n\^2\)/, /\bo\(log\s*n\)/, /\bo\(n\s*log\s*n\)/,
+        /\btime complexity\b/, /\bspace complexity\b/,
+        // Vietnamese patterns
+        /đọc input/, /in ra màn hình/, /nhập.*từ bàn phím/, /xuất.*kết quả/
+    ],
+    database: [
+        // Query language
+        /\bsql\b/, /\bselect\b[\s\S]{0,80}\bfrom\b/, /\binner join\b/, /\bleft join\b/, /\bjoin\b/,
+        /\bgroup by\b/, /\border by\b/, /\bhaving\b/, /\bsubquer(y|ies)\b/, /\bcte\b/,
+        // Schema & objects
+        /\bschema\b/, /\bprimary key\b/, /\bforeign key\b/, /\bnormaliz/, /\berd\b/,
+        /\bstored procedure\b/, /\btrigger\b/, /\bindex(ing|es)?\b/,
+        /\btransaction\b/, /\bdeadlock\b/, /\bacid\b/, /\bquery optimi[sz]/,
+        // Engines
+        /\bsql server\b/, /\bmysql\b/, /\bpostgres(ql)?\b/, /\boracle\b/, /\bt-sql\b/,
+        // Vietnamese patterns
+        /cơ sở dữ liệu/, /truy vấn/, /bảng dữ liệu/, /khoá chính/, /khóa chính/,
+        /khoá ngoại/, /khóa ngoại/, /chuẩn hoá/, /chuẩn hóa/, /lược đồ/
+    ]
+};
+
+/** Signals needed before the detector will contradict the AI at all. */
+export const MIN_SIGNALS = 2;
+/** How far ahead the challenger must be. A prompt covering both subjects keeps the AI's call. */
+export const MIN_LEAD = 2;
+
+export interface ProjectTypeDecision {
+    /** The type to use: either the AI's, or the challenger when it clearly wins. */
+    projectType: string;
+    changed: boolean;
+    /** Human-readable tally, for the log line at the call site. */
+    reason: string;
+}
+
+/**
+ * Decide the project type from the AI's classification and the prompt text.
+ *
+ * A type with no signal list (backend, frontend, mobile, unity, desktop, fullstack) scores 0,
+ * so a well-evidenced algorithm or database prompt still overrides it - the case this fallback
+ * was written for.
+ */
+export function detectProjectType(aiProjectType: string, prompt: string): ProjectTypeDecision {
+    const lowerPrompt = (prompt || '').toLowerCase();
+
+    const scores = Object.entries(PROJECT_TYPE_SIGNALS).map(([type, signals]) => ({
+        type,
+        score: signals.filter(rx => rx.test(lowerPrompt)).length
+    }));
+
+    const best = scores.reduce((a, b) => (b.score > a.score ? b : a));
+    const currentScore = scores.find(s => s.type === aiProjectType)?.score ?? 0;
+    const tally = scores.map(s => `${s.type}=${s.score}`).join(', ');
+
+    if (best.type === aiProjectType) {
+        return { projectType: aiProjectType, changed: false, reason: `AI classification agrees with the text (${tally})` };
+    }
+
+    if (best.score >= MIN_SIGNALS && best.score - currentScore >= MIN_LEAD) {
+        return {
+            projectType: best.type,
+            changed: true,
+            reason: `"${best.type}" outscored "${aiProjectType}" by ${best.score - currentScore} (${tally})`
+        };
+    }
+
+    return {
+        projectType: aiProjectType,
+        changed: false,
+        reason: `kept "${aiProjectType}"; no clear winner (${tally})`
+    };
+}
