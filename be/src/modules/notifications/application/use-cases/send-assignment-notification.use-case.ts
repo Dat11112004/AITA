@@ -72,45 +72,10 @@ export class SendAssignmentNotificationUseCase {
                     }
                 }
                 students = Array.from(uniqueStudentsMap.values())
-            } else if (subject?.Id) {
-                // Fallback: get all students enrolled in classes belonging to this subject
-                const studentClasses = await prisma.studentClass.findMany({
-                    where: { Class: { SubjectId: subject.Id } },
-                    include: { User: true }
-                })
-                const uniqueStudentsMap = new Map<string, any>()
-                for (const sc of studentClasses) {
-                    if (sc.User) {
-                        uniqueStudentsMap.set(sc.UserId, sc.User)
-                    }
-                }
-                students = Array.from(uniqueStudentsMap.values())
             }
 
             if (students.length === 0) {
-                // Fallback 2: Find all student users in system
-                const allStudents = await prisma.user.findMany({
-                    where: {
-                        OR: [
-                            { UserRole: { some: { Role: { RoleName: { in: ['Student', 'STUDENT'] } } } } },
-                            { StudentCode: { not: null } }
-                        ]
-                    }
-                })
-                students = allStudents
-            }
-
-            if (students.length === 0) {
-                // Fallback 3: Send to all active users except the creator
-                students = await prisma.user.findMany({
-                    where: {
-                        Id: { not: params.createdBy }
-                    }
-                })
-            }
-
-            if (students.length === 0) {
-                logger.warn(`SendAssignmentNotificationUseCase: No target students found for exam ${params.examId}`)
+                logger.warn(`SendAssignmentNotificationUseCase: No enrolled students found in target classes for exam ${params.examId}. Notification skipped.`)
                 return
             }
 

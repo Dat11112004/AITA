@@ -705,7 +705,9 @@ export function StudentAssignmentDetail() {
               <ChevronRight size={14} />
               <Link to="/student/subjects" className="hover:text-slate-600 cursor-pointer transition-colors">Subject</Link>
               <ChevronRight size={14} />
-              <Link to="/student/subjects" state={{ expand: assignment.subjectId }} className="hover:text-slate-600 cursor-pointer transition-colors">{assignment.subjectName ? assignment.subjectName.split(' - ')[0] : 'CSD201'}</Link>
+              <Link to="/student/subjects" state={{ expand: assignment.subjectId }} className="hover:text-slate-600 cursor-pointer transition-colors">
+                {assignment.subjectName ? assignment.subjectName.split(' - ')[0] : ((assignment as any).subjectCode || (assignment as any).subject || (assignment.title?.split(':')?.[0]?.trim()) || 'Subject')}
+              </Link>
               <ChevronRight size={14} />
               <span className="font-medium text-slate-700 dark:text-slate-300">{assignment.title}</span>
             </div>
@@ -1252,7 +1254,9 @@ export function StudentAssignmentDetail() {
             <div className="px-5 py-2 space-y-4 text-sm">
               <div className="flex justify-between items-start gap-4">
                 <span className="text-slate-500 shrink-0 mt-0.5">Subject</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300 text-right">{assignment.subjectName || 'CSD201 - Mobile Application Dev'}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300 text-right">
+                  {assignment.subjectName || (assignment as any).subjectCode || (assignment as any).subject || (assignment.title?.split(':')?.[0]?.trim()) || 'Subject'}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Lecturer</span>
