@@ -212,150 +212,150 @@ export function LecturerClasses() {
             </div>
           ) : (
             sortedSeasons.map(season => {
-            const isExpanded = expandedSeasons[season.seasonName];
-            const semesterCount = Object.keys(season.semesters).length;
-            const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
+              const isExpanded = expandedSeasons[season.seasonName];
+              const semesterCount = Object.keys(season.semesters).length;
+              const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
 
-            return (
-              <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              return (
+                <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
 
-                {/* Season Header */}
-                <div
-                  onClick={() => toggleSeason(season.seasonName)}
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getSeasonBg(season.seasonName)}`}>
-                      {getSeasonIcon(season.seasonName)}
+                  {/* Season Header */}
+                  <div
+                    onClick={() => toggleSeason(season.seasonName)}
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getSeasonBg(season.seasonName)}`}>
+                        {getSeasonIcon(season.seasonName)}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-lg font-bold text-slate-800">
+                          {season.seasonName === OTHER_SEASON ? t('lc.cls.other_seasons') : season.seasonName}
+                        </h2>
+                        {season.isActive && (
+                          <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                            {t('lc.cls.in_progress')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-bold text-slate-800">
-                        {season.seasonName === OTHER_SEASON ? t('lc.cls.other_seasons') : season.seasonName}
-                      </h2>
-                      {season.isActive && (
-                        <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                          {t('lc.cls.in_progress')}
-                        </span>
-                      )}
+                    <div className="flex items-center gap-4 text-slate-500">
+                      <span className="text-sm font-medium text-indigo-600">{t('lc.cls.semesters_count', { n: semesterCount })}</span>
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-slate-500">
-                    <span className="text-sm font-medium text-indigo-600">{t('lc.cls.semesters_count', { n: semesterCount })}</span>
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
-                  </div>
-                </div>
 
-                {/* Season Content */}
-                {isExpanded && (
-                  <div className="p-4 pt-0 border-t border-slate-100 space-y-4">
-                    {sortedSemesters.map(semester => {
-                      const isSemExpanded = expandedSemesters[semester.semesterId];
-                      const subjectCount = Object.keys(semester.subjects).length;
-                      const sortedSubjects = Object.values(semester.subjects).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+                  {/* Season Content */}
+                  {isExpanded && (
+                    <div className="p-4 pt-0 border-t border-slate-100 space-y-4">
+                      {sortedSemesters.map(semester => {
+                        const isSemExpanded = expandedSemesters[semester.semesterId];
+                        const subjectCount = Object.keys(semester.subjects).length;
+                        const sortedSubjects = Object.values(semester.subjects).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 
-                      return (
-                        <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
+                        return (
+                          <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
 
-                          {/* Semester Header */}
-                          <div
-                            onClick={() => toggleSemester(semester.semesterId)}
-                            className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
-                                <Calendar className="w-5 h-5" />
+                            {/* Semester Header */}
+                            <div
+                              onClick={() => toggleSemester(semester.semesterId)}
+                              className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
+                                  <Calendar className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode, t('lc.semester_word'))}</h3>
+                                  {(semester.startDate || semester.endDate) && (
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                      {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode, t('lc.semester_word'))}</h3>
-                                {(semester.startDate || semester.endDate) && (
-                                  <p className="text-xs text-slate-500 mt-0.5">
-                                    {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
-                                  </p>
-                                )}
+                              <div className="flex items-center gap-4 text-slate-500">
+                                <span className="text-sm font-medium text-indigo-600">{t('lc.cls.subjects_count', { n: subjectCount })}</span>
+                                {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
                               </div>
                             </div>
-                            <div className="flex items-center gap-4 text-slate-500">
-                              <span className="text-sm font-medium text-indigo-600">{t('lc.cls.subjects_count', { n: subjectCount })}</span>
-                              {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
-                            </div>
-                          </div>
 
-                          {/* Semester Content (Subject Table) */}
-                          {isSemExpanded && (
-                            <div className="bg-white overflow-x-auto">
-                              <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
-                                  <tr>
-                                    <th className="px-6 py-4 font-medium">{t('lc.cls.col.subject')}</th>
-                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.subject_code')}</th>
-                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.classes')}</th>
-                                    <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.avg_size')}</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                  {sortedSubjects.map(subject => {
-                                    const isSubjExpanded = expandedSubjects[subject.subjectId];
+                            {/* Semester Content (Subject Table) */}
+                            {isSemExpanded && (
+                              <div className="bg-white overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="text-xs text-slate-500 bg-white border-b border-slate-100">
+                                    <tr>
+                                      <th className="px-6 py-4 font-medium">{t('lc.cls.col.subject')}</th>
+                                      <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.subject_code')}</th>
+                                      <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.classes')}</th>
+                                      <th className="px-6 py-4 font-medium text-center">{t('lc.cls.col.avg_size')}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {sortedSubjects.map(subject => {
+                                      const isSubjExpanded = expandedSubjects[subject.subjectId];
 
-                                    return (
-                                      <React.Fragment key={subject.subjectId}>
-                                        <tr
-                                          onClick={(e) => toggleSubject(subject.subjectId, e)}
-                                          className="hover:bg-slate-50/50 group cursor-pointer"
-                                        >
-                                          <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
-                                                {subject.subjectCode.includes('PR') ? <Code className="w-4 h-4" /> : <Book className="w-4 h-4" />}
-                                              </div>
-                                              <span className="font-semibold text-slate-700">{subject.subjectName}</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
-                                          <td className="px-6 py-4 text-center">
-                                            <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
-                                              {t('lc.cls.classes_count', { n: subject.classes.length })}
-                                            </span>
-                                          </td>
-                                          <td className="px-6 py-4 text-center text-slate-600">{t('lc.cls.students_count', { n: subject.avgStudents })}</td>
-                                        </tr>
-
-                                        {/* Expanded Subject Classes */}
-                                        {/* Was `> 1`, so a subject with a single class expanded to nothing. */}
-                                        {isSubjExpanded && subject.classes.length > 0 && (
-                                          <tr className="bg-slate-50/50">
-                                            <td colSpan={4} className="p-0 border-b border-indigo-100">
-                                              <div className="px-8 py-4 flex flex-wrap gap-2.5">
-                                                {subject.classes.map(cls => (
-                                                  <button
-                                                    key={cls.id}
-                                                    onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
-                                                    className="group/btn flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 hover:shadow hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                  >
-                                                    <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
-                                                    <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
-                                                      {t('lc.cls.class_prefix', { code: cls.code })}
-                                                    </span>
-                                                  </button>
-                                                ))}
+                                      return (
+                                        <React.Fragment key={subject.subjectId}>
+                                          <tr
+                                            onClick={(e) => toggleSubject(subject.subjectId, e)}
+                                            className="hover:bg-slate-50/50 group cursor-pointer"
+                                          >
+                                            <td className="px-6 py-4">
+                                              <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                                                  {subject.subjectCode.includes('PR') ? <Code className="w-4 h-4" /> : <Book className="w-4 h-4" />}
+                                                </div>
+                                                <span className="font-semibold text-slate-700">{subject.subjectName}</span>
                                               </div>
                                             </td>
+                                            <td className="px-6 py-4 text-center text-slate-600">{subject.subjectCode}</td>
+                                            <td className="px-6 py-4 text-center">
+                                              <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold">
+                                                {t('lc.cls.classes_count', { n: subject.classes.length })}
+                                              </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center text-slate-600">{t('lc.cls.students_count', { n: subject.avgStudents })}</td>
                                           </tr>
-                                        )}
-                                      </React.Fragment>
-                                    )
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          }))}
+
+                                          {/* Expanded Subject Classes */}
+                                          {/* Was `> 1`, so a subject with a single class expanded to nothing. */}
+                                          {isSubjExpanded && subject.classes.length > 0 && (
+                                            <tr className="bg-slate-50/50">
+                                              <td colSpan={4} className="p-0 border-b border-indigo-100">
+                                                <div className="px-8 py-4 flex flex-wrap gap-2.5">
+                                                  {subject.classes.map(cls => (
+                                                    <button
+                                                      key={cls.id}
+                                                      onClick={() => navigate(`/lecturer/classes/${cls.id}`)}
+                                                      className="group/btn flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 hover:shadow hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    >
+                                                      <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover/btn:bg-indigo-500 transition-colors"></span>
+                                                      <span className="font-semibold text-slate-700 group-hover/btn:text-indigo-700 transition-colors">
+                                                        {t('lc.cls.class_prefix', { code: cls.code })}
+                                                      </span>
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </React.Fragment>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }))}
         </div>
       </div>
     </div>

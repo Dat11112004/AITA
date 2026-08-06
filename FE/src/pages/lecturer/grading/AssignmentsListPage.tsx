@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { SemesterSelector } from '@/components/ui/SemesterSelector';
 
 /**
  * Tab sentinels. They are grouping keys and sort markers, not display text, so
@@ -62,7 +63,8 @@ const CircularProgress = ({ value }: { value: number }) => {
 
 export default function AssignmentsListPage() {
   const [assignments, setAssignments] = useState<PublishedAssignment[]>([]);
-  const [subjects, setSubjects] = useState<string[]>([]);
+  const [rawClasses, setRawClasses] = useState<any[]>([]);
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,15 +102,7 @@ export default function AssignmentsListPage() {
         mainApi.getClasses(1, 1000)
       ]);
       setAssignments(assignmentsData || []);
-
-      const uniqueSubjects = new Set<string>();
-      if (classesData) {
-        classesData.forEach((c: any) => {
-          const code = c.subject?.code;
-          if (code) uniqueSubjects.add(code);
-        });
-      }
-      setSubjects(Array.from(uniqueSubjects).sort());
+      setRawClasses(classesData || []);
     } catch (err: any) {
       setError(err.message || t('lc.al.load_failed'));
     } finally {
@@ -120,17 +114,67 @@ export default function AssignmentsListPage() {
     loadData();
   }, []);
 
-  // Derive Tabs from subjects
-  const tabs = useMemo(() => {
-    const counts: Record<string, number> = { [TAB_ALL]: assignments.length };
+  // 1. Get subjects taught by lecturer in the selectedSemester
+  const semesterSubjects = useMemo(() => {
+    const subs = new Set<string>();
+    rawClasses.forEach((c: any) => {
+      const semLabel = (c.semester?.season || c.semester?.label || c.semester?.code || '').toUpperCase().replace(/\s+/g, '');
+      const semId = c.semester?.id;
+      if (!selectedSemester || semLabel === selectedSemester || semId === selectedSemester) {
+        const code = c.subject?.code;
+        if (code) subs.add(code);
+      }
+    });
+    return Array.from(subs).sort();
+  }, [rawClasses, selectedSemester]);
 
-    // Initialize all lecturer's subjects to 0
-    subjects.forEach(sub => {
+  // 2. Filter assignments by selectedSemester
+  const semesterAssignments = useMemo(() => {
+    if (!selectedSemester) return assignments;
+
+    return assignments.filter(a => {
+      const meta = a.metadata as any;
+
+      // Check if assignment has classIds linked to rawClasses in selectedSemester
+      const classIds = meta?.classIds || (a as any).classIds || (a as any).classes || [];
+      if (Array.isArray(classIds) && classIds.length > 0 && rawClasses.length > 0) {
+        const isMatch = classIds.some((cId: string) => {
+          const cls = rawClasses.find(c => c.id === cId || c.classId === cId);
+          if (!cls?.semester) return false;
+          const cSemLabel = (cls.semester.season || cls.semester.label || cls.semester.code || '').toUpperCase().replace(/\s+/g, '');
+          return cSemLabel === selectedSemester || cls.semester.id === selectedSemester;
+        });
+        if (isMatch) return true;
+      }
+
+      // Check if assignment metadata has semester matching selectedSemester
+      const metaSem = meta?.semesterLabel || meta?.semesterSeason || meta?.semester || meta?.semesterId;
+      if (metaSem) {
+        const cleanMetaSem = String(metaSem).toUpperCase().replace(/\s+/g, '');
+        if (cleanMetaSem === selectedSemester) return true;
+      }
+
+      // Fallback: match by subject taught in that semester
+      const sub = meta?.subject || (a as any).subjectCode || (a as any).subject;
+      if (sub && semesterSubjects.includes(sub)) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [assignments, selectedSemester, rawClasses, semesterSubjects]);
+
+  // Derive Tabs from subjects in selectedSemester
+  const tabs = useMemo(() => {
+    const counts: Record<string, number> = { [TAB_ALL]: semesterAssignments.length };
+
+    // Initialize subjects of this semester to 0
+    semesterSubjects.forEach(sub => {
       counts[sub] = 0;
     });
 
-    // Count assignments per subject
-    assignments.forEach(a => {
+    // Count assignments per subject in selectedSemester
+    semesterAssignments.forEach(a => {
       const sub = (a.metadata as any)?.subject;
       if (sub) {
         if (counts[sub] !== undefined) {
@@ -151,11 +195,18 @@ export default function AssignmentsListPage() {
       if (b[0] === TAB_OTHER) return -1;
       return a[0].localeCompare(b[0]);
     });
-  }, [assignments, subjects]);
+  }, [semesterAssignments, semesterSubjects]);
+
+  // Reset activeTab if selected subject is no longer in current semester
+  useEffect(() => {
+    if (activeTab !== TAB_ALL && !semesterSubjects.includes(activeTab) && activeTab !== TAB_OTHER) {
+      setActiveTab(TAB_ALL);
+    }
+  }, [selectedSemester, semesterSubjects, activeTab]);
 
   // Filtering
   const filteredAssignments = useMemo(() => {
-    return assignments.filter(a => {
+    return semesterAssignments.filter(a => {
       // Tab filter
       const sub = (a.metadata as any)?.subject || TAB_OTHER;
 
@@ -171,7 +222,7 @@ export default function AssignmentsListPage() {
 
       return true;
     });
-  }, [assignments, activeTab, searchQuery]);
+  }, [semesterAssignments, activeTab, searchQuery]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage);
@@ -196,13 +247,19 @@ export default function AssignmentsListPage() {
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{t('lc.al.subtitle')}</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/lecturer/grading/assignments/upload')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap"
-        >
-          <Plus size={18} />
-          {t('lc.al.new_assignment')}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <SemesterSelector
+            selectedSemester={selectedSemester}
+            onChange={setSelectedSemester}
+          />
+          <button
+            onClick={() => navigate('/lecturer/grading/assignments/upload')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap self-end sm:self-auto"
+          >
+            <Plus size={18} />
+            {t('lc.al.new_assignment')}
+          </button>
+        </div>
       </div>
 
       {/* Filters Row */}
@@ -238,14 +295,14 @@ export default function AssignmentsListPage() {
               key={name}
               onClick={() => setActiveTab(name)}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${isActive
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
             >
               {name === TAB_ALL ? t('lc.al.tab_all') : name === TAB_OTHER ? t('lc.al.tab_other') : name}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive
-                  ? 'bg-white/20 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}>
                 {count}
               </span>
@@ -388,8 +445,8 @@ export default function AssignmentsListPage() {
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
                 className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors shadow-sm ${currentPage === i + 1
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                   }`}
               >
                 {i + 1}
@@ -411,7 +468,7 @@ export default function AssignmentsListPage() {
       {deletingAssignment && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            
+
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-rose-50/50 to-white dark:from-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">

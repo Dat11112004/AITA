@@ -70,15 +70,24 @@ export function SemesterSelector({
           foundSeasons.set('SUMMER2026', { value: 'SUMMER2026', label: 'SUMMER2026', isCurrent: true })
         }
 
-        setSemesters(Array.from(foundSeasons.values()))
+        const list = Array.from(foundSeasons.values())
+        setSemesters(list)
+
+        const activeSem = list.find(s => s.isCurrent) || list[0]
+        if (activeSem && (!selectedSemester || !list.some(s => s.value === selectedSemester))) {
+          onChange(activeSem.value)
+        }
       })
       .catch(() => {
         // On error, use fallback
         setSemesters([{ value: 'SUMMER2026', label: 'SUMMER2026', isCurrent: true }])
+        if (!selectedSemester) {
+          onChange('SUMMER2026')
+        }
       })
 
     return () => { alive = false }
-  }, [])
+  }, [selectedSemester, onChange])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

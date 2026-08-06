@@ -167,11 +167,10 @@ export function LecturerSubjects() {
                         setSearch('')
                         setDropdownOpen(false)
                       }}
-                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
-                        viewMode === option.value
+                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${viewMode === option.value
                           ? 'bg-emerald-50 dark:bg-emerald-900/20'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                      }`}
+                        }`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-bold ${viewMode === option.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>

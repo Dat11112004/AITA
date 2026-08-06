@@ -303,7 +303,7 @@ export function LecturerOverview() {
                                             <td className="py-4 text-center font-bold text-slate-700 dark:text-slate-300">{cls.gpa}</td>
                                             <td className="py-4 text-center">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${cls.status === 'excellent' ? 'bg-emerald-100 text-emerald-700' :
-                                                        cls.status === 'good' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                                                    cls.status === 'good' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
                                                     }`}>
                                                     {t(`lc.ov.status.${cls.status}`)}
                                                 </span>

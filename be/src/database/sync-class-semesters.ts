@@ -107,6 +107,23 @@ export async function syncClassSemesters(): Promise<void> {
       }
     }
 
+    // 3. Cleanup spurious phantom class SE18C02 under WDP301 if it has 0 students and 0 exams
+    const phantomWdpClass = await prisma.class.findFirst({
+      where: {
+        ClassCode: 'SE18C02',
+        Subject: { SubjectCode: 'WDP301' }
+      },
+      include: {
+        _count: { select: { StudentClass: true, ExamClass: true } }
+      }
+    })
+
+    if (phantomWdpClass && phantomWdpClass._count.StudentClass === 0 && phantomWdpClass._count.ExamClass === 0) {
+      await prisma.instructorClass.deleteMany({ where: { ClassId: phantomWdpClass.Id } })
+      await prisma.class.delete({ where: { Id: phantomWdpClass.Id } })
+      console.log('[Sync] Removed spurious phantom class SE18C02 under WDP301')
+    }
+
     console.log('✅ Class semester synchronization complete.')
   } catch (err) {
     console.error('⚠️ Class semester synchronization failed:', err)

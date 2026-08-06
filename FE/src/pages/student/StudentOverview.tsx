@@ -12,7 +12,7 @@ export function StudentOverview() {
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('')
 
   const loadData = useCallback(() => {
     let alive = true
@@ -39,13 +39,30 @@ export function StudentOverview() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-600" /></div>
   if (error) return <APIError error={error} onRetry={loadData} />
 
-  const upcomingTasks = (dashboardData?.upcomingAssignments || []).filter((a: any) => !a.isSubmitted && a.status !== 'Submitted' && a.status !== 'Graded' && !a.submitted)
-  const subjects = dashboardData?.enrolledClasses?.map((c: any) => ({
-    id: c.subject?.id || c.id,
+  const filteredEnrolledClasses = (dashboardData?.enrolledClasses || []).filter((c: any) => {
+    if (!selectedSemester) return true;
+    const semLabel = (c.semester?.season || c.semester?.label || c.semester?.code || '').toUpperCase().replace(/\s+/g, '');
+    const semId = c.semester?.id;
+    return semLabel === selectedSemester || semId === selectedSemester;
+  });
+
+  const subjects = filteredEnrolledClasses.map((c: any) => ({
+    id: c.id || c.subject?.id,
     code: c.subject?.code || c.classCode,
     name: c.subject?.name || 'Subject',
     teacher: c.lecturers?.[0]?.name || 'Not assigned',
-  })) || []
+  }));
+
+  const upcomingTasks = (dashboardData?.upcomingAssignments || []).filter((a: any) => {
+    if (a.isSubmitted || a.status === 'Submitted' || a.status === 'Graded' || a.submitted) return false;
+    if (!selectedSemester) return true;
+    const taskSemLabel = (a.semesterLabel || a.semesterSeason || a.semesterCode || '').toUpperCase().replace(/\s+/g, '');
+    const taskSemId = a.semesterId;
+    if (taskSemLabel || taskSemId) {
+      return taskSemLabel === selectedSemester || taskSemId === selectedSemester;
+    }
+    return filteredEnrolledClasses.some((c: any) => c.subject?.code === a.subjectCode || c.id === a.classId);
+  });
 
   // Find most urgent assignment due in next 48 hours
   const urgentAssignment = upcomingTasks.find((a: any) => {

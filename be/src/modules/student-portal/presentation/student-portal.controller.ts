@@ -40,16 +40,33 @@ export class StudentPortalController extends BaseController {
           notIn: submittedExamIds
         }
       },
+      include: {
+        ExamClass: {
+          include: {
+            Class: {
+              include: { Semester: true, Subject: true }
+            }
+          }
+        }
+      },
       orderBy: { DueDate: 'asc' },
-      take: 5
+      take: 10
     })
 
-    const upcomingAssignments = rawUpcomingAssignments.map(a => ({
-      id: a.Id,
-      title: a.Title,
-      due: a.DueDate,
-      type: a.ExamType
-    }))
+    const upcomingAssignments = rawUpcomingAssignments.map(a => {
+      const firstClass = a.ExamClass?.[0]?.Class;
+      const sem = firstClass?.Semester;
+      return {
+        id: a.Id,
+        title: a.Title,
+        due: a.DueDate,
+        type: a.ExamType,
+        subjectCode: firstClass?.Subject?.SubjectCode,
+        semesterId: sem?.Id,
+        semesterSeason: sem?.Season,
+        semesterLabel: sem?.Season ? sem.Season.toUpperCase().replace(/\s+/g, '') : null
+      };
+    })
 
     const enrolledClasses = await prisma.class.findMany({
       where: {

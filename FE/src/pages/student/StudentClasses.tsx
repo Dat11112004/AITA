@@ -26,7 +26,7 @@ export function StudentClasses() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState<ClassInfo[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('')
 
   const loadData = useCallback(() => {
     let alive = true

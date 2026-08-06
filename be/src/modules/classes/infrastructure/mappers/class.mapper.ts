@@ -9,7 +9,7 @@ export class ClassMapper {
       raw.SemesterId,
       raw.Status
     )
-    
+
     // Attach unmapped fields for DTO compatibility
     if (raw.Subject) {
       (classEntity as any).subjectName = raw.Subject.SubjectName;

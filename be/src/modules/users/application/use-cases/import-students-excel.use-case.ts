@@ -396,37 +396,15 @@ export class ImportStudentsExcelUseCase {
                     const semester = targetSemesters.find(s => s.Code === semesterCode) ?? null
 
                     if (semester) {
-                        const expectedSubjects = await (prisma as any).semesterSubject.findMany({
-                            where: { SemesterId: semester.Id },
-                            select: { SubjectId: true }
-                        });
-
                         const classes = await prisma.class.findMany({
                             where: {
                                 SemesterId: semester.Id,
                                 ClassCode: classCode
                             },
-                            select: { Id: true, SubjectId: true }
+                            select: { Id: true }
                         })
 
-                        const existingSubjectIds = new Set(classes.map(c => c.SubjectId))
-
-                        // Auto-create missing classes
-                        for (const es of expectedSubjects) {
-                            if (!existingSubjectIds.has(es.SubjectId)) {
-                                const newClass = await prisma.class.create({
-                                    data: {
-                                        ClassCode: classCode,
-                                        SubjectId: es.SubjectId,
-                                        SemesterId: semester.Id,
-                                        Status: 'Active'
-                                    }
-                                })
-                                classesToEnroll.push(newClass.Id)
-                                existingSubjectIds.add(es.SubjectId)
-                            }
-                        }
-
+                        // Only enroll into existing classes matching classCode in this semester
                         classesToEnroll.push(...classes.map(c => c.Id))
                     }
 

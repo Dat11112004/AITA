@@ -303,7 +303,7 @@ export class AssignmentController extends BaseController {
                         try {
                             const parsed = JSON.parse(exam.AiGeneratedContent);
                             if (parsed.weightPercentage) w = Number(parsed.weightPercentage);
-                        } catch(e) {}
+                        } catch (e) { }
                     }
                     return sum + w;
                 }, 0);
@@ -616,7 +616,7 @@ export class AssignmentController extends BaseController {
 
             console.log(`[AssignmentController] updateAnswerKey: Successfully updated ${testCaseCount} test cases for assignment ${id}`);
 
-            this.ok(res, { 
+            this.ok(res, {
                 rules: updatedRules,
                 testCaseCount,
                 message: `Answer Key updated successfully. ${testCaseCount} test cases generated.`
@@ -757,7 +757,7 @@ export class AssignmentController extends BaseController {
         const onAssignmentEvent = (eventData: any) => {
             try {
                 res.write(`data: ${JSON.stringify(eventData)}\n\n`);
-            } catch (e) {}
+            } catch (e) { }
         };
 
         globalJobManager.on(`assignment_event:${id}`, onAssignmentEvent);

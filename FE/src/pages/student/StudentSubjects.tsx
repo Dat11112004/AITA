@@ -26,7 +26,7 @@ export function StudentSubjects() {
   const [subjects, setSubjects] = useState<SubjectInfo[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('')
   const location = useLocation()
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(location.state?.expand || null)
   // The chip row filters by the subjects the student is enrolled in for the selected

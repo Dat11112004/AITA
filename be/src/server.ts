@@ -11,6 +11,7 @@ if (env.NODE_ENV === 'development') {
     .catch((err) => console.warn('⚠️ Dev seed skipped:', err instanceof Error ? err.message : err))
 }
 
+// Trigger dev server restart and syncClassSemesters run
 app.listen(env.PORT, () => {
   console.log(`\n🎓 AITA Backend — http://localhost:${env.PORT}`)
   console.log(`   API base:  http://localhost:${env.PORT}/api`)

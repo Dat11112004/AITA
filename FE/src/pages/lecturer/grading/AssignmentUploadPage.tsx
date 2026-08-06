@@ -140,7 +140,7 @@ export default function AssignmentUploadPage() {
         setIsUploadingAnswerKey(true);
         try {
             setAnswerKeyFile(file);
-            
+
             // Read file content locally for the editor display
             const text = await file.text();
             setAnswerKeyText(text);
@@ -150,7 +150,7 @@ export default function AssignmentUploadPage() {
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('rubricRules', JSON.stringify(rubric.rules));
-                
+
                 const response = await api.parseSqlKey(formData);
                 if (response.rules) {
                     setRubric({ ...rubric, rules: response.rules });
@@ -415,7 +415,7 @@ export default function AssignmentUploadPage() {
 
     const handlePublish = async () => {
         if (!rubric || !blueprint) return;
-        
+
         if (isUploadingAnswerKey) {
             setError(t('lc.up.sql_analyzing'));
             return;
@@ -1214,11 +1214,10 @@ export default function AssignmentUploadPage() {
                                                                 const val = (metadata.latePenaltyValue !== undefined && metadata.latePenaltyValue !== null && metadata.latePenaltyValue !== 0) ? metadata.latePenaltyValue : 2
                                                                 setMetadata({ ...metadata, latePenaltyType: newType, latePenaltyValue: newType === 'NONE' ? 0 : val })
                                                             }}
-                                                            className={`flex-1 px-3.5 py-2 border rounded-xl text-xs font-semibold shadow-xs focus:outline-none transition-all ${
-                                                                metadata.allowLateSubmission === false
+                                                            className={`flex-1 px-3.5 py-2 border rounded-xl text-xs font-semibold shadow-xs focus:outline-none transition-all ${metadata.allowLateSubmission === false
                                                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
                                                                     : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <option value="NONE">{t('lc.up.no_late_penalty')}</option>
                                                             <option value="DAILY_POINTS">Deduct points by day (-X pts/24h)</option>
@@ -1285,194 +1284,194 @@ export default function AssignmentUploadPage() {
                                         </div>
                                     </div>
 
-                                                <div className={classNames(
-                                                    "p-4 rounded-xl border flex items-center justify-between shadow-sm transition-all mb-6",
-                                                    isTotalScoreValid
-                                                        ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                                                        : "bg-rose-50 border-rose-300 text-rose-900"
-                                                )}>
-                                                    <div className="flex items-center gap-3">
-                                                        {isTotalScoreValid ? (
-                                                            <CheckCircle className="text-emerald-600 shrink-0" size={22} />
-                                                        ) : (
-                                                            <AlertCircle className="text-rose-600 shrink-0" size={22} />
-                                                        )}
-                                                        <div>
-                                                            <h4 className="font-extrabold text-sm">
-                                                                {isTotalScoreValid ? "Rubric total score is valid (10.0 / 10.0 points)" : `TOTAL SCORE WARNING: ${currentTotalScore.toFixed(2)} / 10.0 points`}
-                                                            </h4>
-                                                            <p className="text-xs opacity-90 mt-0.5">
-                                                                {isTotalScoreValid
-                                                                    ? t('lc.up.score_valid')
-                                                                    : `The system requires the sum of all criteria to be exactly 10.0. Current difference: ${Math.abs(currentTotalScore - 10).toFixed(2)} points.`}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <span className={classNames(
-                                                            "text-xl font-black px-3 py-1.5 rounded-lg border",
-                                                            isTotalScoreValid
-                                                                ? "bg-emerald-100 border-emerald-300 text-emerald-800"
-                                                                : "bg-rose-100 border-rose-300 text-rose-800 font-bold"
-                                                        )}>
-                                                            {currentTotalScore.toFixed(2)} / 10.0
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                    <div className={classNames(
+                                        "p-4 rounded-xl border flex items-center justify-between shadow-sm transition-all mb-6",
+                                        isTotalScoreValid
+                                            ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                            : "bg-rose-50 border-rose-300 text-rose-900"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            {isTotalScoreValid ? (
+                                                <CheckCircle className="text-emerald-600 shrink-0" size={22} />
+                                            ) : (
+                                                <AlertCircle className="text-rose-600 shrink-0" size={22} />
+                                            )}
+                                            <div>
+                                                <h4 className="font-extrabold text-sm">
+                                                    {isTotalScoreValid ? "Rubric total score is valid (10.0 / 10.0 points)" : `TOTAL SCORE WARNING: ${currentTotalScore.toFixed(2)} / 10.0 points`}
+                                                </h4>
+                                                <p className="text-xs opacity-90 mt-0.5">
+                                                    {isTotalScoreValid
+                                                        ? t('lc.up.score_valid')
+                                                        : `The system requires the sum of all criteria to be exactly 10.0. Current difference: ${Math.abs(currentTotalScore - 10).toFixed(2)} points.`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <span className={classNames(
+                                                "text-xl font-black px-3 py-1.5 rounded-lg border",
+                                                isTotalScoreValid
+                                                    ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                                                    : "bg-rose-100 border-rose-300 text-rose-800 font-bold"
+                                            )}>
+                                                {currentTotalScore.toFixed(2)} / 10.0
+                                            </span>
+                                        </div>
+                                    </div>
 
-                                                <div className="flex gap-6 mb-8 items-start">
-                                                    <div className="grid gap-5 w-full">
-                                                        {rubric.rules.map((rule: any, index: number) => (
-                                                            <div key={index} className="bg-white border border-slate-200 p-6 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col gap-4">
-                                                                <div className="flex gap-4">
-                                                                    <div className="flex-1">
-                                                                        <div className="flex items-center justify-between gap-2 mb-2">
-                                                                            <input
-                                                                                className="w-full bg-transparent text-brand-600 font-extrabold border-b-2 border-transparent hover:border-slate-200 focus:border-brand-500 outline-none text-xl"
-                                                                                value={rule.title}
-                                                                                onChange={(e) => handleRuleChange(index, 'title', e.target.value)}
-                                                                                placeholder={t('lc.up.rule_title_placeholder')}
-                                                                            />
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setEditingRuleIndex(editingRuleIndex === index ? null : index)}
-                                                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 shrink-0"
-                                                                            >
-                                                                                <Edit3 size={13} />
-                                                                                <span>{editingRuleIndex === index ? t('lc.up.done') : t('lc.up.edit_text')}</span>
-                                                                            </button>
-                                                                        </div>
+                                    <div className="flex gap-6 mb-8 items-start">
+                                        <div className="grid gap-5 w-full">
+                                            {rubric.rules.map((rule: any, index: number) => (
+                                                <div key={index} className="bg-white border border-slate-200 p-6 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] flex flex-col gap-4">
+                                                    <div className="flex gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                                <input
+                                                                    className="w-full bg-transparent text-brand-600 font-extrabold border-b-2 border-transparent hover:border-slate-200 focus:border-brand-500 outline-none text-xl"
+                                                                    value={rule.title}
+                                                                    onChange={(e) => handleRuleChange(index, 'title', e.target.value)}
+                                                                    placeholder={t('lc.up.rule_title_placeholder')}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setEditingRuleIndex(editingRuleIndex === index ? null : index)}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700 shrink-0"
+                                                                >
+                                                                    <Edit3 size={13} />
+                                                                    <span>{editingRuleIndex === index ? t('lc.up.done') : t('lc.up.edit_text')}</span>
+                                                                </button>
+                                                            </div>
 
-                                                                        {editingRuleIndex === index ? (
-                                                                            <div className="space-y-2 my-2">
-                                                                                <textarea
-                                                                                    ref={(el) => {
-                                                                                        if (el) {
-                                                                                            el.style.height = 'auto';
-                                                                                            el.style.height = el.scrollHeight + 'px';
-                                                                                        }
-                                                                                    }}
-                                                                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-brand-300 dark:border-brand-700 rounded-lg p-3 text-slate-800 dark:text-slate-200 text-sm font-mono leading-relaxed outline-none focus:ring-2 focus:ring-brand-500/20"
-                                                                                    value={rule.description}
-                                                                                    onChange={(e) => {
-                                                                                        handleRuleChange(index, 'description', e.target.value);
-                                                                                        e.target.style.height = 'auto';
-                                                                                        e.target.style.height = e.target.scrollHeight + 'px';
-                                                                                    }}
-                                                                                    rows={4}
-                                                                                    placeholder={t('lc.up.rule_desc_placeholder')}
-                                                                                />
-                                                                                <div className="flex justify-end">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => setEditingRuleIndex(null)}
-                                                                                        className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700"
-                                                                                    >
-                                                                                        Apply
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                                                                                <FormattedText text={rule.description} />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex flex-col items-end gap-3 w-32 border-l border-slate-100 pl-4">
-                                                                        <div className="flex flex-col items-end gap-1">
-                                                                            <label className="text-xs font-bold text-slate-400 uppercase">{t('lc.up.score_label')}</label>
-                                                                            <input
-                                                                                type="number"
-                                                                                value={rule.weight}
-                                                                                onChange={(e) => handleRuleChange(index, 'weight', e.target.value)}
-                                                                                className="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-900 font-black text-center text-lg focus:border-brand-500 outline-none shadow-inner"
-                                                                            />
-                                                                        </div>
+                                                            {editingRuleIndex === index ? (
+                                                                <div className="space-y-2 my-2">
+                                                                    <textarea
+                                                                        ref={(el) => {
+                                                                            if (el) {
+                                                                                el.style.height = 'auto';
+                                                                                el.style.height = el.scrollHeight + 'px';
+                                                                            }
+                                                                        }}
+                                                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-brand-300 dark:border-brand-700 rounded-lg p-3 text-slate-800 dark:text-slate-200 text-sm font-mono leading-relaxed outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                                        value={rule.description}
+                                                                        onChange={(e) => {
+                                                                            handleRuleChange(index, 'description', e.target.value);
+                                                                            e.target.style.height = 'auto';
+                                                                            e.target.style.height = e.target.scrollHeight + 'px';
+                                                                        }}
+                                                                        rows={4}
+                                                                        placeholder={t('lc.up.rule_desc_placeholder')}
+                                                                    />
+                                                                    <div className="flex justify-end">
                                                                         <button
-                                                                            onClick={() => handleDeleteRule(index)}
-                                                                            className="text-xs text-rose-500 hover:text-rose-600 font-bold mt-2"
+                                                                            type="button"
+                                                                            onClick={() => setEditingRuleIndex(null)}
+                                                                            className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700"
                                                                         >
-                                                                            Delete criterion
+                                                                            Apply
                                                                         </button>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex gap-3 text-xs items-center pt-3 border-t border-slate-100">
-                                                                    <span className={classNames(
-                                                                        "px-3 py-1.5 rounded-lg border font-bold shadow-sm text-xs",
-                                                                        rule.scoringStrategy === 'AIVision'
-                                                                            ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                                                            : rule.scoringStrategy === 'StdInOutProbe' || rule.scoringStrategy === 'HTTPProbe' || rule.scoringStrategy === 'SqlExecutionProbe'
-                                                                                ? 'bg-sky-50 text-sky-700 border-sky-200'
-                                                                                : rule.scoringStrategy === 'AICodeReview' || rule.scoringStrategy === 'AiTextAnalysis'
-                                                                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                                                                    : rule.scoringStrategy === 'Manual'
-                                                                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                                    )}>
-                                                                        {rule.scoringStrategy === 'AIVision' ? 'Visual Check' : rule.scoringStrategy === 'StdInOutProbe' ? 'I/O Test' : rule.scoringStrategy === 'HTTPProbe' ? 'API Probe' : rule.scoringStrategy === 'SqlExecutionProbe' ? 'DB Execution' : rule.scoringStrategy === 'AICodeReview' ? 'Code Review' : rule.scoringStrategy === 'AiTextAnalysis' ? 'Text Analysis' : rule.scoringStrategy === 'HybridVisionAndCode' ? 'Hybrid AI & UI' : rule.scoringStrategy === 'Manual' ? 'Teacher Review' : 'Automated Test'}
-                                                                    </span>
+                                                            ) : (
+                                                                <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                                                                    <FormattedText text={rule.description} />
                                                                 </div>
-                                                                {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
-                                                                    <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-xl">
-                                                                        <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                                                            <Type size={16} className="text-brand-600" /> Standard I/O test cases
-                                                                        </h4>
-                                                                        <div className="grid gap-4">
-                                                                            {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, tcIdx: number) => (
-                                                                                <div key={tc.id || tcIdx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                                                                                    <div className="flex gap-6">
-                                                                                        <div className="flex-1">
-                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdin_label')}</label>
-                                                                                            <textarea
-                                                                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
-                                                                                                value={tc.input || ''}
-                                                                                                onChange={(e) => handleTestCaseChange(index, tcIdx, 'input', e.target.value)}
-                                                                                                rows={4}
-                                                                                            />
-                                                                                        </div>
-                                                                                        <div className="flex-1">
-                                                                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdout_label')}</label>
-                                                                                            <textarea
-                                                                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
-                                                                                                value={tc.expectedOutput || ''}
-                                                                                                onChange={(e) => handleTestCaseChange(index, tcIdx, 'expectedOutput', e.target.value)}
-                                                                                                rows={4}
-                                                                                            />
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-3 w-32 border-l border-slate-100 pl-4">
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <label className="text-xs font-bold text-slate-400 uppercase">{t('lc.up.score_label')}</label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={rule.weight}
+                                                                    onChange={(e) => handleRuleChange(index, 'weight', e.target.value)}
+                                                                    className="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-900 font-black text-center text-lg focus:border-brand-500 outline-none shadow-inner"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleDeleteRule(index)}
+                                                                className="text-xs text-rose-500 hover:text-rose-600 font-bold mt-2"
+                                                            >
+                                                                Delete criterion
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-3 text-xs items-center pt-3 border-t border-slate-100">
+                                                        <span className={classNames(
+                                                            "px-3 py-1.5 rounded-lg border font-bold shadow-sm text-xs",
+                                                            rule.scoringStrategy === 'AIVision'
+                                                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                                                : rule.scoringStrategy === 'StdInOutProbe' || rule.scoringStrategy === 'HTTPProbe' || rule.scoringStrategy === 'SqlExecutionProbe'
+                                                                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                                                    : rule.scoringStrategy === 'AICodeReview' || rule.scoringStrategy === 'AiTextAnalysis'
+                                                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                                                        : rule.scoringStrategy === 'Manual'
+                                                                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        )}>
+                                                            {rule.scoringStrategy === 'AIVision' ? 'Visual Check' : rule.scoringStrategy === 'StdInOutProbe' ? 'I/O Test' : rule.scoringStrategy === 'HTTPProbe' ? 'API Probe' : rule.scoringStrategy === 'SqlExecutionProbe' ? 'DB Execution' : rule.scoringStrategy === 'AICodeReview' ? 'Code Review' : rule.scoringStrategy === 'AiTextAnalysis' ? 'Text Analysis' : rule.scoringStrategy === 'HybridVisionAndCode' ? 'Hybrid AI & UI' : rule.scoringStrategy === 'Manual' ? 'Teacher Review' : 'Automated Test'}
+                                                        </span>
+                                                    </div>
+                                                    {rule.scoringStrategy === 'StdInOutProbe' && rule.requiredEvidence?.[0]?.stdInOutProbe?.testCases && (
+                                                        <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-xl">
+                                                            <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                                                <Type size={16} className="text-brand-600" /> Standard I/O test cases
+                                                            </h4>
+                                                            <div className="grid gap-4">
+                                                                {rule.requiredEvidence[0].stdInOutProbe.testCases.map((tc: any, tcIdx: number) => (
+                                                                    <div key={tc.id || tcIdx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                                                                        <div className="flex gap-6">
+                                                                            <div className="flex-1">
+                                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdin_label')}</label>
+                                                                                <textarea
+                                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
+                                                                                    value={tc.input || ''}
+                                                                                    onChange={(e) => handleTestCaseChange(index, tcIdx, 'input', e.target.value)}
+                                                                                    rows={4}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex-1">
+                                                                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('lc.up.stdout_label')}</label>
+                                                                                <textarea
+                                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm font-mono resize-none focus:border-brand-500 outline-none shadow-inner"
+                                                                                    value={tc.expectedOutput || ''}
+                                                                                    onChange={(e) => handleTestCaseChange(index, tcIdx, 'expectedOutput', e.target.value)}
+                                                                                    rows={4}
+                                                                                />
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                )}
-                                                                {rule.scoringStrategy !== 'StdInOutProbe' && (
-                                                                    <div className="mt-3">
-                                                                        <RubricRuleSpecViewer rule={rule} />
-                                                                    </div>
-                                                                )}
+                                                                ))}
                                                             </div>
-                                                        ))}
-
-                                                        <button
-                                                            className="w-full py-5 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:text-brand-600 hover:border-brand-400 hover:bg-brand-50 transition-colors"
-                                                            onClick={() => {
-                                                                const updatedRubric = { ...rubric };
-                                                                updatedRubric.rules.push({
-                                                                    id: `rule-custom-${Date.now()}`,
-                                                                    title: t('lc.up.new_rule_title'),
-                                                                    description: t('lc.up.new_rule_desc'),
-                                                                    category: "Functional",
-                                                                    weight: 5,
-                                                                    scoringStrategy: "Boolean",
-                                                                    requiredEvidence: []
-                                                                });
-                                                                setRubric(updatedRubric);
-                                                            }}
-                                                        >
-                                                            + Add custom rule
-                                                        </button>
-                                                    </div>
+                                                        </div>
+                                                    )}
+                                                    {rule.scoringStrategy !== 'StdInOutProbe' && (
+                                                        <div className="mt-3">
+                                                            <RubricRuleSpecViewer rule={rule} />
+                                                        </div>
+                                                    )}
                                                 </div>
+                                            ))}
+
+                                            <button
+                                                className="w-full py-5 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:text-brand-600 hover:border-brand-400 hover:bg-brand-50 transition-colors"
+                                                onClick={() => {
+                                                    const updatedRubric = { ...rubric };
+                                                    updatedRubric.rules.push({
+                                                        id: `rule-custom-${Date.now()}`,
+                                                        title: t('lc.up.new_rule_title'),
+                                                        description: t('lc.up.new_rule_desc'),
+                                                        category: "Functional",
+                                                        weight: 5,
+                                                        scoringStrategy: "Boolean",
+                                                        requiredEvidence: []
+                                                    });
+                                                    setRubric(updatedRubric);
+                                                }}
+                                            >
+                                                + Add custom rule
+                                            </button>
+                                        </div>
+                                    </div>
 
                                     <div className="mt-8 flex justify-between border-t border-slate-200 pt-6">
                                         <button onClick={() => {

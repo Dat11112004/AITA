@@ -263,7 +263,14 @@ export class SemesterRepository implements ISemesterRepository {
       orderBy: { ClassCode: 'asc' }
     })
 
-    return classes.map((c: any) => ({
+    // Filter out phantom auto-generated classes that have 0 students
+    const activeClasses = classes.filter((c: any) => {
+      const studentCount = c._count?.StudentClass ?? 0;
+      // Keep classes with enrolled students or explicitly added classes with instructor/note
+      return studentCount > 0 || (c.InstructorClass && c.InstructorClass.length > 0 && studentCount > 0);
+    });
+
+    return activeClasses.map((c: any) => ({
       id: c.Id,
       code: c.ClassCode,
       subject: c.Subject ? { id: c.Subject.Id, code: c.Subject.SubjectCode, name: c.Subject.SubjectName } : null,

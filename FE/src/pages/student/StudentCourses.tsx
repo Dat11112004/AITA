@@ -16,7 +16,7 @@ export function StudentCourses() {
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [allSubjects, setAllSubjects] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('SUMMER2026')
+  const [selectedSemester, setSelectedSemester] = useState<SemesterOption>('')
   const [viewMode, setViewMode] = useState<ViewMode>('enrolled')
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
@@ -41,8 +41,10 @@ export function StudentCourses() {
     const seen = new Set<string>()
     return classes
       .filter((c: any) => {
-        const label = c.semester?.label
-        return label === selectedSemester
+        if (!selectedSemester) return true;
+        const label = (c.semester?.season || c.semester?.label || c.semester?.code || '').toUpperCase().replace(/\s+/g, '');
+        const id = c.semester?.id;
+        return label === selectedSemester || id === selectedSemester;
       })
       .reduce((acc: any[], c: any) => {
         const code = c.subject?.code || c.classCode
