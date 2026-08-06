@@ -22,6 +22,8 @@ services:
     container_name: aita-backend
     ports:
       - "3002:3001"
+    env_file:
+      - ./be/.env
     environment:
       - PORT=3001
       - NODE_ENV=production
@@ -29,7 +31,6 @@ services:
       - JWT_SECRET=aita_super_secret_key_production_2026!
       - CORS_ORIGIN=*
       - FRONTEND_URL=http://localhost:8088
-      - GEMINI_API_KEYS=${GEMINI_API_KEYS:-your_gemini_api_key_here}
     depends_on:
       - mssql
     restart: always
@@ -46,4 +47,4 @@ services:
     restart: always
 
 volumes:
-  mssql_data:
+  mssql_data: 

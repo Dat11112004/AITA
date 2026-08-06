@@ -294,7 +294,7 @@ export function StudentAssignmentDetail() {
           const ass = { ...(a || {}) } as any
           if ((!ass.lecturer || ass.lecturer === 'Not assigned') && dash?.enrolledClasses && dash.enrolledClasses.length > 0) {
             const code = (ass.subjectCode || (ass.subjectName?.split('-')?.[0]?.trim()) || ass.title?.split('-')?.[0]?.trim() || '').toUpperCase()
-            
+
             let matchClass = dash.enrolledClasses.find((c: any) => {
               const cSubCode = (c.subject?.code || c.subjectCode || c.code || '').toUpperCase()
               const cSubId = c.subject?.id || c.subjectId || c.id
@@ -1254,8 +1254,12 @@ export function StudentAssignmentDetail() {
             <div className="px-5 py-2 space-y-4 text-sm">
               <div className="flex justify-between items-start gap-4">
                 <span className="text-slate-500 shrink-0 mt-0.5">Subject</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300 text-right">
-                  {assignment.subjectName || (assignment as any).subjectCode || (assignment as any).subject || (assignment.title?.split(':')?.[0]?.trim()) || 'Subject'}
+                <span className="font-semibold text-slate-800 dark:text-slate-200 text-right">
+                  {(() => {
+                    const subName = assignment.subjectName || (assignment as any).subjectCode || (assignment as any).subject || (assignment.title?.split(':')?.[0]?.trim());
+                    const typeName = assignment.type || (assignment as any).category || (assignment as any).metadata?.assignmentType || (assignment as any).metadata?.category || (assignment as any).examType || (assignment as any).ExamType || 'Assignment';
+                    return subName ? `${subName} - ${typeName}` : typeName;
+                  })()}
                 </span>
               </div>
               <div className="flex justify-between items-center">

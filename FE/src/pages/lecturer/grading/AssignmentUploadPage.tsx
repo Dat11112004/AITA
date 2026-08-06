@@ -466,7 +466,16 @@ export default function AssignmentUploadPage() {
         setLoadingMsg(t('lc.up.finalizing'));
         try {
             const defaultGradingStrategy = localStorage.getItem('aita_default_grading_strategy') || 'CONTINUOUS_QUEUE';
-            const finalMetadata = { ...metadata, semesterId: selectedSemester, classIds: selectedClasses, content, gradingStrategy: defaultGradingStrategy };
+            const finalMetadata = {
+                ...metadata,
+                assignmentType: selectedAssignmentType || metadata.category || 'Assignment',
+                examType: selectedAssignmentType || metadata.category || 'Assignment',
+                category: selectedAssignmentType || metadata.category || 'Assignment',
+                semesterId: selectedSemester,
+                classIds: selectedClasses,
+                content,
+                gradingStrategy: defaultGradingStrategy
+            };
             const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);
             aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);

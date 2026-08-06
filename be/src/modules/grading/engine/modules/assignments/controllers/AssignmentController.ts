@@ -274,8 +274,9 @@ export class AssignmentController extends BaseController {
             await this.assignmentRepository.saveAsync(publishedAssignment);
 
             // INTEGRATION WITH AITA CORE
-            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, weightPercentage, gradingStrategy } = metadata;
+            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, assignmentType, category, weightPercentage, gradingStrategy } = metadata;
             const selectedGradingStrategy = gradingStrategy || 'CONTINUOUS_QUEUE';
+            const resolvedExamType = assignmentType || category || examType || 'Assignment';
 
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -336,7 +337,7 @@ export class AssignmentController extends BaseController {
                     Title: title || 'AI Assignment',
                     Description: description || '',
                     SubjectId: subjectRecord?.Id || null,
-                    ExamType: examType || 'Assignment',
+                    ExamType: resolvedExamType,
                     Status: 'Published',
                     TotalPoints: totalPoints,
                     CreatedBy: creatorId,
