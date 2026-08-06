@@ -26,7 +26,7 @@ export function LecturerOverview() {
         setLoading(true)
         setError(null)
         Promise.all([
-            api.getClasses(),
+            api.getClasses(1, 1000),
             api.getAssignments({ limit: '10' }),
             api.getStatsOverview(),
             api.getSubmissions().catch(() => []) // Fallback in case of error

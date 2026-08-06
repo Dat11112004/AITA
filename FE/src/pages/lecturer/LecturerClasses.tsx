@@ -8,6 +8,8 @@ import {
   Calendar, ChevronDown, ChevronUp, Book, Code, Users
 } from 'lucide-react'
 
+import { SemesterSelector } from '@/components/ui/SemesterSelector'
+
 /**
  * Sentinel for classes whose semester is missing. It is a grouping key and a sort
  * marker, not display text, so it stays language-independent and is translated
@@ -21,6 +23,7 @@ export function LecturerClasses() {
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [semesters, setSemesters] = useState<SemesterRow[]>([])
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
+  const [selectedSemester, setSelectedSemester] = useState<string>('')
 
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -34,7 +37,7 @@ export function LecturerClasses() {
     setLoading(true)
     try {
       const [clsData, semData, subData] = await Promise.all([
-        api.getClasses(),
+        api.getClasses(1, 1000),
         api.getSemesters(),
         api.getSubjects(1, 1000)
       ])
@@ -60,6 +63,15 @@ export function LecturerClasses() {
   const groupedData: Record<string, SeasonGroup> = {};
 
   const filteredClasses = classes.filter(c => {
+    if (selectedSemester) {
+      const semId = (c.semester as any)?.id;
+      const semRecord = semesters.find(s => s.id === semId);
+      const seasonStr = (semRecord?.season || (c.semester as any)?.season || '').toUpperCase().replace(/\s+/g, '');
+      const codeStr = (semRecord?.code || (c.semester as any)?.code || '').toUpperCase().replace(/\s+/g, '');
+      if (seasonStr !== selectedSemester && codeStr !== selectedSemester && semId !== selectedSemester) {
+        return false;
+      }
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q) || (c.subject as any)?.code?.toLowerCase().includes(q)
@@ -71,7 +83,7 @@ export function LecturerClasses() {
     const semId = (cls.semester as any)?.id || 'unknown';
     const semesterRecord = semesters.find(s => s.id === semId);
 
-    const seasonName = semesterRecord?.season || OTHER_SEASON;
+    const seasonName = semesterRecord?.season || (cls.semester as any)?.season || OTHER_SEASON;
     const semesterCode = semesterRecord?.code || (cls.semester as any)?.code || t('lc.cls.other_semester');
 
     const subId = (cls.subject as any)?.id || 'unknown';
@@ -180,6 +192,10 @@ export function LecturerClasses() {
         </div>
 
         <div className="flex items-center gap-3">
+          <SemesterSelector
+            selectedSemester={selectedSemester}
+            onChange={setSelectedSemester}
+          />
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input

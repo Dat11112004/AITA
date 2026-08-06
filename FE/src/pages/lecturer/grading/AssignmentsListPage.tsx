@@ -114,21 +114,17 @@ export default function AssignmentsListPage() {
     loadData();
   }, []);
 
-  // 1. Get subjects taught by lecturer in the selectedSemester
-  const semesterSubjects = useMemo(() => {
+  // 1. Get all subjects taught by lecturer
+  const teacherSubjects = useMemo(() => {
     const subs = new Set<string>();
     rawClasses.forEach((c: any) => {
-      const semLabel = (c.semester?.season || c.semester?.label || c.semester?.code || '').toUpperCase().replace(/\s+/g, '');
-      const semId = c.semester?.id;
-      if (!selectedSemester || semLabel === selectedSemester || semId === selectedSemester) {
-        const code = c.subject?.code;
-        if (code) subs.add(code);
-      }
+      const code = c.subject?.code;
+      if (code) subs.add(code);
     });
     return Array.from(subs).sort();
-  }, [rawClasses, selectedSemester]);
+  }, [rawClasses]);
 
-  // 2. Filter assignments by selectedSemester
+  // 2. Filter assignments strictly by selectedSemester
   const semesterAssignments = useMemo(() => {
     if (!selectedSemester) return assignments;
 
@@ -145,31 +141,27 @@ export default function AssignmentsListPage() {
           return cSemLabel === selectedSemester || cls.semester.id === selectedSemester;
         });
         if (isMatch) return true;
+        return false; // Class IDs explicitly set, but none match selectedSemester
       }
 
       // Check if assignment metadata has semester matching selectedSemester
-      const metaSem = meta?.semesterLabel || meta?.semesterSeason || meta?.semester || meta?.semesterId;
+      const metaSem = meta?.semesterLabel || meta?.semesterSeason || meta?.semester || meta?.semesterId || (a as any).semesterId;
       if (metaSem) {
         const cleanMetaSem = String(metaSem).toUpperCase().replace(/\s+/g, '');
-        if (cleanMetaSem === selectedSemester) return true;
+        return cleanMetaSem === selectedSemester;
       }
 
-      // Fallback: match by subject taught in that semester
-      const sub = meta?.subject || (a as any).subjectCode || (a as any).subject;
-      if (sub && semesterSubjects.includes(sub)) {
-        return true;
-      }
-
+      // If no explicit classIds or metaSem are bound to selectedSemester, exclude from other seasons
       return false;
     });
-  }, [assignments, selectedSemester, rawClasses, semesterSubjects]);
+  }, [assignments, selectedSemester, rawClasses]);
 
-  // Derive Tabs from subjects in selectedSemester
+  // Derive Tabs from subjects taught by lecturer
   const tabs = useMemo(() => {
     const counts: Record<string, number> = { [TAB_ALL]: semesterAssignments.length };
 
-    // Initialize subjects of this semester to 0
-    semesterSubjects.forEach(sub => {
+    // Initialize all teacher subjects to 0
+    teacherSubjects.forEach(sub => {
       counts[sub] = 0;
     });
 
@@ -195,14 +187,14 @@ export default function AssignmentsListPage() {
       if (b[0] === TAB_OTHER) return -1;
       return a[0].localeCompare(b[0]);
     });
-  }, [semesterAssignments, semesterSubjects]);
+  }, [semesterAssignments, teacherSubjects]);
 
-  // Reset activeTab if selected subject is no longer in current semester
+  // Reset activeTab if selected subject is no longer in teacherSubjects
   useEffect(() => {
-    if (activeTab !== TAB_ALL && !semesterSubjects.includes(activeTab) && activeTab !== TAB_OTHER) {
+    if (activeTab !== TAB_ALL && !teacherSubjects.includes(activeTab) && activeTab !== TAB_OTHER) {
       setActiveTab(TAB_ALL);
     }
-  }, [selectedSemester, semesterSubjects, activeTab]);
+  }, [selectedSemester, teacherSubjects, activeTab]);
 
   // Filtering
   const filteredAssignments = useMemo(() => {

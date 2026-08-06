@@ -18,31 +18,58 @@ export class SemesterRepository implements ISemesterRepository {
   }
 
   async findByCodeAndSeason(code: string, season?: string): Promise<Semester | null> {
-    // Filter in-process using matchesSeason to handle all DB storage formats:
-    // 'Fall', 'Fall2026', 'Fall 2026', 'fall-2026', etc.
-    const candidates = await this.prisma.semester.findMany({ where: { Code: code } })
+    const candidates = await this.prisma.semester.findMany({
+      where: { Code: code },
+      include: {
+        _count: {
+          select: {
+            Class: true,
+            SemesterSubject: true
+          }
+        }
+      }
+    })
     if (!season) {
-      return candidates[0] ? Semester.fromPersistence(candidates[0]) : null
+      if (!candidates[0]) return null
+      const sem = Semester.fromPersistence(candidates[0])
+      ;(sem as any).classCount = candidates[0]._count?.Class ?? 0
+      ;(sem as any).subjectCount = candidates[0]._count?.SemesterSubject ?? 0
+      return sem
     }
-    // Build a minimal DetectedSeason for matching (year extracted from season string if present)
     const yearMatch = season.match(/\b(20\d{2})\b/)
     const year = yearMatch ? parseInt(yearMatch[1], 10) : 0
     const seasonName = season.replace(/[^a-zA-Z]/g, '').trim() || season
     const pseudo: DetectedSeason = { season: seasonName, year, formatted: `${seasonName} ${year}` }
-    const match = candidates.find((r: any) => matchesSeason(r.Season, pseudo)) ?? null
-    return match ? Semester.fromPersistence(match) : null
+    const match: any = candidates.find((r: any) => matchesSeason(r.Season, pseudo)) ?? null
+    if (!match) return null
+    const sem = Semester.fromPersistence(match)
+    ;(sem as any).classCount = match._count?.Class ?? 0
+    ;(sem as any).subjectCount = match._count?.SemesterSubject ?? 0
+    return sem
   }
 
   async findBySeason(season: string): Promise<Semester[]> {
-    // Filter in-process using matchesSeason to handle all DB storage formats:
-    // 'Fall', 'Fall2026', 'Fall 2026', 'fall-2026', '2026Fall', etc.
-    const all = await this.prisma.semester.findMany()
+    const all = await this.prisma.semester.findMany({
+      include: {
+        _count: {
+          select: {
+            Class: true,
+            SemesterSubject: true
+          }
+        }
+      }
+    })
     const yearMatch = season.match(/\b(20\d{2})\b/)
     const year = yearMatch ? parseInt(yearMatch[1], 10) : 0
     const seasonName = season.replace(/[^a-zA-Z]/g, '').trim() || season
     const pseudo: DetectedSeason = { season: seasonName, year, formatted: `${seasonName} ${year}` }
     const raw = all.filter((r: any) => matchesSeason(r.Season, pseudo))
-    return raw.map((r: any) => Semester.fromPersistence(r))
+    return raw.map((r: any) => {
+      const sem = Semester.fromPersistence(r)
+      ;(sem as any).classCount = r._count?.Class ?? 0
+      ;(sem as any).subjectCount = r._count?.SemesterSubject ?? 0
+      return sem
+    })
   }
 
   async findAll(activeOnly?: boolean): Promise<Semester[]> {
@@ -263,14 +290,7 @@ export class SemesterRepository implements ISemesterRepository {
       orderBy: { ClassCode: 'asc' }
     })
 
-    // Filter out phantom auto-generated classes that have 0 students
-    const activeClasses = classes.filter((c: any) => {
-      const studentCount = c._count?.StudentClass ?? 0;
-      // Keep classes with enrolled students or explicitly added classes with instructor/note
-      return studentCount > 0 || (c.InstructorClass && c.InstructorClass.length > 0 && studentCount > 0);
-    });
-
-    return activeClasses.map((c: any) => ({
+    return classes.map((c: any) => ({
       id: c.Id,
       code: c.ClassCode,
       subject: c.Subject ? { id: c.Subject.Id, code: c.Subject.SubjectCode, name: c.Subject.SubjectName } : null,

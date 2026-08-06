@@ -14,6 +14,7 @@ export interface SemesterSelectorProps {
   selectedSemester: string
   onChange: (semester: string) => void
   className?: string
+  showLabel?: boolean
 }
 
 export const INITIAL_SEMESTERS: SemesterItem[] = [
@@ -23,7 +24,8 @@ export const INITIAL_SEMESTERS: SemesterItem[] = [
 export function SemesterSelector({ 
   selectedSemester, 
   onChange, 
-  className = '' 
+  className = '',
+  showLabel = false
 }: SemesterSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [semesters, setSemesters] = useState<SemesterItem[]>(INITIAL_SEMESTERS)
@@ -104,17 +106,18 @@ export function SemesterSelector({
 
   return (
     <div className={`relative inline-block text-left ${className}`} ref={ref}>
-      {/* Floating Label matching Screenshot */}
-      <label className="block text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mb-1 pl-1">
-        Semester
-      </label>
+      {showLabel && (
+        <label className="block text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mb-1 pl-1">
+          Semester
+        </label>
+      )}
 
       {/* Selector Box */}
       <div className="relative inline-flex items-center">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-xl border border-indigo-400/80 dark:border-indigo-500/80 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs sm:text-sm tracking-wide shadow-sm hover:border-indigo-600 hover:bg-indigo-50 transition-all focus:outline-none ring-2 ring-indigo-500/20 min-w-[160px]"
+          className="flex items-center justify-between gap-3 px-3.5 h-11 rounded-xl border border-indigo-400/80 dark:border-indigo-500/80 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs sm:text-sm tracking-wide shadow-sm hover:border-indigo-600 hover:bg-indigo-50 transition-all focus:outline-none ring-2 ring-indigo-500/20 min-w-[160px]"
         >
           <span className="truncate uppercase font-black tracking-wider text-indigo-700 dark:text-indigo-300">
             {selectedOpt.label}

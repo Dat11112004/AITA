@@ -1215,8 +1215,8 @@ export default function AssignmentUploadPage() {
                                                                 setMetadata({ ...metadata, latePenaltyType: newType, latePenaltyValue: newType === 'NONE' ? 0 : val })
                                                             }}
                                                             className={`flex-1 px-3.5 py-2 border rounded-xl text-xs font-semibold shadow-xs focus:outline-none transition-all ${metadata.allowLateSubmission === false
-                                                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                                                                    : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
+                                                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                                                : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
                                                                 }`}
                                                         >
                                                             <option value="NONE">{t('lc.up.no_late_penalty')}</option>

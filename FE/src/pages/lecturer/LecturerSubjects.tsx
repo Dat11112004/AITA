@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 
 import { getCleanSubjectDescription } from '@/utils/subjectHelper'
+import { SemesterSelector } from '@/components/ui/SemesterSelector'
 
 type ViewMode = 'teaching' | 'all'
 
@@ -17,6 +18,7 @@ export function LecturerSubjects() {
   const [loading, setLoading] = useState(true)
   const [allSubjects, setAllSubjects] = useState<SubjectRow[]>([])
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
+  const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('teaching')
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -26,7 +28,7 @@ export function LecturerSubjects() {
     try {
       const [subjects, classes] = await Promise.all([
         api.getSubjects(1, 1000).catch(() => []),
-        api.getClasses().catch(() => []),
+        api.getClasses(1, 1000).catch(() => []),
       ])
       setAllSubjects(subjects || [])
       setTeachingClasses(classes || [])
@@ -41,12 +43,21 @@ export function LecturerSubjects() {
     loadData()
   }, [loadData])
 
-  // Subjects the lecturer is teaching (derived from their classes)
+  // Filter teaching classes by selectedSemester
+  const filteredTeachingClasses = teachingClasses.filter(c => {
+    if (!selectedSemester) return true;
+    const seasonStr = (c.semester?.season || (c.semester as any)?.seasonName || '').toUpperCase().replace(/\s+/g, '');
+    const codeStr = (c.semester?.code || (c.semester as any)?.label || c.semesterName || '').toUpperCase().replace(/\s+/g, '');
+    const semId = c.semesterId || (c.semester as any)?.id;
+    return seasonStr === selectedSemester || codeStr === selectedSemester || semId === selectedSemester;
+  });
+
+  // Subjects the lecturer is teaching (derived from their classes in selectedSemester)
   const teachingSubjects = (() => {
     const seen = new Set<string>()
     const result: SubjectRow[] = []
-    for (const cls of teachingClasses) {
-      const subId = (cls.subject as any)?.id
+    for (const cls of filteredTeachingClasses) {
+      const subId = (cls.subject as any)?.id || cls.subjectId;
       if (subId && !seen.has(subId)) {
         seen.add(subId)
         const full = allSubjects.find(s => s.id === subId)
@@ -55,8 +66,8 @@ export function LecturerSubjects() {
         } else {
           result.push({
             id: subId,
-            code: (cls.subject as any)?.code || 'N/A',
-            name: (cls.subject as any)?.name || t('lc.sub.name_fallback'),
+            code: (cls.subject as any)?.code || cls.subjectCode || 'N/A',
+            name: (cls.subject as any)?.name || cls.subjectName || t('lc.sub.name_fallback'),
           })
         }
       }
@@ -140,7 +151,11 @@ export function LecturerSubjects() {
           />
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <SemesterSelector
+            selectedSemester={selectedSemester}
+            onChange={setSelectedSemester}
+          />
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(o => !o)}
