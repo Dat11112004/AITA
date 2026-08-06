@@ -122,7 +122,7 @@ class AiGenerationStoreManager {
         loadingMsg: 'Analyzing content & extracting grading blueprint...',
         progress: 50,
       });
-      const draftBlueprint = await api.parseRequirements(markdown);
+      const draftBlueprint = await api.parseRequirements(markdown, null, subjectCode);
 
       this.setState({
         loadingMsg: 'Running background execution to compute Test Cases...',
@@ -223,7 +223,7 @@ class AiGenerationStoreManager {
         loadingMsg: 'Analyzing requirements & building rubric rules...',
         progress: 70,
       });
-      const draftBlueprint = await api.parseRequirements(markdown);
+      const draftBlueprint = await api.parseRequirements(markdown, null, subjectCode);
       const generatedRubric = await api.generateRubric(draftBlueprint);
 
       let finalMarkdown = markdown;

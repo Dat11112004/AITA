@@ -799,9 +799,12 @@ export const gradingApi = {
     ...options
   }),
 
-  parseRequirements: (content: string, documentImageKey?: string | null) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {
+  // `subject` is the subject code (e.g. "DBI202"). The backend uses it to settle projectType,
+  // which decides how submissions are graded; without it the backend falls back to guessing
+  // from the prompt text.
+  parseRequirements: (content: string, documentImageKey?: string | null, subject?: string) => request<{ blueprint: any }>('/grading/assignments/parse-requirements', {
     method: 'POST',
-    body: JSON.stringify({ content, documentImageKey }),
+    body: JSON.stringify({ content, documentImageKey, subject }),
   }).then(res => res.blueprint),
 
   generateRubric: (blueprint: any) => request<{ rubric: any }>('/grading/assignments/generate-rubric', {

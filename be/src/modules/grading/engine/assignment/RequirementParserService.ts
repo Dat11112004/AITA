@@ -9,11 +9,11 @@ export class RequirementParserService {
      * When documentImages are provided (from uploaded .docx files), they are sent
      * alongside the text to enable the AI to analyze DB schemas, UI mockups, etc.
      */
-    public async parseRequirementsAsync(rawText: string, documentImages?: DocumentImage[]): Promise<any> {
-        console.log(`[RequirementParserService] Parsing requirements via AI... (images: ${documentImages?.length || 0})`);
-        
+    public async parseRequirementsAsync(rawText: string, documentImages?: DocumentImage[], subject?: string | null): Promise<any> {
+        console.log(`[RequirementParserService] Parsing requirements via AI... (images: ${documentImages?.length || 0}, subject: ${subject || 'unknown'})`);
+
         try {
-            const draftBlueprint = await this.aiProvider.parseRequirementsAsync(rawText, documentImages);
+            const draftBlueprint = await this.aiProvider.parseRequirementsAsync(rawText, documentImages, subject);
             
             // Add ID and Status before returning
             return {

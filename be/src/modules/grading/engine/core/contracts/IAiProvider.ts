@@ -57,7 +57,8 @@ export interface IAiProvider {
     /**
      * Parses a natural language requirement into structured Rubric rules.
      */
-    parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[]): Promise<ParsedBlueprint>;
+    /** `subject` is the subject code from the upload form (e.g. "DBI202"); it decides projectType when known. */
+    parseRequirementsAsync(prompt: string, documentImages?: DocumentImage[], subject?: string | null): Promise<ParsedBlueprint>;
 
     /**
      * Evaluates a screenshot or image against a specific requirement.

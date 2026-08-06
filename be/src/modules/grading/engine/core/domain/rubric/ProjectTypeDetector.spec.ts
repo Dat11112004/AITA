@@ -36,6 +36,46 @@ Dùng Room database để lưu trữ giao dịch offline, đồng bộ với RES
 Trigger cập nhật tổng chi tiêu mỗi khi thêm giao dịch mới.
 Yêu cầu xử lý transaction khi chuyển tiền giữa hai ví.`
 
+describe('detectProjectType with a subject', () => {
+    // The subject code is the one deterministic signal: the lecturer picks it on the form.
+    // Where a subject is mapped it settles projectType, and the keyword table is not consulted.
+
+    test('DBI202 is a database subject whatever the AI says', () => {
+        expect(detectProjectType('database', DBI202_PROMPT, 'DBI202').projectType).toBe('database')
+        expect(detectProjectType('algorithm', DBI202_PROMPT, 'DBI202').projectType).toBe('database')
+        expect(detectProjectType('backend', DBI202_PROMPT, 'DBI202').projectType).toBe('database')
+    })
+
+    test('PRJ301 keeps backend or fullstack, both of which are legitimate for it', () => {
+        expect(detectProjectType('backend', PRJ301_PROMPT, 'PRJ301').changed).toBe(false)
+        expect(detectProjectType('fullstack', PRJ301_PROMPT, 'PRJ301').changed).toBe(false)
+    })
+
+    test('PRJ301 cannot be a database assignment', () => {
+        expect(detectProjectType('database', PRJ301_PROMPT, 'PRJ301').projectType).toBe('backend')
+    })
+
+    test('PRM392 keeps mobile and rejects database', () => {
+        expect(detectProjectType('mobile', PRM392_PROMPT, 'PRM392').changed).toBe(false)
+        expect(detectProjectType('database', PRM392_PROMPT, 'PRM392').projectType).toBe('mobile')
+    })
+
+    test('CSD201 is an algorithm subject', () => {
+        expect(detectProjectType('backend', ALGORITHM_PROMPT, 'CSD201').projectType).toBe('algorithm')
+    })
+
+    test('accepts a class-suffixed or lowercase subject code', () => {
+        expect(detectProjectType('algorithm', DBI202_PROMPT, 'DBI202-SE1701').projectType).toBe('database')
+        expect(detectProjectType('algorithm', DBI202_PROMPT, 'dbi202').projectType).toBe('database')
+    })
+
+    test('an unmapped subject or a UUID falls back to keyword scoring', () => {
+        // MLN111 has no policy, so the PRJ301 text is scored and nothing outscores backend.
+        expect(detectProjectType('backend', PRJ301_PROMPT, 'MLN111').projectType).toBe('backend')
+        expect(detectProjectType('mobile', PRM392_PROMPT, '9f0c1e2a-1111-2222-3333-444455556666').projectType).toBe('mobile')
+    })
+})
+
 describe('detectProjectType', () => {
     describe('database prompts', () => {
         test('keeps "database" when the AI classified a DBI202 prompt correctly', () => {
