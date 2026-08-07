@@ -132,6 +132,8 @@ export interface SubmissionResponse {
   manualReviewNotes?: string[];
   overallFeedback?: string;
   assessedAt?: string;
+  isPublished?: boolean;
+  studentFeedback?: string;
   error?: string;
 }
 

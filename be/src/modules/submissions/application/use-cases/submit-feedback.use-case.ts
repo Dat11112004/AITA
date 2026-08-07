@@ -30,19 +30,29 @@ export class SubmitFeedbackUseCase implements IUseCase<{ id: string; user: { id:
             data: { StudentFeedback: feedback }
         });
 
-        // Send Notification to Instructor
+        // Send Notification to Instructors (Class instructors + Exam creator)
+        const recipientUserIds = new Set<string>();
         const instructors = submission.Class?.InstructorClass || [];
-        for (const instructor of instructors) {
+        for (const inst of instructors) {
+            if (inst.UserId) recipientUserIds.add(inst.UserId);
+        }
+        if (submission.Exam?.CreatedBy) {
+            recipientUserIds.add(submission.Exam.CreatedBy);
+        }
+
+        const examTitle = submission.Exam?.Title || 'Assignment';
+
+        for (const targetUserId of recipientUserIds) {
             await this.prisma.notification.create({
                 data: {
-                    Title: 'Khiếu nại / Phản hồi điểm số',
-                    Message: `Sinh viên đã gửi phản hồi cho bài tập ${submission.Exam?.Title}. Ý kiến: ${feedback}`,
+                    Title: 'Grade Inquiry / Student Feedback',
+                    Message: `A student submitted feedback for "${examTitle}": ${feedback}`,
                     Type: 'FEEDBACK',
                     ReferenceId: submission.Id,
                     ReferenceType: 'Submission',
                     NotificationRecipient: {
                         create: {
-                            UserId: instructor.UserId,
+                            UserId: targetUserId,
                             IsRead: false,
                         }
                     }
@@ -53,3 +63,4 @@ export class SubmitFeedbackUseCase implements IUseCase<{ id: string; user: { id:
         return { success: true, feedback: updated.StudentFeedback };
     }
 }
+

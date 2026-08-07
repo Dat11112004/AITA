@@ -62,7 +62,7 @@ export function NotificationsDropdown() {
   }
 
   const handleDeleteAll = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xoá tất cả thông báo không?')) return
+    if (!window.confirm('Are you sure you want to delete all notifications?')) return
     setNotifications([])
     try {
       await api.deleteAllNotifications()
@@ -80,8 +80,14 @@ export function NotificationsDropdown() {
     }
     setOpen(false)
     const refId = n.referenceId || n.ReferenceId
+    const refType = n.referenceType || n.ReferenceType || n.type
     if (refId) {
-      navigate(`/student/assignments/${refId}`)
+      if (refType === 'Submission' || n.type === 'FEEDBACK') {
+        const isStudent = window.location.pathname.startsWith('/student')
+        navigate(isStudent ? `/student/grading/result/${refId}` : `/lecturer/grading/result/${refId}`)
+      } else {
+        navigate(`/student/assignments/${refId}`)
+      }
     }
   }
 
@@ -128,20 +134,20 @@ export function NotificationsDropdown() {
         ">
           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Thông báo</h3>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Notifications</h3>
               {notifications.length > 0 && (
                 <span className="px-2 py-0.5 text-[11px] font-bold bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 rounded-full">
-                  {notifications.length} {displayUnread > 0 ? `(${displayUnread} mới)` : ''}
+                  {notifications.length} {displayUnread > 0 ? `(${displayUnread} new)` : ''}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
               {displayUnread > 0 && (
-                <button onClick={handleMarkAllAsRead} className="text-xs text-brand-600 dark:text-brand-400 hover:underline">Đã đọc tất cả</button>
+                <button onClick={handleMarkAllAsRead} className="text-xs text-brand-600 dark:text-brand-400 hover:underline cursor-pointer">Mark all read</button>
               )}
               {notifications.length > 0 && (
-                <button onClick={handleDeleteAll} className="text-xs text-red-500 hover:underline flex items-center gap-1">
-                  <Trash2 size={12} /> Xoá tất cả
+                <button onClick={handleDeleteAll} className="text-xs text-red-500 hover:underline flex items-center gap-1 cursor-pointer">
+                  <Trash2 size={12} /> Clear all
                 </button>
               )}
             </div>
@@ -152,7 +158,7 @@ export function NotificationsDropdown() {
               <div className="flex justify-center p-6 text-brand-500"><Loader2 className="animate-spin" size={24} /></div>
             ) : notifications.length === 0 ? (
               <div className="text-center p-6 text-sm text-slate-500">
-                Chưa có thông báo nào.
+                No notifications yet.
               </div>
             ) : (
               <div className="space-y-1">
@@ -172,11 +178,11 @@ export function NotificationsDropdown() {
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {!isRead && (
-                            <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Đánh dấu đã đọc" className="text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-brand-100 dark:hover:bg-brand-900 rounded-lg">
+                            <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Mark as read" className="text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-brand-100 dark:hover:bg-brand-900 rounded-lg">
                               <Check size={14} />
                             </button>
                           )}
-                          <button onClick={(e) => handleDeleteOne(n.id, e)} title="Xoá thông báo này" className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                          <button onClick={(e) => handleDeleteOne(n.id, e)} title="Delete notification" className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                             <Trash2 size={13} />
                           </button>
                         </div>

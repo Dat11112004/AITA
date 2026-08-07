@@ -144,7 +144,7 @@ export class SubmissionsController extends BaseController {
     async submitFeedback(req: Request, res: Response): Promise<void> {
         this.logger.debug(`Received request to submit feedback for submission: ${req.params.id}`)
         const result = await this.submitFeedbackUseCase.execute({ id: String(req.params.id), user: req.user!, feedback: req.body.feedback })
-        this.ok(res, result, 'Gửi ý kiến thành công')
+        this.ok(res, result, 'Feedback submitted successfully')
     }
 
     async getAiHint(req: Request, res: Response): Promise<void> {

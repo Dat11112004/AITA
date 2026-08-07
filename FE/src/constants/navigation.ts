@@ -8,6 +8,7 @@ export const ADMIN_NAV: NavItem[] = [
   { id: 'exams', label: 'Exams', path: '/admin/exams', icon: 'FileSignature', category: 'Training Management' },
   { id: 'reports', label: 'Reports', path: '/admin/reports', icon: 'BarChart3', category: 'Analytics & Reports' },
   { id: 'audit-logs', label: 'Audit Logs', path: '/admin/audit-logs', icon: 'FileText', category: 'Analytics & Reports' },
+  { id: 'notifications', label: 'Notifications', path: '/admin/notifications', icon: 'Bell', category: 'System' },
   { id: 'ai-config', label: 'AI Config', path: '/admin/ai-config', icon: 'Bot', category: 'System' },
   { id: 'profile', label: 'Profile', path: '/admin/profile', icon: 'UserCircle', category: 'System' },
   { id: 'settings', label: 'Settings', path: '/admin/settings', icon: 'Settings', category: 'System' },
@@ -19,6 +20,7 @@ export const LECTURER_NAV: NavItem[] = [
   { id: 'subjects', label: 'Subjects', path: '/lecturer/subjects', icon: 'Library', category: 'Training' },
   { id: 'grading-assignments', label: 'Manage Assignments', path: '/lecturer/grading/assignments', icon: 'FileCheck', category: 'Materials' },
   { id: 'prompts', label: 'Manage Prompts', path: '/lecturer/prompts', icon: 'Bot', category: 'Materials' },
+  { id: 'notifications', label: 'Notifications', path: '/lecturer/notifications', icon: 'Bell', category: 'System' },
   { id: 'settings', label: 'Settings', path: '/lecturer/profile', icon: 'Settings', category: 'System' },
 ]
 

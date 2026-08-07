@@ -941,13 +941,15 @@ export class SubmissionController extends BaseController {
 
         let isPublished = false;
         let reviewStatus = 'DRAFT';
+        let studentFeedback: string | null = null;
         try {
             const subRecord = await prisma.submission.findUnique({
                 where: { Id: id },
-                select: { ReviewStatus: true }
+                select: { ReviewStatus: true, StudentFeedback: true }
             });
             reviewStatus = subRecord?.ReviewStatus || 'DRAFT';
             isPublished = reviewStatus === 'PUBLISHED';
+            studentFeedback = subRecord?.StudentFeedback || null;
         } catch (e) { }
 
         this.ok(res, {
@@ -959,7 +961,8 @@ export class SubmissionController extends BaseController {
             manualReviewNotes: report.manualReviewNotes || [],
             overallFeedback: report.overallFeedback,
             isPublished,
-            reviewStatus
+            reviewStatus,
+            studentFeedback
         }, 'Result fetched successfully');
     };
 

@@ -948,6 +948,11 @@ export const gradingApi = {
 
   getSubmissionResult: (submissionId: string) => request<any>('/grading/submissions/' + submissionId + '/result'),
 
+  submitFeedback: (submissionId: string, feedback: string) => request<{ success: boolean, feedback: string }>(`/submissions/${submissionId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ feedback }),
+  }),
+
   cancelSubmission: (submissionId: string) => request<{ success: boolean }>('/grading/submissions/' + submissionId + '/cancel', { method: 'POST' }),
 
   getHistory: (assignmentId?: string, page: number = 1, limit: number = 10, search?: string, status?: string, scoreRange?: string, sort?: string, classId?: string) => {
