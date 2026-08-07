@@ -999,7 +999,6 @@ export class SubmissionController extends BaseController {
                     data: {
                         FinalScore: newScore,
                         RawScore: newScore,
-                        Score: newScore,
                         ReportData: updatedReportData,
                     }
                 });

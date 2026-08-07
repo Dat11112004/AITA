@@ -59,23 +59,7 @@ export default function ScoreCard({
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-brand-50 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-60"></div>
 
       <div className="shrink-0 relative z-10 flex flex-col items-center">
-        <div className="relative group">
-          <ProgressRing score={score} maxScore={maxScore} size={110} strokeWidth={8} />
-
-          {/* Quick Pencil Icon on hover/overlay over progress ring */}
-          {!isStudent && onUpdateScore && !isEditing && (
-            <button
-              onClick={() => {
-                setEditScore(score.toString());
-                setIsEditing(true);
-              }}
-              className="absolute -top-1 -right-1 p-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 rounded-full shadow-md border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
-              title="Edit Score"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-        </div>
+        <ProgressRing score={score} maxScore={maxScore} size={110} strokeWidth={8} />
 
         {/* Pencil Edit button under progress ring */}
         {!isStudent && onUpdateScore && !isEditing && (

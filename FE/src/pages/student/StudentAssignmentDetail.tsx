@@ -338,8 +338,8 @@ export function StudentAssignmentDetail() {
 
       submissionChannel = new BroadcastChannel('aita_submission_events')
       submissionChannel.onmessage = (event) => {
-        if (event.data?.type === 'SUBMISSION_PUBLISHED') {
-          console.log('[StudentAssignmentDetail] Real-time publish event received!')
+        if (event.data?.type === 'SUBMISSION_PUBLISHED' || event.data?.type === 'SCORE_UPDATED') {
+          console.log('[StudentAssignmentDetail] Real-time submission update received!')
           loadData(false)
         }
       }
@@ -357,8 +357,7 @@ export function StudentAssignmentDetail() {
           }
         } catch (err) { }
       }
-      if (e.key === 'aita_last_publish_event' && e.newValue) {
-        console.log('[StudentAssignmentDetail] Storage publish event received!')
+      if ((e.key === 'aita_last_publish_event' || e.key === 'aita_last_score_event') && e.newValue) {
         loadData(false)
       }
     }
