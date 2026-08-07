@@ -138,56 +138,6 @@ export default function ResultPage() {
     }))
     .sort((a, b) => extractQuestionNum(a.name) - extractQuestionNum(b.name));
 
-  const handleUpdateScore = async (newScore: number) => {
-    if (!id) return;
-    await api.updateScore(id, newScore);
-    setResult(prev => prev ? { ...prev, score: newScore } : prev);
-
-    // Real-time broadcast to student tabs/windows
-    try {
-      const channel = new BroadcastChannel('aita_submission_events');
-      channel.postMessage({ type: 'SCORE_UPDATED', submissionId: id, score: newScore });
-      channel.close();
-    } catch (e) {}
-    localStorage.setItem('aita_last_score_event', JSON.stringify({ type: 'SCORE_UPDATED', submissionId: id, score: newScore, timestamp: Date.now() }));
-  };
-
-  useEffect(() => {
-    if (!id) return;
-
-    const handleEventData = (data: any) => {
-      if (data && data.submissionId === id) {
-        if (data.type === 'SCORE_UPDATED' && typeof data.score === 'number') {
-          setResult(prev => prev ? { ...prev, score: data.score } as any : prev);
-        } else if (data.type === 'SUBMISSION_PUBLISHED' && typeof data.isPublished === 'boolean') {
-          setResult(prev => prev ? { ...prev, isPublished: data.isPublished } as any : prev);
-        }
-      }
-    };
-
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel('aita_submission_events');
-      channel.onmessage = (e) => handleEventData(e.data);
-    } catch (err) {}
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'aita_last_score_event' || e.key === 'aita_last_publish_event') {
-        try {
-          const data = JSON.parse(e.newValue || '{}');
-          handleEventData(data);
-        } catch (err) {}
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      if (channel) channel.close();
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [id]);
-
   return (
     <div className="max-w-5xl mx-auto pb-8 -mt-2 sm:-mt-4">
       <button type="button" onClick={handleGoBack} className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors mb-8 cursor-pointer bg-transparent border-none p-0 outline-none">
@@ -272,8 +222,6 @@ export default function ResultPage() {
           maxScore={result.maxScore}
           assessedAt={result.assessedAt || new Date().toISOString()}
           gradingTime={gradingTime}
-          isStudent={isStudent}
-          onUpdateScore={handleUpdateScore}
         />
 
         {result.overallFeedback && (

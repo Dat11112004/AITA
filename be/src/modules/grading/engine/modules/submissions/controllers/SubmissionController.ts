@@ -969,47 +969,6 @@ export class SubmissionController extends BaseController {
         }, 'Result fetched successfully');
     };
 
-    updateScore = async (req: Request, res: Response) => {
-        const id = req.params.id as string;
-        const { score } = req.body;
-        const newScore = Number(score);
-
-        if (isNaN(newScore) || newScore < 0) {
-            this.badRequest(res, 'Invalid score provided');
-            return;
-        }
-
-        try {
-            const dbSub = await prisma.submission.findUnique({
-                where: { Id: id },
-            });
-
-            if (dbSub) {
-                let updatedReportData = dbSub.ReportData;
-                if (updatedReportData) {
-                    try {
-                        const parsed = JSON.parse(updatedReportData);
-                        parsed.totalScore = newScore;
-                        updatedReportData = JSON.stringify(parsed);
-                    } catch (e) {}
-                }
-
-                await prisma.submission.update({
-                    where: { Id: id },
-                    data: {
-                        FinalScore: newScore,
-                        RawScore: newScore,
-                        ReportData: updatedReportData,
-                    }
-                });
-            }
-
-            this.ok(res, { submissionId: id, score: newScore }, 'Score updated successfully');
-        } catch (e: any) {
-            this.internalError(res, e.message || 'Failed to update score');
-        }
-    };
-
     publish = async (req: Request, res: Response) => {
         const id = req.params.id as string;
 
