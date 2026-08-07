@@ -50,14 +50,13 @@ export default function LiveJobPage() {
     const unsubscribe = api.subscribeToProgress(
       id,
       (job) => {
+        const taskText = job.currentTask || t('lc.lj.processing');
         setProgressData({
           percent: job.progressPercent || 0,
-          task: job.currentTask || t('lc.lj.processing')
+          task: taskText
         });
 
-        if (job.meta) {
-          setActivities(prev => [{ id: Date.now().toString() + Math.random(), task: job.currentTask, meta: job.meta }, ...prev]);
-        }
+        setActivities(prev => [{ id: Date.now().toString() + Math.random(), task: taskText, meta: job.meta }, ...prev]);
       },
       async () => {
         try {

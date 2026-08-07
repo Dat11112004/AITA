@@ -28,9 +28,8 @@ export default function LiveActivityLog({ activities, fileName, assignmentId }: 
     }
   }, [activities]);
 
-  if (!currentScene) return null;
-
-  const evidence = currentScene.meta?.evidence;
+  const activeScene = currentScene || { id: 'init', task: 'CONNECTING TO AI ENGINE...' };
+  const evidence = activeScene.meta?.evidence;
   const hasImage = !!evidence?.screenshotBase64;
   const hasSnippets = evidence?.snippets && evidence.snippets.length > 0;
 
@@ -57,7 +56,7 @@ export default function LiveActivityLog({ activities, fileName, assignmentId }: 
       
       {/* Scene Key forces React to re-mount the DOM node, triggering the CSS animation */}
       <div 
-        key={currentScene.id} 
+        key={activeScene.id} 
         className="w-full h-full flex flex-col items-center relative z-10 p-6"
         style={{ animation: 'fadeZoom 0.5s ease-out forwards' }}
       >
@@ -90,7 +89,7 @@ export default function LiveActivityLog({ activities, fileName, assignmentId }: 
             <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end gap-1">
                     <span className="text-emerald-500 font-mono text-xs uppercase tracking-widest opacity-60">System Status</span>
-                    <span className="text-emerald-400 font-mono text-sm font-bold tracking-widest uppercase">{currentScene.task}</span>
+                    <span className="text-emerald-400 font-mono text-sm font-bold tracking-widest uppercase">{activeScene.task}</span>
                 </div>
                 {/* Tech Radar Spinner */}
                 <div className="relative flex items-center justify-center w-8 h-8">
