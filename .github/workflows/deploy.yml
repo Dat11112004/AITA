@@ -43,10 +43,8 @@ jobs:
           script_stop: true
           script: |
             cd /www/wwwroot/AITA/AITA-main
-            docker compose build --no-cache
-            # Only the app containers are recreated. A blanket --force-recreate
-            # also restarts mssql, and SQL Server needs ~30-60s before it
-            # accepts connections, which is what broke `prisma db push` here.
+            docker compose build
+            docker rm -f aita-backend aita-frontend 2>/dev/null || true
             docker compose up -d mssql
             docker compose up -d --force-recreate backend frontend
             # The backend may still come up before the database answers, so
