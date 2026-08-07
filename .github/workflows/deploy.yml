@@ -75,4 +75,4 @@ jobs:
             # `update: {}` so no changed password is reset. The full seed is
             # deliberately avoided here: it rewrites subject descriptions and
             # syllabi that lecturers edit in the app.
-            docker exec -e SEED_SCOPE=accounts -i aita-backend npx tsx prisma/seed.ts
+            docker exec -e SEED_SCOPE=accounts -e NODE_OPTIONS="--max-old-space-size=256" -i aita-backend npx tsx prisma/seed.ts

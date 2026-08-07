@@ -113,10 +113,13 @@ export class StdInOutProbeEngine {
     const normalizedInput = testCase.input.replace(/\\n/g, '\n').replace(/\r/g, '').replace(/'/g, "'\\''");
 
     // Build the full command:
-    // 1. Copy source to writable /sandbox (some languages need to compile)
-    // 2. Build (if needed)
-    // 3. Pipe stdin and run
-    const setupCmd = `cp -a /app/${projectDir}/. /sandbox/ && cd /sandbox`;
+    // 1. Copy ALL source to writable /sandbox (some languages need to compile)
+    // 2. cd into the project subdirectory (if nested)
+    // 3. Build (if needed)
+    // 4. Pipe stdin and run
+    const setupCmd = projectDir === '.'
+      ? `cp -a /app/. /sandbox/ && cd /sandbox`
+      : `cp -a /app/. /sandbox/ && cd /sandbox && ([ -d "${projectDir}" ] && cd "${projectDir}" || true)`;
     const pipeCmd = `echo '${normalizedInput}' | timeout ${Math.ceil(timeoutMs / 1000)} ${runCmd}`;
     const fullCmd = buildCmd
       ? `${setupCmd} && ${buildCmd} >/dev/null 2>&1 && ${pipeCmd}`
@@ -299,8 +302,8 @@ export class StdInOutProbeEngine {
       return {
         language: 'java',
         dockerImage: 'eclipse-temurin:21',
-        buildCommand: `find . -name "*.java" > sources.txt && javac @sources.txt`,
-        runCommand: `java ${className}`
+        buildCommand: `find . -name "*.java" > sources.txt && javac -d . @sources.txt`,
+        runCommand: `java -cp . ${className}`
       };
     }
 
