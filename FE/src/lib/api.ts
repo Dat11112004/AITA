@@ -948,6 +948,11 @@ export const gradingApi = {
 
   getSubmissionResult: (submissionId: string) => request<any>('/grading/submissions/' + submissionId + '/result'),
 
+  updateScore: (submissionId: string, score: number) => request<{ success: boolean, score: number }>(`/grading/submissions/${submissionId}/score`, {
+    method: 'PATCH',
+    body: JSON.stringify({ score }),
+  }),
+
   submitFeedback: (submissionId: string, feedback: string) => request<{ success: boolean, feedback: string }>(`/submissions/${submissionId}/feedback`, {
     method: 'POST',
     body: JSON.stringify({ feedback }),

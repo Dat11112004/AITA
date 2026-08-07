@@ -125,6 +125,7 @@ export interface BuildResult {
 export interface SubmissionResponse {
   success: boolean;
   submissionId: string;
+  assignmentId?: string;
   score: number;
   maxScore: number;
   rules: ScoreRule[];

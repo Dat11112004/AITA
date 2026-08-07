@@ -33,6 +33,7 @@ export function createSubmissionRoutes(): Router {
   router.get('/:id/stream', controller.streamProgress);
   router.post('/:id/cancel', controller.cancel);
   router.get('/:id/result', controller.getResult);
+  router.patch('/:id/score', controller.updateScore);
   router.post('/:id/publish', controller.publish);
   router.post('/:id/unpublish', controller.unpublish);
   router.get('/health', controller.healthCheck);

@@ -30,12 +30,12 @@ export default function ResultPage() {
 
   const handleGoBack = () => {
     const targetAssignmentId = (result as any)?.assignmentId || (result as any)?.examId || (result as any)?.ExamId;
-    if (window.history.length > 1 && window.history.state?.idx > 0) {
+    if (targetAssignmentId) {
+      navigate(isStudent ? `/student/assignments/${targetAssignmentId}` : `/lecturer/grading/assignments/${targetAssignmentId}`);
+    } else if (window.history.length > 1 && window.history.state?.idx > 0) {
       navigate(-1);
-    } else if (targetAssignmentId) {
-      navigate(`/lecturer/grading/assignments/${targetAssignmentId}`);
     } else {
-      navigate(isStudent ? '/student/courses' : '/lecturer/grading');
+      navigate(isStudent ? '/student/courses' : '/lecturer/grading/assignments');
     }
   };
 
@@ -138,6 +138,12 @@ export default function ResultPage() {
     }))
     .sort((a, b) => extractQuestionNum(a.name) - extractQuestionNum(b.name));
 
+  const handleUpdateScore = async (newScore: number) => {
+    if (!id) return;
+    await api.updateScore(id, newScore);
+    setResult(prev => prev ? { ...prev, score: newScore } : prev);
+  };
+
   return (
     <div className="max-w-5xl mx-auto pb-8 -mt-2 sm:-mt-4">
       <button type="button" onClick={handleGoBack} className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-colors mb-8 cursor-pointer bg-transparent border-none p-0 outline-none">
@@ -222,6 +228,8 @@ export default function ResultPage() {
           maxScore={result.maxScore}
           assessedAt={result.assessedAt || new Date().toISOString()}
           gradingTime={gradingTime}
+          isStudent={isStudent}
+          onUpdateScore={handleUpdateScore}
         />
 
         {result.overallFeedback && (

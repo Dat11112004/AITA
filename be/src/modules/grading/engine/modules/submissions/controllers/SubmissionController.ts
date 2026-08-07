@@ -942,18 +942,21 @@ export class SubmissionController extends BaseController {
         let isPublished = false;
         let reviewStatus = 'DRAFT';
         let studentFeedback: string | null = null;
+        let assignmentId: string | null = null;
         try {
             const subRecord = await prisma.submission.findUnique({
                 where: { Id: id },
-                select: { ReviewStatus: true, StudentFeedback: true }
+                select: { ReviewStatus: true, StudentFeedback: true, ExamId: true }
             });
             reviewStatus = subRecord?.ReviewStatus || 'DRAFT';
             isPublished = reviewStatus === 'PUBLISHED';
             studentFeedback = subRecord?.StudentFeedback || null;
+            assignmentId = subRecord?.ExamId || null;
         } catch (e) { }
 
         this.ok(res, {
             submissionId: id,
+            assignmentId,
             score: report.totalScore || 0,
             maxScore: report.maxPossibleScore || 0,
             rules: report.passedRules || [],
@@ -964,6 +967,48 @@ export class SubmissionController extends BaseController {
             reviewStatus,
             studentFeedback
         }, 'Result fetched successfully');
+    };
+
+    updateScore = async (req: Request, res: Response) => {
+        const id = req.params.id as string;
+        const { score } = req.body;
+        const newScore = Number(score);
+
+        if (isNaN(newScore) || newScore < 0) {
+            this.badRequest(res, 'Invalid score provided');
+            return;
+        }
+
+        try {
+            const dbSub = await prisma.submission.findUnique({
+                where: { Id: id },
+            });
+
+            if (dbSub) {
+                let updatedReportData = dbSub.ReportData;
+                if (updatedReportData) {
+                    try {
+                        const parsed = JSON.parse(updatedReportData);
+                        parsed.totalScore = newScore;
+                        updatedReportData = JSON.stringify(parsed);
+                    } catch (e) {}
+                }
+
+                await prisma.submission.update({
+                    where: { Id: id },
+                    data: {
+                        FinalScore: newScore,
+                        RawScore: newScore,
+                        Score: newScore,
+                        ReportData: updatedReportData,
+                    }
+                });
+            }
+
+            this.ok(res, { submissionId: id, score: newScore }, 'Score updated successfully');
+        } catch (e: any) {
+            this.internalError(res, e.message || 'Failed to update score');
+        }
     };
 
     publish = async (req: Request, res: Response) => {
