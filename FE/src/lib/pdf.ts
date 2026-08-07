@@ -1,22 +1,11 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-} catch (e) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
-}
+// Set worker source to jsDelivr CDN to guarantee application/javascript MIME type across all environments
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
 
 export async function renderPdfToImages(file: File, scale = 2.0): Promise<string[]> {
     const arrayBuffer = await file.arrayBuffer();
-    let pdf;
-    try {
-        pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    } catch (err) {
-        console.warn('[PDF.js] Worker initialization failed, switching to jsDelivr CDN worker...', err);
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
-        pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    }
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     const numPages = pdf.numPages;
     const pageImages: string[] = [];
