@@ -12,22 +12,42 @@ export default function ScoreCard({ score, maxScore, assessedAt, gradingTime }: 
   const percent = maxScore > 0 ? (score / maxScore) * 100 : 0;
   
   let feedback = 'Needs Improvement';
-  if (percent >= 85) feedback = 'Excellent Work!';
-  else if (percent >= 70) feedback = 'Good Job';
-  else if (percent >= 50) feedback = 'Passed';
+  let feedbackColor = 'text-rose-600 dark:text-rose-400';
+  if (percent >= 85) {
+    feedback = 'Excellent Work!';
+    feedbackColor = 'text-slate-800 dark:text-slate-100';
+  } else if (percent >= 70) {
+    feedback = 'Good Job';
+    feedbackColor = 'text-slate-800 dark:text-slate-100';
+  } else if (percent >= 50) {
+    feedback = 'Passed';
+    feedbackColor = 'text-slate-800 dark:text-slate-100';
+  }
+
+  const isLowOrZero = score <= 0 || (maxScore > 0 && percent < 50);
 
   return (
-    <div className="relative bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-800 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-none p-6 md:p-8 flex flex-col md:flex-row items-center gap-8 overflow-hidden">
+    <div className={`relative border dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-none p-6 md:p-8 flex flex-col md:flex-row items-center gap-8 overflow-hidden transition-all duration-300 ${
+      isLowOrZero
+        ? 'bg-rose-50/40 border-rose-200 dark:border-rose-900/60 dark:bg-slate-900'
+        : 'bg-white border-slate-200 dark:border-slate-800'
+    }`}>
       {/* Subtle decorative background for light mode to prevent it from looking empty */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-brand-50 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-60"></div>
+      <div className={`absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-60 ${
+        isLowOrZero
+          ? 'bg-gradient-to-br from-rose-100 to-transparent dark:from-rose-950/40'
+          : 'bg-gradient-to-br from-brand-50 to-transparent'
+      }`}></div>
       
       <div className="shrink-0 relative z-10">
         <ProgressRing score={score} maxScore={maxScore} size={110} strokeWidth={8} />
       </div>
       
       <div className="flex-1 text-center md:text-left relative z-10">
-        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-slate-100 mb-2 tracking-tight">{feedback}</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-base mb-6 font-medium">Your project has been analyzed successfully.</p>
+        <h2 className={`text-2xl md:text-3xl font-extrabold mb-2 tracking-tight ${feedbackColor}`}>{feedback}</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-base mb-6 font-medium">
+          {score <= 0 ? 'Score is zero or negative. Please review your submission feedback.' : 'Your project has been analyzed successfully.'}
+        </p>
         
         <div className="flex flex-wrap justify-center md:justify-start gap-3">
           {gradingTime !== undefined && (

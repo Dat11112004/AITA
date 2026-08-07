@@ -148,7 +148,7 @@ export function StudentSubjects() {
     let totalScore = 0
     let gradedCountForScore = 0
     assignments.forEach(a => {
-      const score = (a as any).score || (a as any).aiScore
+      const score = (a as any).score ?? (a as any).aiScore
       if (score !== undefined && score !== null) {
         totalScore += Number(score)
         gradedCountForScore++
@@ -295,19 +295,22 @@ export function StudentSubjects() {
                               return <div className="text-sm font-medium text-slate-400">{t('st.subjects.no_graded')}</div>
                             }
 
-                            return graded.map((g, i) => (
-                              <div key={i} className="flex items-center gap-6">
-                                {i > 0 && <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block" />}
-                                <div className="text-center max-w-[110px]">
-                                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 truncate" title={g.title}>
-                                    {g.title}
-                                  </div>
-                                  <div className="text-sm font-bold text-emerald-600">
-                                    {Math.round(Number(g.score) * 100) / 100}
+                            return graded.map((g, i) => {
+                              const val = Number(g.score)
+                              return (
+                                <div key={i} className="flex items-center gap-6">
+                                  {i > 0 && <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden sm:block" />}
+                                  <div className="text-center max-w-[110px]">
+                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 truncate" title={g.title}>
+                                      {g.title}
+                                    </div>
+                                    <div className={`text-sm font-bold ${val <= 0 ? 'text-rose-600 dark:text-rose-400 font-extrabold' : val < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                      {Math.round(val * 100) / 100}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))
+                              )
+                            })
                           })()}
                         </div>
                         <div className="text-slate-400 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 p-2 rounded-full transition-colors ml-4 lg:ml-0">
@@ -348,7 +351,8 @@ export function StudentSubjects() {
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
                                       {displayAssignments.filter(a => a.type !== 'Exam').map(a => {
                                         const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
-                                        const score = (a as any).score || (a as any).aiScore
+                                        const score = (a as any).score ?? (a as any).aiScore
+                                        const numScore = score !== undefined && score !== null ? Number(score) : null
                                         return (
                                           <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
                                             <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
@@ -370,7 +374,13 @@ export function StudentSubjects() {
                                               </div>
                                             </td>
                                             <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                                              {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                              {numScore !== null ? (
+                                                <span className={numScore <= 0 ? 'text-rose-600 dark:text-rose-400 font-extrabold' : numScore < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                                                  {Math.round(numScore * 100) / 100}
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-300 dark:text-slate-600">-</span>
+                                              )}
                                             </td>
                                             <td className="px-5 py-4">
                                               <div className="flex items-center justify-end gap-2">
@@ -414,7 +424,8 @@ export function StudentSubjects() {
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-[#151821]">
                                       {displayAssignments.filter(a => a.type === 'Exam').map(a => {
                                         const isSubmitted = a.status === 'Submitted' || a.status === 'Graded' || (a as any).score !== undefined
-                                        const score = (a as any).score || (a as any).aiScore
+                                        const score = (a as any).score ?? (a as any).aiScore
+                                        const numScore = score !== undefined && score !== null ? Number(score) : null
                                         return (
                                           <tr key={a.id} onClick={() => navigate(`/student/assignments/${a.id}`)} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer">
                                             <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
@@ -436,7 +447,13 @@ export function StudentSubjects() {
                                               </div>
                                             </td>
                                             <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                                              {score !== undefined && score !== null ? <span className="text-emerald-600">{Math.round(Number(score) * 100) / 100}</span> : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                              {numScore !== null ? (
+                                                <span className={numScore <= 0 ? 'text-rose-600 dark:text-rose-400 font-extrabold' : numScore < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                                                  {Math.round(numScore * 100) / 100}
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-300 dark:text-slate-600">-</span>
+                                              )}
                                             </td>
                                             <td className="px-5 py-4">
                                               <div className="flex items-center justify-end gap-2">
