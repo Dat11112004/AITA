@@ -17,6 +17,13 @@ export class ListUserNotificationsUseCase {
             referenceId: n.referenceId,
             referenceType: n.referenceType,
             createdBy: n.createdBy,
+            // Who sent it, and what it is about. `createdBy` alone is a uuid, which no screen
+            // can render — the repository resolves the sender and, for assignment
+            // notifications, the subject and the reader's own class.
+            sender: (n as any).sender ?? null,
+            subjectCode: (n as any).subjectCode ?? null,
+            subjectName: (n as any).subjectName ?? null,
+            classCode: (n as any).classCode ?? null,
             createdAt: n.createdAt ? n.createdAt.toISOString() : null,
             read: (n as any).read ?? (n as any).isRead ?? false,
             isRead: (n as any).isRead ?? (n as any).read ?? false

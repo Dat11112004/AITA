@@ -73,15 +73,32 @@ export class NotificationsController extends BaseController {
             take: limit,
             select: {
                 Id: true, Title: true, Message: true, Type: true, CreatedAt: true,
+                ReferenceId: true, ReferenceType: true,
                 _count: { select: { NotificationRecipient: true } },
             },
         })
+
+        // A send to several classes writes one notification per class, so without the class
+        // code the sent list would read as duplicates of the same message.
+        const classIds = [...new Set(rows
+            .filter(r => String(r.ReferenceType ?? '').toUpperCase() === 'CLASS' && r.ReferenceId)
+            .map(r => r.ReferenceId as string))]
+        const classCodeById = new Map<string, string | null>()
+        if (classIds.length > 0) {
+            const classes = await prisma.class.findMany({
+                where: { Id: { in: classIds } },
+                select: { Id: true, ClassCode: true },
+            })
+            classes.forEach(c => classCodeById.set(c.Id, c.ClassCode ?? null))
+        }
+
         this.ok(res, rows.map(r => ({
             id: r.Id,
             title: r.Title,
             message: r.Message,
             type: r.Type,
             createdAt: r.CreatedAt,
+            classCode: r.ReferenceId ? (classCodeById.get(r.ReferenceId) ?? null) : null,
             recipientCount: r._count.NotificationRecipient,
         })), 'Lấy lịch sử thông báo đã gửi thành công')
     }

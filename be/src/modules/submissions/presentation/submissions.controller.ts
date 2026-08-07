@@ -12,7 +12,7 @@ import { SubmitFeedbackUseCase } from '../application/use-cases/submit-feedback.
 import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-grades.use-case.js'
 import { GetAiHintUseCase } from '../application/use-cases/get-ai-hint.use-case.js'
 import { ReopenSubmissionUseCase } from '../application/use-cases/reopen-submission.use-case.js'
-import { ReopenSubmissionRequestDto } from '../application/dtos/submission.dto.js'
+import { ListSubmissionsQueryDto, ReopenSubmissionRequestDto } from '../application/dtos/submission.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
 export class SubmissionsController extends BaseController {
@@ -32,11 +32,13 @@ export class SubmissionsController extends BaseController {
 
     async list(req: Request, res: Response): Promise<void> {
         this.logger.debug('Received request to list submissions')
-        const params = {
-            assignmentId: req.query.assignmentId as string,
-            status: req.query.status as string,
-        }
-        const result = await this.listUseCase.execute({ user: req.user!, query: { data: params } as any })
+        // Hand-building the params here dropped `examId` — the one filter every caller
+        // actually sends — so ListSubmissionsUseCase saw no exam at all and returned every
+        // submission the caller owns. On the student's assignment detail that meant
+        // "Bài nộp của tôi" showed a submission belonging to a different assignment.
+        // Parsing through the Zod DTO keeps the query and the schema in one place.
+        const query = ListSubmissionsQueryDto.from(req.query)
+        const result = await this.listUseCase.execute({ user: req.user!, query })
         this.ok(res, result, MESSAGES.SUBMISSION_LIST_SUCCESS)
     }
 

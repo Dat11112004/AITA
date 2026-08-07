@@ -5,7 +5,16 @@ import { AggregateRoot, DomainEvent } from '../../../../shared/domain/domain-eve
 // ──────────────────────────────────────────────────────────────
 
 export type GradingStatusValue = 'Pending' | 'Queued' | 'Grading' | 'Graded' | 'Error'
-export type ReviewStatusValue = 'PendingReview' | 'Reviewed' | 'Disputed'
+/**
+ * `PUBLISHED` is the value every reader tests for — SubmissionResponseDto nulls each score
+ * unless it sees it, and PrismaStatsRepository filters GPA/history/graded counts on it. The
+ * grading engine writes it (SubmissionController: `ReviewStatus: 'PUBLISHED'` on publish,
+ * `'DRAFT'` on unpublish), so both are listed here as values that come back out of the DB.
+ * `Reviewed` is legacy: this module used to write it on publish, which meant a grade
+ * published through /submissions/:id/grade saved its score and was then filtered out of
+ * every read — see `review()`.
+ */
+export type ReviewStatusValue = 'PendingReview' | 'PUBLISHED' | 'DRAFT' | 'Reviewed' | 'Disputed'
 
 // ──────────────────────────────────────────────────────────────
 // Domain Events
@@ -219,8 +228,16 @@ export class Submission extends AggregateRoot {
     this.gradingStatus = 'Error'
   }
 
+  /**
+   * Publish a grade to the student. Both callers (PublishGradeUseCase and
+   * BulkPublishGradesUseCase) are "Công bố điểm", so this writes the same `PUBLISHED` the
+   * grading engine writes. It used to write `Reviewed`, which no reader recognises: the
+   * score reached the database and was then stripped back to null by SubmissionResponseDto
+   * and excluded from every stats query, so publishing from mobile looked like it did
+   * nothing at all.
+   */
   review(reviewedBy: string, finalScore: number, feedback?: string): void {
-    this.reviewStatus = 'Reviewed'
+    this.reviewStatus = 'PUBLISHED'
     this.reviewedBy = reviewedBy
     this.reviewedAt = new Date()
     this.finalScore = finalScore

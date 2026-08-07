@@ -26,6 +26,11 @@ export class PrismaNotificationRepository implements INotificationRepository {
                 NotificationRecipient: {
                     where: { UserId: userId },
                     select: { IsRead: true, ReadAt: true }
+                },
+                // `CreatedBy` is the lecturer who sent it. Without this the API returned a
+                // bare uuid and no client could name the sender.
+                User: {
+                    select: { Id: true, FullName: true, Avatar: true }
                 }
             }
         })
@@ -37,6 +42,78 @@ export class PrismaNotificationRepository implements INotificationRepository {
             return true;
         }).slice(0, params.limit ?? 20);
 
+        // Subject + class for the assignment notifications. Nothing on `Notification` records
+        // either one, but an ASSIGNMENT row carries `ReferenceId = ExamId`, and an exam knows
+        // its subject and the classes it was assigned to (ExamClass) — so both are derivable
+        // without touching the schema. Resolved in two extra queries for the whole page, and
+        // sequentially: this SQL Server instance accepts one connection, so a Promise.all here
+        // fails the request outright.
+        const examIds = [
+            ...new Set(
+                filteredList
+                    .filter((l: any) => String(l.ReferenceType ?? '').toUpperCase() === 'EXAM' && l.ReferenceId)
+                    .map((l: any) => l.ReferenceId as string)
+            )
+        ]
+
+        // Broadcasts sent to a class carry `ReferenceId = ClassId` (one notification per
+        // class — see BroadcastNotificationUseCase), so the class code is a direct lookup.
+        const classRefIds = [
+            ...new Set(
+                filteredList
+                    .filter((l: any) => String(l.ReferenceType ?? '').toUpperCase() === 'CLASS' && l.ReferenceId)
+                    .map((l: any) => l.ReferenceId as string)
+            )
+        ]
+
+        const classById = new Map<string, { code: string | null; subjectCode: string | null; subjectName: string | null }>()
+        if (classRefIds.length > 0) {
+            const classes = await (this.prisma as any).class.findMany({
+                where: { Id: { in: classRefIds } },
+                select: {
+                    Id: true,
+                    ClassCode: true,
+                    Subject: { select: { SubjectCode: true, SubjectName: true } }
+                }
+            })
+            for (const cl of classes) {
+                classById.set(cl.Id, {
+                    code: cl.ClassCode ?? null,
+                    subjectCode: cl.Subject?.SubjectCode ?? null,
+                    subjectName: cl.Subject?.SubjectName ?? null,
+                })
+            }
+        }
+
+        const examById = new Map<string, { subjectCode: string | null; subjectName: string | null; classes: { id: string; code: string | null }[] }>()
+        let myClassIds = new Set<string>()
+
+        if (examIds.length > 0) {
+            const exams = await (this.prisma as any).exam.findMany({
+                where: { Id: { in: examIds } },
+                select: {
+                    Id: true,
+                    Subject: { select: { SubjectCode: true, SubjectName: true } },
+                    ExamClass: { select: { Class: { select: { Id: true, ClassCode: true } } } }
+                }
+            })
+            for (const e of exams) {
+                examById.set(e.Id, {
+                    subjectCode: e.Subject?.SubjectCode ?? null,
+                    subjectName: e.Subject?.SubjectName ?? null,
+                    classes: (e.ExamClass ?? []).map((ec: any) => ({ id: ec.Class?.Id, code: ec.Class?.ClassCode ?? null })),
+                })
+            }
+
+            // An exam can target several classes; the reader only cares about the one they are
+            // enrolled in, so their own enrolment decides which code is shown.
+            const enrolled = await (this.prisma as any).studentClass.findMany({
+                where: { UserId: userId },
+                select: { ClassId: true }
+            })
+            myClassIds = new Set(enrolled.map((e: any) => e.ClassId))
+        }
+
         return filteredList.map((l: any) => {
             const notif = Notification.restore(
                 l.Id, l.Title, l.Message, l.Type, l.ReferenceId, l.ReferenceType, l.CreatedBy, l.CreatedAt
@@ -44,6 +121,26 @@ export class PrismaNotificationRepository implements INotificationRepository {
             const recipient = l.NotificationRecipient?.[0]
             ;(notif as any).isRead = recipient?.IsRead ?? false
             ;(notif as any).read = recipient?.IsRead ?? false
+
+            if (l.User) {
+                ;(notif as any).sender = { id: l.User.Id, name: l.User.FullName, avatar: l.User.Avatar ?? null }
+            }
+
+            const exam = l.ReferenceId ? examById.get(l.ReferenceId) : undefined
+            if (exam) {
+                ;(notif as any).subjectCode = exam.subjectCode
+                ;(notif as any).subjectName = exam.subjectName
+                const mine = exam.classes.find((c) => c.id && myClassIds.has(c.id))
+                ;(notif as any).classCode = (mine ?? exam.classes[0])?.code ?? null
+            }
+
+            const cls = l.ReferenceId ? classById.get(l.ReferenceId) : undefined
+            if (cls) {
+                ;(notif as any).classCode = cls.code
+                ;(notif as any).subjectCode = cls.subjectCode
+                ;(notif as any).subjectName = cls.subjectName
+            }
+
             return notif
         })
     }

@@ -37,7 +37,11 @@ export class SubmissionMapper {
       }
     }
     if (raw.Class) {
-      (submission as any).className = raw.Class.ClassName
+      // `Class` has no ClassName column — the code is `ClassCode` (schema.prisma:48), so the
+      // old assignment produced undefined and every consumer fell back to a dash. The DTO
+      // reads `.class`, not `.className`, so both are attached here.
+      (submission as any).class = { id: raw.Class.Id, code: raw.Class.ClassCode }
+      ;(submission as any).className = raw.Class.ClassCode
     }
     if (raw.StudentFeedback) {
       (submission as any).studentFeedback = raw.StudentFeedback
