@@ -71,7 +71,10 @@ export class AiClientManager {
         for (let globalAttempt = 1; globalAttempt <= maxGlobalAttempts; globalAttempt++) {
             // 1. Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
-                const model = config.ai.geminiModel || 'gemini-1.5-flash';
+                let model = config.ai.geminiModel || 'gemini-1.5-flash';
+                if (!model || model.includes('3.6')) {
+                    model = 'gemini-1.5-flash';
+                }
                 const totalKeys = config.ai.geminiKeys.length;
 
                 // Round-robin starting index
