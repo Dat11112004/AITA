@@ -106,8 +106,11 @@ If projectType is "database":
 ════════════════════════════════════════
 ALGORITHM PROJECTS SPECIAL RULE
 ════════════════════════════════════════
-If projectType is "algorithm" and teacher did NOT provide explicit points:
-Standardize to exactly TWO criteria: "Algorithmic Correctness (I/O)" and "Complexity & Architecture".
+If projectType is "algorithm":
+- Create ONE requirement per problem/question found in the exam (Problem 1, Câu 1, Task A, ...)
+- Each requirement's description MUST contain that problem's statement, input format, output format, and sample input/output if given
+- Set marks from the exam paper's point allocation; if the paper gives no points, distribute 10 evenly across the problems
+- DO NOT merge multiple problems into a single requirement
 
 ════════════════════════════════════════
 OUTPUT FORMAT (JSON OBJECT)
@@ -329,11 +332,13 @@ OUTPUT FORMAT (JSON OBJECT)
                 }
 
                 // ═══════════════════════════════════════════════════════
-                // DETERMINISTIC ALGORITHM RUBRIC OVERRIDE (SENIOR SOLUTION)
+                // ALGORITHM SAFETY NET
                 // ═══════════════════════════════════════════════════════
-                // If this is an algorithm problem and the teacher did NOT provide explicit points,
-                // we forcefully override the LLM's extraction to ensure EXACTLY 2 standard criteria.
-                if (blueprint.projectType === "algorithm" && !(blueprint as any).hasExplicitRubric) {
+                // Algorithm exams keep the AI's one-requirement-per-problem extraction
+                // (each problem gets its own I/O-judged criterion). Only when the AI
+                // returned NO requirements at all do we fall back to the two standard
+                // criteria instead of producing an empty rubric.
+                if (blueprint.projectType === "algorithm" && (!blueprint.requirements || blueprint.requirements.length === 0)) {
                     blueprint.requirements = [
                         {
                             id: "req-algo-1",
@@ -405,13 +410,18 @@ OUTPUT FORMAT (JSON OBJECT)
 
         // 1. Determine strategies — TRUST AI's recommendedEngine FIRST, flags as fallback
         const strategyMap = new Map<string, string>();
-        let hasStdInOutProbe = false;
         const canRunBrowser = ["frontend", "fullstack", "blazor", "aspnet", "nodejs", "mobile", "flutter"].some(t => pt.includes(t));
 
         for (const req of requirements) {
             let strategy: string;
 
-            if (req.recommendedEngine) {
+            if (pt === 'algorithm') {
+                // Algorithm exams: every problem is judged by its own stdin/stdout test
+                // cases; written/diagram answers go to text analysis instead. If the AI
+                // fails to produce test cases for a rule, RubricGeneratorService's
+                // Constraint D downgrades it to AICodeReview.
+                strategy = (req.isWrittenAnswer || req.isDiagramTask) ? 'AiTextAnalysis' : 'StdInOutProbe';
+            } else if (req.recommendedEngine) {
                 // ═══════════════════════════════════════════════════════
                 // PRIMARY PATH: Use AI's explicit recommendation.
                 // Apply only structural constraints (project type limits).
@@ -449,12 +459,6 @@ OUTPUT FORMAT (JSON OBJECT)
                     strategy = canRunBrowser ? 'AIVision' : 'AICodeReview';
                 } else if (req.isWrittenAnswer || req.isDiagramTask) {
                     strategy = 'AiTextAnalysis';
-                } else if (pt === 'algorithm') {
-                    const isArchitectural = /hash|map|o\(n\)|complexity|time|space|loop|format/i.test(req.title + ' ' + req.description);
-                    if (!isArchitectural && !hasStdInOutProbe) {
-                        strategy = 'StdInOutProbe';
-                        hasStdInOutProbe = true;
-                    }
                 }
             }
 
