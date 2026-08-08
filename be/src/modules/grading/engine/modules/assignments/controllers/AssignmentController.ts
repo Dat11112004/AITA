@@ -19,6 +19,7 @@ import * as path from 'path';
 import { sanitizeCloudinaryPathSegment } from '../../../../../../shared/utils/cloudinary-path.util.js';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
+import { AppError } from '../../../../../../shared/application/app.error.js';
 import { prisma } from '../../../../../../database/prisma.js';
 import { CloudinaryService } from '../../../../../../shared/infrastructure/services/cloudinary.service.js';
 import { globalJobManager } from '../../../application/queue/SubmissionJobManager.js';
@@ -145,17 +146,22 @@ export class AssignmentController extends BaseController {
 
     generateContent = async (req: Request, res: Response): Promise<void> => {
         try {
+            req.setTimeout(300000);
             const { prompt, semester, subject, pageImages } = req.body;
             if (!semester || !subject) throw new BadRequestError('Semester and Subject are required');
             const markdown = await this.aiProvider.generateAssignmentContentAsync(prompt, pageImages);
             this.ok(res, { markdown }, 'Content generated');
-        } catch (error) {
-            throw new Error('Error generating content');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error generating content:', error);
+            if (error instanceof AppError) throw error;
+            const status = error?.statusCode || error?.status || 502;
+            throw new AppError('AI_GENERATION_FAILED', error?.message || 'Error generating content', status);
         }
     };
 
     parseRubric = async (req: Request, res: Response): Promise<void> => {
         try {
+            req.setTimeout(300000);
             const { content, documentImageKey, subject } = req.body;
             if (!content) throw new BadRequestError('No content');
 
@@ -179,13 +185,17 @@ export class AssignmentController extends BaseController {
             const rubric = await rubricGenerator.generateRubricAsync(draftBlueprint);
 
             this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
-        } catch (error) {
-            throw new Error('Error parsing rubric');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error parsing rubric:', error);
+            if (error instanceof AppError) throw error;
+            const status = error?.statusCode || error?.status || 502;
+            throw new AppError('RUBRIC_PARSING_FAILED', error?.message || 'Error parsing rubric', status);
         }
     };
 
     parseSqlKey = async (req: Request, res: Response): Promise<void> => {
         try {
+            req.setTimeout(300000);
             const { file } = req;
             const { rubricRules } = req.body;
             if (!file) throw new BadRequestError('No file provided');
@@ -203,12 +213,14 @@ export class AssignmentController extends BaseController {
             this.ok(res, { rules: updatedRules }, 'SQL Key parsed');
         } catch (error: any) {
             console.error('[AssignmentController] Error parsing SQL Key:', error);
-            throw new Error(`Error parsing SQL Key: ${error.message}`);
+            if (error instanceof AppError) throw error;
+            throw new AppError('SQL_KEY_PARSING_FAILED', error?.message || 'Error parsing SQL Key', 400);
         }
     };
 
     parseRequirements = async (req: Request, res: Response): Promise<void> => {
         try {
+            req.setTimeout(300000);
             // `subject` is optional: older callers omit it and fall back to keyword scoring.
             const { content, documentImageKey, subject } = req.body;
             if (!content) throw new BadRequestError('No content');
@@ -229,20 +241,27 @@ export class AssignmentController extends BaseController {
 
             const draftBlueprint = await requirementParser.parseRequirementsAsync(contentStr, documentImages, subject);
             this.ok(res, { blueprint: draftBlueprint }, 'Requirements parsed');
-        } catch (error) {
-            throw new Error('Error parsing requirements');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error parsing requirements:', error);
+            if (error instanceof AppError) throw error;
+            const status = error?.statusCode || error?.status || 502;
+            throw new AppError('REQUIREMENT_PARSING_FAILED', error?.message || 'Error parsing requirements', status);
         }
     };
 
     generateRubric = async (req: Request, res: Response): Promise<void> => {
         try {
+            req.setTimeout(300000);
             const { blueprint } = req.body;
             if (!blueprint) throw new BadRequestError('No blueprint');
             const rubricGenerator = new RubricGeneratorService(this.aiProvider);
             const rubric = await rubricGenerator.generateRubricAsync(blueprint);
             this.ok(res, { rubric }, 'Rubric generated');
-        } catch (error) {
-            throw new Error('Error generating rubric');
+        } catch (error: any) {
+            console.error('[AssignmentController] Error generating rubric:', error);
+            if (error instanceof AppError) throw error;
+            const status = error?.statusCode || error?.status || 502;
+            throw new AppError('RUBRIC_GENERATION_FAILED', error?.message || 'Error generating rubric', status);
         }
     };
 
