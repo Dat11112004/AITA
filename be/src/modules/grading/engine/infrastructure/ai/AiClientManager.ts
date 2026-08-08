@@ -66,12 +66,12 @@ export class AiClientManager {
         }
 
         let lastError: any;
-        const maxGlobalAttempts = 10;
+        const maxGlobalAttempts = 2;
 
         for (let globalAttempt = 1; globalAttempt <= maxGlobalAttempts; globalAttempt++) {
-            // Try Gemini keys first
+            // 1. Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
-                const model = config.ai.geminiModel;
+                const model = config.ai.geminiModel || 'gemini-1.5-flash';
                 const totalKeys = config.ai.geminiKeys.length;
 
                 // Round-robin starting index
@@ -132,7 +132,7 @@ export class AiClientManager {
                     } catch (err: any) {
                         lastError = err;
 
-                        const status = err.status || err.statusCode || 'unknown';
+                        const status = Number(err.status || err.statusCode || 0);
                         const errBody = err.error ? JSON.stringify(err.error) : (err.message || String(err));
 
                         if (status === 429 || (err.message && err.message.includes('429'))) {
@@ -142,12 +142,9 @@ export class AiClientManager {
 
                             const wait = newExpiry - Date.now();
                             if (wait < minWaitTime) minWaitTime = wait;
-
-                            // Immediately continue to next key without blocking
                             continue;
                         } else {
                             console.error(`[AiClientManager] Key #${keyIndex + 1} failed (HTTP ${status}): ${errBody}`);
-                            // Log failure to DB
                             try {
                                 await prisma.aiUsageLog.create({
                                     data: {
@@ -159,42 +156,64 @@ export class AiClientManager {
                                 });
                             } catch (e) { }
 
-                            // Fail fast on Bad Request as retrying another key won't fix bad JSON/Prompt
-                            if (status === 400) {
-                                throw lastError;
+                            // Fail fast on bad prompt / bad auth / model missing / region blocked
+                            if ([400, 401, 403, 404].includes(status)) {
+                                break; // Stop Gemini key loop and move to GitHub Models fallback
                             }
                         }
                     }
                 } // End of key loop
+            }
 
-                if (!triedAnyKey && minWaitTime !== Infinity) {
-                    lastError = new Error("AI_TIMEOUT: All keys on cooldown");
-                    console.warn(`[AiClientManager] All keys on cooldown. Waiting ${Math.ceil(minWaitTime / 1000)}s before retry...`);
-                    await new Promise(resolve => setTimeout(resolve, minWaitTime));
-                    continue;
-                }
+            // 2. Fallback to GitHub Models (GPT-4o-mini) if configured or if Gemini fails
+            if (config.ai.githubToken) {
+                console.log(`[AiClientManager] Attempting fallback to GitHub Models (${config.ai.githubModel})...`);
+                try {
+                    const ghClient = new OpenAI({
+                        apiKey: config.ai.githubToken,
+                        baseURL: config.ai.githubBaseUrl,
+                        timeout: config.ai.timeoutMs,
+                        maxRetries: 0
+                    });
 
-                if (lastError && (lastError.status === 429 || lastError.message?.includes('429'))) {
-                    const wait = minWaitTime === Infinity ? 5000 : minWaitTime;
-                    console.warn(`[AiClientManager] Exhausted all healthy keys. Waiting ${Math.ceil(wait / 1000)}s before next global attempt...`);
-                    await new Promise(resolve => setTimeout(resolve, wait));
-                    continue;
+                    await globalAiSemaphore.acquire();
+                    try {
+                        const startTime = Date.now();
+                        const result = await apiCall(ghClient, config.ai.githubModel);
+                        const duration = Date.now() - startTime;
+
+                        try {
+                            await prisma.aiUsageLog.create({
+                                data: {
+                                    Provider: 'GitHubModels',
+                                    ModelUsed: config.ai.githubModel,
+                                    IsSuccess: true,
+                                    DurationMs: duration
+                                }
+                            });
+                        } catch (e) { }
+
+                        if (cacheKey) AiCache.set(cacheKey, result);
+                        return result;
+                    } finally {
+                        globalAiSemaphore.release();
+                    }
+                } catch (ghErr: any) {
+                    console.error('[AiClientManager] GitHub Models fallback failed:', ghErr?.message || ghErr);
+                    lastError = ghErr;
                 }
             }
 
             const isTimeoutOrRateLimit = lastError && (lastError.status === 429 || lastError.message?.includes('429') || lastError.message?.includes('AI_TIMEOUT'));
             if (globalAttempt < maxGlobalAttempts && isTimeoutOrRateLimit) {
-                console.warn(`[AiClientManager] Global Pool Exhausted (Attempt ${globalAttempt}/${maxGlobalAttempts}). Cooling down for 10 seconds before retrying all keys...`);
-                await new Promise(resolve => setTimeout(resolve, 10000));
-            } else if (globalAttempt < maxGlobalAttempts) {
-                // Short cooldown for non-rate limit errors
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.warn(`[AiClientManager] Global Pool Exhausted (Attempt ${globalAttempt}/${maxGlobalAttempts}). Cooling down for 5 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
             } else {
                 break;
             }
         }
 
-        throw lastError || new Error("All AI providers failed and no keys are configured.");
+        throw lastError || new Error("All AI providers failed and no valid keys are configured.");
     }
 }
 
