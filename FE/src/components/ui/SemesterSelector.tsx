@@ -107,7 +107,7 @@ export function SemesterSelector({
   return (
     <div className={`relative inline-block text-left ${className}`} ref={ref}>
       {showLabel && (
-        <label className="block text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mb-1 pl-1">
+        <label className="block text-[11px] font-bold text-brand-600 dark:text-brand-400 mb-1 pl-1">
           Semester
         </label>
       )}
@@ -117,13 +117,13 @@ export function SemesterSelector({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between gap-3 px-3.5 h-11 rounded-xl border border-indigo-400/80 dark:border-indigo-500/80 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs sm:text-sm tracking-wide shadow-sm hover:border-indigo-600 hover:bg-indigo-50 transition-all focus:outline-none ring-2 ring-indigo-500/20 min-w-[160px]"
+          className="flex items-center justify-between gap-3 px-3.5 h-11 rounded-xl border border-brand-400/80 dark:border-brand-500/80 bg-brand-50/50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 font-extrabold text-xs sm:text-sm tracking-wide shadow-sm hover:border-brand-600 hover:bg-brand-50 transition-all focus:outline-none ring-2 ring-brand-500/20 min-w-[160px]"
         >
-          <span className="truncate uppercase font-black tracking-wider text-indigo-700 dark:text-indigo-300">
+          <span className="truncate uppercase font-black tracking-wider text-brand-700 dark:text-brand-300">
             {selectedOpt.label}
           </span>
 
-          <div className="flex items-center gap-1.5 text-indigo-500 dark:text-indigo-400">
+          <div className="flex items-center gap-1.5 text-brand-500 dark:text-brand-400">
             {selectedSemester !== currentSem.value && (
               <X 
                 size={14} 
@@ -134,7 +134,7 @@ export function SemesterSelector({
                 }}
               />
             )}
-            <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+            <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-brand-600' : ''}`} />
           </div>
         </button>
 
@@ -143,7 +143,7 @@ export function SemesterSelector({
           <div className="absolute top-full right-0 mt-1 w-56 rounded-2xl bg-white dark:bg-[#1a1d28] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-1.5">
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <span>Semester list</span>
-              <span className="text-[9px] font-semibold text-indigo-500">Auto-synced</span>
+              <span className="text-[9px] font-semibold text-brand-500">Auto-synced</span>
             </div>
             <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
               {semesters.map((opt) => {
@@ -157,7 +157,7 @@ export function SemesterSelector({
                     }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-black transition-all text-left uppercase tracking-wider ${
                       isSelected
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 font-black shadow-sm'
+                        ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300 font-black shadow-sm'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -169,7 +169,7 @@ export function SemesterSelector({
                         </span>
                       )}
                     </span>
-                    {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
+                    {isSelected && <Check size={14} className="text-brand-600 dark:text-brand-400" />}
                   </button>
                 )
               })}

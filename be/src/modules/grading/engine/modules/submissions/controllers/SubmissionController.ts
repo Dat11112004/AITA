@@ -643,25 +643,25 @@ export class SubmissionController extends BaseController {
 
                 const evaluationPromise = (async () => {
                     checkCancelled();
-                    globalJobManager.updateProgress(submissionId, 5, 'Khởi tạo môi trường chấm (Sandbox)...');
+                    globalJobManager.updateProgress(submissionId, 5, 'Initialize the dot environment (Sandbox)...');
                     sandboxHandle = await this.sandboxService.startAsync(extractDir, publishedAssignment.metadata.projectType as any);
 
                     if (sandboxHandle.isReady && sandboxHandle.baseUrl) {
                         checkCancelled();
-                        globalJobManager.updateProgress(submissionId, 10, 'Đang chạy Migration / Build DB...');
+                        globalJobManager.updateProgress(submissionId, 10, 'Running Migration / Build DB...');
                         try {
                             await fetch(sandboxHandle.baseUrl);
                         } catch (err) { }
                     }
 
                     checkCancelled();
-                    globalJobManager.updateProgress(submissionId, 15, 'Đang phân tích mã nguồn (Source Snapshot)...');
+                    globalJobManager.updateProgress(submissionId, 15, 'Running Source Analysis (Source Snapshot)...');
                     const sourceSnapshot = await this.buildSourceSnapshot(extractDir, sandboxHandle.projectType);
 
                     let playwrightEvidence: any[] = [];
                     if (sandboxHandle.isReady && sandboxHandle.baseUrl) {
                         checkCancelled();
-                        globalJobManager.updateProgress(submissionId, 25, 'Đang chạy AI Vision / UI Tests...');
+                        globalJobManager.updateProgress(submissionId, 25, 'Running AI Vision / UI Tests...');
                         playwrightEvidence = await this.playwrightExecutor.executeAsync(
                             submissionId,
                             extractDir,
@@ -672,7 +672,7 @@ export class SubmissionController extends BaseController {
                     }
 
                     checkCancelled();
-                    globalJobManager.updateProgress(submissionId, 40, 'Đang đọc tài liệu báo cáo (DOCX/PDF)...');
+                    globalJobManager.updateProgress(submissionId, 40, 'Reading report document (DOCX/PDF)...');
                     let extractedDoc: any = undefined;
                     try {
                         async function findDocx(dir: string): Promise<string | null> {
@@ -703,7 +703,7 @@ export class SubmissionController extends BaseController {
                     } catch (docErr) { }
 
                     checkCancelled();
-                    globalJobManager.updateProgress(submissionId, 50, 'Bắt đầu chấm điểm các tiêu chí...');
+                    globalJobManager.updateProgress(submissionId, 50, 'Starting evaluation of criteria...');
                     const context: EvaluationContext = {
                         sandbox: sandboxHandle,
                         sourceSnapshot,

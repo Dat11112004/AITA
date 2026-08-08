@@ -578,7 +578,7 @@ export default function AssignmentUploadPage() {
                                     <img
                                         src="/ai-graphic.png"
                                         alt="3D Assignment Graphic"
-                                        className="w-full h-full object-cover mix-blend-multiply contrast-[1.1] brightness-[1.05]"
+                                        className="w-full h-full object-cover mix-blend-multiply contrast-[1.1] brightness-[1.05] [filter:hue-rotate(130deg)_saturate(1.2)]"
                                     />
                                 </div>
                             </div>
