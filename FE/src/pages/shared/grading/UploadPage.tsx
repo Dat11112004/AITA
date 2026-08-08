@@ -161,6 +161,7 @@ export default function UploadPage() {
             <FileUpload 
               onUpload={handleUpload} 
               isUploading={isUploading}
+              accept=".zip,.pdf,.docx,.doc,.sql,.txt"
             />
           )
       )}

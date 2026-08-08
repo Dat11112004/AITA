@@ -118,10 +118,8 @@ export class DocumentExtractor {
 
     private async extractPdfAsync(fileBuffer: Buffer): Promise<ExtractedDocument> {
         try {
-            const { PDFParse } = require('pdf-parse');
-            const parser = new PDFParse({ data: fileBuffer });
-            const result = await parser.getText();
-            const rawText = result.text || '';
+            const data = await pdfParse(fileBuffer);
+            const rawText = data.text || '';
             
             return {
                 rawText,
@@ -192,12 +190,15 @@ export class DocumentExtractor {
             htmlContent = htmlResult.value || '';
         } catch (error) {
             console.error('[DocumentExtractor] DOCX extraction failed:', error);
-            // Fallback to raw text only
+            // Fallback to raw text or text extraction from buffer
             try {
                 const fallback = await mammoth.extractRawText({ buffer: fileBuffer });
                 rawText = fallback.value || '';
             } catch {
-                rawText = '';
+                rawText = fileBuffer.toString('utf-8').replace(/[^\x20-\x7E\x0A\x0D\u00A0-\u024F\u1EA0-\u1EF9]/g, ' ');
+            }
+            if (!rawText || rawText.trim().length === 0) {
+                rawText = fileBuffer.toString('utf-8').replace(/[^\x20-\x7E\x0A\x0D\u00A0-\u024F\u1EA0-\u1EF9]/g, ' ');
             }
         }
 

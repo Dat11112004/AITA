@@ -9,7 +9,16 @@ interface FileUploadProps {
   isUploading?: boolean;
 }
 
-export default function FileUpload({ onUpload, accept = ".zip", errorMessage = "Please upload a valid file", isUploading = false }: FileUploadProps) {
+const DEFAULT_ACCEPT = ".zip,.pdf,.docx,.doc,.sql,.txt";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+export default function FileUpload({ onUpload, accept = DEFAULT_ACCEPT, errorMessage = "Please upload a valid file", isUploading = false }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -80,7 +89,7 @@ export default function FileUpload({ onUpload, accept = ".zip", errorMessage = "
             </div>
             <div>
               <p className="font-medium text-lg dark:text-white text-slate-900">{selectedFile.name}</p>
-              <p className="text-sm dark:text-slate-400 text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="text-sm dark:text-slate-400 text-slate-500">{formatFileSize(selectedFile.size)}</p>
             </div>
           </div>
         ) : (
@@ -89,7 +98,7 @@ export default function FileUpload({ onUpload, accept = ".zip", errorMessage = "
               <UploadCloud size={48} className="dark:text-slate-400 text-slate-500" />
             </div>
             <div>
-              <p className="font-medium text-lg dark:text-white text-slate-900">Drag & drop your {accept} file</p>
+              <p className="font-medium text-lg dark:text-white text-slate-900">Drag & drop your file ({accept.replace(/\./g, ' ')})</p>
               <p className="text-sm dark:text-slate-400 text-slate-500 mt-1">or click to browse from your computer</p>
             </div>
           </div>

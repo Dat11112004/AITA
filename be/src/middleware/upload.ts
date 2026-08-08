@@ -24,18 +24,29 @@ const storage = multer.diskStorage({
 export const uploadMiddleware = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (_req, file, cb) => {
+    const allowedExtensions = ['.pdf', '.docx', '.doc', '.txt', '.sql', '.zip', '.rar', '.7z'];
+    const ext = path.extname(file.originalname).toLowerCase();
     const allowedMimeTypes = [
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'application/sql',
+      'text/x-sql',
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/x-zip',
+      'multipart/x-zip',
+      'application/x-rar-compressed',
+      'application/x-7z-compressed',
     ];
-    if (allowedMimeTypes.includes(file.mimetype)) {
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF and DOCX are allowed.'));
+      cb(new Error('Invalid file type. Allowed formats: PDF, DOCX, DOC, TXT, SQL, ZIP, RAR, 7Z.'));
     }
   },
 });

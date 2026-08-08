@@ -682,7 +682,7 @@ export class SubmissionController extends BaseController {
                                 if (entry.isDirectory()) {
                                     const res = await findDocx(fullPath);
                                     if (res) return res;
-                                } else if (entry.name.toLowerCase().endsWith('.docx') || entry.name.toLowerCase().endsWith('.pdf')) {
+                                } else if (['.docx', '.pdf', '.doc', '.txt'].some(ext => entry.name.toLowerCase().endsWith(ext))) {
                                     return fullPath;
                                 }
                             }
@@ -691,7 +691,12 @@ export class SubmissionController extends BaseController {
                         const docPath = await findDocx(extractDir);
                         if (docPath) {
                             const buf = await fs.readFile(docPath);
-                            const mime = docPath.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                            const lowerPath = docPath.toLowerCase();
+                            let mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                            if (lowerPath.endsWith('.pdf')) mime = 'application/pdf';
+                            else if (lowerPath.endsWith('.doc')) mime = 'application/msword';
+                            else if (lowerPath.endsWith('.txt')) mime = 'text/plain';
+
                             const extractor = new DocumentExtractor();
                             extractedDoc = await extractor.extractAsync(buf, mime);
                         }

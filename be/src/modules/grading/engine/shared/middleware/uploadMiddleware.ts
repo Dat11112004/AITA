@@ -30,17 +30,27 @@ const storage = multer.diskStorage({
  * File filter — only accept .zip files.
  */
 const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  const allowedExtensions = ['.zip', '.pdf', '.docx', '.doc', '.txt', '.sql', '.rar', '.7z'];
+  const ext = path.extname(file.originalname).toLowerCase();
   const allowedMimeTypes = [
     'application/zip',
     'application/x-zip-compressed',
     'application/x-zip',
     'multipart/x-zip',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/sql',
+    'text/x-sql',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
   ];
 
-  if (allowedMimeTypes.includes(file.mimetype) || file.originalname.endsWith('.zip')) {
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Only .zip files are allowed'));
+    cb(new Error('Invalid file type. Allowed formats: ZIP, PDF, DOCX, DOC, TXT, SQL, RAR, 7Z'));
   }
 };
 

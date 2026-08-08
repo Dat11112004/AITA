@@ -8,7 +8,16 @@ interface MultiFileUploadProps {
   isUploading?: boolean;
 }
 
-export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading = false }: MultiFileUploadProps) {
+const DEFAULT_MULTI_ACCEPT = ".zip,.pdf,.docx,.doc,.sql,.txt";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+export default function MultiFileUpload({ onUpload, accept = DEFAULT_MULTI_ACCEPT, isUploading = false }: MultiFileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +99,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
     setSelectedFiles([]);
   };
 
-  const totalSizeMB = selectedFiles.reduce((acc, file) => acc + file.size, 0) / 1024 / 1024;
+  const totalSizeBytes = selectedFiles.reduce((acc, file) => acc + file.size, 0);
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -140,7 +149,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                 Drag and drop files or a folder here
               </p>
               <p className="text-[15px] text-slate-500">
-                You can drop multiple {accept} files at once or an entire folder.
+                You can drop multiple files ({accept.replace(/\./g, ' ')}) at once or an entire folder.
               </p>
             </div>
             
@@ -198,7 +207,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                       </h3>
                   </div>
                   <div className="flex items-center gap-6">
-                        <span className="text-[14px] text-slate-500">Total size: {totalSizeMB.toFixed(2)} MB</span>
+                        <span className="text-[14px] text-slate-500">Total size: {formatFileSize(totalSizeBytes)}</span>
                       <button 
                           onClick={removeAllFiles}
                           disabled={isUploading}
@@ -220,7 +229,7 @@ export default function MultiFileUpload({ onUpload, accept = ".zip", isUploading
                               <div className="flex flex-col">
                                   <span className="text-[15px] font-bold text-slate-900 dark:text-slate-100">{file.name}</span>
                                   <span className="text-[13px] text-slate-500">
-                                      {(file.size / 1024 / 1024).toFixed(2)} MB • Added at {new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}
+                                      {formatFileSize(file.size)} • Added at {new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}
                                   </span>
                               </div>
                           </div>

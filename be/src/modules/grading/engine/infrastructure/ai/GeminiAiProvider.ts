@@ -677,7 +677,7 @@ FORMATTING REQUIREMENTS:
         }
 
         let lastError: any;
-        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.5-flash'];
 
         // Randomize key order to balance traffic across all 22 Gemini keys
         const shuffledKeys = [...validKeys].sort(() => Math.random() - 0.5);

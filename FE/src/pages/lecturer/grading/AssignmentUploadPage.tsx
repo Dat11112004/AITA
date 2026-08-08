@@ -889,7 +889,7 @@ export default function AssignmentUploadPage() {
 
                                             <div className="flex-1 flex items-center justify-center border border-slate-200/90 border-dashed rounded-2xl bg-slate-50/50 p-6">
                                                 <div className="w-full max-w-xl">
-                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx,.sql,.zip,.txt" errorMessage={t('lc.up.supported_formats')} />
+                                                    <FileUpload onUpload={handleFileUpload} accept=".pdf,.docx,.doc,.sql,.zip,.txt" errorMessage={t('lc.up.supported_formats')} />
                                                 </div>
                                             </div>
                                         </div>
