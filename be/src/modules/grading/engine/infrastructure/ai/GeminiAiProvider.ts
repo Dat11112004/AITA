@@ -673,7 +673,7 @@ CRITICAL RULES FOR CONVERSION:
         }
 
         let lastError: any;
-        const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+        const candidateModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
 
         for (const apiKey of validKeys) {
             for (const modelName of candidateModels) {
