@@ -677,9 +677,12 @@ FORMATTING REQUIREMENTS:
         }
 
         let lastError: any;
-        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'];
 
-        for (const apiKey of validKeys) {
+        // Randomize key order to balance traffic across all 22 Gemini keys
+        const shuffledKeys = [...validKeys].sort(() => Math.random() - 0.5);
+
+        for (const apiKey of shuffledKeys) {
             for (const modelName of candidateModels) {
                 try {
                     const genAI = new GoogleGenerativeAI(apiKey);
@@ -702,7 +705,14 @@ FORMATTING REQUIREMENTS:
                     }
                 } catch (error: any) {
                     lastError = error;
-                    console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, error?.message || error);
+                    const errMsg = String(error?.message || error);
+                    console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, errMsg);
+
+                    // If 429 rate limit or quota exceeded, skip remaining models for this key and try the next key immediately
+                    if (errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('Too Many Requests')) {
+                        console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) hit 429 quota. Rotating to next Gemini key...`);
+                        break;
+                    }
                 }
             }
         }
