@@ -153,8 +153,9 @@ export class AssignmentController extends BaseController {
             this.ok(res, { markdown }, 'Content generated');
         } catch (error: any) {
             console.error('[AssignmentController] Error generating content:', error);
-            if (error instanceof AppError) throw error;
-            const status = error?.statusCode || error?.status || 502;
+            if (error instanceof AppError && error.statusCode !== 429) throw error;
+            const rawStatus = error?.statusCode || error?.status || 502;
+            const status = rawStatus === 429 ? 503 : rawStatus;
             throw new AppError('AI_GENERATION_FAILED', error?.message || 'Error generating content', status);
         }
     };
@@ -187,8 +188,9 @@ export class AssignmentController extends BaseController {
             this.ok(res, { rubric, blueprint: draftBlueprint }, 'Rubric parsed');
         } catch (error: any) {
             console.error('[AssignmentController] Error parsing rubric:', error);
-            if (error instanceof AppError) throw error;
-            const status = error?.statusCode || error?.status || 502;
+            if (error instanceof AppError && error.statusCode !== 429) throw error;
+            const rawStatus = error?.statusCode || error?.status || 502;
+            const status = rawStatus === 429 ? 503 : rawStatus;
             throw new AppError('RUBRIC_PARSING_FAILED', error?.message || 'Error parsing rubric', status);
         }
     };
@@ -213,8 +215,10 @@ export class AssignmentController extends BaseController {
             this.ok(res, { rules: updatedRules }, 'SQL Key parsed');
         } catch (error: any) {
             console.error('[AssignmentController] Error parsing SQL Key:', error);
-            if (error instanceof AppError) throw error;
-            throw new AppError('SQL_KEY_PARSING_FAILED', error?.message || 'Error parsing SQL Key', 400);
+            if (error instanceof AppError && error.statusCode !== 429) throw error;
+            const rawStatus = error?.statusCode || error?.status || 400;
+            const status = rawStatus === 429 ? 503 : rawStatus;
+            throw new AppError('SQL_KEY_PARSING_FAILED', error?.message || 'Error parsing SQL Key', status);
         }
     };
 
@@ -243,8 +247,9 @@ export class AssignmentController extends BaseController {
             this.ok(res, { blueprint: draftBlueprint }, 'Requirements parsed');
         } catch (error: any) {
             console.error('[AssignmentController] Error parsing requirements:', error);
-            if (error instanceof AppError) throw error;
-            const status = error?.statusCode || error?.status || 502;
+            if (error instanceof AppError && error.statusCode !== 429) throw error;
+            const rawStatus = error?.statusCode || error?.status || 502;
+            const status = rawStatus === 429 ? 503 : rawStatus;
             throw new AppError('REQUIREMENT_PARSING_FAILED', error?.message || 'Error parsing requirements', status);
         }
     };
@@ -259,8 +264,9 @@ export class AssignmentController extends BaseController {
             this.ok(res, { rubric }, 'Rubric generated');
         } catch (error: any) {
             console.error('[AssignmentController] Error generating rubric:', error);
-            if (error instanceof AppError) throw error;
-            const status = error?.statusCode || error?.status || 502;
+            if (error instanceof AppError && error.statusCode !== 429) throw error;
+            const rawStatus = error?.statusCode || error?.status || 502;
+            const status = rawStatus === 429 ? 503 : rawStatus;
             throw new AppError('RUBRIC_GENERATION_FAILED', error?.message || 'Error generating rubric', status);
         }
     };

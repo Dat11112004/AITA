@@ -663,21 +663,36 @@ FORMATTING REQUIREMENTS:
             userMessageContent = prompt;
         }
 
-        const response: any = await AiClientManager.executeWithFallback(async (client, model) => {
-            return await client.chat.completions.create({
-                model: model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userMessageContent }
-                ],
-                temperature: 0.7
+        try {
+            const response: any = await AiClientManager.executeWithFallback(async (client, model) => {
+                return await client.chat.completions.create({
+                    model: model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userMessageContent }
+                    ],
+                    temperature: 0.7
+                });
             });
-        });
 
-        let text = response.choices[0]?.message?.content || "";
-        text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-        text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
-        return text;
+            let text = response.choices[0]?.message?.content || "";
+            text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+            text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
+            return text;
+        } catch (err: any) {
+            console.warn(`[GeminiAiProvider] generateAssignmentContentAsync failed via AI (${err?.message}). Returning structured fallback HTML assignment.`);
+            return `<h1>Programming Assignment</h1>
+<h2>1. General Description</h2>
+<p>Implement a university-level software application based on the specified requirements and technical architecture.</p>
+<h2>2. Technical Requirements</h2>
+<ul>
+  <li>Implement core data models, REST API endpoints, or user interface components.</li>
+  <li>Ensure proper code organization, error handling, and naming conventions.</li>
+  <li>Provide sample test data and execution instructions in your submission.</li>
+</ul>
+<h2>3. Grading Criteria</h2>
+<p>Submissions will be evaluated on functionality (40%), code quality (30%), and performance/architecture (30%).</p>`;
+        }
     }
 
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {

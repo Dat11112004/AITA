@@ -129,7 +129,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok || json.success === false || json.statusCode >= 400) {
-    throw new ApiError(json.Message || json.error?.message || res.statusText || 'API error', json.statusCode || res.status, json.error?.code)
+    let msg = json.Message || json.message || json.error?.message || res.statusText || 'API error';
+    if (res.status === 429 || json.statusCode === 429 || String(msg).includes('429') || String(msg).includes('no body')) {
+      msg = 'Hệ thống AI đang vượt giới hạn lượt gọi (Rate Limit 429). Vui lòng thử lại sau 5–10 giây.';
+    }
+    throw new ApiError(msg, json.statusCode || res.status, json.error?.code)
   }
   if (json.Data !== undefined) return json.Data as T;
   if (json.data !== undefined) return json.data as T;

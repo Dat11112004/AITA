@@ -51,23 +51,33 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
 
   // Handle custom AppError
   if (err instanceof AppError) {
-    const errorDetails = isDev ? { ...err.details, stack: err.stack } : err.details
-    const apiResponse = new ApiResponse(err.statusCode, err.message, errorDetails)
-    return res.status(err.statusCode).json(apiResponse)
+    let statusCode = err.statusCode;
+    let message = err.message;
+    if (statusCode === 429 || message.includes('429') || message.includes('no body')) {
+      statusCode = 503;
+      message = 'Hệ thống AI đang quá tải lượt gọi (Rate Limit 429). Vui lòng thử lại sau 5–10 giây.';
+    }
+    const errorDetails = isDev ? { ...err.details, stack: err.stack } : err.details;
+    const apiResponse = new ApiResponse(statusCode, message, errorDetails);
+    return res.status(statusCode).json(apiResponse);
   }
 
   // Handle Zod Validation Error
   if (err instanceof ZodError) {
-    const details = err.flatten()
-    const apiResponse = new ApiResponse(400, 'Dữ liệu không hợp lệ', details)
-    return res.status(400).json(apiResponse)
+    const details = err.flatten();
+    const apiResponse = new ApiResponse(400, 'Dữ liệu không hợp lệ', details);
+    return res.status(400).json(apiResponse);
   }
 
   // Fallback for unexpected errors
-  const statusCode = (err as any).statusCode ?? (err as any).status ?? 500
-  const message = isDev ? err.message || String(err) : 'Lỗi hệ thống'
-  const details = isDev ? { stack: err.stack, requestId } : { requestId }
+  let statusCode = (err as any).statusCode ?? (err as any).status ?? 500;
+  let message = isDev ? err.message || String(err) : 'Lỗi hệ thống';
+  if (statusCode === 429 || String(message).includes('429') || String(message).includes('no body')) {
+    statusCode = 503;
+    message = 'Hệ thống AI đang quá tải lượt gọi (Rate Limit 429). Vui lòng thử lại sau 5–10 giây.';
+  }
+  const details = isDev ? { stack: err.stack, requestId } : { requestId };
 
-  const apiResponse = new ApiResponse(statusCode, message, details)
-  return res.status(statusCode).json(apiResponse)
+  const apiResponse = new ApiResponse(statusCode, message, details);
+  return res.status(statusCode).json(apiResponse);
 }

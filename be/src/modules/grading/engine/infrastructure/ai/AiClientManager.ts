@@ -202,8 +202,8 @@ export class AiClientManager {
                         const errBody = err.error ? JSON.stringify(err.error) : (err.message || String(err));
 
                         if (status === 429 || (err.message && err.message.includes('429'))) {
-                            console.warn(`[AiClientManager] Key #${keyIndex + 1} rate limited (429). Cooldown for 15s...`);
-                            const newExpiry = Date.now() + 15000;
+                            console.warn(`[AiClientManager] Key #${keyIndex + 1} rate limited (429). Cooldown for 8s...`);
+                            const newExpiry = Date.now() + 8000;
                             AiClientManager.rateLimitExpiry.set(key, newExpiry);
 
                             const wait = newExpiry - Date.now();
@@ -272,11 +272,21 @@ export class AiClientManager {
 
             const isTimeoutOrRateLimit = lastError && (lastError.status === 429 || lastError.message?.includes('429') || lastError.message?.includes('AI_TIMEOUT'));
             if (globalAttempt < maxGlobalAttempts && isTimeoutOrRateLimit) {
-                console.warn(`[AiClientManager] Global Pool Exhausted (Attempt ${globalAttempt}/${maxGlobalAttempts}). Cooling down for 5 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                console.warn(`[AiClientManager] Global Pool Exhausted (Attempt ${globalAttempt}/${maxGlobalAttempts}). Cooling down for 3 seconds...`);
+                AiClientManager.rateLimitExpiry.clear(); // Reset cooldowns on retry attempt
+                await new Promise(resolve => setTimeout(resolve, 3000));
             } else {
                 break;
             }
+        }
+
+        const errMsg = lastError?.message || String(lastError || 'All AI providers failed');
+        if (errMsg.includes('429') || lastError?.status === 429) {
+            throw new AppError(
+                'AI_RATE_LIMIT',
+                'Hệ thống AI đang quá tải lượt gọi (Rate Limit 429). Vui lòng thử lại sau 5–10 giây.',
+                503
+            );
         }
 
         throw lastError || new Error("All AI providers failed and no valid keys are configured.");
