@@ -49,50 +49,167 @@ export class StdInOutProbeEngine {
 
   public async evaluateAsync(
     submissionPath: string,
-    probeSpec: StdInOutProbeSpec
+    probeSpec: StdInOutProbeSpec,
+    contextHint?: string
   ): Promise<StdInOutResult> {
-    const caseResults: StdInOutCaseResult[] = [];
-
     // Auto-detect language if build/run commands not specified
     const detection = await this.detectLanguage(submissionPath);
-    const buildCmd = probeSpec.buildCommand || detection.buildCommand;
-    const runCmd = probeSpec.runCommand || detection.runCommand;
     const dockerImage = detection.dockerImage;
 
     console.log(`[StdInOutProbe] Detected: ${detection.language} | Image: ${dockerImage}`);
-    console.log(`[StdInOutProbe] Build: ${buildCmd} | Run: ${runCmd}`);
-    console.log(`[StdInOutProbe] Running ${probeSpec.testCases.length} test cases...`);
 
     // Ensure Docker image exists
     await this.pullImage(dockerImage);
 
-    // Find project subdirectory (for C# projects with nested .csproj)
-    const projectDir = await this.findProjectDir(submissionPath, detection.language);
+    // Students often zip several problems into one submission. Discover every
+    // runnable program, try the one matching this rule's problem number first,
+    // and keep the best-scoring result. A single-program submission yields one
+    // candidate and behaves exactly as before.
+    const candidates = this.orderCandidatesByHint(
+      await this.findProgramCandidates(submissionPath, detection),
+      `${contextHint || ''} ${probeSpec.description || ''}`
+    ).slice(0, 8);
 
-    for (const testCase of probeSpec.testCases) {
-      const result = await this.runTestCase(
-        submissionPath,
-        projectDir,
-        testCase,
-        buildCmd,
-        runCmd,
-        dockerImage
-      );
-      caseResults.push(result);
-      console.log(`[StdInOutProbe] Case ${testCase.id}: ${result.passed ? '✓ PASS' : '✗ FAIL'} (${result.executionMs}ms)${result.timedOut ? ' [TIMEOUT]' : ''}`);
+    let best: StdInOutResult | null = null;
+    for (const candidate of candidates) {
+      const buildCmd = probeSpec.buildCommand || candidate.buildCommand;
+      const runCmd = probeSpec.runCommand || candidate.runCommand;
+      console.log(`[StdInOutProbe] Trying program "${candidate.label}" | Build: ${buildCmd} | Run: ${runCmd}`);
+
+      const caseResults: StdInOutCaseResult[] = [];
+      for (const testCase of probeSpec.testCases) {
+        const result = await this.runTestCase(
+          submissionPath,
+          candidate.projectDir,
+          testCase,
+          buildCmd,
+          runCmd,
+          dockerImage
+        );
+        caseResults.push(result);
+        console.log(`[StdInOutProbe] Case ${testCase.id}: ${result.passed ? '✓ PASS' : '✗ FAIL'} (${result.executionMs}ms)${result.timedOut ? ' [TIMEOUT]' : ''}`);
+      }
+
+      const passedCases = caseResults.filter(r => r.passed).length;
+      const totalCases = caseResults.length;
+      const result: StdInOutResult = {
+        passed: totalCases > 0 && passedCases === totalCases,
+        confidence: totalCases > 0 ? passedCases / totalCases : 0,
+        totalCases,
+        passedCases,
+        caseResults
+      };
+
+      if (!best || result.passedCases > best.passedCases) best = result;
+      if (result.passed) break; // all cases passed — no need to try other programs
     }
 
-    const passedCases = caseResults.filter(r => r.passed).length;
-    const totalCases = caseResults.length;
-    const confidence = totalCases > 0 ? passedCases / totalCases : 0;
+    return best || { passed: false, confidence: 0, totalCases: 0, passedCases: 0, caseResults: [] };
+  }
 
-    return {
-      passed: passedCases === totalCases,
-      confidence,
-      totalCases,
-      passedCases,
-      caseResults
+  /**
+   * Discovers every runnable program inside the submission so multi-problem
+   * zips (Problem1/, Problem2/, Cau1.py, Cau2.py, ...) can be graded per rule.
+   */
+  private async findProgramCandidates(
+    submissionPath: string,
+    detection: LanguageDetection
+  ): Promise<Array<{ projectDir: string; buildCommand: string; runCommand: string; label: string }>> {
+    const files = await this.listFilesRecursive(submissionPath);
+    const rel = (f: string) => path.relative(submissionPath, f).replace(/\\/g, '/');
+    const dirOf = (f: string) => {
+      const d = path.dirname(rel(f));
+      return d === '' || d === '.' ? '.' : d;
     };
+    const candidates: Array<{ projectDir: string; buildCommand: string; runCommand: string; label: string }> = [];
+
+    switch (detection.language) {
+      case 'csharp': {
+        for (const f of files.filter(f => f.endsWith('.csproj'))) {
+          candidates.push({ projectDir: dirOf(f), buildCommand: detection.buildCommand, runCommand: detection.runCommand, label: rel(f) });
+        }
+        break;
+      }
+      case 'java': {
+        const hasBuildTool = files.some(f => f.endsWith('pom.xml') || f.endsWith('build.gradle') || f.endsWith('build.gradle.kts'));
+        if (!hasBuildTool) {
+          for (const f of files.filter(f => f.endsWith('.java'))) {
+            const content = await fs.readFile(f, 'utf8');
+            if (content.includes('public static void main')) {
+              candidates.push({
+                projectDir: dirOf(f),
+                buildCommand: detection.buildCommand,
+                runCommand: `java -cp . ${path.basename(f, '.java')}`,
+                label: rel(f)
+              });
+            }
+          }
+        }
+        break;
+      }
+      case 'python': {
+        for (const f of files.filter(f => f.endsWith('.py'))) {
+          candidates.push({ projectDir: dirOf(f), buildCommand: '', runCommand: `python ${path.basename(f)}`, label: rel(f) });
+        }
+        break;
+      }
+      case 'c':
+      case 'cpp': {
+        for (const f of files.filter(f => /\.(cpp|cc|cxx|c)$/i.test(f))) {
+          const content = await fs.readFile(f, 'utf8');
+          if (/\bmain\s*\(/.test(content)) {
+            const base = path.basename(f);
+            candidates.push({
+              projectDir: dirOf(f),
+              buildCommand: f.endsWith('.c')
+                ? `gcc -o solution "${base}" -O2 -lm`
+                : `g++ -o solution "${base}" -std=c++17 -O2`,
+              runCommand: './solution',
+              label: rel(f)
+            });
+          }
+        }
+        break;
+      }
+      case 'nodejs': {
+        for (const f of files.filter(f => f.endsWith('.js'))) {
+          candidates.push({ projectDir: dirOf(f), buildCommand: '', runCommand: `node ${path.basename(f)}`, label: rel(f) });
+        }
+        break;
+      }
+    }
+
+    if (candidates.length === 0) {
+      const projectDir = await this.findProjectDir(submissionPath, detection.language);
+      candidates.push({ projectDir, buildCommand: detection.buildCommand, runCommand: detection.runCommand, label: 'whole submission' });
+    }
+    return candidates;
+  }
+
+  /**
+   * Orders program candidates so the one matching the rule's problem number
+   * ("Problem 2", "Câu 2", "Bài 2", "Task B"...) is tried first.
+   */
+  private orderCandidatesByHint(
+    candidates: Array<{ projectDir: string; buildCommand: string; runCommand: string; label: string }>,
+    hint: string
+  ): Array<{ projectDir: string; buildCommand: string; runCommand: string; label: string }> {
+    const numMatch = hint.match(/(?:problem|c[aâ]u|b[aà]i|task|part|exercise|ex|p|q)\s*#?\s*(\d+)/i)
+      || hint.match(/(\d+)/);
+    if (!numMatch) return candidates;
+    const n = numMatch[1];
+
+    const score = (label: string) => {
+      const l = label.toLowerCase();
+      // "problem2", "cau_2", "bai 2", "p2", "q2", "2.py", "ex2/"...
+      if (new RegExp(`(?:problem|cau|bai|task|part|exercise|ex|p|q)[ _-]?${n}(?:[^0-9]|$)`).test(l)) return 2;
+      if (new RegExp(`(?:^|[^0-9])${n}(?:[^0-9]|$)`).test(l)) return 1;
+      return 0;
+    };
+    return candidates
+      .map((c, i) => ({ c, i, s: score(c.label) }))
+      .sort((a, b) => b.s - a.s || a.i - b.i)
+      .map(x => x.c);
   }
 
   /**
