@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { IAiProvider, ParsedBlueprint, ParsedRequirement, DocumentImage } from '../../core/contracts/IAiProvider';
-// import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { config } from '../../config';
 import { AiClientManager } from './AiClientManager';
@@ -629,15 +629,19 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
     }
 
     /**
-     * Generates a comprehensive markdown assignment document from a short prompt.
+     * Generates a comprehensive markdown assignment document from a short prompt using native GoogleGenerativeAI SDK.
+     * Iterates through available API keys and candidate models to guarantee success.
      */
     public async generateAssignmentContentAsync(prompt: string, pageImages?: string[]): Promise<string> {
-        // const model = this.genAi.getGenerativeModel({ 
-        //     model: config.gemini.model,
-        //     generationConfig: {
-        //         temperature: 0.8
-        //     }
-        // });
+        const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
+            ? config.ai.geminiKeys
+            : [process.env.GEMINI_API_KEY || ''];
+
+        const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
+
+        if (validKeys.length === 0) {
+            throw new Error('No valid Gemini API key available in configuration');
+        }
 
         const systemPrompt = `You are an expert Document Extraction and Conversion AI.
 The user will provide you with a programming assignment document. This document may be provided as plain text, or as a series of PDF page images, or both.
@@ -654,37 +658,53 @@ CRITICAL RULES FOR CONVERSION:
 
         const fullPrompt = `${systemPrompt}\n\nInstructor Idea:\n${prompt}`;
 
-        let messageContent: any[] = [{ type: "text", text: fullPrompt }];
+        let promptParts: any[] = [fullPrompt];
 
         if (pageImages && pageImages.length > 0) {
             pageImages.forEach(base64 => {
-                messageContent.push({
-                    type: "image_url",
-                    image_url: { url: base64 }
+                const cleanB64 = base64.replace(/^data:image\/\w+;base64,/, '');
+                promptParts.push({
+                    inlineData: {
+                        data: cleanB64,
+                        mimeType: 'image/png'
+                    }
                 });
             });
         }
 
-        try {
-            const response = await AiClientManager.executeWithFallback(async (client, model) => {
-                return await client.chat.completions.create({
-                    model: model,
-                    messages: [{ role: "user", content: messageContent }],
-                    temperature: 0.2
-                });
-            });
-            let text = response.choices[0].message.content || "";
+        let lastError: any;
+        const candidateModels = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
-            // Strip HTML block fences if the AI still includes them
-            text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-            // Strip verification comments (used only for AI chain-of-thought math)
-            text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
+        for (const apiKey of validKeys) {
+            for (const modelName of candidateModels) {
+                try {
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const model = genAI.getGenerativeModel({
+                        model: modelName,
+                        generationConfig: {
+                            temperature: 0.7
+                        }
+                    });
 
-            return text;
-        } catch (error: any) {
-            console.error(`[GeminiAiProvider] Failed to generate assignment content:`, error);
-            throw error instanceof Error ? error : new Error(`AI Generation failed: ${error?.message || String(error)}`);
+                    const result = await model.generateContent(promptParts);
+                    const response = await result.response;
+                    let text = response.text() || '';
+
+                    text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+                    text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
+
+                    if (text.length > 0) {
+                        return text;
+                    }
+                } catch (error: any) {
+                    lastError = error;
+                    console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, error?.message || error);
+                }
+            }
         }
+
+        console.error(`[GeminiAiProvider] All keys and models failed:`, lastError);
+        throw lastError instanceof Error ? lastError : new Error(`AI Generation failed: ${lastError?.message || String(lastError)}`);
     }
 
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
