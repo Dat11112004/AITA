@@ -1032,7 +1032,8 @@ export class RubricEvaluator {
                     }
                     const stdResult = await this.stdInOutProbe.evaluateAsync(
                         context.submissionPath,
-                        spec.stdInOutProbe
+                        spec.stdInOutProbe,
+                        rule.title
                     );
                     // Proportional scoring: (passed / total) * weight
                     const proportionalScore = stdResult.totalCases > 0
