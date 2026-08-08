@@ -132,7 +132,7 @@ OUTPUT FORMAT (JSON OBJECT)
       "partLabel": "PART A",
       "title": "Short title",
       "description": "Verifiable grading criterion with full technical details",
-      "marks": 10,
+      "marks": 2.5,
       "complexity": "low" | "medium" | "high",
       "complexityReason": "string",
       "isUIVisible": boolean,
@@ -149,91 +149,96 @@ OUTPUT FORMAT (JSON OBJECT)
   ]
 }`;
 
-        // ═══════════════════════════════════════════════════════
-        // IMAGE ANALYSIS ADDENDUM — Only when document contains images
-        // ═══════════════════════════════════════════════════════
-        const imageAnalysisAddendum = hasImages ? `\n\n════════════════════════════════════════\nIMAGE ANALYSIS INSTRUCTIONS (CRITICAL)\n════════════════════════════════════════\nThis document contains ${documentImages!.length} embedded image(s). These images may include:\n- Database schemas / ERD diagrams showing tables, columns, data types, and relationships\n- UI mockup designs showing the expected visual layout\n- Architecture diagrams\n\nYou MUST carefully analyze EVERY image provided. For each image:\n1. If it is a DATABASE SCHEMA / ERD: Extract ALL table names, column names, data types, primary keys, foreign keys, and relationships. Include these details in the relevant requirement descriptions (e.g., "Table 'Products' must have columns: Id (int, PK), Name (nvarchar), Price (decimal), CategoryId (int, FK to Categories)").
-2. If it is a UI MOCKUP: Describe the layout, components, navigation structure, and any specific design requirements visible in the mockup. Set isUIVisible=true for requirements derived from it.
-3. If it is an ARCHITECTURE DIAGRAM: Extract layers, components, and their interactions.\n\nDo NOT ignore images. The text may say "See diagram below" — YOU are seeing that diagram right now. Extract its full content into your requirements.` : '';
+        const imageAnalysisAddendum = hasImages ? `\n\n════════════════════════════════════════\nIMAGE ANALYSIS INSTRUCTIONS (CRITICAL)\n════════════════════════════════════════\nThis document contains ${documentImages!.length} embedded image(s). These images may include:\n- Database schemas / ERD diagrams showing tables, columns, data types, and relationships\n- UI mockup designs showing the expected visual layout\n- Architecture diagrams\n\nYou MUST carefully analyze EVERY image provided. For each image:\n1. If it is a DATABASE SCHEMA / ERD: Extract ALL table names, column names, data types, primary keys, foreign keys, and relationships. Include these details in the relevant requirement descriptions (e.g., "Table 'Products' must have columns: Id (int, PK), Name (nvarchar), Price (decimal), CategoryId (int, FK to Categories)").\n2. If it is a UI MOCKUP: Describe the layout, components, navigation structure, and any specific design requirements visible in the mockup. Set isUIVisible=true for requirements derived from it.\n3. If it is an ARCHITECTURE DIAGRAM: Extract layers, components, and their interactions.\n\nDo NOT ignore images. The text may say "See diagram below" — YOU are seeing that diagram right now. Extract its full content into your requirements.` : '';
 
         const fullSystemPrompt = systemPrompt + imageAnalysisAddendum;
-
         const fullPrompt = `${fullSystemPrompt}\n\nDocument Text:\n${prompt}`;
 
-        // Debug: Log prompt stats
-        console.log(`[GeminiAiProvider] parseRequirementsAsync - systemPrompt: ${fullSystemPrompt.length} chars, userPrompt: ${prompt.length} chars, images: ${documentImages?.length || 0}, total: ${(fullSystemPrompt.length + prompt.length)} chars`);
+        const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
+            ? config.ai.geminiKeys
+            : [process.env.GEMINI_API_KEY || ''];
+        const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
 
-        // Check for problematic content in prompt
-        const hasNullBytes = prompt.includes('\0');
-        const hasInvalidChars = /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(prompt);
-        if (hasNullBytes || hasInvalidChars) {
-            console.warn(`[GeminiAiProvider] WARNING: Prompt contains problematic characters! nullBytes=${hasNullBytes}, invalidChars=${hasInvalidChars}`);
-        }
-
-        let attempt = 0;
-        const maxRetries = 2;
-        while (attempt <= maxRetries) {
-            try {
-                let response: any;
-                response = await AiClientManager.executeWithFallback(async (client, model) => {
-                    const controller = new AbortController();
-                    const timeoutMs = hasImages ? 180000 : 120000; // Extra time for vision
-                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-                    try {
-                        // Build message content: multimodal if images exist, text-only otherwise
-                        let userMessageContent: any;
-                        if (hasImages) {
-                            // Multimodal: text + images (same format as evaluateImageAsync)
-                            const parts: any[] = [{ type: "text", text: prompt }];
-                            for (const img of documentImages!) {
-                                parts.push({
-                                    type: "text",
-                                    text: `[DOCUMENT IMAGE — ${img.label}${img.isMockup ? ' (TEACHER MOCKUP/REFERENCE)' : ''}]:`
-                                });
-                                parts.push({
-                                    type: "image_url",
-                                    image_url: {
-                                        url: `data:${img.contentType};base64,${img.buffer.toString('base64')}`,
-                                        detail: "high" // High detail for DB schema text recognition
-                                    }
-                                });
-                            }
-                            userMessageContent = parts;
-                            console.log(`[GeminiAiProvider] Sending multimodal request with ${documentImages!.length} images (detail: high)`);
-                        } else {
-                            userMessageContent = prompt;
-                        }
-
-                        return await Promise.race([
-                            client.chat.completions.create({
-                                model: model,
-                                messages: [
-                                    { role: "system", content: fullSystemPrompt },
-                                    { role: "user", content: userMessageContent }
-                                ],
-                                temperature: 0
-                            }, { signal: controller.signal as any }),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs))
-                        ]);
-                    } finally {
-                        clearTimeout(timeoutId);
+        let promptParts: any[] = [fullPrompt];
+        if (hasImages) {
+            for (const img of documentImages!) {
+                promptParts.push({
+                    inlineData: {
+                        data: img.buffer.toString('base64'),
+                        mimeType: img.contentType || 'image/png'
                     }
                 });
+            }
+        }
 
-                let jsonText = response.choices[0].message.content || "{}";
-                jsonText = jsonText.replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-                let blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+        let lastError: any;
+        const candidateModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
-                // Remove empty requirements hallucinated by the AI and clean markdown
-                if (blueprint.requirements && Array.isArray(blueprint.requirements)) {
-                    blueprint.requirements = blueprint.requirements
-                        .filter(req => req && req.title && req.title.trim() !== '' && req.description && req.description.trim() !== '')
-                        .map(req => {
-                            req.title = req.title.replace(/\*\*/g, '');
-                            req.description = req.description.replace(/\*\*/g, '');
-                            return req;
-                        });
+        let blueprint: ParsedBlueprint | null = null;
+
+        for (const apiKey of validKeys) {
+            for (const modelName of candidateModels) {
+                try {
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const model = genAI.getGenerativeModel({
+                        model: modelName,
+                        generationConfig: { temperature: 0 }
+                    });
+
+                    const result = await model.generateContent(promptParts);
+                    const response = await result.response;
+                    let jsonText = response.text() || '';
+                    jsonText = jsonText.replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+
+                    if (jsonText.length > 0) {
+                        blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+                        break;
+                    }
+                } catch (error: any) {
+                    lastError = error;
+                    console.warn(`[GeminiAiProvider] parseRequirementsAsync Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, error?.message || error);
                 }
+            }
+            if (blueprint) break;
+        }
+
+        if (!blueprint && config.ai.githubToken) {
+            try {
+                const ghClient = new OpenAI({
+                    apiKey: config.ai.githubToken,
+                    baseURL: config.ai.githubBaseUrl,
+                    timeout: 120000
+                });
+                const ghRes = await ghClient.chat.completions.create({
+                    model: config.ai.githubModel,
+                    messages: [
+                        { role: "system", content: fullSystemPrompt },
+                        { role: "user", content: prompt }
+                    ],
+                    temperature: 0
+                });
+                let jsonText = ghRes.choices[0].message.content || '';
+                jsonText = jsonText.replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+                blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+            } catch (ghErr) {
+                console.error('[GeminiAiProvider] GitHub Models fallback failed:', ghErr);
+            }
+        }
+
+        if (!blueprint) {
+            throw lastError instanceof Error ? lastError : new Error(`AI Parsing failed: ${lastError?.message || String(lastError)}`);
+        }
+
+        // Clean hallucinated markdown
+        if (blueprint.requirements && Array.isArray(blueprint.requirements)) {
+            blueprint.requirements = blueprint.requirements
+                .filter(req => req && req.title && req.title.trim() !== '' && req.description && req.description.trim() !== '')
+                .map(req => {
+                    req.title = req.title.replace(/\*\*/g, '');
+                    req.description = req.description.replace(/\*\*/g, '');
+                    return req;
+                });
+        }
 
                 // ═══════════════════════════════════════════════════════
                 // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
@@ -372,15 +377,6 @@ OUTPUT FORMAT (JSON OBJECT)
                 }
 
                 return blueprint;
-            } catch (error) {
-                console.error(`[GeminiAiProvider] Error on attempt ${attempt + 1}:`, error);
-                attempt++;
-                if (attempt > maxRetries) {
-                    throw new Error(`Failed to parse requirements after ${maxRetries} retries: ${(error as Error).message}`);
-                }
-            }
-        }
-        throw new Error('Unexpected error in parseRequirementsAsync');
     }
 
     public async generateFeedbackAsync(context: string, payload: any): Promise<string> {
