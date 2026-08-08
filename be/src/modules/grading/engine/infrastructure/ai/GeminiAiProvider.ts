@@ -717,6 +717,26 @@ FORMATTING REQUIREMENTS:
             }
         }
 
+        // If rate limited on all keys, wait 5 seconds and retry once with gemini-1.5-flash
+        if (lastError && String(lastError?.message || lastError).includes('429')) {
+            console.warn('[GeminiAiProvider] All keys hit 429 quota. Pausing 5 seconds for rate-limit reset...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            for (const apiKey of shuffledKeys) {
+                try {
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { temperature: 0.7 } });
+                    const result = await model.generateContent(promptParts);
+                    const response = await result.response;
+                    let text = response.text() || '';
+                    text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+                    text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
+                    if (text.length > 0) return text;
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+        }
+
         console.error(`[GeminiAiProvider] All keys and models failed:`, lastError);
         throw lastError instanceof Error ? lastError : new Error(`AI Generation failed: ${lastError?.message || String(lastError)}`);
     }
