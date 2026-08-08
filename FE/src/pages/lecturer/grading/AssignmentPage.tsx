@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -87,6 +87,7 @@ export default function AssignmentPage() {
 
   const [isGradingSettingsModalOpen, setIsGradingSettingsModalOpen] = useState(false);
   const [selectedGradingStrategy, setSelectedGradingStrategy] = useState<'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE'>('CONTINUOUS_QUEUE');
+  const [pendingGradingStrategy, setPendingGradingStrategy] = useState<'CONTINUOUS_QUEUE' | 'BATCH_POST_DEADLINE' | null>(null);
   const [savingStrategy, setSavingStrategy] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -469,7 +470,7 @@ export default function AssignmentPage() {
         const channel = new BroadcastChannel('aita_assignment_updates');
         channel.postMessage({ type: 'ASSIGNMENT_DEADLINE_UPDATED', id: id!, dueDate: updatedIso, timestamp: Date.now() });
         channel.close();
-      } catch (e) { }
+      } catch (e) { /* empty */ }
 
       try {
         localStorage.setItem('aita_last_assignment_update', JSON.stringify({
@@ -510,6 +511,7 @@ export default function AssignmentPage() {
       const data = await api.getAssignment(id!);
       setAssignment(data);
       setIsGradingSettingsModalOpen(false);
+      setPendingGradingStrategy(null);
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -1437,12 +1439,16 @@ export default function AssignmentPage() {
 
               {/* Option 1: Continuous queue (background grading) */}
               <div
-                onClick={() => !savingStrategy && handleSaveGradingStrategy('CONTINUOUS_QUEUE')}
+                onClick={() => {
+                  if (!savingStrategy && selectedGradingStrategy !== 'CONTINUOUS_QUEUE') {
+                    setPendingGradingStrategy('CONTINUOUS_QUEUE');
+                  }
+                }}
                 className={classNames(
-                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  "p-5 rounded-2xl border-2 transition-all relative overflow-hidden group",
                   selectedGradingStrategy === 'CONTINUOUS_QUEUE'
-                    ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/10"
-                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50"
+                    ? "bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500 shadow-md shadow-emerald-500/10 cursor-default"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 cursor-pointer"
                 )}
               >
                 <div className="flex items-start gap-4">
@@ -1482,12 +1488,16 @@ export default function AssignmentPage() {
 
               {/* Option 2: Batch after deadline */}
               <div
-                onClick={() => !savingStrategy && handleSaveGradingStrategy('BATCH_POST_DEADLINE')}
+                onClick={() => {
+                  if (!savingStrategy && selectedGradingStrategy !== 'BATCH_POST_DEADLINE') {
+                    setPendingGradingStrategy('BATCH_POST_DEADLINE');
+                  }
+                }}
                 className={classNames(
-                  "p-5 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden group",
+                  "p-5 rounded-2xl border-2 transition-all relative overflow-hidden group",
                   selectedGradingStrategy === 'BATCH_POST_DEADLINE'
-                    ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10"
-                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-500/50"
+                    ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500 shadow-md shadow-amber-500/10 cursor-default"
+                    : "bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer"
                 )}
               >
                 <div className="flex items-start gap-4">
@@ -1541,6 +1551,56 @@ export default function AssignmentPage() {
               </button>
             </div>
 
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Strategy Switch Confirmation Modal */}
+      {pendingGradingStrategy && createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+                <HelpCircle size={28} className="stroke-[2.5]" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {t('lc.ap.gs.confirm_title')}
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {t('lc.ap.gs.confirm_body', {
+                    mode: (pendingGradingStrategy === 'CONTINUOUS_QUEUE'
+                      ? t('lc.ap.gs.queue_title')
+                      : t('lc.ap.gs.batch_title')
+                    ).replace(/^[^\p{L}\p{N}\s]+/u, '').trim()
+                  })}
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={savingStrategy}
+                onClick={() => setPendingGradingStrategy(null)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {t('lc.ap.gs.confirm_cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={savingStrategy}
+                onClick={() => handleSaveGradingStrategy(pendingGradingStrategy)}
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-600/25 transition-all disabled:opacity-50 flex items-center gap-2"
+              >
+                {savingStrategy ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Check size={16} />
+                )}
+                <span>{t('lc.ap.gs.confirm_btn')}</span>
+              </button>
+            </div>
           </div>
         </div>,
         document.body
