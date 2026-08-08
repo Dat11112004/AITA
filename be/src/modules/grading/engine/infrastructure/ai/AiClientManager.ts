@@ -1,5 +1,6 @@
 // @ts-nocheck
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../config/index.js'; // Adjust if needed
 import { prisma } from '../../../../../database/prisma.js';
 
@@ -96,12 +97,77 @@ export class AiClientManager {
 
                     triedAnyKey = true;
 
-                    const client = new OpenAI({
-                        apiKey: key,
-                        baseURL: config.ai.geminiBaseUrl,
-                        timeout: config.ai.timeoutMs,
-                        maxRetries: 0
-                    });
+                    let client: any;
+                    if (key.startsWith('AQ')) {
+                        const genAI = new GoogleGenerativeAI(key);
+                        client = {
+                            chat: {
+                                completions: {
+                                    create: async (params: any) => {
+                                        const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
+                                        const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
+
+                                        let contents: any[] = [];
+                                        for (const msg of userMsgs) {
+                                            if (typeof msg.content === 'string') {
+                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
+                                            } else if (Array.isArray(msg.content)) {
+                                                const parts: any[] = [];
+                                                for (const part of msg.content) {
+                                                    if (part.type === 'text') {
+                                                        parts.push({ text: part.text });
+                                                    } else if (part.type === 'image_url') {
+                                                        const url = part.image_url?.url || '';
+                                                        const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                                                        if (match) {
+                                                            parts.push({
+                                                                inlineData: {
+                                                                    mimeType: match[1],
+                                                                    data: match[2]
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts });
+                                            }
+                                        }
+
+                                        const targetModel = params.model || model;
+                                        const genModel = genAI.getGenerativeModel({
+                                            model: targetModel,
+                                            systemInstruction: systemMsg ? systemMsg : undefined
+                                        });
+
+                                        const genResult = await genModel.generateContent({
+                                            contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: '' }] }],
+                                            generationConfig: {
+                                                temperature: params.temperature ?? 0.7
+                                            }
+                                        });
+
+                                        const text = genResult.response.text();
+                                        return {
+                                            choices: [
+                                                {
+                                                    message: {
+                                                        content: text
+                                                    }
+                                                }
+                                            ]
+                                        };
+                                    }
+                                }
+                            }
+                        };
+                    } else {
+                        client = new OpenAI({
+                            apiKey: key,
+                            baseURL: config.ai.geminiBaseUrl,
+                            timeout: config.ai.timeoutMs,
+                            maxRetries: 0
+                        });
+                    }
 
                     try {
                         await globalAiSemaphore.acquire();
