@@ -2,7 +2,7 @@ import type { IUseCase } from '../../../../shared/application/base-use-case.js'
 import type { AuthUser } from '../../../../types/express.js'
 import { NotFoundError, ForbiddenError } from '../../../../shared/application/app.error.js'
 import { prisma } from '../../../../database/prisma.js'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { AiClientManager } from '../../../grading/engine/infrastructure/ai/AiClientManager.js'
 
 export class GetAiHintUseCase implements IUseCase<{ submissionId: string; ruleScoreId: string; user: AuthUser }, { hint: string }> {
   async execute({ submissionId, ruleScoreId, user }: { submissionId: string; ruleScoreId: string; user: AuthUser }): Promise<{ hint: string }> {
@@ -49,12 +49,14 @@ Nhiệm vụ của bạn:
 TUYỆT ĐỐI KHÔNG cung cấp toàn bộ code giải hoàn chỉnh. Chỉ đưa ra hướng dẫn tư duy hoặc ví dụ minh họa chung chung.`
 
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-      const result = await model.generateContent(systemPrompt)
-      const response = await result.response
-      const hint = response.text()
-      
+      const response = await AiClientManager.executeWithFallback(async (client, model) => {
+        return await client.chat.completions.create({
+          model: model,
+          messages: [{ role: "user", content: systemPrompt }],
+          temperature: 0.7
+        });
+      });
+      const hint = response.choices[0]?.message?.content || 'Hệ thống không thể tạo gợi ý lúc này.';
       return { hint }
     } catch (error) {
       console.error('Failed to generate AI hint:', error)

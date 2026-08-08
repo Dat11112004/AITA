@@ -632,21 +632,7 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
         return rules;
     }
 
-    /**
-     * Generates a comprehensive markdown assignment document from a short prompt using native GoogleGenerativeAI SDK.
-     * Iterates through available API keys and candidate models to guarantee success.
-     */
     public async generateAssignmentContentAsync(prompt: string, pageImages?: string[]): Promise<string> {
-        const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
-            ? config.ai.geminiKeys
-            : [process.env.GEMINI_API_KEY || ''];
-
-        const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
-
-        if (validKeys.length === 0) {
-            throw new Error('No valid Gemini API key available in configuration');
-        }
-
         const systemPrompt = `You are a Senior University Lecturer and Expert Assignment Author in Computer Science.
 Your task is to create or convert a complete, professional, comprehensive Programming Assignment document in HTML format.
 
@@ -660,85 +646,38 @@ FORMATTING REQUIREMENTS:
 - DO NOT use Markdown (no **, no ##). DO NOT wrap in \`\`\`html blocks.
 - Write the entire assignment content in clear, professional ENGLISH.`;
 
-        const fullPrompt = `${systemPrompt}\n\nInstructor Document / Prompt:\n${prompt}`;
-
-        let promptParts: any[] = [fullPrompt];
-
+        let userMessageContent: any;
         if (pageImages && pageImages.length > 0) {
+            const parts: any[] = [{ type: "text", text: prompt }];
             pageImages.forEach(base64 => {
                 const cleanB64 = base64.replace(/^data:image\/\w+;base64,/, '');
-                promptParts.push({
-                    inlineData: {
-                        data: cleanB64,
-                        mimeType: 'image/png'
+                parts.push({
+                    type: "image_url",
+                    image_url: {
+                        url: `data:image/png;base64,${cleanB64}`,
                     }
                 });
             });
+            userMessageContent = parts;
+        } else {
+            userMessageContent = prompt;
         }
 
-        let lastError: any;
-        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+        const response: any = await AiClientManager.executeWithFallback(async (client, model) => {
+            return await client.chat.completions.create({
+                model: model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessageContent }
+                ],
+                temperature: 0.7
+            });
+        });
 
-        // Randomize key order to balance traffic across all 22 Gemini keys
-        const shuffledKeys = [...validKeys].sort(() => Math.random() - 0.5);
-
-        for (const apiKey of shuffledKeys) {
-            for (const modelName of candidateModels) {
-                try {
-                    const genAI = new GoogleGenerativeAI(apiKey);
-                    const model = genAI.getGenerativeModel({
-                        model: modelName,
-                        generationConfig: {
-                            temperature: 0.7
-                        }
-                    });
-
-                    const result = await model.generateContent(promptParts);
-                    const response = await result.response;
-                    let text = response.text() || '';
-
-                    text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-                    text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
-
-                    if (text.length > 0) {
-                        return text;
-                    }
-                } catch (error: any) {
-                    lastError = error;
-                    const errMsg = String(error?.message || error);
-                    console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, errMsg);
-
-                    // If 429 rate limit or quota exceeded, skip remaining models for this key and try the next key immediately
-                    if (errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('Too Many Requests')) {
-                        console.warn(`[GeminiAiProvider] Key (${apiKey.substring(0, 8)}...) hit 429 quota. Rotating to next Gemini key...`);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If rate limited on all keys, wait 5 seconds and retry once with gemini-1.5-flash
-        if (lastError && String(lastError?.message || lastError).includes('429')) {
-            console.warn('[GeminiAiProvider] All keys hit 429 quota. Pausing 5 seconds for rate-limit reset...');
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            for (const apiKey of shuffledKeys) {
-                try {
-                    const genAI = new GoogleGenerativeAI(apiKey);
-                    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { temperature: 0.7 } });
-                    const result = await model.generateContent(promptParts);
-                    const response = await result.response;
-                    let text = response.text() || '';
-                    text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-                    text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
-                    if (text.length > 0) return text;
-                } catch (e) {
-                    lastError = e;
-                }
-            }
-        }
-
-        console.error(`[GeminiAiProvider] All keys and models failed:`, lastError);
-        throw lastError instanceof Error ? lastError : new Error(`AI Generation failed: ${lastError?.message || String(lastError)}`);
+        let text = response.choices[0]?.message?.content || "";
+        text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+        text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
+        return text;
     }
 
     public async generateOverallFeedbackAsync(assignmentTitle: string, passedRules: any[], failedRules: any[], totalScore: number, maxScore: number): Promise<string> {
