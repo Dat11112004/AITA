@@ -647,20 +647,20 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
             throw new Error('No valid Gemini API key available in configuration');
         }
 
-        const systemPrompt = `You are an expert Document Extraction and Conversion AI.
-The user will provide you with a programming assignment document. This document may be provided as plain text, or as a series of PDF page images, or both.
-Your task is to perfectly transcribe and convert the entire assignment document into a comprehensive HTML document.
+        const systemPrompt = `You are a Senior University Lecturer and Expert Assignment Author in Computer Science.
+Your task is to create or convert a complete, professional, comprehensive Programming Assignment document in HTML format.
 
-CRITICAL RULES FOR CONVERSION:
-1. COMPLETE TRANSCRIPTION: You MUST transcribe the entire assignment, including all instructions, questions, constraints, and point values exactly as they appear in the source document. Do NOT summarize or skip any question.
-2. VISUAL TABLES TO HTML TABLES: If you see any data tables in the provided images (e.g., sample data, schema definitions, attribute lists), you MUST meticulously transcribe them into properly formatted HTML tables (<table>, <thead>, <tbody>, <tr>, <th>, <td>). Do NOT skip rows or columns.
-3. ER DIAGRAMS TO TEXT SCHEMAS: If you see an Entity-Relationship Diagram (ERD) or database schema diagram, you must convert it into a clear text-based representation. List the tables, their columns, primary keys, and foreign key relationships explicitly in the HTML.
-4. FORMAT: Output the content in pure HTML format. Use appropriate tags (<h1>, <h2>, <p>, <ul>, <li>, <table>, <code>, <pre>).
-5. NO FLUFF: Do NOT add generic advice like "Ensure proper error handling" unless it is explicitly written in the original document. Do NOT add an arbitrary "Scoring Rubric" unless the points are present in the text.
-6. NO MARKDOWN: DO NOT use markdown like ** or ##. DO NOT wrap your response in \`\`\`html ... \`\`\` code blocks. Just return the raw HTML string (no <html>, <head>, or <body> tags, just the inner content).
-7. LANGUAGE: Output the final HTML entirely in ENGLISH, even if the source contains other languages. Translate accurately if needed.`;
+INSTRUCTIONS:
+1. IF THE USER PROVIDES AN EXISTING DOCUMENT (TEXT OR IMAGES): Transcribe, structure, and convert the entire assignment into clean, beautiful HTML format. Include all requirements, questions, rules, sample data tables, and ERD schemas.
+2. IF THE USER PROVIDES A SHORT PROMPT, TOPIC, OR SUBJECT CODE (e.g., "Subject: PRM392" or "Mobile App Assignment"): You MUST AUTONOMOUSLY AUTHOR & GENERATE a complete, realistic, comprehensive university-level programming assignment from scratch. DO NOT ASK THE USER FOR MORE CONTENT. DO NOT SAY "Please provide the document". GENERATE THE COMPLETE ASSIGNMENT IMMEDIATELY!
 
-        const fullPrompt = `${systemPrompt}\n\nInstructor Idea:\n${prompt}`;
+FORMATTING REQUIREMENTS:
+- Output pure HTML format with <h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <code>, <pre>.
+- Complete transcription of all parts, requirements, inputs, outputs, and constraints.
+- DO NOT use Markdown (no **, no ##). DO NOT wrap in \`\`\`html blocks.
+- Write the entire assignment content in clear, professional ENGLISH.`;
+
+        const fullPrompt = `${systemPrompt}\n\nInstructor Document / Prompt:\n${prompt}`;
 
         let promptParts: any[] = [fullPrompt];
 
@@ -677,7 +677,7 @@ CRITICAL RULES FOR CONVERSION:
         }
 
         let lastError: any;
-        const candidateModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
 
         for (const apiKey of validKeys) {
             for (const modelName of candidateModels) {

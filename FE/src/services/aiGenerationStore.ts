@@ -198,12 +198,16 @@ class AiGenerationStoreManager {
       if (file.type === 'application/pdf') {
         this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
         const { renderPdfToImages } = await import('@/lib/pdf');
-        pageImages = await renderPdfToImages(file, 2.0);
-        this.setState({ pageImages, loadingMsg: `Reading & extracting text from file ${file.name}...`, progress: 25 });
+        pageImages = await renderPdfToImages(file, 1.2);
+        this.setState({ pageImages, loadingMsg: `Extracted ${file.name} pages successfully. Generating assignment...`, progress: 25 });
       }
 
       const extractedData: any = await api.extractText(file, selectedSemester, subjectCode);
-      const extractedText = extractedData.text?.rawText || (typeof extractedData.text === 'string' ? extractedData.text : extractedData.rawText || JSON.stringify(extractedData.text || ''));
+      const extractedText = (extractedData?.text?.rawText && extractedData.text.rawText.trim().length > 0)
+        ? extractedData.text.rawText
+        : (typeof extractedData?.text === 'string' && extractedData.text.trim().length > 0
+          ? extractedData.text
+          : (extractedData?.rawText || ''));
 
       this.setState({
         loadingMsg: 'Gemini is generating assignment structure from extracted file...',
