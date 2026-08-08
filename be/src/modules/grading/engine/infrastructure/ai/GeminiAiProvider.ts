@@ -681,9 +681,9 @@ CRITICAL RULES FOR CONVERSION:
             text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
 
             return text;
-        } catch (error) {
+        } catch (error: any) {
             console.error(`[GeminiAiProvider] Failed to generate assignment content:`, error);
-            throw new Error('AI Generation failed. Please try again.');
+            throw error instanceof Error ? error : new Error(`AI Generation failed: ${error?.message || String(error)}`);
         }
     }
 
