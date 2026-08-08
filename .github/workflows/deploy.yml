@@ -43,6 +43,8 @@ jobs:
           script_stop: true
           script: |
             cd /www/wwwroot/AITA/AITA-main
+            docker system prune -af --volumes || true
+            docker builder prune -af || true
             docker compose build backend
             docker compose build frontend
             docker rm -f aita-backend aita-frontend 2>/dev/null || true
