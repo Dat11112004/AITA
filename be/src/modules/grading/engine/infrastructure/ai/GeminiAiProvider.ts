@@ -7,6 +7,38 @@ import { AiClientManager } from './AiClientManager';
 import { detectProjectType } from '../../core/domain/rubric/ProjectTypeDetector';
 import * as crypto from 'crypto';
 
+function cleanHtmlTags(text: string): string {
+    if (!text) return '';
+    return text
+        .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
+        .replace(/<b>(.*?)<\/b>/gi, '**$1**')
+        .replace(/<code>(.*?)<\/code>/gi, '`$1`')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/h[1-6]>/gi, '\n\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<\/tr>/gi, '\n')
+        .replace(/<\/td>/gi, ' | ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&amp;/gi, '&')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function formatTaskDescription(text: string): string {
+    if (!text) return '';
+    let cleaned = cleanHtmlTags(text);
+    return cleaned
+        .replace(/(\d+\.\s*(?:Title|Problem Description|Technical Requirements|Technical Requirements & Constraints|Input \/ Output Examples|Solution Hints|Code Skeleton)[^\n]*)/gi, '\n\n**$1**\n')
+        .replace(/(Language & Data Structures|Algorithm Optimization Analysis|Time Complexity|Space Complexity|Complexity Requirements|Concurrency Requirements):/gi, '\n**$1:**')
+        .replace(/(Constraints:)/gi, '\n\n> **Constraints:**\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 export class GeminiAiProvider implements IAiProvider {
     constructor() {
         // Handled by AiClientManager
@@ -172,7 +204,7 @@ OUTPUT FORMAT (JSON OBJECT)
         }
 
         let lastError: any;
-        const candidateModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-002', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
 
         let blueprint: ParsedBlueprint | null = null;
 
@@ -229,166 +261,179 @@ OUTPUT FORMAT (JSON OBJECT)
             throw lastError instanceof Error ? lastError : new Error(`AI Parsing failed: ${lastError?.message || String(lastError)}`);
         }
 
-        // Clean hallucinated markdown
+        // Clean hallucinated markdown and raw HTML tags
         if (blueprint.requirements && Array.isArray(blueprint.requirements)) {
             blueprint.requirements = blueprint.requirements
                 .filter(req => req && req.title && req.title.trim() !== '' && req.description && req.description.trim() !== '')
                 .map(req => {
-                    req.title = req.title.replace(/\*\*/g, '');
-                    req.description = req.description.replace(/\*\*/g, '');
+                    req.title = cleanHtmlTags(req.title).replace(/\*\*/g, '').trim();
+                    req.description = formatTaskDescription(req.description);
                     return req;
                 });
         }
 
-                // ═══════════════════════════════════════════════════════
-                // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
-                // ═══════════════════════════════════════════════════════
-                // Catches the AI misreading a prompt - the original case being an algorithm problem
-                // called "backend" because the teacher mentioned Node.js. It used to count algorithm
-                // keywords only and rewrite anything that was not already "algorithm", so a DBI202
-                // prompt asking students to analyse "Time Complexity" and "Space Complexity" scored
-                // two signals and became an algorithm - graded through a stdin/stdout judge, with the
-                // SQL vocabulary all over the same prompt never counted at all.
-                //
-                // Every type that can be detected from text brings its own signals, and a rewrite
-                // happens only when another type clearly outscores the one the AI chose. The table
-                // and the rule live in ProjectTypeDetector, so adding a type means adding a row
-                // there rather than another special case here.
-                const typeDecision = detectProjectType(blueprint.projectType as string, prompt, subject);
-                if (typeDecision.changed) {
-                    console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
-                    blueprint.projectType = typeDecision.projectType as any;
-                } else {
-                    console.log(`[GeminiAiProvider] Project type "${blueprint.projectType}": ${typeDecision.reason}.`);
-                }
+        // ═══════════════════════════════════════════════════════
+        // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
+        // ═══════════════════════════════════════════════════════
+        // Catches the AI misreading a prompt - the original case being an algorithm problem
+        // called "backend" because the teacher mentioned Node.js. It used to count algorithm
+        // keywords only and rewrite anything that was not already "algorithm", so a DBI202
+        // prompt asking students to analyse "Time Complexity" and "Space Complexity" scored
+        // two signals and became an algorithm - graded through a stdin/stdout judge, with the
+        // SQL vocabulary all over the same prompt never counted at all.
+        //
+        // Every type that can be detected from text brings its own signals, and a rewrite
+        // happens only when another type clearly outscores the one the AI chose. The table
+        // and the rule live in ProjectTypeDetector, so adding a type means adding a row
+        // there rather than another special case here.
+        const typeDecision = detectProjectType(blueprint.projectType as string, prompt, subject);
+        if (typeDecision.changed) {
+            console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
+            blueprint.projectType = typeDecision.projectType as any;
+        } else {
+            console.log(`[GeminiAiProvider] Project type "${blueprint.projectType}": ${typeDecision.reason}.`);
+        }
 
-                // ═══════════════════════════════════════════════════════
-                // DETERMINISTIC MATH DISTRIBUTION (SENIOR SOLUTION)
-                // ═══════════════════════════════════════════════════════
-                // We ONLY compute "pointsPerReq" for requirements that DO NOT already have explicit marks.
-                // If the AI successfully extracted explicit marks, we preserve them to respect the teacher's exact grading scheme.
-                if (blueprint.gradingGroups && blueprint.gradingGroups.length > 0) {
-                    let totalComputed = 0;
-                    for (const group of blueprint.gradingGroups) {
-                        const reqsInGroup = blueprint.requirements.filter(r => r.groupId === group.id);
-                        if (reqsInGroup.length === 0) continue;
+        // ═══════════════════════════════════════════════════════
+        // DETERMINISTIC MATH DISTRIBUTION (SENIOR SOLUTION)
+        // ═══════════════════════════════════════════════════════
+        // We ONLY compute "pointsPerReq" for requirements that DO NOT already have explicit marks.
+        // If the AI successfully extracted explicit marks, we preserve them to respect the teacher's exact grading scheme.
+        if (blueprint.gradingGroups && blueprint.gradingGroups.length > 0) {
+            let totalComputed = 0;
+            for (const group of blueprint.gradingGroups) {
+                const reqsInGroup = blueprint.requirements.filter(r => r.groupId === group.id);
+                if (reqsInGroup.length === 0) continue;
 
-                        const reqsWithMarks = reqsInGroup.filter(r => typeof r.marks === 'number' && r.marks > 0);
-                        const reqsWithoutMarks = reqsInGroup.filter(r => typeof r.marks !== 'number' || r.marks <= 0);
+                const reqsWithMarks = reqsInGroup.filter(r => typeof r.marks === 'number' && r.marks > 0);
+                const reqsWithoutMarks = reqsInGroup.filter(r => typeof r.marks !== 'number' || r.marks <= 0);
 
-                        const assignedPoints = reqsWithMarks.reduce((sum, r) => sum + (r.marks as number), 0);
+                const assignedPoints = reqsWithMarks.reduce((sum, r) => sum + (r.marks as number), 0);
 
-                        if (reqsWithoutMarks.length > 0) {
-                            const remainingPoints = Math.max(0, group.points - assignedPoints);
+                if (reqsWithoutMarks.length > 0) {
+                    const remainingPoints = Math.max(0, group.points - assignedPoints);
 
-                            // Give each req a weight based on complexity
-                            reqsWithoutMarks.forEach(r => {
-                                (r as any)._weight = r.complexity === 'high' ? 3 : (r.complexity === 'low' ? 1 : 2);
-                            });
-                            const totalWeight = reqsWithoutMarks.reduce((sum, r) => sum + (r as any)._weight, 0);
+                    // Give each req a weight based on complexity
+                    reqsWithoutMarks.forEach(r => {
+                        (r as any)._weight = r.complexity === 'high' ? 3 : (r.complexity === 'low' ? 1 : 2);
+                    });
+                    const totalWeight = reqsWithoutMarks.reduce((sum, r) => sum + (r as any)._weight, 0);
 
-                            // Base points (rounded to nearest 0.25)
-                            let currentSum = 0;
-                            reqsWithoutMarks.forEach(r => {
-                                let exact = ((r as any)._weight / totalWeight) * remainingPoints;
-                                let rounded = Math.round(exact * 4) / 4;
-                                if (rounded === 0 && remainingPoints > 0) rounded = 0.25;
-                                r.marks = rounded;
-                                currentSum += rounded;
-                            });
+                    // Base points (rounded to nearest 0.25)
+                    let currentSum = 0;
+                    reqsWithoutMarks.forEach(r => {
+                        let exact = ((r as any)._weight / totalWeight) * remainingPoints;
+                        let rounded = Math.round(exact * 4) / 4;
+                        if (rounded === 0 && remainingPoints > 0) rounded = 0.25;
+                        r.marks = rounded;
+                        currentSum += rounded;
+                    });
 
-                            // Adjust to make sum EXACTLY equal to remainingPoints using 0.25 steps
-                            let diff = remainingPoints - currentSum;
-                            const step = 0.25;
-                            let safetyCounter = 0;
+                    // Adjust to make sum EXACTLY equal to remainingPoints using 0.25 steps
+                    let diff = remainingPoints - currentSum;
+                    const step = 0.25;
+                    let safetyCounter = 0;
 
-                            while (Math.abs(diff) > 0.01 && safetyCounter < 100) {
-                                safetyCounter++;
-                                if (diff > 0) {
-                                    // Give 0.25 to the one with highest weight
-                                    reqsWithoutMarks.sort((a, b) => (b as any)._weight - (a as any)._weight);
-                                    (reqsWithoutMarks[0].marks as number) += step;
-                                    diff -= step;
-                                } else {
-                                    // Take 0.25 from the one with lowest weight that has > 0.25
-                                    reqsWithoutMarks.sort((a, b) => (a as any)._weight - (b as any)._weight);
-                                    const target = reqsWithoutMarks.find(r => (r.marks as number) > step) || reqsWithoutMarks[0];
-                                    (target.marks as number) -= step;
-                                    diff += step;
-                                }
-                            }
-
-                            // Cleanup temp variable and round to 2 decimals to fix float math issues
-                            reqsWithoutMarks.forEach(r => {
-                                r.marks = Math.round((r.marks as number) * 100) / 100;
-                                delete (r as any)._weight;
-                            });
+                    while (Math.abs(diff) > 0.01 && safetyCounter < 100) {
+                        safetyCounter++;
+                        if (diff > 0) {
+                            // Give 0.25 to the one with highest weight
+                            reqsWithoutMarks.sort((a, b) => (b as any)._weight - (a as any)._weight);
+                            (reqsWithoutMarks[0].marks as number) += step;
+                            diff -= step;
+                        } else {
+                            // Take 0.25 from the one with lowest weight that has > 0.25
+                            reqsWithoutMarks.sort((a, b) => (a as any)._weight - (b as any)._weight);
+                            const target = reqsWithoutMarks.find(r => (r.marks as number) > step) || reqsWithoutMarks[0];
+                            (target.marks as number) -= step;
+                            diff += step;
                         }
-
-                        // Re-sum to prevent AI rounding errors on the group total
-                        const actualGroupPoints = reqsInGroup.reduce((sum, r) => sum + (r.marks as number), 0);
-                        group.points = actualGroupPoints;
-                        totalComputed += actualGroupPoints;
                     }
-                    blueprint.totalMarks = totalComputed;
+
+                    // Cleanup temp variable and round to 2 decimals to fix float math issues
+                    reqsWithoutMarks.forEach(r => {
+                        r.marks = Math.round((r.marks as number) * 100) / 100;
+                        delete (r as any)._weight;
+                    });
                 }
 
-                // ═══════════════════════════════════════════════════════
-                // DETERMINISTIC ALGORITHM RUBRIC OVERRIDE (SENIOR SOLUTION)
-                // ═══════════════════════════════════════════════════════
-                // If this is an algorithm problem and the teacher did NOT provide explicit points,
-                // we forcefully override the LLM's extraction to ensure EXACTLY 2 standard criteria.
-                if (blueprint.projectType === "algorithm" && !(blueprint as any).hasExplicitRubric) {
-                    blueprint.requirements = [
-                        {
-                            id: "req-algo-1",
-                            groupId: "g1",
-                            title: "Algorithmic Correctness (I/O)",
-                            description: "Correctly implement the algorithmic logic, satisfying all input/output test cases.",
-                            marks: 5,
-                            complexity: "high",
-                            complexityReason: "Core algorithmic logic",
-                            isUIVisible: false,
-                            isCRUD: false,
-                            isWrittenAnswer: false,
-                            isArchitectureCode: false,
-                            isDiagramTask: false,
-                            isSoftDelete: false
-                        },
-                        {
-                            id: "req-algo-2",
-                            groupId: "g1",
-                            partLabel: "PART A",
-                            title: "Complexity & Architecture",
-                            description: "Adhere to specific time/space complexity constraints (e.g. O(n), Hash Map) if specified.",
-                            marks: 5,
-                            complexity: "medium",
-                            complexityReason: "Algorithmic efficiency",
-                            isUIVisible: false,
-                            isCRUD: false,
-                            isWrittenAnswer: false,
-                            isArchitectureCode: true,
-                            isDiagramTask: false,
-                            isSoftDelete: false
-                        }
-                    ];
-                    blueprint.totalMarks = 10;
-                    blueprint.gradingGroups = [{ id: "g1", name: "Standard Algorithm Grading", points: 10 }];
-                }
+                // Re-sum to prevent AI rounding errors on the group total
+                const actualGroupPoints = reqsInGroup.reduce((sum, r) => sum + (r.marks as number), 0);
+                group.points = actualGroupPoints;
+                totalComputed += actualGroupPoints;
+            }
+            blueprint.totalMarks = totalComputed;
+        }
 
-                return blueprint;
+        // ═══════════════════════════════════════════════════════
+        // DETERMINISTIC ALGORITHM RUBRIC OVERRIDE (SENIOR SOLUTION)
+        // ═══════════════════════════════════════════════════════
+        // If this is an algorithm problem and the teacher did NOT provide explicit points,
+        // we forcefully override the LLM's extraction to ensure EXACTLY 2 standard criteria.
+        if (blueprint.projectType === "algorithm" && !(blueprint as any).hasExplicitRubric) {
+            blueprint.requirements = [
+                {
+                    id: "req-algo-1",
+                    groupId: "g1",
+                    title: "Algorithmic Correctness (I/O)",
+                    description: "Correctly implement the algorithmic logic, satisfying all input/output test cases.",
+                    marks: 5,
+                    complexity: "high",
+                    complexityReason: "Core algorithmic logic",
+                    isUIVisible: false,
+                    isCRUD: false,
+                    isWrittenAnswer: false,
+                    isArchitectureCode: false,
+                    isDiagramTask: false,
+                    isSoftDelete: false
+                },
+                {
+                    id: "req-algo-2",
+                    groupId: "g1",
+                    partLabel: "PART A",
+                    title: "Complexity & Architecture",
+                    description: "Adhere to specific time/space complexity constraints (e.g. O(n), Hash Map) if specified.",
+                    marks: 5,
+                    complexity: "medium",
+                    complexityReason: "Algorithmic efficiency",
+                    isUIVisible: false,
+                    isCRUD: false,
+                    isWrittenAnswer: false,
+                    isArchitectureCode: true,
+                    isDiagramTask: false,
+                    isSoftDelete: false
+                }
+            ];
+            blueprint.totalMarks = 10;
+            blueprint.gradingGroups = [{ id: "g1", name: "Standard Algorithm Grading", points: 10 }];
+        }
+
+        return blueprint;
     }
 
     public async generateFeedbackAsync(context: string, payload: any): Promise<string> {
         const prompt = `Review the following code or result context:\n${context}\n\nPayload:\n${JSON.stringify(payload, null, 2)}\n\nProvide constructive feedback.`;
-        const response = await AiClientManager.executeWithFallback(async (client, model) => {
-            return await client.chat.completions.create({
-                model: model,
-                messages: [{ role: "user", content: prompt }],
-                temperature: config.ai.temperature
-            });
-        });
-        return response.choices[0].message.content || "";
+        const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
+            ? config.ai.geminiKeys
+            : [process.env.GEMINI_API_KEY || ''];
+        const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-002', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
+
+        for (const apiKey of validKeys) {
+            for (const modelName of candidateModels) {
+                try {
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const model = genAI.getGenerativeModel({ model: modelName, generationConfig: { temperature: config.ai.temperature || 0.2 } });
+                    const result = await model.generateContent(prompt);
+                    const response = await result.response;
+                    const text = response.text() || "";
+                    if (text.length > 0) return text;
+                } catch (err: any) {
+                    console.warn(`[GeminiAiProvider] generateFeedbackAsync Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, err?.message || err);
+                }
+            }
+        }
+        return "Feedback generation unavailable.";
     }
 
     /**
@@ -538,19 +583,29 @@ OUTPUT JSON ONLY. NO MARKDOWN FENCES.`;
                 systemPrompt += `\n\n--- ORIGINAL ASSIGNMENT DESCRIPTION ---\n${assignmentDescription}\n---------------------------------------`;
             }
 
-            const prompt = `Requirements to configure:\n${JSON.stringify(probeReqs, null, 2)}`;
-            try {
-                const response = await AiClientManager.executeWithFallback(async (client, model) => {
-                    return await client.chat.completions.create({
-                        model: model,
-                        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }],
-                        temperature: 0
-                    });
-                });
-                const text = (response.choices[0].message.content || "{}").replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-                probeConfigs = { ...probeConfigs, ...JSON.parse(text) };
-            } catch (err) {
-                console.error("[GeminiAiProvider] Failed to generate probe configs", err);
+            const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
+                ? config.ai.geminiKeys
+                : [process.env.GEMINI_API_KEY || ''];
+            const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
+            const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-002', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
+
+            for (const apiKey of validKeys) {
+                for (const modelName of candidateModels) {
+                    try {
+                        const genAI = new GoogleGenerativeAI(apiKey);
+                        const model = genAI.getGenerativeModel({ model: modelName, generationConfig: { temperature: 0 } });
+                        const result = await model.generateContent(`${systemPrompt}\n\n${prompt}`);
+                        const response = await result.response;
+                        let text = (response.text() || "{}").replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+                        if (text.length > 0) {
+                            probeConfigs = { ...probeConfigs, ...JSON.parse(text) };
+                            break;
+                        }
+                    } catch (err: any) {
+                        console.warn(`[GeminiAiProvider] Probe config generation Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, err?.message || err);
+                    }
+                }
+                if (Object.keys(probeConfigs).length > 0) break;
             }
         }
 
@@ -924,32 +979,33 @@ CRITICAL RULES:
 
         const prompt = `Rubric Rules:\n${JSON.stringify(rubricRules, null, 2)}\n\nTeacher's SQL File Content:\n${sqlContent}`;
 
-        try {
-            const response = await AiClientManager.executeWithFallback(async (client, model) => {
-                return await client.chat.completions.create({
-                    model: model,
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.1
-                });
-            });
+        const keys = (config.ai.geminiKeys && config.ai.geminiKeys.length > 0)
+            ? config.ai.geminiKeys
+            : [process.env.GEMINI_API_KEY || ''];
+        const validKeys = keys.map(k => k.trim()).filter(k => k.length > 0);
+        const candidateModels = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-002', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
 
-            let text = response.choices[0].message.content?.trim() || "[]";
-            text = text.replace(/^```json/gi, "").replace(/```$/g, "").trim();
-            const updatedRules = JSON.parse(text);
+        for (const apiKey of validKeys) {
+            for (const modelName of candidateModels) {
+                try {
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const model = genAI.getGenerativeModel({ model: modelName, generationConfig: { temperature: 0.1 } });
+                    const result = await model.generateContent(`${systemPrompt}\n\n${prompt}`);
+                    const response = await result.response;
+                    let text = response.text()?.trim() || "[]";
+                    text = text.replace(/^```json\s*/gi, "").replace(/^```\s*/g, "").replace(/```$/g, "").trim();
+                    const updatedRules = JSON.parse(text);
 
-            if (Array.isArray(updatedRules) && updatedRules.length === rubricRules.length) {
-                return updatedRules;
-            } else {
-                console.warn("[GeminiAiProvider] parseSqlAnswerKeyAsync returned malformed array. Returning original rules.");
-                return rubricRules;
+                    if (Array.isArray(updatedRules) && updatedRules.length === rubricRules.length) {
+                        return updatedRules;
+                    }
+                } catch (error: any) {
+                    console.warn(`[GeminiAiProvider] parseSqlAnswerKeyAsync Key (${apiKey.substring(0, 8)}...) failed with model ${modelName}:`, error?.message || error);
+                }
             }
-        } catch (error: any) {
-            console.error("[GeminiAiProvider] Failed to parse SQL Answer Key:", error);
-            throw new Error(`Lỗi khi AI phân tích file SQL: ${error.message}`);
         }
+
+        return rubricRules;
     }
 }
 

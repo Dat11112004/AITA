@@ -32,7 +32,7 @@ export class RubricGeneratorService {
                 title: req.title || `Requirement ${i + 1}`,
                 description: req.description || JSON.stringify(req),
                 category: 'Functional',
-                weight: 10,
+                weight: req.marks && req.marks > 0 ? req.marks : (req.complexity === 'high' ? 3 : req.complexity === 'medium' ? 2 : 1),
                 scoringStrategy: 'AICodeReview',
                 requiredEvidence: []
             }));
@@ -456,13 +456,13 @@ export class RubricGeneratorService {
                 safetyCounter++;
                 if (diff > 0) {
                     // Give to the one with max weight
-                    computedRules.sort((a, b) => b.weight - a.weight);
-                    computedRules[0].weight += step;
+                    const sorted = [...computedRules].sort((a, b) => b.weight - a.weight);
+                    sorted[0].weight += step;
                     diff -= step;
                 } else {
                     // Take from the one with min weight that is > step
-                    computedRules.sort((a, b) => a.weight - b.weight);
-                    const target = computedRules.find(r => r.weight > step + 0.01) || computedRules[0];
+                    const sorted = [...computedRules].sort((a, b) => a.weight - b.weight);
+                    const target = sorted.find(r => r.weight > step + 0.01) || sorted[0];
                     if (target.weight > step) {
                         target.weight -= step;
                         diff += step;
