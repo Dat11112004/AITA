@@ -5,7 +5,7 @@ import { RubricRule } from '../core/domain/rubric/RubricRule';
 import { IAiProvider, ParsedRequirement } from '../core/contracts/IAiProvider';
 
 export class RubricGeneratorService {
-    constructor(private readonly aiProvider: IAiProvider) { }
+    constructor(private readonly aiProvider: IAiProvider) {}
 
     /**
      * Generates a concrete RubricDefinition from a Blueprint.
@@ -32,7 +32,7 @@ export class RubricGeneratorService {
                 title: req.title || `Requirement ${i + 1}`,
                 description: req.description || JSON.stringify(req),
                 category: 'Functional',
-                weight: req.marks && req.marks > 0 ? req.marks : (req.complexity === 'high' ? 3 : req.complexity === 'medium' ? 2 : 1),
+                weight: 10,
                 scoringStrategy: 'AICodeReview',
                 requiredEvidence: []
             }));
@@ -125,16 +125,16 @@ export class RubricGeneratorService {
             // Note: we can safely return the normalized string, it works perfectly fine
             return normText.substring(0, idx) + normText.substring(idx + normSearch.length);
         }
-
+        
         idx = text.indexOf(search);
         if (idx !== -1) {
             return text.substring(0, idx) + text.substring(idx + search.length);
         }
-
+        
         // Fallback: try to find start and end fragments to handle minor whitespace tweaks
         const startFrag = search.substring(0, 30).trim();
         const endFrag = search.substring(Math.max(0, search.length - 30)).trim();
-
+        
         if (startFrag && endFrag) {
             const startIdx = text.lastIndexOf(startFrag); // Use lastIndexOf to avoid matching the DB setup scripts at the top!
             if (startIdx !== -1) {
@@ -213,7 +213,7 @@ export class RubricGeneratorService {
      */
     private buildRuleForStrategy(rule: RubricRule, req: ParsedRequirement, strategy: string): any {
         const isHybrid = req.recommendedEngine === 'HybridVisionAndCode'
-            || req.recommendedEngine === 'HybridTextAndCode';
+                      || req.recommendedEngine === 'HybridTextAndCode';
         const textToCheck = (req.title + ' ' + req.description).toLowerCase();
         const isArchTask = req.isArchitectureCode || /architect|mvvm|mvc|clean|repository|layer/i.test(textToCheck);
 
@@ -240,7 +240,7 @@ export class RubricGeneratorService {
                         ? [
                             { evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 },
                             { evidenceType: 'ai.code.reviewed' as any, minimumConfidence: 0.85, semanticDescription: rule.description }
-                        ]
+                          ]
                         : [{ evidenceType: 'browser.screenshot.captured' as any, minimumConfidence: 0.9 }],
                 };
 
@@ -391,24 +391,24 @@ export class RubricGeneratorService {
             computedRules = rules.map((rule, index) => {
                 const req = requirements[index];
                 let weight = req?.marks;
-
+                
                 if (weight === undefined || weight === null || weight <= 0) {
                     weight = 1; // Fallback for missed requirements to keep them strictly minimal
                 }
-
+                
                 return { ...rule, weight: weight };
             });
         } else {
             // Case 2: No marks were provided anywhere in the prompt.
             // We self-evaluate based on complexity.
             const COMPLEXITY_WEIGHTS: Record<string, number> = { high: 3, medium: 2, low: 1 };
-
+            
             computedRules = rules.map((rule, index) => {
                 const req = requirements[index];
-
+                
                 let base = 2;
                 let reasonBonus = 0;
-
+                
                 if (req) {
                     base = COMPLEXITY_WEIGHTS[req.complexity] || 2;
                     // Add up to 2 bonus points for complex multi-step rules
@@ -416,7 +416,7 @@ export class RubricGeneratorService {
                         const steps = req.complexityReason.split(/[,;]/).length;
                         reasonBonus = steps > 2 ? 2 : (steps > 1 ? 1 : 0);
                     }
-
+                    
                     // Penalty for non-functional or clean code rules to prioritize functional requirements
                     const textToCheck = (req.title + " " + req.description).toLowerCase();
                     if (/clean code|structured|solid|dry|tổ chức rõ ràng|mã nguồn sạch/.test(textToCheck)) {
@@ -424,7 +424,7 @@ export class RubricGeneratorService {
                         reasonBonus = 0;
                     }
                 }
-
+                
                 return { ...rule, weight: base + reasonBonus };
             });
         }
@@ -433,16 +433,16 @@ export class RubricGeneratorService {
         // NORMALIZE TO EXACTLY 10.0 POINTS (ALWAYS, AS AITA USES 10-POINT SCALE)
         // =========================================================
         const currentTotal = computedRules.reduce((sum, r) => sum + r.weight, 0);
-
+        
         if (currentTotal > 0 && Math.abs(currentTotal - 10.0) > 0.01) {
             // Scale to exactly 10.0 using 0.25 steps to meet standard academic rubric increments while preserving parent weights
             const scale = 10.0 / currentTotal;
             const step = 0.25;
             let currentSum = 0;
-
+            
             computedRules.forEach(rule => {
                 let exact = rule.weight * scale;
-                let rounded = Math.round(exact / step) * step;
+                let rounded = Math.round(exact / step) * step; 
                 if (rounded <= 0) rounded = step; // Ensure no rule is 0 points
                 rule.weight = rounded;
                 currentSum += rounded;
@@ -456,13 +456,13 @@ export class RubricGeneratorService {
                 safetyCounter++;
                 if (diff > 0) {
                     // Give to the one with max weight
-                    const sorted = [...computedRules].sort((a, b) => b.weight - a.weight);
-                    sorted[0].weight += step;
+                    computedRules.sort((a, b) => b.weight - a.weight);
+                    computedRules[0].weight += step;
                     diff -= step;
                 } else {
                     // Take from the one with min weight that is > step
-                    const sorted = [...computedRules].sort((a, b) => a.weight - b.weight);
-                    const target = sorted.find(r => r.weight > step + 0.01) || sorted[0];
+                    computedRules.sort((a, b) => a.weight - b.weight);
+                    const target = computedRules.find(r => r.weight > step + 0.01) || computedRules[0];
                     if (target.weight > step) {
                         target.weight -= step;
                         diff += step;
