@@ -175,7 +175,7 @@ export class StdInOutProbeEngine {
       if (!timedOut) {
         try {
           const logs = await container.logs({ stdout: true, stderr: true, timestamps: false });
-          stdout = this.cleanDockerOutput(logs.toString('utf-8'));
+          stdout = this.demuxDockerLogs(Buffer.isBuffer(logs) ? logs : Buffer.from(logs));
         } catch (e: any) {
           console.error('[StdInOutProbeEngine] Error fetching logs:', e);
         }
@@ -227,23 +227,59 @@ export class StdInOutProbeEngine {
    * Compare actual vs expected output with whitespace normalization.
    * - Trims leading/trailing whitespace
    * - Normalizes line endings (\r\n → \n)
-   * - Compares line-by-line
+   * - Compares line-by-line first; falls back to a judge-style token
+   *   comparison (whitespace-insensitive, numeric-aware) so spacing or
+   *   line-wrap differences don't fail a correct answer.
    */
   private compareOutput(actual: string, expected: string): boolean {
-    const normalizeLines = (s: string) => s.replace(/\r\n/g, '\n').trim().split('\n').map(l => l.trim());
-    const actualLines = normalizeLines(actual);
-    const expectedLines = normalizeLines(expected);
+    const norm = (s: string) => s.replace(/\r\n/g, '\n').trim();
+    const a = norm(actual);
+    const e = norm(expected);
 
-    if (actualLines.length !== expectedLines.length) return false;
-    return actualLines.every((line, i) => line === expectedLines[i]);
+    const actualLines = a.split('\n').map(l => l.trim());
+    const expectedLines = e.split('\n').map(l => l.trim());
+    if (actualLines.length === expectedLines.length
+        && actualLines.every((line, i) => line === expectedLines[i])) {
+      return true;
+    }
+
+    const tokens = (s: string) => s.split(/\s+/).filter(Boolean);
+    const actualTokens = tokens(a);
+    const expectedTokens = tokens(e);
+    if (actualTokens.length !== expectedTokens.length) return false;
+    return actualTokens.every((t, i) => {
+      if (t === expectedTokens[i]) return true;
+      const na = Number(t);
+      const ne = Number(expectedTokens[i]);
+      if (Number.isFinite(na) && Number.isFinite(ne)) {
+        return Math.abs(na - ne) <= 1e-6 * Math.max(1, Math.abs(ne));
+      }
+      return false;
+    });
   }
 
   /**
-   * Docker logs contain 8-byte header per frame. Strip control characters.
+   * Properly demultiplex Docker's log stream instead of regex-stripping bytes.
+   * Each frame is [type, 0, 0, 0, size(uint32 BE)] + payload; the size bytes are
+   * often printable characters (any output >= 32 bytes), so stripping control
+   * characters leaks junk into the captured output and corrupts the comparison.
+   * Only stdout frames (type 1) are kept — stderr noise must not fail a case.
    */
-  private cleanDockerOutput(raw: string): string {
-    // Remove Docker stream header bytes (first 8 bytes of each frame)
-    return raw.replace(/[\x00-\x08]/g, '').replace(/[\x0e-\x1f]/g, '');
+  private demuxDockerLogs(raw: Buffer): string {
+    let out = '';
+    let i = 0;
+    while (i + 8 <= raw.length) {
+      const type = raw[i];
+      const size = raw.readUInt32BE(i + 4);
+      if (type !== 0 && type !== 1 && type !== 2) break; // not a framed stream
+      if (type === 1) out += raw.subarray(i + 8, i + 8 + size).toString('utf-8');
+      i += 8 + size;
+    }
+    // Fallback for TTY/raw streams that carry no frame headers
+    if (out === '' && raw.length > 0 && raw[0] !== 0 && raw[0] !== 1 && raw[0] !== 2) {
+      return raw.toString('utf-8');
+    }
+    return out;
   }
 
   /**
