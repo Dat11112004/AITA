@@ -22,7 +22,7 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     const apiResponse = new ApiResponse(401, 'Token không hợp lệ')
     return res.status(401).json(apiResponse)
   }
-  
+
   if (err.name === 'TokenExpiredError') {
     const apiResponse = new ApiResponse(401, 'Token đã hết hạn')
     return res.status(401).json(apiResponse)
@@ -67,7 +67,7 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   const statusCode = (err as any).statusCode ?? (err as any).status ?? 500
   const message = isDev ? err.message || String(err) : 'Lỗi hệ thống'
   const details = isDev ? { stack: err.stack, requestId } : { requestId }
-  
+
   const apiResponse = new ApiResponse(statusCode, message, details)
   return res.status(statusCode).json(apiResponse)
 }

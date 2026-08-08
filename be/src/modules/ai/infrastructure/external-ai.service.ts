@@ -106,9 +106,9 @@ export class ExternalAiService implements IAIService {
         if (env.AI_STUB_MODE) {
             await wait(1000)
             const total = input.totalScore || 10
-            
+
             const fileNotice = input.file ? ` (Dựa trên file: ${input.file.filename})` : ''
-            
+
             return {
                 criteria: [
                     { name: 'Tính đúng đắn (Logic)' + fileNotice, description: 'Chương trình chạy đúng yêu cầu cơ bản.', maxScore: total * 0.4 },
@@ -121,16 +121,16 @@ export class ExternalAiService implements IAIService {
 
         let body: any;
         let headers: any = {};
-        
+
         if (input.file) {
             const formData = new FormData();
             formData.append('topic', input.topic);
             if (input.difficulty) formData.append('difficulty', input.difficulty);
             if (input.totalScore) formData.append('totalScore', input.totalScore.toString());
-            
+
             const blob = new Blob([input.file.buffer as any], { type: input.file.mimetype });
             formData.append('file', blob, input.file.filename);
-            
+
             body = formData;
             // browser/node-fetch will automatically set multipart/form-data boundary
         } else {
