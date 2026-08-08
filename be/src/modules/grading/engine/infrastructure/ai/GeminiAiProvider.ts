@@ -655,7 +655,7 @@ CRITICAL RULES FOR CONVERSION:
         const fullPrompt = `${systemPrompt}\n\nInstructor Idea:\n${prompt}`;
 
         let messageContent: any[] = [{ type: "text", text: fullPrompt }];
-        
+
         if (pageImages && pageImages.length > 0) {
             pageImages.forEach(base64 => {
                 messageContent.push({

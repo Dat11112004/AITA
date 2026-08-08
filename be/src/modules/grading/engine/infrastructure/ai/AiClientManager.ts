@@ -64,38 +64,38 @@ export class AiClientManager {
                 return cachedValue as T;
             }
         }
-        
+
         let lastError: any;
         const maxGlobalAttempts = 10;
 
         for (let globalAttempt = 1; globalAttempt <= maxGlobalAttempts; globalAttempt++) {
             // Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
-                const model = config.ai.geminiModel; 
+                const model = config.ai.geminiModel;
                 const totalKeys = config.ai.geminiKeys.length;
-                
+
                 // Round-robin starting index
                 const startIndex = AiClientManager.currentKeyIndex;
                 AiClientManager.currentKeyIndex = (AiClientManager.currentKeyIndex + 1) % totalKeys;
-                
+
                 let minWaitTime = Infinity;
                 let triedAnyKey = false;
 
                 for (let i = 0; i < totalKeys; i++) {
                     const keyIndex = (startIndex + i) % totalKeys;
                     const key = config.ai.geminiKeys[keyIndex];
-                    
+
                     const expiry = AiClientManager.rateLimitExpiry.get(key) || 0;
                     const now = Date.now();
-                    
+
                     if (expiry > now) {
                         const wait = expiry - now;
                         if (wait < minWaitTime) minWaitTime = wait;
                         continue; // Skip key because it is on cooldown
                     }
-                    
+
                     triedAnyKey = true;
-                    
+
                     const client = new OpenAI({
                         apiKey: key,
                         baseURL: config.ai.geminiBaseUrl,
@@ -109,7 +109,7 @@ export class AiClientManager {
                             const startTime = Date.now();
                             const result = await apiCall(client, model);
                             const duration = Date.now() - startTime;
-                            
+
                             // Log usage to DB
                             try {
                                 await prisma.aiUsageLog.create({
@@ -131,18 +131,18 @@ export class AiClientManager {
                         }
                     } catch (err: any) {
                         lastError = err;
-                        
+
                         const status = err.status || err.statusCode || 'unknown';
                         const errBody = err.error ? JSON.stringify(err.error) : (err.message || String(err));
-                        
+
                         if (status === 429 || (err.message && err.message.includes('429'))) {
                             console.warn(`[AiClientManager] Key #${keyIndex + 1} rate limited (429). Cooldown for 15s...`);
                             const newExpiry = Date.now() + 15000;
                             AiClientManager.rateLimitExpiry.set(key, newExpiry);
-                            
+
                             const wait = newExpiry - Date.now();
                             if (wait < minWaitTime) minWaitTime = wait;
-                            
+
                             // Immediately continue to next key without blocking
                             continue;
                         } else {
@@ -157,7 +157,7 @@ export class AiClientManager {
                                         ErrorMessage: `HTTP ${status}: ${err.message || String(err)}`
                                     }
                                 });
-                            } catch (e) {}
+                            } catch (e) { }
 
                             // Fail fast on Bad Request as retrying another key won't fix bad JSON/Prompt
                             if (status === 400) {
@@ -166,17 +166,17 @@ export class AiClientManager {
                         }
                     }
                 } // End of key loop
-                
+
                 if (!triedAnyKey && minWaitTime !== Infinity) {
                     lastError = new Error("AI_TIMEOUT: All keys on cooldown");
-                    console.warn(`[AiClientManager] All keys on cooldown. Waiting ${Math.ceil(minWaitTime/1000)}s before retry...`);
+                    console.warn(`[AiClientManager] All keys on cooldown. Waiting ${Math.ceil(minWaitTime / 1000)}s before retry...`);
                     await new Promise(resolve => setTimeout(resolve, minWaitTime));
                     continue;
                 }
-                
+
                 if (lastError && (lastError.status === 429 || lastError.message?.includes('429'))) {
                     const wait = minWaitTime === Infinity ? 5000 : minWaitTime;
-                    console.warn(`[AiClientManager] Exhausted all healthy keys. Waiting ${Math.ceil(wait/1000)}s before next global attempt...`);
+                    console.warn(`[AiClientManager] Exhausted all healthy keys. Waiting ${Math.ceil(wait / 1000)}s before next global attempt...`);
                     await new Promise(resolve => setTimeout(resolve, wait));
                     continue;
                 }
