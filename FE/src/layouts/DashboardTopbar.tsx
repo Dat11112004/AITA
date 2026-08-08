@@ -24,9 +24,9 @@ const roleLabel: Record<string, string> = {
 
 /* avatar gradient per role */
 const roleAvatar: Record<string, string> = {
-  admin:    'from-slate-600 to-slate-800',
+  admin:    'from-brand-600 to-brand-800',
   lecturer: 'from-brand-500 to-brand-700',
-  student:  'from-emerald-500 to-emerald-700',
+  student:  'from-brand-400 to-brand-600',
 }
 
 export function DashboardTopbar(_props: Props) {
