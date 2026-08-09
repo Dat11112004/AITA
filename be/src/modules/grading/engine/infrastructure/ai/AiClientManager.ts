@@ -73,7 +73,7 @@ export class AiClientManager {
             // 1. Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
                 const displayModel = config.ai.geminiModel || 'gemini-3.6-flash';
-                const model = (displayModel.includes('3.6') || displayModel.includes('flash-high')) ? 'gemini-1.5-flash' : displayModel;
+                const model = displayModel;
                 const totalKeys = config.ai.geminiKeys.length;
 
                 // Round-robin starting index
@@ -99,44 +99,107 @@ export class AiClientManager {
                     triedAnyKey = true;
 
                     let client: any;
-                    const genAI = new GoogleGenerativeAI(key);
-                    client = {
-                        chat: {
-                            completions: {
-                                create: async (params: any) => {
-                                    const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
-                                    const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
+                    if (key.startsWith('AQ')) {
+                        client = {
+                            chat: {
+                                completions: {
+                                    create: async (params: any) => {
+                                        const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
+                                        const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
 
-                                    let contents: any[] = [];
-                                    for (const msg of userMsgs) {
-                                        if (typeof msg.content === 'string') {
-                                            contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
-                                        } else if (Array.isArray(msg.content)) {
-                                            const parts: any[] = [];
-                                            for (const part of msg.content) {
-                                                if (part.type === 'text') {
-                                                    parts.push({ text: part.text });
-                                                } else if (part.type === 'image_url') {
-                                                    const url = part.image_url?.url || '';
-                                                    const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
-                                                    if (match) {
-                                                        parts.push({
-                                                            inlineData: {
-                                                                mimeType: match[1],
-                                                                data: match[2]
-                                                            }
-                                                        });
+                                        let parts: any[] = [];
+                                        if (systemMsg) {
+                                            parts.push({ text: `[System Instruction]\n${systemMsg}\n\n` });
+                                        }
+
+                                        for (const msg of userMsgs) {
+                                            if (typeof msg.content === 'string') {
+                                                parts.push({ text: msg.content });
+                                            } else if (Array.isArray(msg.content)) {
+                                                for (const p of msg.content) {
+                                                    if (p.type === 'text') {
+                                                        parts.push({ text: p.text });
+                                                    } else if (p.type === 'image_url') {
+                                                        const url = p.image_url?.url || '';
+                                                        const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                                                        if (match) {
+                                                            parts.push({
+                                                                inlineData: {
+                                                                    mimeType: match[1],
+                                                                    data: match[2]
+                                                                }
+                                                            });
+                                                        }
                                                     }
                                                 }
                                             }
-                                            contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts });
                                         }
-                                    }
 
-                                    const targetModel = model;
-                                    try {
+                                        const targetModel = config.ai.geminiModel || 'gemini-3.6-flash';
+                                        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
+
+                                        const res = await fetch(endpoint, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'x-goog-api-key': key
+                                            },
+                                            body: JSON.stringify({
+                                                contents: [{ parts }]
+                                            })
+                                        });
+
+                                        if (!res.ok) {
+                                            const errText = await res.text();
+                                            const err: any = new Error(errText);
+                                            err.status = res.status;
+                                            throw err;
+                                        }
+
+                                        const data: any = await res.json();
+                                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                        return { choices: [{ message: { content: text } }] };
+                                    }
+                                }
+                            }
+                        };
+                    } else {
+                        const genAI = new GoogleGenerativeAI(key);
+                        client = {
+                            chat: {
+                                completions: {
+                                    create: async (params: any) => {
+                                        const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
+                                        const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
+
+                                        let contents: any[] = [];
+                                        for (const msg of userMsgs) {
+                                            if (typeof msg.content === 'string') {
+                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
+                                            } else if (Array.isArray(msg.content)) {
+                                                const parts: any[] = [];
+                                                for (const part of msg.content) {
+                                                    if (part.type === 'text') {
+                                                        parts.push({ text: part.text });
+                                                    } else if (part.type === 'image_url') {
+                                                        const url = part.image_url?.url || '';
+                                                        const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                                                        if (match) {
+                                                            parts.push({
+                                                                inlineData: {
+                                                                    mimeType: match[1],
+                                                                    data: match[2]
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts });
+                                            }
+                                        }
+
                                         const genModel = genAI.getGenerativeModel({
-                                            model: targetModel,
+                                            model: model,
                                             systemInstruction: systemMsg ? systemMsg : undefined
                                         });
 
@@ -149,20 +212,11 @@ export class AiClientManager {
 
                                         const text = genResult.response.text();
                                         return { choices: [{ message: { content: text } }] };
-                                    } catch (sdkErr: any) {
-                                        // Fallback to OpenAI REST client if SDK fails on key
-                                        const openAiClient = new OpenAI({
-                                            apiKey: key,
-                                            baseURL: config.ai.geminiBaseUrl,
-                                            timeout: config.ai.timeoutMs,
-                                            maxRetries: 0
-                                        });
-                                        return await openAiClient.chat.completions.create(params);
                                     }
                                 }
                             }
-                        }
-                    };
+                        };
+                    }
 
                     try {
                         await globalAiSemaphore.acquire();
