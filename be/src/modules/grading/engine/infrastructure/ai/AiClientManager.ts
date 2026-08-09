@@ -99,79 +99,70 @@ export class AiClientManager {
                     triedAnyKey = true;
 
                     let client: any;
-                    if (key.startsWith('AQ')) {
-                        const genAI = new GoogleGenerativeAI(key);
-                        client = {
-                            chat: {
-                                completions: {
-                                    create: async (params: any) => {
-                                        const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
-                                        const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
+                    const genAI = new GoogleGenerativeAI(key);
+                    client = {
+                        chat: {
+                            completions: {
+                                create: async (params: any) => {
+                                    const systemMsg = params.messages?.find((m: any) => m.role === 'system')?.content || '';
+                                    const userMsgs = params.messages?.filter((m: any) => m.role !== 'system') || [];
 
-                                        let contents: any[] = [];
-                                        for (const msg of userMsgs) {
-                                            if (typeof msg.content === 'string') {
-                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
-                                            } else if (Array.isArray(msg.content)) {
-                                                const parts: any[] = [];
-                                                for (const part of msg.content) {
-                                                    if (part.type === 'text') {
-                                                        parts.push({ text: part.text });
-                                                    } else if (part.type === 'image_url') {
-                                                        const url = part.image_url?.url || '';
-                                                        const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
-                                                        if (match) {
-                                                            parts.push({
-                                                                inlineData: {
-                                                                    mimeType: match[1],
-                                                                    data: match[2]
-                                                                }
-                                                            });
-                                                        }
+                                    let contents: any[] = [];
+                                    for (const msg of userMsgs) {
+                                        if (typeof msg.content === 'string') {
+                                            contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] });
+                                        } else if (Array.isArray(msg.content)) {
+                                            const parts: any[] = [];
+                                            for (const part of msg.content) {
+                                                if (part.type === 'text') {
+                                                    parts.push({ text: part.text });
+                                                } else if (part.type === 'image_url') {
+                                                    const url = part.image_url?.url || '';
+                                                    const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+                                                    if (match) {
+                                                        parts.push({
+                                                            inlineData: {
+                                                                mimeType: match[1],
+                                                                data: match[2]
+                                                            }
+                                                        });
                                                     }
                                                 }
-                                                contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts });
                                             }
+                                            contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts });
                                         }
+                                    }
 
-                                        const targetModel = model;
-                                        try {
-                                            const genModel = genAI.getGenerativeModel({
-                                                model: targetModel,
-                                                systemInstruction: systemMsg ? systemMsg : undefined
-                                            });
+                                    const targetModel = model;
+                                    try {
+                                        const genModel = genAI.getGenerativeModel({
+                                            model: targetModel,
+                                            systemInstruction: systemMsg ? systemMsg : undefined
+                                        });
 
-                                            const genResult = await genModel.generateContent({
-                                                contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: '' }] }],
-                                                generationConfig: {
-                                                    temperature: params.temperature ?? 0.7
-                                                }
-                                            });
+                                        const genResult = await genModel.generateContent({
+                                            contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: '' }] }],
+                                            generationConfig: {
+                                                temperature: params.temperature ?? 0.7
+                                            }
+                                        });
 
-                                            const text = genResult.response.text();
-                                            return { choices: [{ message: { content: text } }] };
-                                        } catch (sdkErr: any) {
-                                            // Fallback to OpenAI REST client if SDK fails on AQ key
-                                            const openAiClient = new OpenAI({
-                                                apiKey: key,
-                                                baseURL: config.ai.geminiBaseUrl,
-                                                timeout: config.ai.timeoutMs,
-                                                maxRetries: 0
-                                            });
-                                            return await openAiClient.chat.completions.create(params);
-                                        }
+                                        const text = genResult.response.text();
+                                        return { choices: [{ message: { content: text } }] };
+                                    } catch (sdkErr: any) {
+                                        // Fallback to OpenAI REST client if SDK fails on key
+                                        const openAiClient = new OpenAI({
+                                            apiKey: key,
+                                            baseURL: config.ai.geminiBaseUrl,
+                                            timeout: config.ai.timeoutMs,
+                                            maxRetries: 0
+                                        });
+                                        return await openAiClient.chat.completions.create(params);
                                     }
                                 }
                             }
-                        };
-                    } else {
-                        client = new OpenAI({
-                            apiKey: key,
-                            baseURL: config.ai.geminiBaseUrl,
-                            timeout: config.ai.timeoutMs,
-                            maxRetries: 0
-                        });
-                    }
+                        }
+                    };
 
                     try {
                         await globalAiSemaphore.acquire();
@@ -206,8 +197,8 @@ export class AiClientManager {
                         const errBody = err.error ? JSON.stringify(err.error) : (err.message || String(err));
 
                         if (status === 429 || (err.message && err.message.includes('429'))) {
-                            console.warn(`[AiClientManager] Key #${keyIndex + 1} rate limited (429). Cooldown for 8s...`);
-                            const newExpiry = Date.now() + 8000;
+                            console.warn(`[AiClientManager] Key #${keyIndex + 1} rate limited (429). Short cooldown 2s...`);
+                            const newExpiry = Date.now() + 2000;
                             AiClientManager.rateLimitExpiry.set(key, newExpiry);
 
                             const wait = newExpiry - Date.now();
@@ -226,15 +217,17 @@ export class AiClientManager {
                                 });
                             } catch (e) { }
 
-                            // If a specific key has bad auth/permission/invalid key (400, 401, 403, 404), put it on 1-hour cooldown and continue trying other keys in the pool
-                            if ([400, 401, 403, 404].includes(status) || (err.message && (err.message.includes('API key') || err.message.includes('API_KEY_INVALID')))) {
-                                console.warn(`[AiClientManager] Key #${keyIndex + 1} invalid or auth error (${status}: ${err.message}). Putting key on 1h cooldown...`);
-                                AiClientManager.rateLimitExpiry.set(key, Date.now() + 3600000);
-                                continue;
-                            }
+                            // Put key on short 5s cooldown instead of 1h to allow quick recovery
+                            AiClientManager.rateLimitExpiry.set(key, Date.now() + 5000);
+                            continue;
                         }
                     }
                 } // End of key loop
+
+                if (!triedAnyKey) {
+                    console.warn(`[AiClientManager] All keys are cooling down. Clearing cooldown locks...`);
+                    AiClientManager.rateLimitExpiry.clear();
+                }
             }
 
             // 2. Fallback to GitHub Models (GPT-4o-mini) if configured or if Gemini fails
