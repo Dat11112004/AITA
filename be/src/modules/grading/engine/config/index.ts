@@ -27,7 +27,7 @@ export const config = {
 
   ai: {
     geminiKeys: (process.env.GEMINI_API_KEYS || '').split(',').map(k => k.trim()).filter(k => k.length > 0),
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
     geminiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 
     githubToken: process.env.GITHUB_TOKEN || '',
@@ -36,7 +36,7 @@ export const config = {
 
     embeddingModel: 'text-embedding-3-small', // For github if needed
     temperature: 0.7,
-    timeoutMs: 120000
+    timeoutMs: 30000
   }
 
 } as const;

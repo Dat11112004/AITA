@@ -72,7 +72,7 @@ export class AiClientManager {
         for (let globalAttempt = 1; globalAttempt <= maxGlobalAttempts; globalAttempt++) {
             // 1. Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
-                const model = config.ai.geminiModel || 'gemini-2.5-flash';
+                const model = config.ai.geminiModel || 'gemini-1.5-flash';
                 const totalKeys = config.ai.geminiKeys.length;
 
                 // Round-robin starting index
@@ -222,9 +222,11 @@ export class AiClientManager {
                                 });
                             } catch (e) { }
 
-                            // Fail fast on bad prompt / bad auth / model missing / region blocked
-                            if ([400, 401, 403, 404].includes(status)) {
-                                break; // Stop Gemini key loop and move to GitHub Models fallback
+                            // If a specific key has bad auth/permission (401, 403, 404), put it on 1-hour cooldown and continue trying other keys in the pool
+                            if ([401, 403, 404].includes(status)) {
+                                console.warn(`[AiClientManager] Key #${keyIndex + 1} authentication error (${status}). Putting key on 1h cooldown...`);
+                                AiClientManager.rateLimitExpiry.set(key, Date.now() + 3600000);
+                                continue;
                             }
                         }
                     }
