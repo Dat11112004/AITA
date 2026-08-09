@@ -47,7 +47,7 @@ export class RubricGeneratorService {
         rules = this.applyScoringStrategies(rules, requirements, projectType, fullContext);
 
         // 2. Compute weights deterministically from marks + complexity
-        rules = this.computeWeights(rules, requirements);
+        rules = this.computeWeights(rules, requirements, (blueprint as any).hasExplicitRubric);
 
         // 3. Deterministically extract Setup Script for SQL assignments
         const originalContent = (blueprint as any).originalContent || blueprint.description;
@@ -377,9 +377,9 @@ export class RubricGeneratorService {
         }
     }
 
-    private computeWeights(rules: RubricRule[], requirements: ParsedRequirement[]): RubricRule[] {
-        // Find if ANY requirement has explicit marks assigned by the AI
-        const withMarks = requirements.filter(r => typeof r.marks === 'number' && r.marks > 0);
+    private computeWeights(rules: RubricRule[], requirements: ParsedRequirement[], hasExplicitRubric?: boolean): RubricRule[] {
+        // Find if ANY requirement has explicit marks assigned by the AI, but only if the prompt explicitly contained rubric points
+        const withMarks = (hasExplicitRubric !== false) ? requirements.filter(r => typeof r.marks === 'number' && r.marks > 0) : [];
         const hasExplicitMarks = withMarks.length > 0;
 
         let computedRules: RubricRule[] = [];

@@ -248,6 +248,59 @@ OUTPUT FORMAT (JSON OBJECT)
                             req.description = req.description.replace(/\*\*/g, '');
                             return req;
                         });
+
+                    // If teacher did not explicitly provide marks in document, nullify hallucinated marks
+                    if (blueprint.hasExplicitRubric === false) {
+                        blueprint.requirements.forEach(req => {
+                            req.marks = null as any;
+                        });
+                    }
+
+                    // SINGLE REQUIREMENT AUTO-SPLIT:
+                    // If prompt only produced 1 monolithic requirement and no explicit point breakdown was provided,
+                    // automatically expand it into sub-criteria with appropriate complexity levels (high, medium, low)
+                    // and let the complexity-based point distribution engine calculate exact marks dynamically.
+                    if (blueprint.requirements.length === 1 && blueprint.hasExplicitRubric !== true) {
+                        const singleReq = blueprint.requirements[0];
+                        const baseTitle = singleReq.title.replace(/\s*(Implementation|Bài làm|Task|Requirement)\s*/gi, '').trim() || singleReq.title;
+                        const groupId = singleReq.groupId || 'g1';
+
+                        blueprint.requirements = [
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-1`,
+                                groupId,
+                                title: `${baseTitle} - Logic & Core Functionality`,
+                                description: `${singleReq.description}\n\nCore requirement: Correctly implement the main business logic and core functional algorithms.`,
+                                complexity: 'high',
+                                complexityReason: 'Core algorithmic logic and main business rules',
+                                marks: null as any,
+                            },
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-2`,
+                                groupId,
+                                title: `${baseTitle} - Input/Output & Constraints`,
+                                description: `Verify that input parsing, output formatting, edge cases, and boundary constraints are correctly handled.`,
+                                complexity: 'medium',
+                                complexityReason: 'Boundary conditions, edge cases, and input/output formatting',
+                                marks: null as any,
+                            },
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-3`,
+                                groupId,
+                                title: `${baseTitle} - Code Quality & Performance`,
+                                description: `Inspect source code for readability, proper naming conventions, clean structure, and optimal time/space complexity.`,
+                                complexity: 'low',
+                                complexityReason: 'Code structure, readability, and naming conventions',
+                                marks: null as any,
+                                recommendedEngine: 'AICodeReview',
+                                isUIVisible: false,
+                                isCRUD: false
+                            }
+                        ];
+                    }
                 }
 
                 // ═══════════════════════════════════════════════════════
