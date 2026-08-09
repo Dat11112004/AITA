@@ -82,6 +82,7 @@ export function AdminAIConfig() {
               <Select 
                 label="AI Model used"
                 options={[
+                  { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash (High)' },
                   { value: 'gemini-1.5-flash', label: 'Google Gemini 1.5 Flash' },
                   { value: 'gemini-2.0-flash', label: 'Google Gemini 2.0 Flash' },
                   { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
