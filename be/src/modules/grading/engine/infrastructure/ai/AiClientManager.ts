@@ -223,9 +223,9 @@ export class AiClientManager {
                                 });
                             } catch (e) { }
 
-                            // If a specific key has bad auth/permission (401, 403, 404), put it on 1-hour cooldown and continue trying other keys in the pool
-                            if ([401, 403, 404].includes(status)) {
-                                console.warn(`[AiClientManager] Key #${keyIndex + 1} authentication error (${status}). Putting key on 1h cooldown...`);
+                            // If a specific key has bad auth/permission/invalid key (400, 401, 403, 404), put it on 1-hour cooldown and continue trying other keys in the pool
+                            if ([400, 401, 403, 404].includes(status) || (err.message && (err.message.includes('API key') || err.message.includes('API_KEY_INVALID')))) {
+                                console.warn(`[AiClientManager] Key #${keyIndex + 1} invalid or auth error (${status}: ${err.message}). Putting key on 1h cooldown...`);
                                 AiClientManager.rateLimitExpiry.set(key, Date.now() + 3600000);
                                 continue;
                             }
