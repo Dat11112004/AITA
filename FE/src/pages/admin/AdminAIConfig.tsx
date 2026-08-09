@@ -82,9 +82,9 @@ export function AdminAIConfig() {
               <Select 
                 label="AI Model used"
                 options={[
-                  { value: 'gemini-3.6-flash', label: 'Google Gemini 3.6 Flash' },
-                  { value: 'gemini-1.5-flash', label: 'Google Gemini 1.5 Flash' },
+                  { value: 'gemini-2.5-flash', label: 'Google Gemini 2.5 Flash' },
                   { value: 'gemini-2.0-flash', label: 'Google Gemini 2.0 Flash' },
+                  { value: 'gemini-1.5-flash', label: 'Google Gemini 1.5 Flash' },
                   { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
                   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
                   { value: 'gpt-4-turbo', label: 'OpenAI GPT-4 Turbo' },
