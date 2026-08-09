@@ -135,28 +135,31 @@ export class AiClientManager {
                                         }
 
                                         const targetModel = model;
-                                        const genModel = genAI.getGenerativeModel({
-                                            model: targetModel,
-                                            systemInstruction: systemMsg ? systemMsg : undefined
-                                        });
+                                        try {
+                                            const genModel = genAI.getGenerativeModel({
+                                                model: targetModel,
+                                                systemInstruction: systemMsg ? systemMsg : undefined
+                                            });
 
-                                        const genResult = await genModel.generateContent({
-                                            contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: '' }] }],
-                                            generationConfig: {
-                                                temperature: params.temperature ?? 0.7
-                                            }
-                                        });
-
-                                        const text = genResult.response.text();
-                                        return {
-                                            choices: [
-                                                {
-                                                    message: {
-                                                        content: text
-                                                    }
+                                            const genResult = await genModel.generateContent({
+                                                contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: '' }] }],
+                                                generationConfig: {
+                                                    temperature: params.temperature ?? 0.7
                                                 }
-                                            ]
-                                        };
+                                            });
+
+                                            const text = genResult.response.text();
+                                            return { choices: [{ message: { content: text } }] };
+                                        } catch (sdkErr: any) {
+                                            // Fallback to OpenAI REST client if SDK fails on AQ key
+                                            const openAiClient = new OpenAI({
+                                                apiKey: key,
+                                                baseURL: config.ai.geminiBaseUrl,
+                                                timeout: config.ai.timeoutMs,
+                                                maxRetries: 0
+                                            });
+                                            return await openAiClient.chat.completions.create(params);
+                                        }
                                     }
                                 }
                             }
