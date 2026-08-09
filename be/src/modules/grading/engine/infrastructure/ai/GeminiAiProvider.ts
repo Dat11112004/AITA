@@ -248,32 +248,81 @@ OUTPUT FORMAT (JSON OBJECT)
                             req.description = req.description.replace(/\*\*/g, '');
                             return req;
                         });
+                }
 
-                    // Verify if the original prompt text actually contains explicit point designations (e.g. "5 pts", "3 điểm")
-                    const hasExplicitPointText = /\b(\d+(?:[\.,]\d+)?)\s*(?:pt|pts|point|points|điểm|diem|mark|marks|%)\b/i.test(prompt) ||
-                                                 /(?:điểm|diem|score|marks)\s*:\s*\d+/i.test(prompt);
+                // ═══════════════════════════════════════════════════════
+                // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
+                // ═══════════════════════════════════════════════════════
+                const typeDecision = detectProjectType(blueprint.projectType as string, prompt, subject);
+                if (typeDecision.changed) {
+                    console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
+                    blueprint.projectType = typeDecision.projectType as any;
+                } else {
+                    console.log(`[GeminiAiProvider] Project type "${blueprint.projectType}": ${typeDecision.reason}.`);
+                }
 
-                    if (!hasExplicitPointText) {
-                        console.log('[GeminiAiProvider] Prompt has no explicit point markings. Forcing hasExplicitRubric = false.');
-                        blueprint.hasExplicitRubric = false;
-                        blueprint.requirements.forEach(req => {
-                            req.marks = null as any;
-                        });
-                    } else if (blueprint.hasExplicitRubric === false) {
-                        blueprint.requirements.forEach(req => {
-                            req.marks = null as any;
-                        });
-                    }
+                // Verify if the original prompt text actually contains explicit point designations (e.g. "5 pts", "3 điểm")
+                const hasExplicitPointText = /\b(\d+(?:[\.,]\d+)?)\s*(?:pt|pts|point|points|điểm|diem|mark|marks|%)\b/i.test(prompt) ||
+                                             /(?:điểm|diem|score|marks)\s*:\s*\d+/i.test(prompt);
 
-                    // SINGLE REQUIREMENT AUTO-SPLIT:
-                    // If prompt only produced 1 monolithic requirement and no explicit point breakdown was provided,
-                    // automatically expand it into sub-criteria with appropriate complexity levels (high, medium, low)
-                    // and let the complexity-based point distribution engine calculate exact marks dynamically.
-                    if (blueprint.requirements.length === 1 && blueprint.hasExplicitRubric !== true) {
-                        const singleReq = blueprint.requirements[0];
-                        const baseTitle = singleReq.title.replace(/\s*(Implementation|Bài làm|Task|Requirement)\s*/gi, '').trim() || singleReq.title;
-                        const groupId = singleReq.groupId || 'g1';
+                if (!hasExplicitPointText) {
+                    console.log('[GeminiAiProvider] Prompt has no explicit point markings. Forcing hasExplicitRubric = false.');
+                    blueprint.hasExplicitRubric = false;
+                    blueprint.requirements.forEach(req => {
+                        req.marks = null as any;
+                    });
+                } else if (blueprint.hasExplicitRubric === false) {
+                    blueprint.requirements.forEach(req => {
+                        req.marks = null as any;
+                    });
+                }
 
+                // SINGLE REQUIREMENT AUTO-SPLIT:
+                // If prompt only produced 1 monolithic requirement and no explicit point breakdown was provided,
+                // automatically expand it into sub-criteria with appropriate complexity levels (high, medium, low)
+                // matching the project type (database SQL probes vs generic code/algorithm probes).
+                if (blueprint.requirements.length === 1 && blueprint.hasExplicitRubric !== true) {
+                    const singleReq = blueprint.requirements[0];
+                    const baseTitle = singleReq.title.replace(/\s*(Implementation|Bài làm|Task|Requirement|Exam|Đề thi)\s*/gi, '').trim() || singleReq.title;
+                    const groupId = singleReq.groupId || 'g1';
+
+                    if (blueprint.projectType === 'database') {
+                        blueprint.requirements = [
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-1`,
+                                groupId,
+                                title: `${baseTitle} - DDL & Database Schema Design`,
+                                description: `${singleReq.description}\n\nCreate database schema, tables, primary keys, foreign keys, and integrity constraints.`,
+                                complexity: 'high',
+                                complexityReason: 'Database DDL schema creation and relational integrity',
+                                marks: null as any,
+                                recommendedEngine: 'SqlExecutionProbe',
+                            },
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-2`,
+                                groupId,
+                                title: `${baseTitle} - DML & Relational Queries`,
+                                description: `Implement required SQL SELECT queries, JOINs, aggregations, and data manipulations.`,
+                                complexity: 'medium',
+                                complexityReason: 'Relational data query logic and JOIN operations',
+                                marks: null as any,
+                                recommendedEngine: 'SqlExecutionProbe',
+                            },
+                            {
+                                ...singleReq,
+                                id: `${singleReq.id}-3`,
+                                groupId,
+                                title: `${baseTitle} - Advanced SQL (Views, Procedures, Triggers)`,
+                                description: `Implement advanced database objects such as stored procedures, triggers, views, or indexes as required by the assignment.`,
+                                complexity: 'low',
+                                complexityReason: 'Advanced database objects and transaction logic',
+                                marks: null as any,
+                                recommendedEngine: 'SqlExecutionProbe',
+                            }
+                        ];
+                    } else {
                         blueprint.requirements = [
                             {
                                 ...singleReq,
@@ -310,28 +359,6 @@ OUTPUT FORMAT (JSON OBJECT)
                             }
                         ];
                     }
-                }
-
-                // ═══════════════════════════════════════════════════════
-                // CODE-LEVEL PROJECT TYPE DETECTION FALLBACK
-                // ═══════════════════════════════════════════════════════
-                // Catches the AI misreading a prompt - the original case being an algorithm problem
-                // called "backend" because the teacher mentioned Node.js. It used to count algorithm
-                // keywords only and rewrite anything that was not already "algorithm", so a DBI202
-                // prompt asking students to analyse "Time Complexity" and "Space Complexity" scored
-                // two signals and became an algorithm - graded through a stdin/stdout judge, with the
-                // SQL vocabulary all over the same prompt never counted at all.
-                //
-                // Every type that can be detected from text brings its own signals, and a rewrite
-                // happens only when another type clearly outscores the one the AI chose. The table
-                // and the rule live in ProjectTypeDetector, so adding a type means adding a row
-                // there rather than another special case here.
-                const typeDecision = detectProjectType(blueprint.projectType as string, prompt, subject);
-                if (typeDecision.changed) {
-                    console.log(`[GeminiAiProvider] Project type override: ${typeDecision.reason}.`);
-                    blueprint.projectType = typeDecision.projectType as any;
-                } else {
-                    console.log(`[GeminiAiProvider] Project type "${blueprint.projectType}": ${typeDecision.reason}.`);
                 }
 
                 // ═══════════════════════════════════════════════════════
@@ -495,6 +522,9 @@ OUTPUT FORMAT (JSON OBJECT)
                 // fails to produce test cases for a rule, RubricGeneratorService's
                 // Constraint D downgrades it to AICodeReview.
                 strategy = (req.isWrittenAnswer || req.isDiagramTask) ? 'AiTextAnalysis' : 'StdInOutProbe';
+            } else if (pt === 'database') {
+                // Database exams (DBI202): every non-written SQL question is judged by SqlExecutionProbe
+                strategy = (req.isWrittenAnswer || req.isDiagramTask) ? 'AiTextAnalysis' : 'SqlExecutionProbe';
             } else if (req.recommendedEngine) {
                 // ═══════════════════════════════════════════════════════
                 // PRIMARY PATH: Use AI's explicit recommendation.
