@@ -82,11 +82,14 @@ export function AdminAIConfig() {
               <Select 
                 label="AI Model used"
                 options={[
+                  { value: 'gemini-3.6-flash', label: 'Google Gemini 3.6 Flash' },
+                  { value: 'gemini-1.5-flash', label: 'Google Gemini 1.5 Flash' },
+                  { value: 'gemini-2.0-flash', label: 'Google Gemini 2.0 Flash' },
+                  { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
                   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
                   { value: 'gpt-4-turbo', label: 'OpenAI GPT-4 Turbo' },
                   { value: 'gpt-3.5-turbo', label: 'OpenAI GPT-3.5 Turbo' },
                   { value: 'claude-3-opus', label: 'Anthropic Claude 3 Opus' },
-                  { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
                 ]}
                 value={config.model}
                 onChange={(e) => setConfig({ ...config, model: e.target.value })}
