@@ -225,7 +225,19 @@ OUTPUT FORMAT (JSON OBJECT)
 
                 let jsonText = response.choices[0].message.content || "{}";
                 jsonText = jsonText.replace(/^```json\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
-                let blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+                let blueprint: ParsedBlueprint;
+                try {
+                    blueprint = JSON.parse(jsonText) as ParsedBlueprint;
+                } catch (jsonErr) {
+                    console.warn('[GeminiAiProvider] Retrying JSON parse after sanitizing control characters...');
+                    const sanitizedText = jsonText.replace(/[\u0000-\u001F]+/g, (c) => {
+                        if (c.includes('\n')) return '\\n';
+                        if (c.includes('\r')) return '\\r';
+                        if (c.includes('\t')) return '\\t';
+                        return '';
+                    });
+                    blueprint = JSON.parse(sanitizedText) as ParsedBlueprint;
+                }
 
                 // Remove empty requirements hallucinated by the AI and clean markdown
                 if (blueprint.requirements && Array.isArray(blueprint.requirements)) {
