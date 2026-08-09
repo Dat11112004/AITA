@@ -109,7 +109,7 @@ ALGORITHM PROJECTS SPECIAL RULE
 If projectType is "algorithm":
 - Create ONE requirement per problem/question found in the exam (Problem 1, Câu 1, Task A, ...)
 - Each requirement's description MUST contain that problem's statement, input format, output format, and sample input/output if given
-- Set marks from the exam paper's point allocation; if the paper gives no points, distribute 10 evenly across the problems
+- Set marks from the exam paper's point allocation ONLY if explicitly stated in text; if the paper gives no explicit point values, set marks to null and hasExplicitRubric to false
 - DO NOT merge multiple problems into a single requirement
 
 ════════════════════════════════════════
@@ -249,8 +249,17 @@ OUTPUT FORMAT (JSON OBJECT)
                             return req;
                         });
 
-                    // If teacher did not explicitly provide marks in document, nullify hallucinated marks
-                    if (blueprint.hasExplicitRubric === false) {
+                    // Verify if the original prompt text actually contains explicit point designations (e.g. "5 pts", "3 điểm")
+                    const hasExplicitPointText = /\b(\d+(?:[\.,]\d+)?)\s*(?:pt|pts|point|points|điểm|diem|mark|marks|%)\b/i.test(prompt) ||
+                                                 /(?:điểm|diem|score|marks)\s*:\s*\d+/i.test(prompt);
+
+                    if (!hasExplicitPointText) {
+                        console.log('[GeminiAiProvider] Prompt has no explicit point markings. Forcing hasExplicitRubric = false.');
+                        blueprint.hasExplicitRubric = false;
+                        blueprint.requirements.forEach(req => {
+                            req.marks = null as any;
+                        });
+                    } else if (blueprint.hasExplicitRubric === false) {
                         blueprint.requirements.forEach(req => {
                             req.marks = null as any;
                         });

@@ -116,7 +116,9 @@ export class AssignmentController extends BaseController {
                     resource_type: 'raw' as any,
                     public_id: `${sanitizeCloudinaryPathSegment(baseName, 'assignment')}_${Date.now()}`,
                 };
-                const cloudinaryRes = await CloudinaryService.uploadStream(file.buffer, uploadOptions);
+                const cloudinaryPromise = CloudinaryService.uploadStream(file.buffer, uploadOptions);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Cloudinary upload timeout')), 8000));
+                const cloudinaryRes = await Promise.race([cloudinaryPromise, timeoutPromise]) as any;
                 uploadedFileUrl = cloudinaryRes.secure_url;
                 console.log(`[AssignmentController] Uploaded assignment document to Cloudinary: ${uploadedFileUrl}`);
             } catch (uploadError: any) {

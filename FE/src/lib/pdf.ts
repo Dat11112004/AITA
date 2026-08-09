@@ -3,11 +3,12 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Set worker source to jsDelivr CDN to guarantee application/javascript MIME type across all environments
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
 
-export async function renderPdfToImages(file: File, scale = 2.0): Promise<string[]> {
+export async function renderPdfToImages(file: File, scale = 0.9): Promise<string[]> {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
-    const numPages = pdf.numPages;
+    // Limit to max 4 pages for AI vision to prevent payload explosion (> 50MB) on large PDFs
+    const numPages = Math.min(pdf.numPages, 4);
     const pageImages: string[] = [];
     
     for (let i = 1; i <= numPages; i++) {
@@ -29,8 +30,8 @@ export async function renderPdfToImages(file: File, scale = 2.0): Promise<string
         
         await page.render(renderContext as any).promise;
         
-        // Convert to high quality JPEG to save some bandwidth over PNG
-        const base64Img = canvas.toDataURL('image/jpeg', 0.9);
+        // Convert to medium quality JPEG (0.65) to keep bandwidth light (< 300KB per page)
+        const base64Img = canvas.toDataURL('image/jpeg', 0.65);
         pageImages.push(base64Img);
     }
     

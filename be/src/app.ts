@@ -41,8 +41,8 @@ export function createApp() {
   app.use(cors(corsOptions))
   app.use(requestLogger)
   app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'))
-  app.use(express.json({ limit: '50mb' }))
-  app.use(express.urlencoded({ limit: '50mb', extended: true }))
+  app.use(express.json({ limit: '100mb' }))
+  app.use(express.urlencoded({ limit: '100mb', extended: true }))
   // Uploaded avatars/attachments are fetched by the web client (:5173) and the Expo web build
   // (:8081), i.e. from a different origin than this API. helmet() defaults
   // Cross-Origin-Resource-Policy to same-origin, which made the browser download the image and

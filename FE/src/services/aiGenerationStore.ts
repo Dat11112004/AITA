@@ -196,10 +196,14 @@ class AiGenerationStoreManager {
     try {
       let pageImages: string[] = [];
       if (file.type === 'application/pdf') {
-        this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
-        const { renderPdfToImages } = await import('@/lib/pdf');
-        pageImages = await renderPdfToImages(file, 1.2);
-        this.setState({ pageImages, loadingMsg: `Extracted ${file.name} pages successfully. Generating assignment...`, progress: 25 });
+        try {
+          this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
+          const { renderPdfToImages } = await import('@/lib/pdf');
+          pageImages = await renderPdfToImages(file, 0.9);
+          this.setState({ pageImages, loadingMsg: `Extracted ${file.name} pages successfully. Generating assignment...`, progress: 25 });
+        } catch (pdfErr) {
+          console.warn('[AiGenerationStore] PDF page rendering warning, falling back to text extraction:', pdfErr);
+        }
       }
 
       const extractedData: any = await api.extractText(file, selectedSemester, subjectCode);

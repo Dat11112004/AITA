@@ -9,7 +9,10 @@ export function createAssignmentRoutes(): Router {
   const artifactStore = new LocalArtifactStore();
   const documentExtractor = new DocumentExtractor();
   const controller = new AssignmentController(documentExtractor, artifactStore);
-  const upload = multer({ storage: multer.memoryStorage() });
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for PDF/DOCX uploads
+  });
 
   router.post('/upload', upload.single('file'), controller.uploadAssignment);
   router.post('/extract-text', upload.single('file'), controller.extractText);
