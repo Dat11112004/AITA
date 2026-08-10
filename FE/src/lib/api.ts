@@ -772,6 +772,8 @@ export const gradingApi = {
     body: data ? JSON.stringify(data) : undefined,
   }),
   unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
+  bulkPublishGrades: (assignmentId: string) =>
+    request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
   updateSubmissionResult: (id: string, data: any) => request<any>('/grading/submissions/' + id + '/result', {
     method: 'PUT',
     body: JSON.stringify(data),

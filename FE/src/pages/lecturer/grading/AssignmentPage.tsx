@@ -1663,25 +1663,25 @@ export default function AssignmentPage() {
       )}
 
       {/* Deadline Warning Modal for Bulk Publish */}
-      {showPublishAllWarningModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+      {showPublishAllWarningModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
               <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
                 <AlertTriangle size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Cảnh báo: Bài tập chưa hết hạn!</h3>
-                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Thời hạn nộp bài (Deadline) vẫn còn hiệu lực</p>
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Warning: Deadline Not Passed!</h3>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">The submission deadline is still active</p>
               </div>
             </div>
 
             <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200/80 dark:border-amber-900/30 text-sm text-slate-700 dark:text-slate-300 space-y-2 leading-relaxed">
               <p>
-                Nếu bạn công bố điểm cho toàn bộ sinh viên ngay lúc này, tất cả sinh viên đã có điểm sẽ <strong>thấy chi tiết đáp án và nhận xét</strong>.
+                If you publish scores for all students right now, all graded students will be able to <strong>view full answers and detailed feedback</strong>.
               </p>
               <p className="text-amber-800 dark:text-amber-300 font-medium">
-                ⚠️ Vì chưa đến deadline, sinh viên có thể dựa vào đáp án vừa xem để <strong>chỉnh sửa bài và nộp lại (resubmit)</strong>.
+                ⚠️ Since the deadline has not passed yet, students may use the published answers to <strong>revise and resubmit their work</strong>.
               </p>
             </div>
 
@@ -1691,7 +1691,7 @@ export default function AssignmentPage() {
                 onClick={() => setShowPublishAllWarningModal(false)}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
               >
-                Hủy bỏ
+                Cancel
               </button>
               <button
                 type="button"
@@ -1699,11 +1699,12 @@ export default function AssignmentPage() {
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center gap-2"
               >
                 <Send size={16} />
-                <span>Vẫn công bố toàn bộ điểm</span>
+                <span>Publish All Scores Anyway</span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>
