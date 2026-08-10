@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, type ClassRow, type SemesterRow, type SubjectRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
+import { getSeasonTheme } from '@/utils/seasonThemeHelper'
 import {
-  Loader2, Search, Filter, Sun, CloudRain, Wind, Leaf,
+  Loader2, Search, Filter,
   Calendar, ChevronDown, ChevronUp, Book, Code, Users
 } from 'lucide-react'
 
@@ -152,23 +153,6 @@ export function LecturerClasses() {
     setExpandedSubjects(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const getSeasonIcon = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('hè') || lower.includes('summer')) return <Sun className="w-6 h-6 text-indigo-500" />
-    if (lower.includes('xuân') || lower.includes('spring')) return <Leaf className="w-6 h-6 text-pink-500" />
-    if (lower.includes('thu') || lower.includes('fall')) return <Wind className="w-6 h-6 text-orange-500" />
-    if (lower.includes('đông') || lower.includes('winter')) return <CloudRain className="w-6 h-6 text-blue-500" />
-    return <Sun className="w-6 h-6 text-indigo-500" />
-  }
-
-  const getSeasonBg = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('hè') || lower.includes('summer')) return 'bg-indigo-50'
-    if (lower.includes('xuân') || lower.includes('spring')) return 'bg-pink-50'
-    if (lower.includes('thu') || lower.includes('fall')) return 'bg-orange-50'
-    return 'bg-indigo-50'
-  }
-
   const formatDate = (d?: string) => {
     if (!d) return '';
     return new Date(d).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -231,6 +215,8 @@ export function LecturerClasses() {
               const isExpanded = expandedSeasons[season.seasonName];
               const semesterCount = Object.keys(season.semesters).length;
               const sortedSemesters = Object.values(season.semesters).sort((a, b) => a.semesterCode.localeCompare(b.semesterCode));
+              const theme = getSeasonTheme(season.seasonName);
+              const SeasonIcon = theme.seasonIcon;
 
               return (
                 <div key={season.seasonName} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -238,26 +224,26 @@ export function LecturerClasses() {
                   {/* Season Header */}
                   <div
                     onClick={() => toggleSeason(season.seasonName)}
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50/80 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getSeasonBg(season.seasonName)}`}>
-                        {getSeasonIcon(season.seasonName)}
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme.seasonIconBg}`}>
+                        <SeasonIcon className={`w-6 h-6 ${theme.seasonIconColor}`} />
                       </div>
                       <div className="flex items-center gap-3">
-                        <h2 className="text-lg font-bold text-slate-800">
+                        <h2 className={`text-lg ${theme.seasonTitleColor}`}>
                           {season.seasonName === OTHER_SEASON ? t('lc.cls.other_seasons') : season.seasonName}
                         </h2>
                         {season.isActive && (
-                          <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                          <span className={`px-2.5 py-0.5 text-xs rounded-full ${theme.seasonBadgeBg} ${theme.seasonBadgeText}`}>
                             {t('lc.cls.in_progress')}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-slate-500">
-                      <span className="text-sm font-medium text-indigo-600">{t('lc.cls.semesters_count', { n: semesterCount })}</span>
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                    <div className="flex items-center gap-4">
+                      <span className={`text-sm ${theme.seasonCountText}`}>{t('lc.cls.semesters_count', { n: semesterCount })}</span>
+                      {isExpanded ? <ChevronUp className={`w-5 h-5 ${theme.seasonChevronColor}`} /> : <ChevronDown className={`w-5 h-5 ${theme.seasonChevronColor}`} />}
                     </div>
                   </div>
 
@@ -270,29 +256,29 @@ export function LecturerClasses() {
                         const sortedSubjects = Object.values(semester.subjects).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
 
                         return (
-                          <div key={semester.semesterId} className="border border-slate-200 rounded-lg overflow-hidden mt-4">
+                          <div key={semester.semesterId} className={`border rounded-xl overflow-hidden mt-4 transition-all duration-200 ${theme.semCardBorder}`}>
 
                             {/* Semester Header */}
                             <div
                               onClick={() => toggleSemester(semester.semesterId)}
-                              className="flex items-center justify-between p-4 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${theme.semHeaderBg}`}
                             >
                               <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-blue-500 shadow-sm">
-                                  <Calendar className="w-5 h-5" />
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${theme.semIconBoxBg}`}>
+                                  <Calendar className={`w-5 h-5 ${theme.semIconColor}`} />
                                 </div>
                                 <div>
-                                  <h3 className="text-base font-bold text-slate-800">{formatSemesterCode(semester.semesterCode, t('lc.semester_word'))}</h3>
+                                  <h3 className={`text-base ${theme.semTitleColor}`}>{formatSemesterCode(semester.semesterCode, t('lc.semester_word'))}</h3>
                                   {(semester.startDate || semester.endDate) && (
-                                    <p className="text-xs text-slate-500 mt-0.5">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                                       {formatDate(semester.startDate)} - {formatDate(semester.endDate)}
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4 text-slate-500">
-                                <span className="text-sm font-medium text-indigo-600">{t('lc.cls.subjects_count', { n: subjectCount })}</span>
-                                {isSemExpanded ? <ChevronUp className="w-5 h-5 text-indigo-400" /> : <ChevronDown className="w-5 h-5" />}
+                              <div className="flex items-center gap-4">
+                                <span className={`text-xs px-3 py-1 rounded-full ${theme.semBadgeBg} ${theme.semBadgeText}`}>{t('lc.cls.subjects_count', { n: subjectCount })}</span>
+                                {isSemExpanded ? <ChevronUp className={`w-5 h-5 ${theme.semChevronColor}`} /> : <ChevronDown className={`w-5 h-5 ${theme.semChevronColor}`} />}
                               </div>
                             </div>
 
