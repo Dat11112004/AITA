@@ -5,10 +5,12 @@ import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, useColorS
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AuroraBackground } from '@/components/AuroraBackground'
+import { Avatar } from '@/components/Avatar'
 import { ErrorView } from '@/components/ErrorView'
 import { GlassCard } from '@/components/GlassCard'
 import { Loading } from '@/components/Loading'
 import { InlineToast } from '@/components/PrimaryButton'
+import { SubjectChip } from '@/components/SubjectChip'
 import { Aurora, Colors, Layout, Radius, Type } from '@/constants/theme'
 import { formatDue } from '@/lib/countdown'
 import { useNotifications } from '@/store/NotificationsContext'
@@ -20,7 +22,20 @@ import { useNotifications } from '@/store/NotificationsContext'
  * An unread row is marked by a filled dot AND a heavier title, so the state survives a
  * greyscale screenshot or a colour-blind reader.
  */
-export function NotificationList({ headerRight }: { headerRight?: React.ReactNode }) {
+export function NotificationList({
+  headerRight,
+  belowHeader,
+  emptyState,
+}: {
+  headerRight?: React.ReactNode
+  /** Slot under the header — the lecturer screen puts its inbox/sent tabs here. */
+  belowHeader?: React.ReactNode
+  /**
+   * Replaces the one-line "no notifications" text, which reads as a screen that failed.
+   * A ReactElement, not a ReactNode — FlatList's ListEmptyComponent will not take a string.
+   */
+  emptyState?: React.ReactElement
+}) {
   const { t } = useTranslation()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
@@ -92,10 +107,13 @@ export function NotificationList({ headerRight }: { headerRight?: React.ReactNod
                   <InlineToast text={actionError} tone="error" />
                 </View>
               ) : null}
+              {belowHeader ? <View style={styles.belowHeader}>{belowHeader}</View> : null}
             </View>
           }
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={<Text style={[styles.empty, { color: a.onGlassSoft }]}>{t('notify.empty')}</Text>}
+          ListEmptyComponent={
+            emptyState ?? <Text style={[styles.empty, { color: a.onGlassSoft }]}>{t('notify.empty')}</Text>
+          }
           // Vùng bấm nằm CẠNH nút xoá, không bọc ngoài nó: trên web mỗi
           // TouchableOpacity là một <button>, lồng nhau là HTML không hợp lệ.
           renderItem={({ item }) => (
@@ -121,9 +139,37 @@ export function NotificationList({ headerRight }: { headerRight?: React.ReactNod
                       {item.message}
                     </Text>
                   ) : null}
-                  {item.createdAt ? (
-                    <Text style={[styles.time, { color: a.onGlassSoft }]}>{formatDue(item.createdAt)}</Text>
+
+                  {/* Who it came from and what it is about. The subject used to be readable
+                      only by parsing it out of the "[DBI202] …" title, the class was not shown
+                      at all, and the sender arrived as a bare uuid. */}
+                  {item.classCode || item.subjectCode ? (
+                    <View style={styles.chips}>
+                      {item.subjectCode ? <SubjectChip subject={item.subjectCode} /> : null}
+                      {item.classCode ? (
+                        <View style={[styles.classChip, { borderColor: a.glassBorder, backgroundColor: a.glass }]}>
+                          <Ionicons name="people-outline" size={12} color={a.onGlassSoft} />
+                          <Text style={[styles.classText, { color: a.onGlassSoft }]} numberOfLines={1}>
+                            {item.classCode}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   ) : null}
+
+                  <View style={styles.footer}>
+                    {item.sender?.name ? (
+                      <View style={styles.sender}>
+                        <Avatar name={item.sender.name} uri={item.sender.avatar} size={18} />
+                        <Text style={[styles.time, { color: a.onGlassSoft }]} numberOfLines={1}>
+                          {item.sender.name}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {item.createdAt ? (
+                      <Text style={[styles.time, { color: a.onGlassSoft }]}>{formatDue(item.createdAt)}</Text>
+                    ) : null}
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -153,6 +199,7 @@ const styles = StyleSheet.create({
   subtitle: { ...Type.body, fontWeight: '600' },
   action: { ...Type.body, fontWeight: '700' },
   toast: { marginTop: 4 },
+  belowHeader: { marginTop: 8 },
   sep: { height: 10 },
   empty: { ...Type.bodyLg, textAlign: 'center', marginTop: 40 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -160,6 +207,20 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 4 },
   itemTitle: { ...Type.bodyLg },
   message: { ...Type.body, lineHeight: 19 },
+  chips: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  classChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: 150,
+  },
+  classText: { ...Type.chip, fontWeight: '700' },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 },
+  sender: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   time: { ...Type.chip, marginTop: 2 },
   toastWrap: { borderRadius: Radius.md },
 })

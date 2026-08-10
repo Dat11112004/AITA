@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -59,6 +59,21 @@ export default function LecturerDashboard() {
   useEffect(() => {
     load('initial')
   }, [load])
+
+  // Tabs stay mounted, so coming back from "Chấm bài" after publishing a grade used to show
+  // the figures this screen fetched when the app started — the publish looked like it had
+  // done nothing. Re-read on every focus after the first, as a 'refresh' so the content stays
+  // on screen instead of being replaced by the full-screen spinner.
+  const focused = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!focused.current) {
+        focused.current = true
+        return
+      }
+      load('refresh')
+    }, [load]),
+  )
 
   if (loading) return <AuroraBackground><Loading /></AuroraBackground>
   if (error) return <AuroraBackground><ErrorView message={error} onRetry={() => load('initial')} /></AuroraBackground>

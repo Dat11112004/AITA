@@ -1,64 +1,68 @@
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native'
 
+import { EmptyState } from '@/components/EmptyState'
 import { NotificationList } from '@/components/NotificationList'
-import { Aurora, Colors, Radius, Type } from '@/constants/theme'
+import { NotificationTabs, type NotificationTab } from '@/components/NotificationTabs'
+import { SentNotificationList } from '@/components/SentNotificationList'
+import { Colors, Radius, Type } from '@/constants/theme'
 
 /**
- * The lecturer inbox. Same list as the student's, plus the two affordances a lecturer needs:
- * composing a broadcast, and reviewing what they already sent — the inbox cannot show the
- * latter, because a broadcast creates recipient rows for the students and none for the sender.
+ * The lecturer's notification screen: their inbox and what they have sent, as two tabs of
+ * one screen.
+ *
+ * "Đã gửi" used to be a separate pushed page reached by a small button, which is backwards:
+ * a lecturer's inbox is almost always empty — a broadcast writes recipient rows for the
+ * students and none for the sender — so the screen led with nothing and hid the only part
+ * that had content. The empty inbox now says why it is empty and points at the other tab.
  */
 export default function LecturerNotificationsScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const c = Colors[scheme]
-  const a = Aurora[scheme]
+
+  const [tab, setTab] = useState<NotificationTab>('inbox')
+
+  const compose = (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => router.push('/(lecturer)/notifications/broadcast' as never)}
+      accessibilityRole="button"
+      style={[styles.compose, { backgroundColor: c.primary }]}
+    >
+      <Ionicons name="create-outline" size={16} color={c.onPrimary} />
+      <Text style={[styles.composeText, { color: c.onPrimary }]}>{t('notify.broadcast')}</Text>
+    </TouchableOpacity>
+  )
+
+  const tabs = <NotificationTabs value={tab} onChange={setTab} />
+
+  if (tab === 'sent') {
+    return <SentNotificationList headerRight={compose} belowHeader={tabs} />
+  }
 
   return (
     <NotificationList
-      headerRight={
-        <View style={styles.actions}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/(lecturer)/notifications/sent' as never)}
-            accessibilityRole="button"
-            style={[styles.ghost, { borderColor: a.glassBorder, backgroundColor: a.glass }]}
-          >
-            <Ionicons name="paper-plane-outline" size={15} color={a.onGlassSoft} />
-            <Text style={[styles.ghostText, { color: a.onGlassSoft }]}>{t('notify.viewSent')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/(lecturer)/notifications/broadcast' as never)}
-            accessibilityRole="button"
-            style={[styles.compose, { backgroundColor: c.primary }]}
-          >
-            <Ionicons name="create-outline" size={16} color={c.onPrimary} />
-            <Text style={[styles.composeText, { color: c.onPrimary }]}>{t('notify.broadcast')}</Text>
-          </TouchableOpacity>
-        </View>
+      headerRight={compose}
+      belowHeader={tabs}
+      emptyState={
+        <EmptyState
+          icon="mail-open-outline"
+          title={t('notify.empty')}
+          hint={t('notify.lecturerEmptyHint')}
+          actionLabel={t('notify.viewSent')}
+          onAction={() => setTab('sent')}
+        />
       }
     />
   )
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ghost: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-  },
-  ghostText: { ...Type.chip, fontWeight: '700' },
   compose: {
     flexDirection: 'row',
     alignItems: 'center',

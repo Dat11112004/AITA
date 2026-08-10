@@ -64,7 +64,10 @@ export default function AssignmentDetailScreen() {
       // still worth reading without it.
       try {
         const subs = await api.getSubmissionsByExam(String(id))
-        setMine(subs.length > 0 ? subs[subs.length - 1] : null)
+        // Attempts come back newest-first (repository orders by SubmittedAt desc), so the
+        // last element is the *oldest* try — taking it showed attempt 1 of a resubmitted
+        // paper. Prefer the row the server flags as current, else the newest.
+        setMine(subs.find((s) => s.isLatest) ?? subs[0] ?? null)
       } catch {
         setMine(null)
       }

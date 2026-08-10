@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useColorScheme, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -63,6 +63,18 @@ export default function LecturerGradingScreen() {
   useEffect(() => {
     load('initial')
   }, [load])
+
+  // Returning from a grading detail must show the row's new state; see the lecturer dashboard.
+  const focused = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!focused.current) {
+        focused.current = true
+        return
+      }
+      load('refresh')
+    }, [load]),
+  )
 
   if (loading) {
     return (

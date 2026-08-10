@@ -27,6 +27,9 @@ export function HeroCard({
 }) {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const grad = HeroAurora[scheme]
+  // A placeholder is not a number: an em-dash set at 40px reads as a white bar across the
+  // card rather than as "no score yet", so anything unparseable drops a size.
+  const placeholder = Number.isNaN(Number(value)) || String(value).trim() === ''
 
   return (
     <View style={[styles.wrap, Glow.primary]}>
@@ -38,7 +41,7 @@ export function HeroCard({
         <View style={styles.row}>
           <View style={styles.left}>
             <View style={styles.valueRow}>
-              <Text style={styles.value}>{String(value)}</Text>
+              <Text style={[styles.value, placeholder && styles.valuePlaceholder]}>{String(value)}</Text>
               <Text style={styles.unit}>{unit}</Text>
             </View>
             <Text style={styles.caption}>{caption}</Text>
@@ -95,6 +98,7 @@ const styles = StyleSheet.create({
   left: { flex: 1, gap: 8 },
   valueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   value: { ...Type.hero, color: '#FFFFFF', fontWeight: '800', letterSpacing: 0.5 },
+  valuePlaceholder: { fontSize: 30, lineHeight: 34, color: 'rgba(255,255,255,0.75)' },
   unit: { ...Type.bodyLg, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginBottom: 4 },
   caption: { fontSize: 13, lineHeight: 18, color: 'rgba(255,255,255,0.85)' },
   cta: {

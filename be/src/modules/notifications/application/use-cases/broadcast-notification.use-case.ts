@@ -27,51 +27,83 @@ export class BroadcastNotificationUseCase {
             throw new AppError('BROADCAST_NO_TARGET', 'Phải chọn lớp hoặc vai trò nhận thông báo', 400)
         }
 
-        // Resolve recipients BEFORE writing anything, so a rejected target leaves no orphan row.
-        const userIds = byClass
-            ? await this.studentsOfClasses(classIds, params)
-            : await this.usersOfRole(params.targetRole!)
+        if (!byClass) {
+            // Role-wide: there is no class to record, so this stays a single row.
+            const userIds = await this.usersOfRole(params.targetRole!)
+            const notification = await this.createNotification(params, null, params.type || 'SYSTEM')
+            await this.addRecipients(notification.Id, userIds)
+            return { notification, recipientCount: userIds.length }
+        }
 
-        const notificationId = uuidv4()
-        const notification = await prisma.notification.create({
+        await this.assertOwnsClasses(classIds, params)
+
+        // One notification PER CLASS. `Notification` has room for exactly one reference
+        // (`ReferenceId`/`ReferenceType`), and a reader has to be told the class *they* are
+        // in — with several classes on one row there is no way to answer that per recipient.
+        // Recipients are deduplicated across the batch so a student enrolled in two targeted
+        // classes still receives the message once.
+        const notified = new Set<string>()
+        const notifications: any[] = []
+        let recipientCount = 0
+
+        for (const classId of classIds) {
+            // Sequential, not Promise.all: this SQL Server instance accepts one connection.
+            const enrolled = await prisma.studentClass.findMany({
+                where: { ClassId: classId },
+                select: { UserId: true },
+            })
+            const userIds = [...new Set(enrolled.map((e: any) => e.UserId))].filter((id) => !notified.has(id))
+
+            // Created even when the class is empty, so "Đã gửi" can keep reporting
+            // "Không ai nhận được — lớp chưa có sinh viên" instead of silently dropping it.
+            const notification = await this.createNotification(params, classId, params.type || 'CLASS')
+            await this.addRecipients(notification.Id, userIds)
+
+            userIds.forEach((id) => notified.add(id))
+            notifications.push(notification)
+            recipientCount += userIds.length
+        }
+
+        return { notification: notifications[0], notifications, recipientCount, classIds }
+    }
+
+    private async createNotification(params: BroadcastNotificationParams, classId: string | null, type: string) {
+        return prisma.notification.create({
             data: {
-                Id: notificationId,
+                Id: uuidv4(),
                 Title: params.title,
                 Message: params.message,
-                Type: params.type || (byClass ? 'CLASS' : 'SYSTEM'),
+                Type: type,
+                // The class the message was sent to. Nothing recorded this before, so a
+                // student could not tell which of their classes a broadcast came from.
+                ReferenceId: classId,
+                ReferenceType: classId ? 'CLASS' : null,
                 CreatedBy: params.createdBy,
                 CreatedAt: new Date(),
             }
         })
-
-        if (userIds.length > 0) {
-            await prisma.notificationRecipient.createMany({
-                data: userIds.map(userId => ({ NotificationId: notificationId, UserId: userId, IsRead: false }))
-            })
-        }
-
-        return { notification, recipientCount: userIds.length, classIds: byClass ? classIds : undefined }
     }
 
-    /** Students enrolled in the given classes. A lecturer is confined to their own classes. */
-    private async studentsOfClasses(classIds: string[], params: BroadcastNotificationParams): Promise<string[]> {
-        if (String(params.actorRole).toUpperCase() === 'LECTURER') {
-            const own = await prisma.instructorClass.findMany({
-                where: { UserId: params.createdBy, ClassId: { in: classIds } },
-                select: { ClassId: true },
-            })
-            const allowed = new Set(own.map(o => o.ClassId))
-            const denied = classIds.filter(id => !allowed.has(id))
-            if (denied.length > 0) {
-                throw new AppError('CLASS_NOT_OWNED', 'Bạn chỉ được gửi thông báo cho lớp mình phụ trách', 403)
-            }
-        }
-
-        const enrolled = await prisma.studentClass.findMany({
-            where: { ClassId: { in: classIds } },
-            select: { UserId: true },
+    private async addRecipients(notificationId: string, userIds: string[]) {
+        if (userIds.length === 0) return
+        await prisma.notificationRecipient.createMany({
+            data: userIds.map(userId => ({ NotificationId: notificationId, UserId: userId, IsRead: false }))
         })
-        return [...new Set(enrolled.map(e => e.UserId))]
+    }
+
+    /** A lecturer is confined to their own classes. Checked before anything is written. */
+    private async assertOwnsClasses(classIds: string[], params: BroadcastNotificationParams): Promise<void> {
+        if (String(params.actorRole).toUpperCase() !== 'LECTURER') return
+
+        const own = await prisma.instructorClass.findMany({
+            where: { UserId: params.createdBy, ClassId: { in: classIds } },
+            select: { ClassId: true },
+        })
+        const allowed = new Set(own.map(o => o.ClassId))
+        const denied = classIds.filter(id => !allowed.has(id))
+        if (denied.length > 0) {
+            throw new AppError('CLASS_NOT_OWNED', 'Bạn chỉ được gửi thông báo cho lớp mình phụ trách', 403)
+        }
     }
 
     private async usersOfRole(targetRole: 'ALL' | 'LECTURER' | 'STUDENT'): Promise<string[]> {

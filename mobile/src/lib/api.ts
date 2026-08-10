@@ -371,7 +371,7 @@ export interface ClassRow {
   id: string
   code: string
   name: string
-  subject?: { id: string; code: string; name: string } | unknown
+  subject?: { id?: string; code?: string; name?: string } | null
   semester?: { id: string; code: string; name: string } | string
   lecturers?: { id: string; name: string; email: string }[]
   studentCount?: number
@@ -416,6 +416,9 @@ export interface AssignmentRow {
   /** Full "CODE - Name" from ExamResponseDto; `class` holds just the short code. */
   subjectLabel?: string
   subjectId?: string | null
+  /** Who set the assignment. ExamResponseDto sends both on every list row. */
+  lecturer?: string | null
+  lecturerAvatar?: string | null
   weightPercentage?: number | null
   attachments?: ExamAttachment[] | null
   rubrics?: RubricRuleRow[] | null
@@ -430,6 +433,9 @@ export interface SubmissionRow {
   examId?: string
   submittedAt: string | null
   aiScore?: number | string | null
+  /** Which attempt this is, and whether it is the current one. Resubmission bumps both. */
+  attemptNumber?: number
+  isLatest?: boolean
   status: string
   score?: number | null
   studentName?: string
@@ -464,6 +470,12 @@ export interface NotificationRow {
   referenceType?: string | null
   read: boolean
   createdAt?: string | null
+  /** The lecturer who sent it, resolved server-side from `createdBy` (which is only a uuid). */
+  sender?: { id: string; name: string; avatar?: string | null } | null
+  /** Subject + the reader's own class, derived from the referenced exam. Null on plain broadcasts. */
+  subjectCode?: string | null
+  subjectName?: string | null
+  classCode?: string | null
 }
 /** BE's BroadcastNotificationParams.targetRole — there is no per-class option. */
 export type BroadcastAudience = 'ALL' | 'STUDENT' | 'LECTURER'
@@ -473,6 +485,8 @@ export interface SentNotification {
   message?: string | null
   type?: string | null
   createdAt?: string | null
+  /** Which class it went to. A multi-class send writes one row per class. */
+  classCode?: string | null
   /** How many inboxes it actually landed in — 0 means it reached nobody. */
   recipientCount: number
 }
