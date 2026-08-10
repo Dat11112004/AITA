@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -97,6 +97,8 @@ export default function AssignmentPage() {
 
   const [isUploadingAnswerKey, setIsUploadingAnswerKey] = useState(false);
   const [uploadAnswerKeySuccess, setUploadAnswerKeySuccess] = useState<string | null>(null);
+  const [isPublishingAll, setIsPublishingAll] = useState(false);
+  const [showPublishAllWarningModal, setShowPublishAllWarningModal] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -329,11 +331,52 @@ export default function AssignmentPage() {
         setError(t('lc.ap.none_eligible'));
       }
     } catch (err) {
-      console.error("Failed to batch grade", err);
-      setError(t('lc.ap.batch_failed'));
+      console.error("Failed to start batch grading", err);
+      setError(t('lc.ap.start_grading_failed'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const doPublishAll = async () => {
+    if (!id) return;
+    try {
+      setIsPublishingAll(true);
+      setError(null);
+      const res = await api.bulkPublishGrades(id);
+
+      // Broadcast real-time publish event
+      try {
+        const pubChannel = new BroadcastChannel('aita_submission_events');
+        pubChannel.postMessage({ type: 'SUBMISSION_PUBLISHED', assignmentId: id });
+        pubChannel.close();
+      } catch (e) { }
+      localStorage.setItem('aita_last_publish_event', JSON.stringify({ type: 'SUBMISSION_PUBLISHED', assignmentId: id, timestamp: Date.now() }));
+
+      alert(t('lc.sm.publish_success') || 'Scores published to all students.');
+      fetchAssignmentData();
+      fetchHistoryData(false);
+    } catch (err: any) {
+      console.error("Failed to publish grades:", err);
+      setError(err.message || t('lc.sm.publish_failed') || 'Failed to publish scores');
+    } finally {
+      setIsPublishingAll(false);
+      setShowPublishAllWarningModal(false);
+    }
+  };
+
+  const handlePublishAll = async () => {
+    if (!id) return;
+
+    // Check assignment deadline
+    const dueDateStr = (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate || (assignment as any)?.due;
+    if (dueDateStr && new Date() < new Date(dueDateStr)) {
+      setShowPublishAllWarningModal(true);
+      return;
+    }
+
+    if (!window.confirm(t('lc.sm.publish_confirm') || 'Publish scores to all students?')) return;
+    await doPublishAll();
   };
 
   const handleGradeSelected = async () => {
@@ -630,6 +673,19 @@ export default function AssignmentPage() {
                     Grade all
                   </>
                 )}
+              </button>
+              <button
+                onClick={handlePublishAll}
+                disabled={isPublishingAll}
+                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50 cursor-pointer"
+                title={t('lc.sm.publish_all') || 'Publish all scores'}
+              >
+                {isPublishingAll ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Send size={18} />
+                )}
+                <span>{isPublishingAll ? (t('lc.up.publishing') || 'Publishing...') : (t('lc.sm.publish_all') || 'Publish all results')}</span>
               </button>
             </div>
           </div>
@@ -1604,6 +1660,50 @@ export default function AssignmentPage() {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Deadline Warning Modal for Bulk Publish */}
+      {showPublishAllWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Cảnh báo: Bài tập chưa hết hạn!</h3>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Thời hạn nộp bài (Deadline) vẫn còn hiệu lực</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200/80 dark:border-amber-900/30 text-sm text-slate-700 dark:text-slate-300 space-y-2 leading-relaxed">
+              <p>
+                Nếu bạn công bố điểm cho toàn bộ sinh viên ngay lúc này, tất cả sinh viên đã có điểm sẽ <strong>thấy chi tiết đáp án và nhận xét</strong>.
+              </p>
+              <p className="text-amber-800 dark:text-amber-300 font-medium">
+                ⚠️ Vì chưa đến deadline, sinh viên có thể dựa vào đáp án vừa xem để <strong>chỉnh sửa bài và nộp lại (resubmit)</strong>.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPublishAllWarningModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={doPublishAll}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Send size={16} />
+                <span>Vẫn công bố toàn bộ điểm</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

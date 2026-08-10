@@ -948,20 +948,23 @@ export class SubmissionController extends BaseController {
         let reviewStatus = 'DRAFT';
         let studentFeedback: string | null = null;
         let assignmentId: string | null = null;
+        let dueDate: string | null = null;
         try {
             const subRecord = await prisma.submission.findUnique({
                 where: { Id: id },
-                select: { ReviewStatus: true, StudentFeedback: true, ExamId: true }
+                select: { ReviewStatus: true, StudentFeedback: true, ExamId: true, Exam: { select: { DueDate: true } } }
             });
             reviewStatus = subRecord?.ReviewStatus || 'DRAFT';
             isPublished = reviewStatus === 'PUBLISHED';
             studentFeedback = subRecord?.StudentFeedback || null;
             assignmentId = subRecord?.ExamId || null;
+            dueDate = subRecord?.Exam?.DueDate ? new Date(subRecord.Exam.DueDate).toISOString() : null;
         } catch (e) { }
 
         this.ok(res, {
             submissionId: id,
             assignmentId,
+            dueDate,
             score: report.totalScore || 0,
             maxScore: report.maxPossibleScore || 0,
             rules: report.passedRules || [],

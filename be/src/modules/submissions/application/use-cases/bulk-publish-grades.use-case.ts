@@ -11,8 +11,8 @@ export class BulkPublishGradesUseCase implements IUseCase<{ assignmentId: string
     
     let count = 0
     for (const submission of submissions) {
-      if (!submission.isPendingReview()) {
-        continue // Skip if it's already reviewed or not pending review
+      if (submission.reviewStatus === 'PUBLISHED') {
+        continue // Skip if already published
       }
 
       // If it hasn't been graded formally, complete grading
