@@ -23,6 +23,7 @@ export default function ResultPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showPublishWarningModal, setShowPublishWarningModal] = useState(false);
+  const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
 
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
@@ -91,6 +92,12 @@ export default function ResultPage() {
         pubChannel.close();
       } catch (e) { }
       localStorage.setItem('aita_last_publish_event', JSON.stringify({ type: 'SUBMISSION_PUBLISHED', submissionId: id, isPublished: !isCurrentlyPublished, timestamp: Date.now() }));
+
+      const successText = !isCurrentlyPublished
+        ? '🚀 Scores successfully published to student! Student can now view detailed results.'
+        : 'Reverted submission to draft mode (Pending Publication).';
+      setPublishSuccessMsg(successText);
+      setTimeout(() => setPublishSuccessMsg(null), 5000);
     } catch (e: any) {
       alert(e.message || 'Error updating publish status');
     } finally {
@@ -273,6 +280,18 @@ export default function ResultPage() {
         <ArrowLeft size={18} />
         <span>Go back</span>
       </button>
+
+      {publishSuccessMsg && (
+        <div className="mb-6 flex items-center justify-between gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 rounded-xl text-sm font-semibold animate-in fade-in slide-in-from-top-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{publishSuccessMsg}</span>
+          </div>
+          <button type="button" onClick={() => setPublishSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200 cursor-pointer">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Top Banner: Publish Status & Action (Lecturer only) */}
       {!isStudent && (

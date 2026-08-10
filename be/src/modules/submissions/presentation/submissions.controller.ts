@@ -138,9 +138,9 @@ export class SubmissionsController extends BaseController {
 
     async bulkPublish(req: Request, res: Response): Promise<void> {
         this.logger.debug(`Received request to bulk publish grades for assignment: ${req.body.assignmentId}`)
-        // @ts-ignore - Will inject this use case later
         const result = await this.bulkPublishGradesUseCase.execute({ assignmentId: String(req.body.assignmentId), user: req.user! })
-        this.ok(res, result, 'Đã công bố điểm cho tất cả sinh viên thành công')
+        const message = result.count ? `Successfully published grades for ${result.count} student(s)` : 'Successfully published grades for all students'
+        this.ok(res, result, message)
     }
 
     async submitFeedback(req: Request, res: Response): Promise<void> {
