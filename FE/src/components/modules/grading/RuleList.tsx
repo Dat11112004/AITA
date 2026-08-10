@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ScoreRule } from '@/types';
 import StatusBadge from './StatusBadge';
-import { AlertCircle, Lightbulb, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import { AlertCircle, Lightbulb, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Check, X } from 'lucide-react';
 import classNames from 'classnames';
 import CodeSnippetViewer from './evidence/CodeSnippetViewer';
 import HttpTimelineViewer from './evidence/HttpTimelineViewer';
@@ -13,6 +13,8 @@ import { formatLatexMath } from '@/utils/mathHelper';
 interface RuleListProps {
   title: string;
   rules: ScoreRule[];
+  isStudent?: boolean;
+  onUpdateRule?: (ruleIndex: number, newScore: number, newDetails: string) => void;
 }
 
 const renderFormattedText = (text?: string) => {
@@ -28,11 +30,114 @@ const renderFormattedText = (text?: string) => {
   });
 };
 
-export default function RuleList({ title, rules }: RuleListProps) {
+export default function RuleList({ title, rules, isStudent = false, onUpdateRule }: RuleListProps) {
   const [expandedRules, setExpandedRules] = useState<Record<number, boolean>>({});
+
+  const [editingScoreIndex, setEditingScoreIndex] = useState<number | null>(null);
+  const [tempScore, setTempScore] = useState<string>('');
+
+  const [editingReasoningIndex, setEditingReasoningIndex] = useState<number | null>(null);
+  const [tempReasoning, setTempReasoning] = useState<string>('');
 
   const toggleRule = (idx: number) => {
     setExpandedRules(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const startEditScore = (idx: number, e: React.MouseEvent, currentScore: number) => {
+    e.stopPropagation();
+    setEditingScoreIndex(idx);
+    setTempScore(String(currentScore));
+  };
+
+  const saveScore = (idx: number, rule: ScoreRule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const val = parseFloat(tempScore);
+    if (isNaN(val) || val < 0) return;
+    const clamped = Math.min(val, rule.maxScore);
+    onUpdateRule?.(idx, clamped, rule.details || '');
+    setEditingScoreIndex(null);
+  };
+
+  const cancelEditScore = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingScoreIndex(null);
+  };
+
+  const startEditReasoning = (idx: number, e: React.MouseEvent, currentDetails: string) => {
+    e.stopPropagation();
+    setEditingReasoningIndex(idx);
+    setTempReasoning(currentDetails || '');
+    if (!expandedRules[idx]) {
+      setExpandedRules(prev => ({ ...prev, [idx]: true }));
+    }
+  };
+
+  const saveReasoning = (idx: number, rule: ScoreRule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUpdateRule?.(idx, rule.score, tempReasoning);
+    setEditingReasoningIndex(null);
+  };
+
+  const cancelEditReasoning = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingReasoningIndex(null);
+  };
+
+  const renderAiReasoningBox = (idx: number, rule: ScoreRule) => {
+    const isEditing = editingReasoningIndex === idx;
+    return (
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex gap-2 items-center">
+            <AlertCircle size={14} className="text-brand-500" />
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">AI Reasoning</span>
+          </div>
+          {!isStudent && onUpdateRule && !isEditing && (
+            <button
+              type="button"
+              onClick={e => startEditReasoning(idx, e, rule.details || '')}
+              className="p-1 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 rounded transition-colors bg-transparent border-none cursor-pointer flex items-center gap-1 text-xs font-semibold"
+              title="Chỉnh sửa nhận xét AI"
+            >
+              <Pencil size={12} />
+              <span>Sửa nhận xét</span>
+            </button>
+          )}
+        </div>
+
+        {isEditing ? (
+          <div className="space-y-2" onClick={e => e.stopPropagation()}>
+            <textarea
+              rows={4}
+              value={tempReasoning}
+              onChange={e => setTempReasoning(e.target.value)}
+              placeholder="Nhập nhận xét / giải thích điểm số..."
+              className="w-full p-2.5 text-sm font-sans rounded-lg border border-brand-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-brand-500 leading-relaxed"
+            />
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                type="button"
+                onClick={cancelEditReasoning}
+                className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 rounded cursor-pointer border-none flex items-center gap-1"
+              >
+                <X size={12} />
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={e => saveReasoning(idx, rule, e)}
+                className="px-3 py-1 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded cursor-pointer border-none flex items-center gap-1 shadow-sm"
+              >
+                <Check size={12} />
+                Lưu nhận xét
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">{renderFormattedText(rule.details)}</p>
+        )}
+      </div>
+    );
   };
 
   if (rules.length === 0) return null;
@@ -44,6 +149,8 @@ export default function RuleList({ title, rules }: RuleListProps) {
       <div className="flex flex-col gap-4">
         {rules.map((rule, idx) => {
           const borderColor = rule.passed ? 'border-emerald-500' : (rule.score > 0 ? 'border-amber-500' : 'border-red-500');
+          const isEditingScore = editingScoreIndex === idx;
+
           return (
             <div key={idx} className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-800 p-4 md:p-5 transition-all border-l-[4px] ${borderColor}`}>
               {/* Basic Rule Info */}
@@ -69,10 +176,53 @@ export default function RuleList({ title, rules }: RuleListProps) {
                   )}
                 </div>
 
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <StatusBadge passed={rule.passed} isPartial={!rule.passed && rule.score > 0} />
-                  <span className="text-sm font-extrabold text-slate-800 dark:text-slate-300">+{rule.score} / {rule.maxScore}</span>
-                </div>
+                {isEditingScore ? (
+                  <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-lg border border-brand-300 dark:border-brand-700" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      max={rule.maxScore}
+                      value={tempScore}
+                      onChange={e => setTempScore(e.target.value)}
+                      className="w-16 px-2 py-1 text-sm font-bold border border-brand-500 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-white outline-none"
+                    />
+                    <span className="text-sm font-extrabold text-slate-500">/ {rule.maxScore}</span>
+                    <button
+                      type="button"
+                      onClick={e => saveScore(idx, rule, e)}
+                      className="p-1 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 rounded cursor-pointer border-none"
+                      title="Lưu điểm"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditScore}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded cursor-pointer border-none"
+                      title="Hủy"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <StatusBadge passed={rule.passed} isPartial={!rule.passed && rule.score > 0} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-300">+{rule.score} / {rule.maxScore}</span>
+                      {!isStudent && onUpdateRule && (
+                        <button
+                          type="button"
+                          onClick={e => startEditScore(idx, e, rule.score)}
+                          className="p-1 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 rounded transition-colors bg-transparent border-none cursor-pointer"
+                          title="Sửa điểm số"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Expanded Content */}
@@ -102,24 +252,12 @@ export default function RuleList({ title, rules }: RuleListProps) {
                           </div>
                         </div>
                       </div>
-                      {rule.details && (
-                        <div>
-                          <div className="flex gap-2 items-center mb-2">
-                            <AlertCircle size={14} className="text-brand-500" />
-                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">AI Reasoning</span>
-                          </div>
-                          <p className="text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">{renderFormattedText(rule.details)}</p>
-                        </div>
-                      )}
+                      {renderAiReasoningBox(idx, rule)}
                     </div>
                   ) : (
-                    rule.details && (
+                    (rule.details !== undefined || !isStudent) && (
                       <div className="p-3 bg-slate-50 dark:bg-slate-900/80 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm ml-0 md:ml-2 border-l-2 border-l-slate-200 dark:border-l-slate-700">
-                        <div className="flex gap-2 items-center mb-2">
-                          <AlertCircle size={14} className="text-brand-500" />
-                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">AI Reasoning</span>
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">{renderFormattedText(rule.details)}</p>
+                        {renderAiReasoningBox(idx, rule)}
                       </div>
                     )
                   )}
@@ -242,4 +380,5 @@ export default function RuleList({ title, rules }: RuleListProps) {
     </div>
   );
 }
+
 

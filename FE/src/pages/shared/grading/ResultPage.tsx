@@ -150,16 +150,16 @@ export default function ResultPage() {
         <div className="mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${(result as any).isPublished
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800'
-                : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800'
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800'
+              : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800'
               }`}>
               {(result as any).isPublished ? <CheckCircle2 size={20} /> : <Clock size={20} />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase ${(result as any).isPublished
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                  : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                   }`}>
                   {(result as any).isPublished ? 'Results Published' : 'Draft Mode (Pending Publication)'}
                 </span>
@@ -176,8 +176,8 @@ export default function ResultPage() {
             onClick={handleTogglePublish}
             disabled={isPublishing}
             className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all whitespace-nowrap cursor-pointer ${(result as any).isPublished
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/25'
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+              : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand-600/25'
               }`}
           >
             {isPublishing ? (
