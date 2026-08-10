@@ -3,7 +3,7 @@ import { useLocation, useParams, Link, useNavigate } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
-import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw, MessageSquare, Pencil, Check, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { formatLatexMath } from '@/utils/mathHelper';
 import { gradingApi as api } from '@/lib/api';
@@ -25,6 +25,31 @@ export default function ResultPage() {
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSuccessMsg, setFeedbackSuccessMsg] = useState<string | null>(null);
+
+  const [isEditingOverallFeedback, setIsEditingOverallFeedback] = useState(false);
+  const [tempOverallFeedback, setTempOverallFeedback] = useState('');
+
+  const handleSaveOverallFeedback = () => {
+    if (!result) return;
+    const updatedResult: SubmissionResponse = {
+      ...result,
+      overallFeedback: tempOverallFeedback,
+    };
+    setResult(updatedResult);
+    setIsEditingOverallFeedback(false);
+
+    if (id) {
+      try {
+        localStorage.setItem(`aita_override_result_${id}`, JSON.stringify(updatedResult));
+        api.updateSubmissionResult(id, {
+          score: result.score,
+          rules: result.rules,
+          failedRules: result.failedRules,
+          overallFeedback: tempOverallFeedback,
+        }).catch(() => { });
+      } catch (e) { }
+    }
+  };
 
   const gradingTime = location.state?.gradingTime as number | undefined;
 
@@ -306,20 +331,68 @@ export default function ResultPage() {
           gradingTime={gradingTime}
         />
 
-        {result.overallFeedback && (
+        {(result.overallFeedback || !isStudent) && (
           <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/50 dark:from-indigo-900/10 dark:to-blue-900/10 border border-indigo-100/50 dark:border-indigo-500/20 rounded-2xl p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
-                <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-700/30">
+                  <Sparkles className="text-indigo-600 dark:text-indigo-400" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Evaluation summary & learning path strategy</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI Mentor Feedback</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Evaluation summary & learning path strategy</p>
+
+              {!isStudent && !isEditingOverallFeedback && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingOverallFeedback(true);
+                    setTempOverallFeedback(result.overallFeedback || '');
+                  }}
+                  className="px-3 py-1.5 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/40 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm"
+                  title="Chỉnh sửa AI Mentor Feedback"
+                >
+                  <Pencil size={13} />
+                  <span>Sửa nhận xét</span>
+                </button>
+              )}
+            </div>
+
+            {isEditingOverallFeedback ? (
+              <div className="space-y-3">
+                <textarea
+                  rows={6}
+                  value={tempOverallFeedback}
+                  onChange={e => setTempOverallFeedback(e.target.value)}
+                  placeholder="Nhập nội dung AI Mentor Feedback..."
+                  className="w-full p-3.5 text-sm font-sans rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 leading-relaxed"
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingOverallFeedback(false)}
+                    className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 rounded-lg cursor-pointer border-none flex items-center gap-1"
+                  >
+                    <X size={13} />
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveOverallFeedback}
+                    className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer border-none flex items-center gap-1 shadow-sm"
+                  >
+                    <Check size={13} />
+                    Lưu nhận xét
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-[15px] text-slate-700 dark:text-slate-300">
-              <ReactMarkdown>{formatLatexMath(result.overallFeedback)}</ReactMarkdown>
-            </div>
+            ) : (
+              <div className="prose prose-indigo dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:my-1 text-[15px] text-slate-700 dark:text-slate-300">
+                <ReactMarkdown>{formatLatexMath(result.overallFeedback || '')}</ReactMarkdown>
+              </div>
+            )}
           </div>
         )}
 
