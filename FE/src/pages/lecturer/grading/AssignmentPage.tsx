@@ -97,6 +97,7 @@ export default function AssignmentPage() {
 
   const [isUploadingAnswerKey, setIsUploadingAnswerKey] = useState(false);
   const [uploadAnswerKeySuccess, setUploadAnswerKeySuccess] = useState<string | null>(null);
+  const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
   const [isPublishingAll, setIsPublishingAll] = useState(false);
   const [showPublishAllWarningModal, setShowPublishAllWarningModal] = useState(false);
 
@@ -353,7 +354,10 @@ export default function AssignmentPage() {
       } catch (e) { }
       localStorage.setItem('aita_last_publish_event', JSON.stringify({ type: 'SUBMISSION_PUBLISHED', assignmentId: id, timestamp: Date.now() }));
 
-      alert(t('lc.sm.publish_success') || 'Scores published to all students.');
+      const successText = res.count ? `🚀 Successfully published grades for ${res.count} student(s)!` : '🚀 Scores successfully published to all students.';
+      setPublishSuccessMsg(successText);
+      setTimeout(() => setPublishSuccessMsg(null), 5000);
+
       fetchAssignmentData();
       fetchHistoryData(false);
     } catch (err: any) {
@@ -606,6 +610,17 @@ export default function AssignmentPage() {
         <div className="mb-6 flex items-center gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg text-sm font-medium animate-in fade-in slide-in-from-top-2 shadow-sm">
           <CheckCircle2 size={18} />
           {uploadAnswerKeySuccess}
+        </div>
+      )}
+      {publishSuccessMsg && (
+        <div className="mb-6 flex items-center justify-between gap-2 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 rounded-xl text-sm font-semibold animate-in fade-in slide-in-from-top-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{publishSuccessMsg}</span>
+          </div>
+          <button type="button" onClick={() => setPublishSuccessMsg(null)} className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200 cursor-pointer">
+            <X size={16} />
+          </button>
         </div>
       )}
 
