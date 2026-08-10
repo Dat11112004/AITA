@@ -214,10 +214,10 @@ export default function RuleList({ title, rules, isStudent = false, onUpdateRule
                         <button
                           type="button"
                           onClick={e => startEditScore(idx, e, rule.score)}
-                          className="p-1 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 rounded transition-colors bg-transparent border-none cursor-pointer"
+                          className="p-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md transition-colors cursor-pointer border-none flex items-center justify-center ml-1"
                           title="Sửa điểm số"
                         >
-                          <Pencil size={13} />
+                          <Pencil size={14} />
                         </button>
                       )}
                     </div>

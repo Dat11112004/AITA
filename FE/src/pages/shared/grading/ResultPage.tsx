@@ -82,7 +82,80 @@ export default function ResultPage() {
     }
   };
 
+  const handleUpdateRule = (ruleIndex: number, newScore: number, newDetails: string) => {
+    if (!result) return;
+
+    const updatedAllRules = [...allRules];
+    const target = updatedAllRules[ruleIndex];
+    if (!target) return;
+
+    const isPassed = newScore >= target.maxScore;
+    const updatedItem = {
+      ...target,
+      score: newScore,
+      earnedScore: newScore,
+      details: newDetails,
+      reason: newDetails,
+      passed: isPassed,
+    };
+
+    updatedAllRules[ruleIndex] = updatedItem;
+
+    const newTotalScore = updatedAllRules.reduce((sum, r) => sum + r.score, 0);
+
+    const newPassedRules: any[] = [];
+    const newFailedRules: any[] = [];
+    updatedAllRules.forEach(r => {
+      const raw = (r as any).originalRule || r;
+      const updatedRaw = {
+        ...raw,
+        score: r.score,
+        earnedScore: r.score,
+        details: r.details,
+        reason: r.details,
+        passed: r.passed,
+      };
+      if (r.passed) {
+        newPassedRules.push(updatedRaw);
+      } else {
+        newFailedRules.push(updatedRaw);
+      }
+    });
+
+    const updatedResult: SubmissionResponse = {
+      ...result,
+      score: newTotalScore,
+      rules: newPassedRules,
+      failedRules: newFailedRules,
+    };
+
+    setResult(updatedResult);
+
+    if (id) {
+      try {
+        localStorage.setItem(`aita_override_result_${id}`, JSON.stringify(updatedResult));
+      } catch (e) { }
+    }
+  };
+
   useEffect(() => {
+    if (id) {
+      try {
+        const cachedStr = localStorage.getItem(`aita_override_result_${id}`);
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (cached && typeof cached === 'object') {
+            setResult(cached);
+            if (cached.studentFeedback) {
+              setFeedbackText(cached.studentFeedback);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) { }
+    }
+
     if (!result && id) {
       api.getSubmissionResult(id)
         .then(res => {
@@ -99,7 +172,7 @@ export default function ResultPage() {
     } else if (result?.studentFeedback) {
       setFeedbackText(result.studentFeedback);
     }
-  }, [id, result]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -128,11 +201,12 @@ export default function ResultPage() {
   const failedRules = result.failedRules || [];
   const allRules = [...passedRules, ...failedRules]
     .map((r: any) => ({
-      name: r.title || r.ruleId,
+      originalRule: r,
+      name: r.title || r.ruleId || r.name,
       description: r.description,
       passed: r.passed,
-      score: r.earnedScore || 0,
-      maxScore: r.weight || 0,
+      score: r.earnedScore ?? r.score ?? 0,
+      maxScore: r.weight ?? r.maxScore ?? 0,
       details: r.details || r.reason || '',
       evidence: r.evidence,
     }))
@@ -240,7 +314,12 @@ export default function ResultPage() {
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="space-y-8 md:col-span-2">
-            <RuleList title="Rubric evaluation results" rules={allRules} />
+            <RuleList
+              title="Rubric evaluation results"
+              rules={allRules}
+              isStudent={isStudent}
+              onUpdateRule={handleUpdateRule}
+            />
           </div>
         </div>
 
