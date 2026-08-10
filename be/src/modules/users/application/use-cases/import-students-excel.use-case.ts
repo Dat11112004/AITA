@@ -391,21 +391,64 @@ export class ImportStudentsExcelUseCase {
                     // cross-season enrollment (e.g. a Fall2026 import must never touch Spring2026 classes).
                     const targetSemesterIds = new Set(targetSemesters.map(s => s.Id))
 
-                    // ── Main class lookup ────────────────────────────────────────────────
+                    // ── Main class lookup & auto-creation ────────────────────────────────
                     // Match semester by Code scoped to the detected season.
                     const semester = targetSemesters.find(s => s.Code === semesterCode) ?? null
 
                     if (semester) {
-                        const classes = await prisma.class.findMany({
+                        const semNumMatch = semester.Code?.match(/\d+/)
+                        const semNum = semNumMatch ? parseInt(semNumMatch[0], 10) : null
+
+                        // Find subjects linked to this semester via SemesterSubject or Subject.Semester
+                        const semSubjs = await (prisma as any).semesterSubject.findMany({
+                            where: { SemesterId: semester.Id },
+                            select: { SubjectId: true }
+                        })
+                        let subjectIds = semSubjs.map((ss: any) => ss.SubjectId)
+
+                        if (semNum !== null) {
+                            const directSubjects = await prisma.subject.findMany({
+                                where: { Semester: semNum },
+                                select: { Id: true }
+                            })
+                            const directSubjectIds = directSubjects.map(s => s.Id)
+                            subjectIds = Array.from(new Set([...subjectIds, ...directSubjectIds]))
+                        }
+
+                        for (const subId of subjectIds) {
+                            let cls = await prisma.class.findFirst({
+                                where: {
+                                    SemesterId: semester.Id,
+                                    SubjectId: subId,
+                                    ClassCode: classCode
+                                },
+                                select: { Id: true }
+                            })
+
+                            if (!cls) {
+                                cls = await prisma.class.create({
+                                    data: {
+                                        ClassCode: classCode,
+                                        SubjectId: subId,
+                                        SemesterId: semester.Id,
+                                        Status: 'Active'
+                                    },
+                                    select: { Id: true }
+                                })
+                            }
+
+                            classesToEnroll.push(cls.Id)
+                        }
+
+                        // Also find any existing classes that might already exist for this classCode in this semester
+                        const existingClasses = await prisma.class.findMany({
                             where: {
                                 SemesterId: semester.Id,
                                 ClassCode: classCode
                             },
                             select: { Id: true }
                         })
-
-                        // Only enroll into existing classes matching classCode in this semester
-                        classesToEnroll.push(...classes.map(c => c.Id))
+                        classesToEnroll.push(...existingClasses.map(c => c.Id))
                     }
 
                     // ── Extra classes lookup (học vượt / ngoài kỳ) ──────────────────────

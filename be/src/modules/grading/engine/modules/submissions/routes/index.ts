@@ -11,7 +11,7 @@ export let engineSubmissionController: SubmissionController;
 
 export function createSubmissionRoutes(): Router {
   const router = Router();
-  
+
   const artifactStore = new LocalArtifactStore();
   const aiProvider = new GeminiAiProvider();
   const rubricEvaluator = new RubricEvaluator(aiProvider, artifactStore);
