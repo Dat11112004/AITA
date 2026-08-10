@@ -767,8 +767,15 @@ export const gradingApi = {
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
-  publishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/publish', { method: 'POST' }),
+  publishSubmission: (id: string, data?: any) => request<any>('/grading/submissions/' + id + '/publish', {
+    method: 'POST',
+    body: data ? JSON.stringify(data) : undefined,
+  }),
   unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
+  updateSubmissionResult: (id: string, data: any) => request<any>('/grading/submissions/' + id + '/result', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
 
   uploadAssignment: (file: File) => {
     const formData = new FormData()

@@ -48,7 +48,12 @@ export default function ResultPage() {
         await api.unpublishSubmission(id);
         setResult(prev => prev ? { ...prev, isPublished: false } as any : prev);
       } else {
-        await api.publishSubmission(id);
+        await api.publishSubmission(id, {
+          score: result.score,
+          rules: result.rules,
+          failedRules: result.failedRules,
+          overallFeedback: result.overallFeedback,
+        });
         setResult(prev => prev ? { ...prev, isPublished: true } as any : prev);
       }
 
@@ -134,6 +139,12 @@ export default function ResultPage() {
     if (id) {
       try {
         localStorage.setItem(`aita_override_result_${id}`, JSON.stringify(updatedResult));
+        api.updateSubmissionResult(id, {
+          score: newTotalScore,
+          rules: newPassedRules,
+          failedRules: newFailedRules,
+          overallFeedback: result.overallFeedback,
+        }).catch(() => { });
       } catch (e) { }
     }
   };

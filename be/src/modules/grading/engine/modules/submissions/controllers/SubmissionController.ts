@@ -974,19 +974,69 @@ export class SubmissionController extends BaseController {
         }, 'Result fetched successfully');
     };
 
+    updateResult = async (req: Request, res: Response) => {
+        const id = req.params.id as string;
+        const { score, rules, failedRules, overallFeedback } = req.body || {};
+
+        const historyItem = await this.historyRepo.getByIdAsync(id);
+        if (historyItem) {
+            const currentReport = historyItem.report || {};
+            const updatedReport = {
+                ...currentReport,
+                totalScore: score !== undefined ? score : (currentReport.totalScore ?? historyItem.score),
+                passedRules: rules || currentReport.passedRules || [],
+                failedRules: failedRules || currentReport.failedRules || [],
+                overallFeedback: overallFeedback !== undefined ? overallFeedback : currentReport.overallFeedback,
+            };
+            await this.historyRepo.saveAsync({
+                ...historyItem,
+                score: score !== undefined ? score : historyItem.score,
+                report: updatedReport,
+            });
+        } else {
+            await prisma.submission.update({
+                where: { Id: id },
+                data: {
+                    ...(score !== undefined ? { FinalScore: score, RawScore: score } : {})
+                }
+            });
+        }
+
+        this.ok(res, { success: true }, 'Result updated successfully');
+    };
+
     publish = async (req: Request, res: Response) => {
         const id = req.params.id as string;
+        const { score, rules, failedRules, overallFeedback } = req.body || {};
 
-        // The update used to be wrapped in an empty catch, so publishing a submission that does
-        // not exist still answered "thành công". Let a real failure surface instead.
+        if (rules || failedRules || score !== undefined || overallFeedback !== undefined) {
+            const historyItem = await this.historyRepo.getByIdAsync(id);
+            if (historyItem) {
+                const currentReport = historyItem.report || {};
+                const updatedReport = {
+                    ...currentReport,
+                    totalScore: score !== undefined ? score : (currentReport.totalScore ?? historyItem.score),
+                    passedRules: rules || currentReport.passedRules || [],
+                    failedRules: failedRules || currentReport.failedRules || [],
+                    overallFeedback: overallFeedback !== undefined ? overallFeedback : currentReport.overallFeedback,
+                };
+                await this.historyRepo.saveAsync({
+                    ...historyItem,
+                    score: score !== undefined ? score : historyItem.score,
+                    report: updatedReport,
+                });
+            }
+        }
+
         const submission = await prisma.submission.update({
             where: { Id: id },
-            data: { ReviewStatus: 'PUBLISHED' },
+            data: {
+                ReviewStatus: 'PUBLISHED',
+                ...(score !== undefined ? { FinalScore: score, RawScore: score } : {})
+            },
             select: { Id: true, StudentId: true, Exam: { select: { Title: true, Id: true } } }
         });
 
-        // This is the moment the score becomes visible to the student, so it is also the moment
-        // they should hear about it. Best-effort: a failed notification must not undo the publish.
         if (submission.StudentId) {
             try {
                 const title = submission.Exam?.Title ?? 'bài nộp';
