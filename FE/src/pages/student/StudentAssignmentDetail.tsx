@@ -676,6 +676,342 @@ export function StudentAssignmentDetail() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
+  void handleDownloadFormattedDoc;
+
+  const handleDownloadFormattedPdf = () => {
+    if (!assignment) return
+    const title = assignment.title || (assignment as any)?.metadata?.title || 'Assignment_Sheet'
+    const subjectName = assignment.subjectName || (assignment as any)?.subjectCode || (assignment as any)?.class || 'AITA LMS'
+    const courseCode = (assignment as any)?.subjectCode || (assignment as any)?.code || (assignment.subjectName ? assignment.subjectName.split(' ')[0] : '')
+    const dueStr = dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : t('st.asg.no_due')
+    const lecturerName = assignment.lecturer || t('st.asg.subject_lecturer')
+    const totalMarks = (assignment as any)?.totalMarks || (assignment as any)?.maxScore || (assignment as any)?.points || '10.0'
+
+    // Extract exact rendered DOM HTML from page (preserves Markdown tables, code blocks, inline badges, etc.)
+    const domElement = document.getElementById('printable-assignment-container')
+    let formattedBodyHtml = ''
+
+    if (domElement) {
+      const clone = domElement.cloneNode(true) as HTMLElement
+      // Remove interactive buttons or SVGs inside code viewers before printing
+      clone.querySelectorAll('button, .copy-button, svg').forEach(el => {
+        if (el.tagName.toLowerCase() === 'button') el.remove()
+      })
+      formattedBodyHtml = clone.innerHTML
+    } else if (fullContent) {
+      formattedBodyHtml = fullContent
+    } else {
+      const rawText = assignment.description || (assignment as any)?.metadata?.description || ''
+      formattedBodyHtml = rawText
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter(Boolean)
+        .map((line: string) => `<p style="margin-bottom:8px;">${line}</p>`)
+        .join('')
+    }
+
+    const pdfHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset='utf-8'>
+        <title>${title}</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 0; /* Margin 0 disables browser default headers & footers (URL, timestamp) */
+          }
+          @media print {
+            @page {
+              margin: 0;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 10.5pt;
+            color: #0f172a;
+            line-height: 1.6;
+            background: #ffffff;
+            margin: 0;
+            padding: 14mm 16mm 14mm 16mm;
+            box-sizing: border-box;
+          }
+
+          /* Header Banner matching AITA LMS theme */
+          .header-banner {
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+          }
+          .brand-title {
+            font-size: 8.5pt;
+            font-weight: 700;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 4px;
+          }
+          .doc-main-title {
+            font-size: 16.5pt;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.3;
+            margin-top: 4px;
+            margin-bottom: 6px;
+          }
+          
+          /* Metadata Table Bar */
+          .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 20px;
+          }
+          .meta-table td {
+            padding: 8px 12px;
+            font-size: 9.5pt;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+          }
+
+          /* Section Headings */
+          .section-heading {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1e3a8a;
+            border-bottom: 1.5pt solid #2563eb;
+            padding-bottom: 4px;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          /* Content box styling matching Image 2 */
+          .content-box {
+            font-size: 10.5pt;
+            line-height: 1.65;
+            color: #1e293b;
+          }
+          .content-box h1 {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+          }
+          .content-box h2 {
+            font-size: 12.5pt;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 16px;
+            margin-bottom: 8px;
+          }
+          .content-box h3 {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 14px;
+            margin-bottom: 6px;
+          }
+          .content-box p {
+            margin-bottom: 10px;
+          }
+          .content-box ul, .content-box ol {
+            margin-top: 4px;
+            margin-bottom: 12px;
+            padding-left: 22px;
+          }
+          .content-box li {
+            margin-bottom: 4px;
+          }
+
+          /* Code & Pill Badges (matches Image 2) */
+          .content-box code, code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 9pt;
+            font-weight: 600;
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1 !important;
+            display: inline-block;
+          }
+
+          /* Code blocks */
+          .content-box pre, pre {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 9pt;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin-top: 10px;
+            margin-bottom: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+          }
+          .content-box pre code {
+            background-color: transparent !important;
+            border: none !important;
+            color: inherit !important;
+            padding: 0;
+            font-size: inherit;
+          }
+
+          /* Markdown Tables (matches Image 2) */
+          .content-box table, table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 12px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+          }
+          .content-box th, table th {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            text-align: left;
+            padding: 8px 12px !important;
+            font-size: 9.5pt !important;
+            border: 1px solid #cbd5e1 !important;
+            border-bottom: 2px solid #94a3b8 !important;
+          }
+          .content-box td, table td {
+            padding: 8px 12px !important;
+            border: 1px solid #cbd5e1 !important;
+            font-size: 9.5pt !important;
+            color: #334155 !important;
+          }
+          .content-box tr:nth-child(even), table tr:nth-child(even) {
+            background-color: #fcfcfd !important;
+          }
+
+          /* Rubric Grid Table */
+          table.rubric-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+          }
+          table.rubric-grid th {
+            background-color: #1e3a8a !important;
+            color: #ffffff !important;
+            font-weight: bold;
+            text-align: left;
+            padding: 8px 12px !important;
+            font-size: 9.5pt !important;
+            border: 1px solid #1e3a8a !important;
+          }
+          table.rubric-grid td {
+            padding: 8px 12px !important;
+            border: 1px solid #cbd5e1 !important;
+            font-size: 9.5pt !important;
+          }
+
+          /* Footer Sign */
+          .footer-sign {
+            margin-top: 30px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            font-size: 8.5pt;
+            color: #64748b;
+            text-align: center;
+            font-style: italic;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-banner">
+          <div class="brand-title">AITA LMS LEARNING MANAGEMENT SYSTEM</div>
+          <div class="doc-main-title">${title}</div>
+          <div style="font-size: 10pt; color: #475569;">
+            ${courseCode ? `Course Code: <strong>${courseCode}</strong> &bull; ` : ''}Subject: <strong>${subjectName}</strong> &bull; Total Marks: <strong>${totalMarks}</strong>
+          </div>
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td width="50%"><strong>👤 Lecturer:</strong> ${lecturerName}</td>
+            <td width="50%"><strong>⏰ Due:</strong> <span style="color: #dc2626; font-weight: bold;">${dueStr}</span></td>
+          </tr>
+        </table>
+
+        <div class="section-heading">ASSIGNMENT CONTENT & REQUIREMENTS</div>
+        <div class="content-box">
+          ${formattedBodyHtml}
+        </div>
+
+        ${rubricsList && rubricsList.length > 0 ? `
+          <div class="section-heading">GRADING RUBRIC</div>
+          <table class="rubric-grid">
+            <thead>
+              <tr>
+                <th width="8%" align="center">No</th>
+                <th width="72%">Criteria</th>
+                <th width="20%" align="center">Max score</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rubricsList.map((r: any, idx: number) => {
+      const rPoints = r.weight ?? r.maxPoints ?? r.maxScore ?? r.points ?? r.score ?? 0;
+      return `
+                <tr>
+                  <td align="center"><strong>${idx + 1}</strong></td>
+                  <td>${r.description || r.title || 'Criterion'}</td>
+                  <td align="center"><strong style="color:#2563eb;">${rPoints} pts</strong></td>
+                </tr>
+              `}).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <div class="footer-sign">
+          Assignment sheet exported automatically from AITA LMS &bull; Downloaded on: ${new Date().toLocaleDateString(undefined)}
+        </div>
+      </body>
+      </html>
+    `
+
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    document.body.appendChild(iframe)
+
+    const frameDoc = iframe.contentWindow?.document
+    if (frameDoc) {
+      frameDoc.open()
+      frameDoc.write(pdfHtml)
+      frameDoc.close()
+      iframe.contentWindow?.focus()
+      setTimeout(() => {
+        iframe.contentWindow?.print()
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+        }, 1000)
+      }, 300)
+    }
+  }
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto animate-in fade-in duration-500 relative">
@@ -834,15 +1170,26 @@ export function StudentAssignmentDetail() {
               <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <FileText size={18} className="text-blue-600" /> Assignment details
               </h2>
-              <button
-                onClick={handleDownloadFormattedDoc}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 text-xs font-bold rounded-lg transition-all border border-blue-200 dark:border-blue-800/60 shadow-sm"
-                title={t('st.asg.download_docx')}
-              >
-                <Download size={14} /> Download (.docx)
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadFormattedPdf}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer"
+                  title={t('st.asg.download_pdf')}
+                >
+                  <Download size={14} /> Download (.pdf)
+                </button>
+                {/* Tạm thời ẩn nút Download (.docx). Bỏ comment dưới đây nếu muốn khôi phục lại tùy chọn tải file Word:
+                <button
+                  onClick={handleDownloadFormattedDoc}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 text-xs font-medium rounded-lg transition-all border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  title={t('st.asg.download_docx')}
+                >
+                  <FileText size={14} /> Download (.docx)
+                </button>
+                */}
+              </div>
             </div>
-            <div className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
+            <div id="printable-assignment-container" className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
               <SmartAssignmentContent content={fullContent || assignment.description || (assignment as any)?.metadata?.description || ''} />
             </div>
           </Card>
