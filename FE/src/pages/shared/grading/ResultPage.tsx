@@ -3,7 +3,7 @@ import { useLocation, useParams, Link, useNavigate } from 'react-router-dom';
 import type { SubmissionResponse } from '@/types';
 import ScoreCard from '@/components/modules/grading/ScoreCard';
 import RuleList from '@/components/modules/grading/RuleList';
-import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw, MessageSquare, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, Clock, Send, RotateCcw, MessageSquare, Pencil, Check, X, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { formatLatexMath } from '@/utils/mathHelper';
 import { gradingApi as api } from '@/lib/api';
@@ -21,6 +21,7 @@ export default function ResultPage() {
   const [loading, setLoading] = useState(!result);
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showPublishWarningModal, setShowPublishWarningModal] = useState(false);
 
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
@@ -64,7 +65,7 @@ export default function ResultPage() {
     }
   };
 
-  const handleTogglePublish = async () => {
+  const doPublish = async () => {
     if (!id || !result) return;
     try {
       setIsPublishing(true);
@@ -93,7 +94,24 @@ export default function ResultPage() {
       alert(e.message || 'Error updating publish status');
     } finally {
       setIsPublishing(false);
+      setShowPublishWarningModal(false);
     }
+  };
+
+  const handleTogglePublish = async () => {
+    if (!id || !result) return;
+    const isCurrentlyPublished = !!(result as any).isPublished;
+
+    // If lecturer is publishing (not unpublishing), check deadline
+    if (!isCurrentlyPublished) {
+      const dueDateStr = (result as any).dueDate || (result as any).due;
+      if (dueDateStr && new Date() < new Date(dueDateStr)) {
+        setShowPublishWarningModal(true);
+        return;
+      }
+    }
+
+    await doPublish();
   };
 
   const handleSubmitFeedback = async (e: React.FormEvent) => {
@@ -452,6 +470,50 @@ export default function ResultPage() {
           </div>
         )}
       </div>
+
+      {/* Deadline Warning Modal for Single Submission Publish */}
+      {showPublishWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Cảnh báo: Chưa hết hạn nộp bài!</h3>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">Deadline bài tập này vẫn còn hạn</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200/80 dark:border-amber-900/30 text-sm text-slate-700 dark:text-slate-300 space-y-2 leading-relaxed">
+              <p>
+                Nếu bạn công bố điểm ngay bây giờ, sinh viên sẽ <strong>thấy đáp án và nhận xét chi tiết</strong>.
+              </p>
+              <p className="text-amber-800 dark:text-amber-300 font-medium">
+                ⚠️ Sinh viên vẫn còn thời hạn nộp bài nên có thể <strong>chỉnh sửa bài để nộp lại (resubmit)</strong> dựa trên đáp án đã xem.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPublishWarningModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={doPublish}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold shadow-md shadow-amber-600/20 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Send size={16} />
+                <span>Vẫn công bố điểm</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
