@@ -3,9 +3,10 @@ import classNames from 'classnames';
 
 interface Props {
   rule: any;
+  isStudentView?: boolean;
 }
 
-export function RubricRuleSpecViewer({ rule }: Props) {
+export function RubricRuleSpecViewer({ rule, isStudentView = false }: Props) {
   if (!rule) return null;
 
   const evidenceList = rule.requiredEvidence || [];
@@ -14,9 +15,9 @@ export function RubricRuleSpecViewer({ rule }: Props) {
   const httpProbe = evidenceList.find((e: any) => e?.httpProbe)?.httpProbe || rule.httpProbe;
   const referenceImage = evidenceList.find((e: any) => e?.referenceImageUrl || e?.mockupUrl || e?.imageUrl)?.referenceImageUrl || rule.referenceImageUrl || rule.mockupUrl;
 
-  const hasStdCases = stdProbe?.testCases && stdProbe.testCases.length > 0;
-  const hasSqlCases = sqlProbe?.testCases && sqlProbe.testCases.length > 0;
-  const hasHttpSteps = httpProbe?.steps && httpProbe.steps.length > 0;
+  const hasStdCases = !isStudentView && stdProbe?.testCases && stdProbe.testCases.length > 0;
+  const hasSqlCases = !isStudentView && sqlProbe?.testCases && sqlProbe.testCases.length > 0;
+  const hasHttpSteps = !isStudentView && httpProbe?.steps && httpProbe.steps.length > 0;
 
   if (!hasStdCases && !hasSqlCases && !hasHttpSteps && !referenceImage) {
     return null;

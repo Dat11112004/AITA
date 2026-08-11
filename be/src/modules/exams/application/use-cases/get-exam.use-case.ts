@@ -69,6 +69,19 @@ export class GetExamUseCase implements IUseCase<string, ExamResponseDto> {
       if (published && published.Data) {
         const data = JSON.parse(published.Data)
         if (data.rubric && data.rubric.rules) {
+          // Extract sqlSetupScript if available
+          for (const rule of data.rubric.rules) {
+            if (rule.requiredEvidence && Array.isArray(rule.requiredEvidence)) {
+              for (const ev of rule.requiredEvidence) {
+                if (ev?.sqlProbe?.setupScript && typeof ev.sqlProbe.setupScript === 'string' && ev.sqlProbe.setupScript.trim().length > 0) {
+                  (exam as any).sqlSetupScript = ev.sqlProbe.setupScript.trim();
+                  break;
+                }
+              }
+            }
+            if ((exam as any).sqlSetupScript) break;
+          }
+
           // Map AI rubric to DTO format
           (exam as any).aiRubrics = data.rubric.rules.map((rule: any) => ({
             id: rule.id,

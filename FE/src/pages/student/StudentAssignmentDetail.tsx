@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, memo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api, gradingApi, type AssignmentRow, type SubmissionRow, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api'
-import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw, Copy, Terminal } from 'lucide-react'
+import { FileText, UploadCloud, CheckCircle2, AlertCircle, Send, Loader2, Download, ChevronRight, Clock, Calendar, Check, Minus, Paperclip, Award, Sparkles, RotateCcw, Copy, Terminal, Database, Code } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -50,10 +50,18 @@ const CodeBlockViewer = memo(function CodeBlockViewer({ code, language = 'code',
   );
 });
 
+function stripCodeSkeleton(rawContent: string): string {
+  if (!rawContent) return '';
+  return rawContent
+    .replace(/(?:\r?\n|^)(?:#{1,6}\s*|\*\*|__)?\s*Code\s+Skeleton:?\s*(?:\*\*|__)?[\s\S]*?(?=(?:\r?\n#{1,6}\s)|(?:\r?\n\s*(?:#{1,6}|\*\*|__)?\s*(?:Constraints|Question|Rubric|Note|Problem|Example|Output|Input))|$)/gi, '')
+    .trim();
+}
+
 const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }: { content: string }) {
   const [copiedIdx, setCopiedIdx] = useState<string | number | null>(null);
+  const sanitizedContent = stripCodeSkeleton(content);
 
-  if (!content || !content.trim()) {
+  if (!sanitizedContent || !sanitizedContent.trim()) {
     return (
       <div className="p-8 text-center bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
         <FileText className="w-10 h-10 mx-auto text-slate-400 mb-2" />
@@ -68,17 +76,17 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
-  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  const isHtml = /<[a-z][\s\S]*>/i.test(sanitizedContent);
   if (isHtml) {
     return (
       <div
         className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words overflow-hidden [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
-        dangerouslySetInnerHTML={{ __html: content }}
+        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
       />
     );
   }
 
-  if (content.includes('```')) {
+  if (sanitizedContent.includes('```')) {
     return (
       <div className="prose prose-slate dark:prose-invert max-w-none break-words text-sm leading-relaxed">
         <ReactMarkdown
@@ -112,13 +120,13 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
             ol: ({ children }) => <ol className="list-decimal list-inside space-y-1.5 mb-4 text-slate-700 dark:text-slate-300">{children}</ol>,
           }}
         >
-          {content}
+          {sanitizedContent}
         </ReactMarkdown>
       </div>
     );
   }
 
-  const lines = content.split('\n');
+  const lines = sanitizedContent.split('\n');
   const blocks: { type: 'text' | 'code' | 'heading'; content: string }[] = [];
 
   let currentCodeLines: string[] = [];
@@ -276,8 +284,53 @@ export function StudentAssignmentDetail() {
 
   const [appealText, setAppealText] = useState('')
   const [showAppeal, setShowAppeal] = useState(false)
+  const [showSqlPreview, setShowSqlPreview] = useState(false)
+  const [copiedSql, setCopiedSql] = useState(false)
 
   const dueDate = assignment?.due || (assignment as any)?.stats?.dueDate || (assignment as any)?.metadata?.dueDate || (assignment as any)?.dueDate || (assignment as any)?.DueDate || (assignment as any)?.ExamClass?.[0]?.DueDate
+
+  const getSqlSetupScript = (ass: any): string | null => {
+    if (!ass) return null;
+    if (ass.sqlSetupScript && typeof ass.sqlSetupScript === 'string' && ass.sqlSetupScript.trim().length > 0) {
+      return ass.sqlSetupScript.trim();
+    }
+    if (ass.setupScript && typeof ass.setupScript === 'string' && ass.setupScript.trim().length > 0) {
+      return ass.setupScript.trim();
+    }
+
+    const rules = ass.rubric?.rules || ass.rubrics || ass.aiRubrics || [];
+    if (Array.isArray(rules)) {
+      for (const rule of rules) {
+        if (rule.requiredEvidence && Array.isArray(rule.requiredEvidence)) {
+          for (const ev of rule.requiredEvidence) {
+            if (ev?.sqlProbe?.setupScript && typeof ev.sqlProbe.setupScript === 'string' && ev.sqlProbe.setupScript.trim().length > 0) {
+              return ev.sqlProbe.setupScript.trim();
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  const sqlSetupScript = getSqlSetupScript(assignment)
+
+  const handleDownloadSqlSetupScript = () => {
+    if (!sqlSetupScript || !assignment) return
+    const titleStr = assignment.title || (assignment as any)?.metadata?.title || 'DBI_Assignment'
+    const safeTitle = titleStr.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_')
+    const fileName = `${safeTitle}_Setup_Script.sql`
+
+    const blob = new Blob(['\ufeff', sqlSetupScript], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const loadData = useCallback((showLoader = false) => {
     if (!id) return
@@ -1081,6 +1134,68 @@ export function StudentAssignmentDetail() {
               </div>
             </div>
           </div>
+
+          {/* Card: SQL Answer Key & Setup Script (Specifically for DBI / SQL Assignments when lecturer attached key) */}
+          {sqlSetupScript && (
+            <Card className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border border-emerald-300 dark:border-emerald-700/60 shadow-sm overflow-hidden animate-in fade-in duration-300 mb-4">
+              <div className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <Database size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                          {t('st.asg.sql_title')}
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs">
+                          {t('st.asg.sql_badge')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 font-medium">
+                        {t('st.asg.sql_desc')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setShowSqlPreview(!showSqlPreview)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-xs transition-all cursor-pointer"
+                    >
+                      <Code size={15} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>{showSqlPreview ? t('st.asg.sql_hide') : t('st.asg.sql_view')}</span>
+                    </button>
+
+                    <button
+                      onClick={handleDownloadSqlSetupScript}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+                    >
+                      <Download size={15} />
+                      <span>{t('st.asg.sql_download')}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {showSqlPreview && (
+                  <div className="mt-4 pt-4 border-t border-emerald-200/80 dark:border-emerald-800/60 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <CodeBlockViewer
+                      code={sqlSetupScript}
+                      language="SQL Answer Key & Setup Script (.sql)"
+                      onCopy={() => {
+                        navigator.clipboard.writeText(sqlSetupScript);
+                        setCopiedSql(true);
+                        setTimeout(() => setCopiedSql(false), 2000);
+                      }}
+                      isCopied={copiedSql}
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* Reopen Notification Banner */}
           {submission?.isReopened && (
             <div className="p-4 rounded-2xl border flex items-center gap-3.5 bg-blue-50/90 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200 mb-4 shadow-sm">
@@ -1283,7 +1398,7 @@ export function StudentAssignmentDetail() {
                             {displayPoints}
                           </span>
                         </div>
-                        <RubricRuleSpecViewer rule={rule} />
+                        <RubricRuleSpecViewer rule={rule} isStudentView={true} />
 
                         {rule.criteria && rule.criteria.length > 0 && (
                           <ul className="divide-y divide-slate-100 dark:divide-slate-800">

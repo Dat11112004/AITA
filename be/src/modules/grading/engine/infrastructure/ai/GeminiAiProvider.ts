@@ -263,7 +263,7 @@ OUTPUT FORMAT (JSON OBJECT)
 
                 // Verify if the original prompt text actually contains explicit point designations (e.g. "5 pts", "3 điểm")
                 const hasExplicitPointText = /\b(\d+(?:[\.,]\d+)?)\s*(?:pt|pts|point|points|điểm|diem|mark|marks|%)\b/i.test(prompt) ||
-                                             /(?:điểm|diem|score|marks)\s*:\s*\d+/i.test(prompt);
+                    /(?:điểm|diem|score|marks)\s*:\s*\d+/i.test(prompt);
 
                 if (!hasExplicitPointText) {
                     console.log('[GeminiAiProvider] Prompt has no explicit point markings. Forcing hasExplicitRubric = false.');

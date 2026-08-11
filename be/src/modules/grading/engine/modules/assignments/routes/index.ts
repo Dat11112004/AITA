@@ -24,6 +24,7 @@ export function createAssignmentRoutes(): Router {
   router.post('/publish', controller.publish);
   router.get('/', controller.getAll);
   router.get('/:id/events', controller.streamAssignmentEvents);
+  router.get('/:id/sql-key', controller.downloadSqlKey);
   router.get('/:id', controller.getById);
   router.put('/strategy/update-all', controller.updateAllStrategy);
   router.post('/:id/update-answer-key', upload.single('file'), controller.updateAnswerKey);

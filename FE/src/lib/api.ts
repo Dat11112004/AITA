@@ -879,6 +879,10 @@ export const gradingApi = {
     })
   },
 
+  getSqlKeyUrl: (assignmentId: string) => {
+    return `${(import.meta as any).env.VITE_API_URL || '/api'}/grading/assignments/${assignmentId}/sql-key?token=${getStoredItem(AUTH_STORAGE_KEYS.token)}`
+  },
+
   gradeExistingSubmission: (submissionId: string) => {
     return request<{ submissionId: string, statusUrl: string }>('/grading/submissions/grade-existing', {
       method: 'POST',

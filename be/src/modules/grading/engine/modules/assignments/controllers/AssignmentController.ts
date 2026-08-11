@@ -45,6 +45,20 @@ function cleanExpiredImageCache(): void {
     }
 }
 
+export function extractSqlSetupScript(rubric: any): string | null {
+    if (!rubric || !rubric.rules || !Array.isArray(rubric.rules)) return null;
+    for (const rule of rubric.rules) {
+        if (rule.requiredEvidence && Array.isArray(rule.requiredEvidence)) {
+            for (const ev of rule.requiredEvidence) {
+                if (ev?.sqlProbe?.setupScript && typeof ev.sqlProbe.setupScript === 'string' && ev.sqlProbe.setupScript.trim().length > 0) {
+                    return ev.sqlProbe.setupScript.trim();
+                }
+            }
+        }
+    }
+    return null;
+}
+
 export class AssignmentController extends BaseController {
     private assignmentRepository: PublishedAssignmentRepository;
     private aiProvider: GeminiAiProvider;
@@ -580,8 +594,11 @@ export class AssignmentController extends BaseController {
                     };
                 }
 
+                const sqlSetupScript = extractSqlSetupScript(assignment.rubric);
+
                 const enhancedAssignment = {
                     ...assignment,
+                    sqlSetupScript,
                     metadata: {
                         ...assignment.metadata,
                         gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE'
@@ -595,6 +612,28 @@ export class AssignmentController extends BaseController {
             }
         } catch (error) {
             throw new Error('Error fetching assignment');
+        }
+    };
+
+    downloadSqlKey = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+            const assignment = await this.assignmentRepository.getAsync(id);
+            if (!assignment) {
+                throw new BadRequestError('Assignment not found');
+            }
+            const sqlSetupScript = extractSqlSetupScript(assignment.rubric);
+            if (!sqlSetupScript) {
+                throw new BadRequestError('No SQL Answer Key & Setup Script found for this assignment');
+            }
+
+            const safeTitle = (assignment.metadata?.title || 'DBI_Assignment').replace(/[^a-zA-Z0-9_]/g, '_');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}_Setup_Script.sql"`);
+            res.send(sqlSetupScript);
+        } catch (error: any) {
+            console.error('[AssignmentController] Error downloading SQL Key:', error);
+            res.status(400).json({ error: error.message || 'Error downloading SQL Key' });
         }
     };
 
