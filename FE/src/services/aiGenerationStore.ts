@@ -214,7 +214,7 @@ class AiGenerationStoreManager {
           : (extractedData?.rawText || ''));
 
       this.setState({
-        loadingMsg: 'Gemini is generating assignment structure from extracted file...',
+        loadingMsg: 'AITA is generating assignment structure from extracted file...',
         progress: 40,
       });
       const promptHeader = [
