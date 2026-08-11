@@ -168,7 +168,7 @@ export function FormattedText({ text, className }: FormattedTextProps) {
       renderedBlocks.push(
         <div key={`bullet-${lineIdx}`} className="flex items-start gap-2 mt-1 leading-relaxed ml-3.5">
           <span className="text-slate-400 dark:text-slate-500 font-mono text-xs font-bold shrink-0 mt-0.5">–</span>
-          <div className="flex-1 text-slate-700 dark:text-slate-300 text-xs font-mono">{renderInlineParts(lineContent)}</div>
+          <div className="flex-1 min-w-0 break-words text-slate-700 dark:text-slate-300 text-xs font-mono">{renderInlineParts(lineContent)}</div>
         </div>
       );
     } else {
@@ -182,5 +182,5 @@ export function FormattedText({ text, className }: FormattedTextProps) {
     lineIdx++;
   }
 
-  return <div className={`space-y-1 ${className || ''}`}>{renderedBlocks}</div>;
+  return <div className={`space-y-1 min-w-0 break-words ${className || ''}`}>{renderedBlocks}</div>;
 }

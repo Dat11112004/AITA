@@ -79,10 +79,12 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
   const isHtml = /<[a-z][\s\S]*>/i.test(sanitizedContent);
   if (isHtml) {
     return (
-      <div
-        className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words overflow-hidden [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
-        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-      />
+      <div className="w-full max-w-full overflow-x-auto min-w-0">
+        <div
+          className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words min-w-0 [&_table]:max-w-full [&_table]:w-full [&_table]:table-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+        />
+      </div>
     );
   }
 
@@ -1082,10 +1084,10 @@ export function StudentAssignmentDetail() {
           </div>
         </div>
       )}
-      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 max-w-[1600px] mx-auto">
+      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 max-w-[1600px] mx-auto min-w-0">
 
         {/* Left Column: Assignment Context (Like EduNext) */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
 
           <div className="mb-6">
             {/* Breadcrumb */}
@@ -1304,7 +1306,7 @@ export function StudentAssignmentDetail() {
                 */}
               </div>
             </div>
-            <div id="printable-assignment-container" className="p-5 text-[15px] text-slate-700 dark:text-slate-300">
+            <div id="printable-assignment-container" className="p-5 text-[15px] text-slate-700 dark:text-slate-300 min-w-0 max-w-full overflow-x-auto">
               <SmartAssignmentContent content={fullContent || assignment.description || (assignment as any)?.metadata?.description || ''} />
             </div>
           </Card>
@@ -1383,13 +1385,13 @@ export function StudentAssignmentDetail() {
                     return (
                       <div key={rule.id || index} className="rounded-lg border border-blue-50 dark:border-blue-900/30 overflow-hidden bg-blue-50/50 dark:bg-blue-900/10">
                         <div className="p-4 flex justify-between items-start gap-4">
-                          <div className="flex gap-3 flex-1">
+                          <div className="flex gap-3 flex-1 min-w-0">
                             <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm border border-blue-200 dark:border-blue-800">
                               {index + 1}
                             </div>
-                            <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1">
+                            <div className="text-sm text-slate-800 dark:text-slate-200 block leading-relaxed mt-1 min-w-0 flex-1 break-words">
                               {rule.title && (
-                                <span className="font-bold text-slate-900 dark:text-white block mb-1">{rule.title}</span>
+                                <span className="font-bold text-slate-900 dark:text-white block mb-1 break-words">{rule.title}</span>
                               )}
                               <FormattedText text={rule.description || rule.title || 'Criterion'} />
                             </div>
@@ -1555,7 +1557,7 @@ export function StudentAssignmentDetail() {
         </div>
 
         {/* Right Column: Submission Form & Info */}
-        <div className="space-y-6 lg:pt-[88px]">
+        <div className="space-y-6 lg:pt-[88px] min-w-0">
           <Card className="bg-slate-50 dark:bg-[#1a1d27] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-2">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">
