@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -78,6 +78,7 @@ export default function AssignmentPage() {
   const [hasActiveBatch, setHasActiveBatch] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+  const [regradingId, setRegradingId] = useState<string | null>(null);
 
   const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false);
   const [newDueDate, setNewDueDate] = useState('');
@@ -284,12 +285,15 @@ export default function AssignmentPage() {
   const handleGradeSubmission = async (e: React.MouseEvent, submissionId: string) => {
     e.stopPropagation();
     try {
+      setRegradingId(submissionId);
       const res = await api.gradeExistingSubmission(submissionId);
       // Immediately navigate to live grading page
       navigate(`/lecturer/grading/live/${res.submissionId}?assignmentId=${id || ''}`);
     } catch (err) {
       console.error("Failed to grade submission", err);
       setError(t('lc.ap.start_grading_failed'));
+    } finally {
+      setRegradingId(null);
     }
   };
 
@@ -958,15 +962,13 @@ export default function AssignmentPage() {
               {history.map((item) => {
                 const percentage = item.maxScore > 0 ? (item.score / item.maxScore) * 100 : 0;
                 let textClass = 'text-slate-600';
-                let rank = 'D';
-                let rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400';
 
-                if (percentage >= 90) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A+'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 80) { textClass = 'text-emerald-600 dark:text-emerald-400'; rank = 'A'; rankBg = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'; }
-                else if (percentage >= 70) { textClass = 'text-blue-600 dark:text-blue-400'; rank = 'B+'; rankBg = 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800'; }
-                else if (percentage >= 60) { textClass = 'text-indigo-600 dark:text-indigo-400'; rank = 'B'; rankBg = 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'; }
-                else if (percentage >= 50) { textClass = 'text-amber-600 dark:text-amber-400'; rank = 'C+'; rankBg = 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800'; }
-                else { textClass = 'text-red-600 dark:text-red-400'; rank = 'D'; rankBg = 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-800'; }
+                if (percentage >= 90) { textClass = 'text-emerald-600 dark:text-emerald-400'; }
+                else if (percentage >= 80) { textClass = 'text-emerald-600 dark:text-emerald-400'; }
+                else if (percentage >= 70) { textClass = 'text-blue-600 dark:text-blue-400'; }
+                else if (percentage >= 60) { textClass = 'text-indigo-600 dark:text-indigo-400'; }
+                else if (percentage >= 50) { textClass = 'text-amber-600 dark:text-amber-400'; }
+                else { textClass = 'text-red-600 dark:text-red-400'; }
 
                 return (
                   <tr
@@ -1015,11 +1017,21 @@ export default function AssignmentPage() {
                         <div className="text-slate-400 font-medium">-</div>
                       )}
                     </td>
-                    <td className="py-4 px-4 text-center">
+                    <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
                       {item.status === 'Graded' ? (
-                        <span className={classNames("px-3 py-1 rounded-full text-xs font-bold", rankBg)}>
-                          {rank}
-                        </span>
+                        <button
+                          onClick={(e) => handleGradeSubmission(e, item.id)}
+                          disabled={regradingId === item.id}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                          title={t('lc.ap.act.regrade')}
+                        >
+                          {regradingId === item.id ? (
+                            <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" />
+                          ) : (
+                            <RotateCcw size={14} />
+                          )}
+                          <span>{t('lc.ap.act.regrade')}</span>
+                        </button>
                       ) : (
                         <span className="text-slate-400 font-medium">-</span>
                       )}
@@ -1171,12 +1183,27 @@ export default function AssignmentPage() {
 
                 <div className="p-4 pt-0 mt-auto flex items-center gap-2">
                   {item.status === 'Graded' && (
-                    <button
-                      onClick={() => handleViewHistory(item.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
-                    >
-                      <Eye size={16} /> {t('lc.ap.act.view_result')}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleViewHistory(item.id)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-transparent rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        <Eye size={16} /> {t('lc.ap.act.view_result')}
+                      </button>
+                      <button
+                        onClick={(e) => handleGradeSubmission(e, item.id)}
+                        disabled={regradingId === item.id}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-500/20 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-sm font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                        title={t('lc.ap.act.regrade')}
+                      >
+                        {regradingId === item.id ? (
+                          <Loader2 size={16} className="animate-spin text-brand-600 dark:text-brand-400" />
+                        ) : (
+                          <RotateCcw size={16} />
+                        )}
+                        <span>{t('lc.ap.act.regrade')}</span>
+                      </button>
+                    </>
                   )}
                   {item.status === 'Grading' && (
                     <button

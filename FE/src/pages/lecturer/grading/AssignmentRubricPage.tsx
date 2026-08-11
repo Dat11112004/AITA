@@ -7,6 +7,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 
+function cleanAssignmentHtml(rawHtml: string): string {
+  if (!rawHtml) return '';
+  let cleaned = rawHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+  cleaned = cleaned.replace(/\s*style\s*=\s*(["'])([\s\S]*?)\1/gi, (_, __, styleContent) => {
+    const cleanedStyle = styleContent
+      .replace(/(?:width|max-width|min-width)\s*:\s*[^;"]+;?/gi, '')
+      .replace(/word-break\s*:\s*break-all;?/gi, '')
+      .replace(/white-space\s*:\s*nowrap;?/gi, '')
+      .trim();
+    return cleanedStyle ? ` style="${cleanedStyle}"` : '';
+  });
+  return cleaned;
+}
+
 export default function AssignmentRubricPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -28,36 +42,47 @@ export default function AssignmentRubricPage() {
     load();
   }, [id]);
 
-  if (loading) return <div className="text-center py-20 text-slate-400">{t('lc.gr.loading')}</div>;
-  if (!assignment) return <div className="text-center py-20 text-red-400">{t('lc.gr.not_found')}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!assignment) {
+    return <div className="p-8 text-center text-slate-500">{t('lc.gr.not_found')}</div>;
+  }
+
+  const htmlContent = (assignment.metadata as any)?.content || assignment.metadata?.description || '';
+  const cleanedHtml = cleanAssignmentHtml(htmlContent);
 
   return (
-    <div className="max-w-6xl mx-auto pb-8 -mt-2 sm:-mt-4">
-      <div className="mb-6 animate-fade-in">
-          <button onClick={() => navigate(`/lecturer/grading/assignments/${id}`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
-            <ArrowLeft size={20} />
-            {t('lc.gr.back')}
-          </button>
-      </div>
+    <div className="max-w-5xl mx-auto pb-12 animate-in fade-in duration-300">
+      <button 
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 mb-6 transition-colors font-medium"
+      >
+        <ArrowLeft size={16} /> {t('lc.gr.back')}
+      </button>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
-            <div>
-            <div className="flex items-center gap-3 text-brand-600 dark:text-brand-400 mb-2">
-                <BookOpen size={24} />
-                <span className="font-semibold uppercase tracking-wider text-sm">{t('lc.gr.badge')}</span>
-            </div>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-8">
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400 flex items-center justify-center shrink-0">
+            <BookOpen size={24} />
+          </div>
+          <div>
             <h1 className="text-2xl font-bold dark:text-white text-slate-900">{assignment.metadata?.title || t('lc.gr.title_fallback')}</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{t('lc.gr.pass_threshold', { value: assignment.rubric?.passThreshold ? assignment.rubric.passThreshold * 100 : 70 })}</p>
             </div>
         </div>
 
-        {(assignment.metadata as any)?.content || assignment.metadata?.description ? (
+        {cleanedHtml ? (
           <div className="p-8 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">{t('lc.gr.details')}</h2>
             <div 
-                className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: (assignment.metadata as any).content || assignment.metadata.description }}
+                className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 leading-relaxed text-sm prose prose-sm prose-slate dark:prose-invert max-w-none [&_h1]:!w-full [&_h1]:!max-w-full"
+                dangerouslySetInnerHTML={{ __html: cleanedHtml }}
             />
           </div>
         ) : null}

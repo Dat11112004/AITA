@@ -57,6 +57,24 @@ function stripCodeSkeleton(rawContent: string): string {
     .trim();
 }
 
+function cleanAssignmentHtml(rawHtml: string): string {
+  if (!rawHtml) return '';
+  // 1. Strip embedded <style>...</style> blocks that pollute global page rules
+  let cleaned = rawHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+
+  // 2. Remove problematic inline width/max-width/word-break styles from tags like <h1>, <div>, <table>, etc.
+  cleaned = cleaned.replace(/\s*style\s*=\s*(["'])([\s\S]*?)\1/gi, (_, __, styleContent) => {
+    const cleanedStyle = styleContent
+      .replace(/(?:width|max-width|min-width)\s*:\s*[^;"]+;?/gi, '')
+      .replace(/word-break\s*:\s*break-all;?/gi, '')
+      .replace(/white-space\s*:\s*nowrap;?/gi, '')
+      .trim();
+    return cleanedStyle ? ` style="${cleanedStyle}"` : '';
+  });
+
+  return cleaned;
+}
+
 const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }: { content: string }) {
   const [copiedIdx, setCopiedIdx] = useState<string | number | null>(null);
   const sanitizedContent = stripCodeSkeleton(content);
@@ -78,11 +96,12 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
 
   const isHtml = /<[a-z][\s\S]*>/i.test(sanitizedContent);
   if (isHtml) {
+    const cleanedHtml = cleanAssignmentHtml(sanitizedContent);
     return (
       <div className="w-full max-w-full overflow-x-auto min-w-0">
         <div
-          className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words min-w-0 [&_table]:max-w-full [&_table]:w-full [&_table]:table-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold"
-          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+          className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words min-w-0 [&_table]:max-w-full [&_table]:w-full [&_table]:table-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h1]:!w-full [&_h1]:!max-w-full [&_h2]:text-lg [&_h2]:font-bold [&_h2]:!w-full [&_h3]:text-base [&_h3]:font-bold"
+          dangerouslySetInnerHTML={{ __html: cleanedHtml }}
         />
       </div>
     );
@@ -1084,10 +1103,10 @@ export function StudentAssignmentDetail() {
           </div>
         </div>
       )}
-      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 max-w-[1600px] mx-auto min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 max-w-[1600px] mx-auto min-w-0">
 
         {/* Left Column: Assignment Context (Like EduNext) */}
-        <div className="lg:col-span-2 space-y-4 min-w-0">
+        <div className="lg:col-span-8 space-y-4 min-w-0 w-full">
 
           <div className="mb-6">
             {/* Breadcrumb */}
@@ -1557,7 +1576,7 @@ export function StudentAssignmentDetail() {
         </div>
 
         {/* Right Column: Submission Form & Info */}
-        <div className="space-y-6 lg:pt-[88px] min-w-0">
+        <div className="lg:col-span-4 space-y-6 lg:pt-[88px] min-w-0 w-full">
           <Card className="bg-slate-50 dark:bg-[#1a1d27] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-2">
               <h3 className="font-bold text-slate-800 dark:text-slate-200">
