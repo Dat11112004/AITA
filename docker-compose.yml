@@ -29,18 +29,23 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=sqlserver://mssql:1433;database=AITA_DB;user=sa;password=YourPassword123!;encrypt=true;trustServerCertificate=true
       - JWT_SECRET=aita_super_secret_key_production_2026!
-      - CORS_ORIGIN=*
-      - FRONTEND_URL=http://localhost:8088
+      # ✅ ĐÃ ĐỔI SANG FEAITA:
+      - CORS_ORIGIN=https://feaita.edubridge.edu.vn,https://apiaita.edubridge.edu.vn,https://api.edubridge.edu.vn
+      - FRONTEND_URL=https://feaita.edubridge.edu.vn
     depends_on:
       - mssql
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /app/temp:/app/temp
+      - /app/uploads:/app/uploads
     restart: always
 
   frontend:
     build:
       context: ./FE
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://apiaita.edubridge.edu.vn/api
     container_name: aita-frontend
     ports:
       - "8088:80"
