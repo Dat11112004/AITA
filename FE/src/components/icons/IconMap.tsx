@@ -24,6 +24,7 @@ import {
   Zap,
   Library,
   Bot,
+  Bell,
   BellRing,
   UserCircle,
   type LucideIcon,
@@ -55,6 +56,7 @@ const ICONS: Record<string, LucideIcon> = {
   Target,
   Library,
   Bot,
+  Bell,
   BellRing,
   UserCircle,
 }
