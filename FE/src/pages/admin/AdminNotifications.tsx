@@ -4,7 +4,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { api } from '@/lib/api'
-import { Send, BellRing, Loader2, CheckCircle2 } from 'lucide-react'
+import { Send, BellRing, Loader2, CheckCircle2, Users, GraduationCap, BookOpen } from 'lucide-react'
 
 export function AdminNotifications() {
   const [form, setForm] = useState({ title: '', message: '', targetRole: 'ALL', type: 'SYSTEM' })
@@ -72,16 +72,65 @@ export function AdminNotifications() {
               />
             </div>
             
-            <Select 
-              label="Recipients" 
-              options={[
-                { value: 'ALL', label: 'Everyone' },
-                { value: 'LECTURER', label: 'Lecturers Only' },
-                { value: 'STUDENT', label: 'Students Only' }
-              ]}
-              value={form.targetRole} 
-              onChange={(e) => setForm({ ...form, targetRole: e.target.value })} 
-            />
+            <div className="sm:col-span-2 space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Target Audience (3 Roles)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  {
+                    value: 'ALL',
+                    label: 'Everyone (All Roles)',
+                    sublabel: 'Send to all active Lecturers and Students',
+                    icon: Users,
+                    color: 'text-indigo-600 bg-indigo-50 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400',
+                    activeBorder: 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-900/30'
+                  },
+                  {
+                    value: 'LECTURER',
+                    label: 'Lecturers Only',
+                    sublabel: 'Send to all teaching staff & lecturers',
+                    icon: GraduationCap,
+                    color: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400',
+                    activeBorder: 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/70 dark:bg-blue-900/30'
+                  },
+                  {
+                    value: 'STUDENT',
+                    label: 'Students Only',
+                    sublabel: 'Send to all enrolled students',
+                    icon: BookOpen,
+                    color: 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400',
+                    activeBorder: 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-900/30'
+                  }
+                ].map((role) => {
+                  const RoleIcon = role.icon
+                  const isSelected = form.targetRole === role.value
+                  return (
+                    <button
+                      key={role.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, targetRole: role.value })}
+                      className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer ${
+                        isSelected
+                          ? role.activeBorder
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-[#151821]'
+                      }`}
+                    >
+                      <div className={`p-2.5 rounded-lg shrink-0 border ${role.color}`}>
+                        <RoleIcon size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{role.label}</p>
+                          {isSelected && <CheckCircle2 size={16} className="text-brand-600 dark:text-brand-400 shrink-0 ml-1" />}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{role.sublabel}</p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
             
             <Select 
               label="Notification Type" 

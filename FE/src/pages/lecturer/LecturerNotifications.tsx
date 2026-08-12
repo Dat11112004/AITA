@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Bell, Check, Clock, MessageSquare, Loader2, ExternalLink, Trash2, ShieldAlert } from 'lucide-react'
+import { Bell, Check, Clock, MessageSquare, Loader2, ExternalLink, Trash2, ShieldAlert, User, GraduationCap } from 'lucide-react'
 import { api } from '@/lib/api'
 import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
@@ -223,10 +223,23 @@ export function LecturerNotifications() {
                       {isFeedback ? <MessageSquare size={20} /> : isSystem ? <ShieldAlert size={20} /> : <Bell size={20} />}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center flex-wrap gap-2">
                         <h4 className={`font-bold text-base ${!n.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}>
                           {n.title}
                         </h4>
+                        {isSystem ? (
+                          <span className="text-xs px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 font-semibold inline-flex items-center gap-1">
+                            <ShieldAlert size={12} /> Admin
+                          </span>
+                        ) : isFeedback ? (
+                          <span className="text-xs px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-semibold inline-flex items-center gap-1">
+                            <User size={12} /> Student
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-semibold inline-flex items-center gap-1">
+                            <GraduationCap size={12} /> Lecturer
+                          </span>
+                        )}
                         {targetId && (
                           <span className="text-xs px-2 py-0.5 rounded-md bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity font-semibold">
                             <ExternalLink size={12} /> View details

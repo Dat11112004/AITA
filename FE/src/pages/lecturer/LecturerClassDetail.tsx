@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
+import { api, gradingApi, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
 import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -40,24 +40,61 @@ export function LecturerClassDetail() {
       setAssignments(assignmentList)
 
       const submissionLists = await Promise.all(
-        assignmentList.map(a =>
-          api.getSubmissions({ assignmentId: a.id }).catch(() => [] as SubmissionRow[])
-        )
+        assignmentList.map(async a => {
+          try {
+            const list = await api.getSubmissions({ assignmentId: a.id });
+            if (list && list.length > 0) return list;
+            const history = await gradingApi.getHistory(a.id);
+            return (history?.history || []) as any[];
+          } catch {
+            return [];
+          }
+        })
       )
 
       const byAssignment: Record<string, SubmissionRow[]> = {}
       assignmentList.forEach((a, i) => { byAssignment[a.id] = submissionLists[i] || [] })
 
-      const scoreFor = (studentId: string, assignmentId: string) => {
-        const found = (byAssignment[assignmentId] || []).find(s => s.studentId === studentId)
-        const raw = found?.score ?? found?.finalScore ?? found?.aiScore
-        return raw === null || raw === undefined ? undefined : Number(raw)
+      const scoreFor = (st: any, assignmentId: string) => {
+        const subs = byAssignment[assignmentId] || []
+        const found = subs.find((sub: any) => {
+          if (!sub) return false
+          const subStudentId = sub.studentId || sub.student?.id || sub.userId
+          const subStudentCode = sub.studentCode || sub.student?.studentCode || sub.student?.code
+          const subStudentName = sub.studentName || sub.student?.name || sub.student?.fullName || sub.student
+
+          const stId = st.id || st.studentId
+          const stCode = st.studentId || st.studentCode || st.code
+          const stName = st.name || st.fullName
+
+          return (
+            (subStudentId && (subStudentId === stId || subStudentId === stCode)) ||
+            (subStudentCode && (subStudentCode === stCode || subStudentCode === stId)) ||
+            (subStudentName && stName && typeof subStudentName === 'string' && typeof stName === 'string' && subStudentName.trim().toLowerCase() === stName.trim().toLowerCase())
+          )
+        })
+
+        if (!found) return undefined
+
+        const raw =
+          found.score ??
+          found.finalScore ??
+          found.totalScore ??
+          found.aiScore ??
+          (found as any).rawScore ??
+          (found as any).rawTotalScore ??
+          (found as any).rawAiScore ??
+          (found as any).rawFinalScore
+
+        if (raw === null || raw === undefined || raw === '') return undefined
+        const parsed = Number(raw)
+        return isNaN(parsed) ? undefined : parsed
       }
 
       setStudents((studentsData || []).map((s: any) => ({
         ...s,
         scores: Object.fromEntries(
-          assignmentList.map(a => [a.id, scoreFor(s.studentId || s.id, a.id)])
+          assignmentList.map(a => [a.id, scoreFor(s, a.id)])
         ) as Record<string, number | undefined>,
       })))
     } catch (error) {
@@ -298,35 +335,85 @@ export function LecturerClassDetail() {
                     A1/A2/PE/FE columns did not correspond to anything in the data. */}
                 <DataTable
                   columns={[
-                    { key: 'name', header: t('lc.cd.col.student'), render: (r: any) => <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{r.name}</span> },
-                    ...assignments.map(a => ({
-                      key: a.id,
-                      header: a.title,
-                      render: (r: any) => {
-                        const score = r.scores?.[a.id]
-                        return (
-                          <span className="font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
-                            {score === undefined ? '—' : score}
-                          </span>
-                        )
-                      },
-                    })),
+                    {
+                      key: 'name',
+                      header: t('lc.cd.col.student'),
+                      render: (r: any) => (
+                        <div className="flex flex-col py-1">
+                          <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{r.name}</span>
+                          <span className="text-xs font-mono text-slate-400 font-medium">{r.studentId || r.code || r.studentCode || ''}</span>
+                        </div>
+                      )
+                    },
+                    ...assignments.map(a => {
+                      const displayTitle = a.title ? a.title.replace(/^[A-Z0-9]{3,8}\s*-\s*/i, '') : 'Assignment';
+                      const typeName = a.type ? (a.type.charAt(0).toUpperCase() + a.type.slice(1)) : 'Assignment';
+
+                      return {
+                        key: a.id,
+                        header: (
+                          <div className="flex flex-col gap-1 py-1 min-w-[180px]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 tracking-wider">
+                                {typeName}
+                              </span>
+                              {a.maxScore ? (
+                                <span className="text-[11px] font-bold text-slate-400">
+                                  ({a.maxScore} pts)
+                                </span>
+                              ) : null}
+                            </div>
+                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-2 leading-snug" title={displayTitle}>
+                              {displayTitle}
+                            </span>
+                          </div>
+                        ),
+                        render: (r: any) => {
+                          const score = r.scores?.[a.id];
+                          if (score === undefined || score === null) {
+                            return (
+                              <span className="font-mono text-xs font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 px-2.5 py-1 rounded-md">
+                                —
+                              </span>
+                            );
+                          }
+
+                          const numScore = Number(score);
+                          const isHigh = numScore >= 8;
+                          const isPass = numScore >= 5;
+
+                          return (
+                            <span
+                              className={`font-mono text-sm font-bold px-2.5 py-1 rounded-md border ${
+                                isHigh
+                                  ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50'
+                                  : isPass
+                                  ? 'text-blue-700 bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50'
+                                  : 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50'
+                              }`}
+                            >
+                              {numScore.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </span>
+                          );
+                        },
+                      };
+                    }),
                     {
                       key: 'total',
                       header: t('lc.cd.col.average'),
                       render: (r: any) => {
                         const marks = assignments
                           .map(a => r.scores?.[a.id])
-                          .filter((v): v is number => typeof v === 'number')
+                          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
                         const avg = marks.length > 0
                           ? (marks.reduce((s, v) => s + v, 0) / marks.length).toFixed(1)
-                          : '—'
-                        return <span className="font-mono text-base font-black text-brand-700 dark:text-brand-400">{avg}</span>
+                          : '—';
+                        return <span className="font-mono text-base font-black text-brand-700 dark:text-brand-400">{avg}</span>;
                       }
                     },
                   ]}
                   data={students}
-                  keyExtractor={(r: any) => r.studentId || r.email}
+                  keyExtractor={(r: any) => r.studentId || r.id || r.email}
                 />
               </div>
             </Card>
