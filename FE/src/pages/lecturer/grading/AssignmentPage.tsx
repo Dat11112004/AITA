@@ -969,6 +969,7 @@ export default function AssignmentPage() {
                 <th className="py-4 px-4">{t('lc.ap.col.submitted_at')}</th>
                 <th className="py-4 px-4 min-w-[120px]">{t('lc.ap.col.score')}</th>
                 <th className="py-4 px-4 text-center">{t('lc.ap.col.grade')}</th>
+                <th className="py-4 px-4 text-center">{t('lc.ap.col.download')}</th>
                 <th className="py-4 px-4 text-center">{t('lc.ap.col.status')}</th>
                 <th className="py-4 px-4 text-center">{t('lc.ap.col.actions')}</th>
               </tr>
@@ -1033,41 +1034,42 @@ export default function AssignmentPage() {
                       )}
                     </td>
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1.5">
-                        {item.status === 'Graded' && (
-                          <button
-                            onClick={(e) => handleGradeSubmission(e, item.id)}
-                            disabled={regradingId === item.id}
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
-                            title={t('lc.ap.act.regrade')}
-                          >
-                            {regradingId === item.id ? (
-                              <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" />
-                            ) : (
-                              <RotateCcw size={14} />
-                            )}
-                            <span>{t('lc.ap.act.regrade')}</span>
-                          </button>
-                        )}
-                        {item.status !== 'NotSubmitted' && (
-                          <button
-                            onClick={(e) => handleDownloadSubmission(e, item.id, item.studentName || item.studentCode)}
-                            disabled={downloadingId === item.id}
-                            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
-                            title="Download student submission"
-                          >
-                            {downloadingId === item.id ? (
-                              <Loader2 size={14} className="animate-spin text-slate-600 dark:text-slate-300" />
-                            ) : (
-                              <Download size={14} />
-                            )}
-                            <span>Tải về</span>
-                          </button>
-                        )}
-                        {item.status === 'NotSubmitted' && (
-                          <span className="text-slate-400 font-medium">-</span>
-                        )}
-                      </div>
+                      {item.status === 'Graded' ? (
+                        <button
+                          onClick={(e) => handleGradeSubmission(e, item.id)}
+                          disabled={regradingId === item.id}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                          title={t('lc.ap.act.regrade')}
+                        >
+                          {regradingId === item.id ? (
+                            <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" />
+                          ) : (
+                            <RotateCcw size={14} />
+                          )}
+                          <span>{t('lc.ap.act.regrade')}</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 font-medium">-</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                      {item.status !== 'NotSubmitted' ? (
+                        <button
+                          onClick={(e) => handleDownloadSubmission(e, item.id, item.studentName || item.studentCode)}
+                          disabled={downloadingId === item.id}
+                          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                          title={t('lc.ap.act.download') || "Tải về"}
+                        >
+                          {downloadingId === item.id ? (
+                            <Loader2 size={14} className="animate-spin text-slate-600 dark:text-slate-300" />
+                          ) : (
+                            <Download size={14} />
+                          )}
+                          <span>{t('lc.ap.act.download')}</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 font-medium">-</span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-center">
                       {item.status === 'Graded' && (
