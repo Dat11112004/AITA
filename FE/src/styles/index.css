@@ -63,6 +63,52 @@
     @apply bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-md font-mono text-[0.9em] font-medium;
   }
 
+  /* Force full width on prose containers across all assignments ("không bị hẹp") */
+  .prose {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .prose > * {
+    max-width: 100% !important;
+  }
+  .prose table {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Code blocks (<pre>, <code>): White/light-grey background with crisp black text in light mode */
+  .prose pre,
+  pre,
+  .code-block,
+  .rsw-ce pre {
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    border-radius: 0.75rem !important;
+  }
+  .prose pre *,
+  pre *,
+  .code-block *,
+  .rsw-ce pre * {
+    color: #0f172a !important;
+  }
+
+  /* Dark mode code blocks */
+  .dark .prose pre,
+  .dark pre,
+  .dark .code-block,
+  .dark .rsw-ce pre {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+  }
+  .dark .prose pre *,
+  .dark pre *,
+  .dark .code-block *,
+  .dark .rsw-ce pre * {
+    color: #f8fafc !important;
+  }
+
   /* Global hand pointer cursor on all clickable elements across Admin, Lecturer & Student roles */
   button:not(:disabled),
   a:not([aria-disabled="true"]),

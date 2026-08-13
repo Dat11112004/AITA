@@ -7,19 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 
-function cleanAssignmentHtml(rawHtml: string): string {
-  if (!rawHtml) return '';
-  let cleaned = rawHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
-  cleaned = cleaned.replace(/\s*style\s*=\s*(["'])([\s\S]*?)\1/gi, (_, __, styleContent) => {
-    const cleanedStyle = styleContent
-      .replace(/(?:width|max-width|min-width)\s*:\s*[^;"]+;?/gi, '')
-      .replace(/word-break\s*:\s*break-all;?/gi, '')
-      .replace(/white-space\s*:\s*nowrap;?/gi, '')
-      .trim();
-    return cleanedStyle ? ` style="${cleanedStyle}"` : '';
-  });
-  return cleaned;
-}
+import { cleanAssignmentHtml } from '@/utils/htmlCleaner';
 
 export default function AssignmentRubricPage() {
   const { id } = useParams<{ id: string }>();

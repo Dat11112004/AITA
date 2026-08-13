@@ -3,17 +3,21 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Set worker source to jsDelivr CDN to guarantee application/javascript MIME type across all environments
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
 
-export async function renderPdfToImages(file: File, scale = 0.9): Promise<string[]> {
+export async function renderPdfToImages(file: File, scale = 0.9, maxPages = 30): Promise<string[]> {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
-    // Limit to max 4 pages for AI vision to prevent payload explosion (> 50MB) on large PDFs
-    const numPages = Math.min(pdf.numPages, 4);
+    // Support multi-page PDFs (up to maxPages, default 30) for full document AI analysis
+    const numPages = Math.min(pdf.numPages, maxPages);
     const pageImages: string[] = [];
+    
+    // Optimize scale and compression dynamically to keep memory footprint light for 10+ page PDFs
+    const effectiveScale = numPages > 15 ? Math.min(scale, 0.75) : (numPages > 5 ? Math.min(scale, 0.8) : scale);
+    const jpegQuality = numPages > 15 ? 0.55 : (numPages > 5 ? 0.60 : 0.65);
     
     for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale });
+        const viewport = page.getViewport({ scale: effectiveScale });
         
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -30,8 +34,8 @@ export async function renderPdfToImages(file: File, scale = 0.9): Promise<string
         
         await page.render(renderContext as any).promise;
         
-        // Convert to medium quality JPEG (0.65) to keep bandwidth light (< 300KB per page)
-        const base64Img = canvas.toDataURL('image/jpeg', 0.65);
+        // Convert to optimized JPEG base64
+        const base64Img = canvas.toDataURL('image/jpeg', jpegQuality);
         pageImages.push(base64Img);
     }
     

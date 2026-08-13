@@ -57,23 +57,7 @@ function stripCodeSkeleton(rawContent: string): string {
     .trim();
 }
 
-function cleanAssignmentHtml(rawHtml: string): string {
-  if (!rawHtml) return '';
-  // 1. Strip embedded <style>...</style> blocks that pollute global page rules
-  let cleaned = rawHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
-
-  // 2. Remove problematic inline width/max-width/word-break styles from tags like <h1>, <div>, <table>, etc.
-  cleaned = cleaned.replace(/\s*style\s*=\s*(["'])([\s\S]*?)\1/gi, (_, __, styleContent) => {
-    const cleanedStyle = styleContent
-      .replace(/(?:width|max-width|min-width)\s*:\s*[^;"]+;?/gi, '')
-      .replace(/word-break\s*:\s*break-all;?/gi, '')
-      .replace(/white-space\s*:\s*nowrap;?/gi, '')
-      .trim();
-    return cleanedStyle ? ` style="${cleanedStyle}"` : '';
-  });
-
-  return cleaned;
-}
+import { cleanAssignmentHtml } from '@/utils/htmlCleaner'
 
 const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }: { content: string }) {
   const [copiedIdx, setCopiedIdx] = useState<string | number | null>(null);
@@ -100,7 +84,7 @@ const SmartAssignmentContent = memo(function SmartAssignmentContent({ content }:
     return (
       <div className="w-full max-w-full overflow-x-auto min-w-0">
         <div
-          className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words min-w-0 [&_table]:max-w-full [&_table]:w-full [&_table]:table-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_pre]:bg-[#0d1117] [&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-800 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h1]:!w-full [&_h1]:!max-w-full [&_h2]:text-lg [&_h2]:font-bold [&_h2]:!w-full [&_h3]:text-base [&_h3]:font-bold"
+          className="bg-slate-50/60 dark:bg-slate-900/40 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 leading-relaxed text-sm prose prose-slate dark:prose-invert max-w-none break-words min-w-0 [&_table]:max-w-full [&_table]:w-full [&_table]:table-auto [&_table]:block [&_table]:overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_pre]:text-slate-900 dark:[&_pre]:text-slate-100 [&_pre]:p-5 [&_pre]:rounded-2xl [&_pre]:border [&_pre]:border-slate-300 dark:[&_pre]:border-slate-700 [&_pre]:max-h-[400px] [&_pre]:overflow-y-auto [&_code]:font-mono [&_code]:text-xs [&_h1]:text-xl [&_h1]:font-extrabold [&_h1]:!w-full [&_h1]:!max-w-full [&_h2]:text-lg [&_h2]:font-bold [&_h2]:!w-full [&_h3]:text-base [&_h3]:font-bold"
           dangerouslySetInnerHTML={{ __html: cleanedHtml }}
         />
       </div>

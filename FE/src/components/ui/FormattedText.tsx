@@ -72,11 +72,11 @@ export function FormattedText({ text, className }: FormattedTextProps) {
         lineIdx++;
       }
       renderedBlocks.push(
-        <div key={`code-block-${lineIdx}`} className="my-2.5 rounded-lg overflow-hidden border border-slate-800 bg-[#0d1117] shadow-sm font-mono text-xs">
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-slate-800 text-[11px] text-slate-400">
-            <span className="text-emerald-400 font-bold uppercase tracking-wider">{lang}</span>
+        <div key={`code-block-${lineIdx}`} className="my-2.5 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-sm font-mono text-xs">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-200/80 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300">
+            <span className="text-brand-600 dark:text-emerald-400 font-bold uppercase tracking-wider">{lang}</span>
           </div>
-          <pre className="p-3 text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">{codeLines.join('\n')}</pre>
+          <pre className="p-3 text-slate-900 dark:text-slate-100 overflow-x-auto whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-slate-900/90">{codeLines.join('\n')}</pre>
         </div>
       );
       continue;
