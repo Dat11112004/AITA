@@ -142,8 +142,8 @@ export default function LiveActivityLog({ activities, fileName, assignmentId }: 
                       <div className="absolute top-0 inset-x-0 w-full z-10" style={{ animation: `slideUpHacker ${scrollDuration}s linear forwards` }}>
                         <div className="w-full flex flex-col gap-4 pb-4">
                           {evidence.snippets.map((snippet: any, idx: number) => (
-                            <pre key={idx} className="text-emerald-400 font-mono text-xs md:text-sm whitespace-pre-wrap leading-relaxed opacity-100 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
-                              <code>{snippet.codeSnippet}</code>
+                            <pre key={idx} className="!bg-transparent !border-none !p-0 !m-0 text-emerald-400 !text-emerald-400 font-mono text-xs md:text-sm whitespace-pre-wrap leading-relaxed opacity-100 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]">
+                              <code className="!text-emerald-400 font-mono">{snippet.codeSnippet}</code>
                             </pre>
                           ))}
                         </div>

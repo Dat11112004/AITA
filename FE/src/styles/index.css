@@ -76,37 +76,33 @@
     max-width: 100% !important;
   }
 
-  /* Code blocks (<pre>, <code>): White/light-grey background with crisp black text in light mode */
+  /* Code blocks inside rich text content (.prose, .rsw-ce, .assignment-content): Light background in light mode */
   .prose pre,
-  pre,
-  .code-block,
+  .assignment-content pre,
   .rsw-ce pre {
-    background-color: #f8fafc !important;
-    border: 1px solid #cbd5e1 !important;
-    color: #0f172a !important;
-    border-radius: 0.75rem !important;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    border-radius: 0.75rem;
   }
   .prose pre *,
-  pre *,
-  .code-block *,
+  .assignment-content pre *,
   .rsw-ce pre * {
-    color: #0f172a !important;
+    color: #0f172a;
   }
 
-  /* Dark mode code blocks */
+  /* Dark mode rich content code blocks */
   .dark .prose pre,
-  .dark pre,
-  .dark .code-block,
+  .dark .assignment-content pre,
   .dark .rsw-ce pre {
-    background-color: #1e293b !important;
-    border-color: #334155 !important;
-    color: #f8fafc !important;
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
   }
   .dark .prose pre *,
-  .dark pre *,
-  .dark .code-block *,
+  .dark .assignment-content pre *,
   .dark .rsw-ce pre * {
-    color: #f8fafc !important;
+    color: #f8fafc;
   }
 
   /* Global hand pointer cursor on all clickable elements across Admin, Lecturer & Student roles */
