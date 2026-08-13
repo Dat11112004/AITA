@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw, Download } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -79,6 +79,7 @@ export default function AssignmentPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
   const [regradingId, setRegradingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false);
   const [newDueDate, setNewDueDate] = useState('');
@@ -294,6 +295,20 @@ export default function AssignmentPage() {
       setError(t('lc.ap.start_grading_failed'));
     } finally {
       setRegradingId(null);
+    }
+  };
+
+  const handleDownloadSubmission = async (e: React.MouseEvent, submissionId: string, studentName?: string) => {
+    e.stopPropagation();
+    try {
+      setDownloadingId(submissionId);
+      await api.downloadSubmission(submissionId, studentName);
+    } catch (err: any) {
+      console.error("Failed to download submission", err);
+      setError(err.message || t('lc.ap.download_failed', { defaultValue: 'Failed to download student submission' }));
+      setTimeout(() => setError(null), 4000);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -596,7 +611,7 @@ export default function AssignmentPage() {
   if (!assignment) return <div className="text-center py-20 text-red-400">{t('lc.ap.not_found')}</div>;
 
   return (
-    <div className="max-w-6xl mx-auto pb-2 -mt-2 sm:-mt-4">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-2 -mt-2 sm:-mt-4">
       <div className="mb-6 animate-fade-in">
         <button onClick={() => navigate(`/lecturer/grading/assignments`)} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
           <ArrowLeft size={20} />
@@ -1018,23 +1033,41 @@ export default function AssignmentPage() {
                       )}
                     </td>
                     <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                      {item.status === 'Graded' ? (
-                        <button
-                          onClick={(e) => handleGradeSubmission(e, item.id)}
-                          disabled={regradingId === item.id}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
-                          title={t('lc.ap.act.regrade')}
-                        >
-                          {regradingId === item.id ? (
-                            <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" />
-                          ) : (
-                            <RotateCcw size={14} />
-                          )}
-                          <span>{t('lc.ap.act.regrade')}</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 font-medium">-</span>
-                      )}
+                      <div className="flex items-center justify-center gap-1.5">
+                        {item.status === 'Graded' && (
+                          <button
+                            onClick={(e) => handleGradeSubmission(e, item.id)}
+                            disabled={regradingId === item.id}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                            title={t('lc.ap.act.regrade')}
+                          >
+                            {regradingId === item.id ? (
+                              <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" />
+                            ) : (
+                              <RotateCcw size={14} />
+                            )}
+                            <span>{t('lc.ap.act.regrade')}</span>
+                          </button>
+                        )}
+                        {item.status !== 'NotSubmitted' && (
+                          <button
+                            onClick={(e) => handleDownloadSubmission(e, item.id, item.studentName || item.studentCode)}
+                            disabled={downloadingId === item.id}
+                            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                            title="Download student submission"
+                          >
+                            {downloadingId === item.id ? (
+                              <Loader2 size={14} className="animate-spin text-slate-600 dark:text-slate-300" />
+                            ) : (
+                              <Download size={14} />
+                            )}
+                            <span>Tải về</span>
+                          </button>
+                        )}
+                        {item.status === 'NotSubmitted' && (
+                          <span className="text-slate-400 font-medium">-</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
                       {item.status === 'Graded' && (
@@ -1225,6 +1258,20 @@ export default function AssignmentPage() {
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                       {t('lc.ap.act.grade')}
+                    </button>
+                  )}
+                  {item.status !== 'NotSubmitted' && (
+                    <button
+                      onClick={(e) => handleDownloadSubmission(e, item.id, item.studentName || item.studentCode)}
+                      disabled={downloadingId === item.id}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                      title="Download student submission"
+                    >
+                      {downloadingId === item.id ? (
+                        <Loader2 size={16} className="animate-spin text-slate-600 dark:text-slate-300" />
+                      ) : (
+                        <Download size={16} />
+                      )}
                     </button>
                   )}
                   {item.status === 'NotSubmitted' && (

@@ -532,7 +532,7 @@ export default function AssignmentUploadPage() {
 
                 {/* Clean Background to match mockup */}
 
-                <div className={classNames("mx-auto w-full flex flex-col flex-1 relative z-10 pt-5 pb-6 transition-all duration-300", isDrawerOpen ? "max-w-full px-4 sm:px-6" : "max-w-6xl px-6 lg:px-12")}>
+                <div className={classNames("mx-auto w-full flex flex-col flex-1 relative z-10 pt-5 pb-6 transition-all duration-300", isDrawerOpen ? "max-w-full px-4 sm:px-6" : "max-w-full px-4 sm:px-6 lg:px-8")}>
                     <div className="mb-3 animate-fade-in">
                         <button onClick={() => { aiGenerationStore.reset(); navigate(`/lecturer/grading/assignments`); }} className="text-slate-400 hover:text-brand-500 transition-colors p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 font-medium">
                             <ArrowLeft size={20} />
@@ -900,15 +900,15 @@ export default function AssignmentUploadPage() {
 
                             {/* STEP 2: EDIT CONTENT */}
                             {step === 2 && (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col flex-1">
                                     <div className="flex justify-between items-center mb-4">
                                         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                                             <Edit3 className="text-brand-600" /> Refine assignment content
                                         </h2>
                                     </div>
-                                    <div className="h-[600px]">
+                                    <div className="flex-1 min-h-[650px] h-[calc(100vh-280px)]">
                                         <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl text-slate-900 overflow-hidden shadow-sm">
-                                            <div className="flex-grow overflow-y-auto prose prose-slate max-w-none prose-h1:text-3xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-2xl prose-h2:mt-6 prose-h2:mb-3 prose-p:my-2 prose-ul:my-2 p-4">
+                                            <div className="flex-grow overflow-y-auto prose prose-slate max-w-none prose-h1:text-3xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-2xl prose-h2:mt-6 prose-h2:mb-3 prose-p:my-2 prose-ul:my-2 p-6">
                                                 <Editor
                                                     value={content}
                                                     onChange={(e) => setContent(e.target.value)}

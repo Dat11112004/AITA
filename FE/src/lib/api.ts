@@ -988,6 +988,40 @@ export const gradingApi = {
 
   deleteHistory: (id: string) => request<void>('/grading/submissions/history/' + id, { method: 'DELETE' }),
   getSemesters: () => request<any[]>('/semesters').catch(() => []),
+
+  downloadSubmission: async (submissionId: string, studentName?: string) => {
+    const token = getStoredItem(AUTH_STORAGE_KEYS.token);
+    const res = await fetch(`${BASE}/submissions/${submissionId}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!res.ok) {
+      let errMsg = 'Failed to download submission';
+      try {
+        const json = await res.json();
+        errMsg = json.Message || json.message || errMsg;
+      } catch (e) {}
+      throw new ApiError(errMsg, res.status);
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    const disposition = res.headers.get('Content-Disposition');
+    let filename = `${studentName || 'submission'}.zip`;
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 }
 
 export const aiApi = {

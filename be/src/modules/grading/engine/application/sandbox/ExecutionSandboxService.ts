@@ -45,7 +45,7 @@ export class ExecutionSandboxService {
   public async startAsync(submissionPath: string, projectType: ProjectType = "unknown"): Promise<SandboxHandle> {
     // Normalize the teacher's input to our clean ProjectType
     projectType = this.normalizeProjectType(projectType);
-    
+
     // Auto-detect what runtime stack the student's code actually uses
     const runtimeStack = await this.detectRuntimeStack(submissionPath);
     console.log(`[Sandbox] ProjectType: ${projectType}, RuntimeStack: ${runtimeStack}`);
@@ -62,7 +62,7 @@ export class ExecutionSandboxService {
     try {
       let runDir = "/app";
       let fingerprintFile: string | null = null;
-      
+
       switch (runtimeStack) {
         case "nodejs": fingerprintFile = await this.findFile(submissionPath, 'package.json'); break;
         case "java": fingerprintFile = await this.findFile(submissionPath, 'pom.xml') || await this.findFile(submissionPath, 'build.gradle'); break;
@@ -75,12 +75,12 @@ export class ExecutionSandboxService {
       if (fingerprintFile) {
         const relativeDir = path.relative(submissionPath, path.dirname(fingerprintFile));
         if (relativeDir) {
-            runDir = `/app/${relativeDir.replace(/\\/g, '/')}`;
+          runDir = `/app/${relativeDir.replace(/\\/g, '/')}`;
         }
       }
-      
+
       const csprojPath = (["aspnet", "blazor", "dotnet_console", "dotnet_desktop", "fullstack_dotnet_node", "unknown"] as string[]).includes(runtimeStack)
-        ? await this.findFile(submissionPath, '.csproj') 
+        ? await this.findFile(submissionPath, '.csproj')
         : null;
 
       // ═══════════════════════════════════════════════════════════
@@ -97,10 +97,10 @@ export class ExecutionSandboxService {
       let dockerImage = "mcr.microsoft.com/dotnet/sdk:8.0";
       let cmd = ["sh", "-c", `cp -a /app /sandbox && cd "${runDir.replace('/app', '/sandbox')}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080`];
       let env = [
-          "ASPNETCORE_ENVIRONMENT=Sandbox",
-          "DOTNET_ENVIRONMENT=Sandbox",
-          "ConnectionStrings__Default=Data Source=sandbox.db",
-          "ConnectionStrings__DefaultConnection=Data Source=sandbox.db",
+        "ASPNETCORE_ENVIRONMENT=Sandbox",
+        "DOTNET_ENVIRONMENT=Sandbox",
+        "ConnectionStrings__Default=Data Source=sandbox.db",
+        "ConnectionStrings__DefaultConnection=Data Source=sandbox.db",
       ];
 
       switch (runtimeStack) {
@@ -115,7 +115,7 @@ export class ExecutionSandboxService {
               if (match && match[1]) {
                 dockerImage = `mcr.microsoft.com/dotnet/sdk:${match[1]}`;
               }
-            } catch (err) {}
+            } catch (err) { }
           }
           break;
         case "fullstack_dotnet_node":
@@ -127,47 +127,47 @@ export class ExecutionSandboxService {
               if (match && match[1]) {
                 dotnetVersion = match[1];
               }
-            } catch (err) {}
+            } catch (err) { }
           }
-          
+
           dockerImage = `aita-fullstack-dotnet-node:${dotnetVersion}`;
           const baseDotnetImage = `mcr.microsoft.com/dotnet/sdk:${dotnetVersion}`;
-          
+
           console.log(`[Sandbox] Checking if custom image ${dockerImage} exists...`);
           try {
             await this.docker.getImage(dockerImage).inspect();
             console.log(`[Sandbox] Custom image ${dockerImage} already exists.`);
           } catch (err: any) {
             if (err.statusCode === 404) {
-               console.log(`[Sandbox] Custom image ${dockerImage} not found. Building it dynamically (first time only)...`);
-               const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
-               const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
-               await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
-               try {
-                   execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit' });
-                   console.log(`[Sandbox] Successfully built ${dockerImage}.`);
-               } catch (buildErr) {
-                   console.error(`[Sandbox] Failed to build custom image ${dockerImage}:`, buildErr);
-                   throw buildErr;
-               }
+              console.log(`[Sandbox] Custom image ${dockerImage} not found. Building it dynamically (first time only)...`);
+              const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
+              const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
+              await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
+              try {
+                execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit' });
+                console.log(`[Sandbox] Successfully built ${dockerImage}.`);
+              } catch (buildErr) {
+                console.error(`[Sandbox] Failed to build custom image ${dockerImage}:`, buildErr);
+                throw buildErr;
+              }
             } else {
-               throw err;
+              throw err;
             }
           }
 
           let fsSetupScript = `cp -a /app /sandbox\n`;
           let runDirSandbox = runDir.replace('/app', '/sandbox');
           let fsRunScript = `(cd "${runDirSandbox}" && dotnet restore && dotnet run --urls http://0.0.0.0:8080 > /sandbox/backend.log 2>&1) &\n`;
-          
+
           const fsPackageJsons = await this.findAllFiles(submissionPath, 'package.json');
           for (const pkgPath of fsPackageJsons) {
             const relativeDir = path.relative(submissionPath, path.dirname(pkgPath)).replace(/\\/g, '/');
             const containerDir = relativeDir ? `/sandbox/${relativeDir}` : `/sandbox`;
-            
+
             fsSetupScript += `(cd "${containerDir}" && echo "[Sandbox] Starting npm install..." && (npm install --no-fund --no-audit --prefer-offline --no-progress --loglevel error || true))\n`;
-            
+
             let frontendJob = `(cd "${containerDir}"`;
-            
+
             try {
               const pkgContent = await fs.readFile(pkgPath, 'utf8');
               const pkg = JSON.parse(pkgContent);
@@ -175,28 +175,28 @@ export class ExecutionSandboxService {
               let execCmd = "";
               if (scripts['dev']) execCmd = "npm run dev";
               else if (scripts['start']) execCmd = "npm start";
-              
+
               if (execCmd) {
                 frontendJob += ` && echo "[Sandbox] Starting Vite/React..." && export HOST=0.0.0.0 && export NODE_ENV=development && ${execCmd} -- --host 0.0.0.0`;
               }
-            } catch (e) {}
-            
+            } catch (e) { }
+
             frontendJob += ` > /sandbox/frontend.log 2>&1) &\n`;
             fsRunScript += frontendJob;
           }
-          
+
           // Daemonized container: use bash wait -n to exit immediately if ANY background service crashes
           cmd = ["bash", "-c", `${fsSetupScript}\n${fsRunScript}\nwait -n || exit $?`];
           env = [
-              "ASPNETCORE_ENVIRONMENT=Sandbox",
-              "DOTNET_ENVIRONMENT=Sandbox",
-              "ConnectionStrings__Default=Data Source=sandbox.db",
-              "ConnectionStrings__DefaultConnection=Data Source=sandbox.db"
+            "ASPNETCORE_ENVIRONMENT=Sandbox",
+            "DOTNET_ENVIRONMENT=Sandbox",
+            "ConnectionStrings__Default=Data Source=sandbox.db",
+            "ConnectionStrings__DefaultConnection=Data Source=sandbox.db"
           ];
           break;
         case "nodejs":
           dockerImage = "node:20-alpine";
-          
+
           const nodeAutoPort = `
 const net = require('net');
 const originalListen = net.Server.prototype.listen;
@@ -229,14 +229,14 @@ net.Server.prototype.listen = function() {
 `;
 
           const autoPortHeredoc = `cat << 'EOF_AUTOPORT' > /sandbox/autoport.js\n${nodeAutoPort}\nEOF_AUTOPORT\n`;
-          
+
           const allPackageJsons = await this.findAllFiles(submissionPath, 'package.json');
-          
+
           if (allPackageJsons && allPackageJsons.length > 0) {
             let installScript = "cp -a /app /sandbox\n";
             let runScript = "";
             let portNum = 8080;
-            
+
             // First, run npm install sequentially to avoid lockfile contention
             for (const pkgPath of allPackageJsons) {
               const relativeDir = path.relative(submissionPath, path.dirname(pkgPath)).replace(/\\/g, '/');
@@ -247,7 +247,7 @@ net.Server.prototype.listen = function() {
             for (const pkgPath of allPackageJsons) {
               const relativeDir = path.relative(submissionPath, path.dirname(pkgPath)).replace(/\\/g, '/');
               const containerDir = relativeDir ? `/sandbox/${relativeDir}` : `/sandbox`;
-              
+
               let isBackend = false;
               let hasDev = false;
               let hasStart = false;
@@ -261,55 +261,55 @@ net.Server.prototype.listen = function() {
                 if (deps['express'] || deps['koa'] || deps['nestjs'] || deps['fastify'] || deps['mongoose'] || deps['sequelize']) {
                   isBackend = true;
                 }
-                
+
                 // Fallback backend detection for missing dependencies
                 if (!isBackend) {
-                    const startScript = (scripts['start'] || '').toLowerCase();
-                    const devScript = (scripts['dev'] || '').toLowerCase();
-                    if (startScript.includes('node ') || startScript.includes('nodemon') || startScript.includes('ts-node') ||
-                        devScript.includes('node ') || devScript.includes('nodemon') || devScript.includes('ts-node')) {
-                        isBackend = true;
-                    }
-                    const dirName = path.basename(path.dirname(pkgPath)).toLowerCase();
-                    if (dirName === 'backend' || dirName === 'server' || dirName === 'api') {
-                        isBackend = true;
-                    }
-                    if (relativeDir === '' && allPackageJsons.length > 1) {
-                        // If root package in a monorepo-style setup, likely backend
-                        isBackend = true;
-                    }
+                  const startScript = (scripts['start'] || '').toLowerCase();
+                  const devScript = (scripts['dev'] || '').toLowerCase();
+                  if (startScript.includes('node ') || startScript.includes('nodemon') || startScript.includes('ts-node') ||
+                    devScript.includes('node ') || devScript.includes('nodemon') || devScript.includes('ts-node')) {
+                    isBackend = true;
+                  }
+                  const dirName = path.basename(path.dirname(pkgPath)).toLowerCase();
+                  if (dirName === 'backend' || dirName === 'server' || dirName === 'api') {
+                    isBackend = true;
+                  }
+                  if (relativeDir === '' && allPackageJsons.length > 1) {
+                    // If root package in a monorepo-style setup, likely backend
+                    isBackend = true;
+                  }
                 }
-                
+
                 // Anti Fork-Bomb: Remove recursive install scripts
                 let modified = false;
                 if (pkg.scripts) {
-                    const dangerousKeywords = ['npm install', 'npm i ', 'yarn ', 'pnpm '];
-                    for (const scriptName of ['preinstall', 'install', 'postinstall']) {
-                        if (pkg.scripts[scriptName]) {
-                            const scriptStr = pkg.scripts[scriptName].toLowerCase();
-                            if (dangerousKeywords.some(kw => scriptStr.includes(kw))) {
-                                delete pkg.scripts[scriptName];
-                                modified = true;
-                                console.log(`[Sandbox] Anti-Fork-Bomb: Removed dangerous '${scriptName}' from ${pkgPath}`);
-                            }
-                        }
+                  const dangerousKeywords = ['npm install', 'npm i ', 'yarn ', 'pnpm '];
+                  for (const scriptName of ['preinstall', 'install', 'postinstall']) {
+                    if (pkg.scripts[scriptName]) {
+                      const scriptStr = pkg.scripts[scriptName].toLowerCase();
+                      if (dangerousKeywords.some(kw => scriptStr.includes(kw))) {
+                        delete pkg.scripts[scriptName];
+                        modified = true;
+                        console.log(`[Sandbox] Anti-Fork-Bomb: Removed dangerous '${scriptName}' from ${pkgPath}`);
+                      }
                     }
+                  }
                 }
                 if (modified) {
-                    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf8');
+                  await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf8');
                 }
 
                 hasDev = !!scripts['dev'];
                 hasStart = !!scripts['start'];
                 hasServer = !!scripts['server'];
-              } catch (e) {}
+              } catch (e) { }
 
               // Smart Port Allocation
               let currentPort = 8080;
               if (allPackageJsons.length > 1) {
-                  currentPort = isBackend ? 8080 : (portNum === 8080 ? 3000 : portNum);
-                  if (!isBackend && portNum === 8080) portNum = 3000;
-                  if (!isBackend) portNum++;
+                currentPort = isBackend ? 8080 : (portNum === 8080 ? 3000 : portNum);
+                if (!isBackend && portNum === 8080) portNum = 3000;
+                if (!isBackend) portNum++;
               }
 
               // Smart Command Selection
@@ -321,7 +321,7 @@ net.Server.prototype.listen = function() {
 
               runScript += `(cd "${containerDir}" && export PORT=${currentPort} && export HOST=0.0.0.0 && export NODE_OPTIONS="--require /sandbox/autoport.js" && export NODE_ENV=development && ${execCmd} --host 0.0.0.0) &\n`;
             }
-            
+
             const nodeAutoInstall = `
 const fs = require('fs');
 const path = require('path');
@@ -427,10 +427,10 @@ export NODE_ENV=development
             cmd = ["sh", "-c", singlePackageScript];
           }
           env = [];
-          
+
           // Patch Hardcoded Ports before running
           await this.patchNodePorts(submissionPath);
-          
+
           break;
         case "java":
           dockerImage = "maven:3.9-eclipse-temurin-21";
@@ -480,7 +480,7 @@ export NODE_ENV=development
       }
 
       console.log(`[Sandbox] Starting container for ${runtimeStack} (${projectType}) on port ${hostPort} in ${runDir} using ${dockerImage}...`);
-      
+
       const container = await this.docker.createContainer({
         Image: dockerImage,
         Cmd: cmd,
@@ -532,17 +532,17 @@ export NODE_ENV=development
           console.error(`[Sandbox] Could not fetch container logs:`, logErr);
         }
         if (err.message?.includes("prematurely") || err.message?.includes("Timeout")) {
-          return { 
-            containerId, 
-            baseUrl, 
+          return {
+            containerId,
+            baseUrl,
             additionalUrls: [
-                `http://localhost:${hostPort3000}`,
-                `http://localhost:${hostPort5000}`,
-                `http://localhost:${hostPort5173}`
+              `http://localhost:${hostPort3000}`,
+              `http://localhost:${hostPort5000}`,
+              `http://localhost:${hostPort5173}`
             ],
-            projectType, 
+            projectType,
             runtimeStack,
-            isReady: false, 
+            isReady: false,
             dbWarnings,
             crashLogs: err.message + "\n\n" + crashLogs
           };
@@ -551,18 +551,18 @@ export NODE_ENV=development
       }
 
       console.log(`[Sandbox] Container ${containerId.substring(0, 8)} ready at ${baseUrl}`);
-      return { 
-        containerId, 
-        baseUrl, 
+      return {
+        containerId,
+        baseUrl,
         additionalUrls: [
-            `http://localhost:${hostPort3000}`,
-            `http://localhost:${hostPort5000}`,
-            `http://localhost:${hostPort5173}`
+          `http://localhost:${hostPort3000}`,
+          `http://localhost:${hostPort5000}`,
+          `http://localhost:${hostPort5173}`
         ],
-        projectType, 
+        projectType,
         runtimeStack,
-        isReady: true, 
-        dbWarnings 
+        isReady: true,
+        dbWarnings
       };
     } catch (error) {
       console.error(`[Sandbox] Failed to start sandbox:`, error);
@@ -622,17 +622,17 @@ export NODE_ENV=development
     for (const filePath of csFiles) {
       const content = await fs.readFile(filePath, 'utf-8');
       const patched = this.patchHardcodedDbProviders(content);
-      
+
       let finalContent = patched;
 
       // Layer 4: Auto-inject EnsureCreated() right before app.Run() if EF Core is used
-      if ((finalContent.includes('app.Run()') || finalContent.includes('app.RunAsync()')) && 
-          !finalContent.includes('EnsureCreated') && 
-          !finalContent.includes('Migrate')) {
-          
-          let injection = '';
-          if (dbContextName) {
-            injection = `
+      if ((finalContent.includes('app.Run()') || finalContent.includes('app.RunAsync()')) &&
+        !finalContent.includes('EnsureCreated') &&
+        !finalContent.includes('Migrate')) {
+
+        let injection = '';
+        if (dbContextName) {
+          injection = `
 // [Sandbox Injected] Auto-create database schema
 try {
     using (var scope = app.Services.CreateScope()) {
@@ -643,8 +643,8 @@ try {
     System.Console.WriteLine("[Sandbox] EnsureCreated failed: " + ex.Message);
 }
 `;
-          } else {
-            injection = `
+        } else {
+          injection = `
 // [Sandbox Injected] Auto-create database schema via Reflection
 try {
     using (var scope = app.Services.CreateScope()) {
@@ -663,9 +663,9 @@ try {
     System.Console.WriteLine("[Sandbox] Reflection EnsureCreated failed: " + ex.Message);
 }
 `;
-          }
+        }
 
-          finalContent = finalContent.replace(/(app\.Run(?:Async)?\(\)\s*;)/, `${injection}\n$1`);
+        finalContent = finalContent.replace(/(app\.Run(?:Async)?\(\)\s*;)/, `${injection}\n$1`);
       }
 
       if (finalContent !== content) {
@@ -714,40 +714,40 @@ try {
     const jsFiles = await this.findAllFiles(submissionPath, '.js');
     const tsFiles = await this.findAllFiles(submissionPath, '.ts');
     const filesToPatch = [...jsFiles, ...tsFiles];
-    
+
     let patchCount = 0;
     for (const file of filesToPatch) {
-        if (file.includes('node_modules')) continue;
-        try {
-            const content = await fs.readFile(file, 'utf-8');
-            let patched = content;
-            
-            // Matches: .listen(3000) or listen(5000, ...)
-            const listenPattern = /\.listen\s*\(\s*([0-9]{3,5})\s*[,)]/g;
-            if (listenPattern.test(patched)) {
-                listenPattern.lastIndex = 0;
-                patched = patched.replace(listenPattern, (match, p1) => {
-                    return match.replace(p1, `(process.env.PORT || ${p1})`);
-                });
-            }
+      if (file.includes('node_modules')) continue;
+      try {
+        const content = await fs.readFile(file, 'utf-8');
+        let patched = content;
 
-            // Matches: const port = 3001; or let PORT = 5000;
-            const portVarPattern = /(const|let|var)\s+(port|PORT)\s*=\s*([0-9]{3,5})\b/gi;
-            if (portVarPattern.test(patched)) {
-                portVarPattern.lastIndex = 0;
-                patched = patched.replace(portVarPattern, (match, p1, p2, p3) => {
-                    return `${p1} ${p2} = process.env.PORT || ${p3}`;
-                });
-            }
+        // Matches: .listen(3000) or listen(5000, ...)
+        const listenPattern = /\.listen\s*\(\s*([0-9]{3,5})\s*[,)]/g;
+        if (listenPattern.test(patched)) {
+          listenPattern.lastIndex = 0;
+          patched = patched.replace(listenPattern, (match, p1) => {
+            return match.replace(p1, `(process.env.PORT || ${p1})`);
+          });
+        }
 
-            if (patched !== content) {
-                await fs.writeFile(file, patched, 'utf-8');
-                patchCount++;
-            }
-        } catch (e) {}
+        // Matches: const port = 3001; or let PORT = 5000;
+        const portVarPattern = /(const|let|var)\s+(port|PORT)\s*=\s*([0-9]{3,5})\b/gi;
+        if (portVarPattern.test(patched)) {
+          portVarPattern.lastIndex = 0;
+          patched = patched.replace(portVarPattern, (match, p1, p2, p3) => {
+            return `${p1} ${p2} = process.env.PORT || ${p3}`;
+          });
+        }
+
+        if (patched !== content) {
+          await fs.writeFile(file, patched, 'utf-8');
+          patchCount++;
+        }
+      } catch (e) { }
     }
     if (patchCount > 0) {
-        console.log(`[Sandbox] Node.js Port Patching: Patched ${patchCount} hardcoded port bindings.`);
+      console.log(`[Sandbox] Node.js Port Patching: Patched ${patchCount} hardcoded port bindings.`);
     }
   }
 
@@ -800,7 +800,7 @@ try {
    */
   private async ensureSqlitePackage(csprojPath: string): Promise<void> {
     let content = await fs.readFile(csprojPath, 'utf-8');
-    
+
     // ═══════════════════════════════════════════════════════════
     // SAFETY NET: Sanitize non-existent NuGet package versions
     // Students sometimes reference versions like "9.0.10" which
@@ -833,7 +833,7 @@ try {
     // Detect EF Core version from existing package references
     const versionMatch = content.match(/Microsoft\.EntityFrameworkCore[^"]*"\s+Version="([^"]+)"/);
     let version = versionMatch ? versionMatch[1] : '8.0.0';
-    
+
     // Ensure the detected version itself is safe (e.g., 9.0.0, not 9.0.10)
     const vParts = version.split('.');
     if (vParts.length >= 3 && parseInt(vParts[2], 10) > 5) {
@@ -841,7 +841,7 @@ try {
     }
 
     const sqliteRef = `    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="${version}" />`;
-    
+
     let patched: string;
     if (content.includes('</ItemGroup>')) {
       // Insert before first </ItemGroup>
@@ -866,15 +866,35 @@ try {
         if (!inspect.State.Running) {
           throw new Error(`Container exited prematurely. Exit Code: ${inspect.State.ExitCode}. This usually indicates a compilation error or missing dependencies.`);
         }
-        const response = await fetch(baseUrl);
-        if (response.ok || response.status === 404) {
-          return;
+
+        const containerIP = inspect.NetworkSettings?.IPAddress ||
+          (inspect.NetworkSettings?.Networks ? (Object.values(inspect.NetworkSettings.Networks)[0] as any)?.IPAddress : null);
+
+        const checkUrls = [baseUrl];
+        if (containerIP) {
+          checkUrls.unshift(`http://${containerIP}:8080`);
+          checkUrls.unshift(`http://${containerIP}:3000`);
+          checkUrls.unshift(`http://${containerIP}:5000`);
+          checkUrls.unshift(`http://${containerIP}:5173`);
+        }
+        const gateway = inspect.NetworkSettings?.Networks ? (Object.values(inspect.NetworkSettings.Networks)[0] as any)?.Gateway : null;
+        if (gateway) {
+          const port = baseUrl.split(':').pop();
+          checkUrls.push(`http://${gateway}:${port}`);
+        }
+
+        for (const url of checkUrls) {
+          try {
+            const response = await fetch(url);
+            if (response.ok || response.status === 404) {
+              return;
+            }
+          } catch (fetchErr) { }
         }
       } catch (e: any) {
-        if (e.message.includes('prematurely')) throw e;
-        // connection refused, server not up yet
+        if (e.message?.includes('prematurely')) throw e;
       }
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 1000));
     }
     throw new Error(`Sandbox did not become ready within ${timeoutMs}ms`);
   }
@@ -902,18 +922,18 @@ try {
   private async detectRuntimeStack(submissionPath: string): Promise<RuntimeStack> {
     try {
       // Unity detection (must come before generic C# detection)
-      if (await this.findFile(submissionPath, 'ProjectSettings') || 
-          await this.findFile(submissionPath, 'Assembly-CSharp.csproj') ||
-          await this.findFile(submissionPath, '.unity')) return "unity_engine";
+      if (await this.findFile(submissionPath, 'ProjectSettings') ||
+        await this.findFile(submissionPath, 'Assembly-CSharp.csproj') ||
+        await this.findFile(submissionPath, '.unity')) return "unity_engine";
 
       const hasNode = await this.findFile(submissionPath, 'package.json');
       const hasCsproj = await this.findFile(submissionPath, '.csproj');
-      
+
       const hasPubspec = await this.findFile(submissionPath, 'pubspec.yaml');
       if (hasPubspec) return "flutter";
 
       if (hasNode && hasCsproj) return "fullstack_dotnet_node";
-      
+
       if (hasNode) return "nodejs";
       if (await this.findFile(submissionPath, 'pom.xml') || await this.findFile(submissionPath, 'build.gradle')) return "java";
       if (await this.findFile(submissionPath, 'requirements.txt') || await this.findFile(submissionPath, 'manage.py')) return "python";

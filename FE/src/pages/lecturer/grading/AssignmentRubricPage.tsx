@@ -46,7 +46,7 @@ export default function AssignmentRubricPage() {
   const cleanedHtml = cleanAssignmentHtml(htmlContent);
 
   return (
-    <div className="max-w-5xl mx-auto pb-12 animate-in fade-in duration-300">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-12 animate-in fade-in duration-300">
       <button 
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 mb-6 transition-colors font-medium"
