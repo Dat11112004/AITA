@@ -47,7 +47,7 @@ export function cleanAssignmentHtml(rawHtml: string): string {
     styleAttr = styleAttr.replace(/background(?:-color)?\s*:\s*(?:#0[0-9a-f]{5}|#1[0-9a-f]{5}|#000|black|#111)/gi, 'background-color: #f8fafc !important');
     if (!/style=/i.test(styleAttr)) {
       return `<pre style="background-color: #f8fafc !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important;"${styleAttr}>`;
-    }
+    };
     return `<pre${styleAttr}>`;
   });
 
