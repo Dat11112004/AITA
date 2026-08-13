@@ -41,7 +41,7 @@ export function cleanAssignmentHtml(rawHtml: string): string {
   });
 
   // 4. Ensure all <pre> and <code> blocks use light background #f8fafc with crisp dark text #0f172a in light mode
-  cleaned = cleaned.replace(/<pre([^>]*)>/gi, (match, p1) => {
+  cleaned = cleaned.replace(/<pre([^>]*)>/gi, (_match, p1) => {
     let styleAttr = p1;
     // Normalize dark inline background to light background
     styleAttr = styleAttr.replace(/background(?:-color)?\s*:\s*(?:#0[0-9a-f]{5}|#1[0-9a-f]{5}|#000|black|#111)/gi, 'background-color: #f8fafc !important');
