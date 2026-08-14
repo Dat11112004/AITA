@@ -1,9 +1,9 @@
 /**
  * Centralized assignment HTML sanitizer & style normalizer.
  * Ensures:
- * 1. High contrast text in code blocks (dark #0f172a text on light #f8fafc background, or bright #f8fafc text on dark #0d1117 background).
- * 2. Full-width container layout across all assignment types ("không bao giờ bị thu nhỏ/bị hẹp").
- * 3. Removes all global-polluting <style>, <link>, <script>, <html>, <head>, <body> tags.
+ * 1. Full-width container layout across all assignment types ("không bao giờ bị thu nhỏ/bị hẹp").
+ * 2. Removes all global-polluting <style>, <link>, <script>, <html>, <head>, <body> tags.
+ * 3. Keeps clean, high-contrast text and tables.
  */
 export function cleanAssignmentHtml(rawHtml: string): string {
   if (!rawHtml || !rawHtml.trim()) return '';
@@ -40,30 +40,10 @@ export function cleanAssignmentHtml(rawHtml: string): string {
     s = s.replace(/word-break\s*:\s*break-all;?/gi, '');
     s = s.replace(/white-space\s*:\s*nowrap;?/gi, '');
 
-    // B. Fix faint/white text color on light backgrounds
-    const isLightBg = /background(?:-color)?\s*:\s*(?:#f[89a-f][0-9a-f]{4}|#fff|#ffffff|rgb\(\s*24[0-9]|rgb\(\s*25[0-5]|white|#f1f5f9)/i.test(s);
-    const hasLightColor = /color\s*:\s*(?:#f[89a-f][0-9a-f]{4}|#fff|#ffffff|white|rgb\(\s*255|rgb\(\s*24|#e2e8f0)/i.test(s);
-
-    if (isLightBg && hasLightColor) {
-      s = s.replace(/color\s*:\s*[^;"]+;?/gi, 'color: #0f172a !important;');
-    } else if (isLightBg && !/color\s*:/i.test(s)) {
-      s += '; color: #0f172a !important;';
-    }
-
     return s.trim() ? ` style="${s.trim()}"` : '';
   });
 
-  // 5. Ensure all <pre> and <code> blocks use light background #f8fafc with crisp dark text #0f172a in light mode
-  cleaned = cleaned.replace(/<pre([^>]*)>/gi, (_match, p1) => {
-    let styleAttr = p1;
-    styleAttr = styleAttr.replace(/background(?:-color)?\s*:\s*(?:#0[0-9a-f]{5}|#1[0-9a-f]{5}|#000|black|#111)/gi, 'background-color: #f8fafc !important');
-    if (!/style=/i.test(styleAttr)) {
-      return `<pre style="background-color: #f8fafc !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important;"${styleAttr}>`;
-    }
-    return `<pre${styleAttr}>`;
-  });
-
-  // 6. Ensure all tables have 100% width and clean border collapse
+  // 5. Ensure all tables have 100% width and clean border collapse
   cleaned = cleaned.replace(/<table([^>]*)>/gi, (match, p1) => {
     if (/style=/i.test(p1)) {
       return match.replace(/style=(["'])([\s\S]*?)\1/i, 'style="width: 100% !important; border-collapse: collapse; $2"');

@@ -91,33 +91,30 @@
     max-width: 100% !important;
   }
 
-  /* Code blocks inside rich text content (.prose, .rsw-ce, .assignment-content): Light background in light mode */
+  /* Code blocks inside rich text content (.prose, .rsw-ce, .assignment-content): Original Dark background with bright crisp light text */
   .prose pre,
   .assignment-content pre,
   .rsw-ce pre {
-    background-color: #f8fafc;
-    border: 1px solid #cbd5e1;
-    color: #0f172a;
-    border-radius: 0.75rem;
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #f8fafc !important;
+    border-radius: 0.75rem !important;
+    padding: 1rem !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
   }
   .prose pre *,
   .assignment-content pre *,
   .rsw-ce pre * {
-    color: #0f172a;
+    color: #f8fafc !important;
+    background-color: transparent !important;
   }
-
-  /* Dark mode rich content code blocks */
-  .dark .prose pre,
-  .dark .assignment-content pre,
-  .dark .rsw-ce pre {
-    background-color: #1e293b;
-    border-color: #334155;
-    color: #f8fafc;
-  }
-  .dark .prose pre *,
-  .dark .assignment-content pre *,
-  .dark .rsw-ce pre * {
-    color: #f8fafc;
+  .prose pre code,
+  .assignment-content pre code,
+  .rsw-ce pre code {
+    color: #f8fafc !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
   }
 
   /* Global hand pointer cursor on all clickable elements across Admin, Lecturer & Student roles */
