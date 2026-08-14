@@ -123,13 +123,52 @@ export function LecturerClassDetail() {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         loadData()
       }
-    }, 30000)
+    }, 15000)
 
     return () => {
       window.removeEventListener('focus', handleFocus)
       clearInterval(interval)
     }
   }, [loadData])
+
+  // Realtime SSE Connection for Lecturer Screen
+  useEffect(() => {
+    if (!id) return
+
+    const apiUrl = import.meta.env.VITE_API_URL || '/api'
+    const sseUrl = `${apiUrl}/classes/${id}/announcements/stream`
+    let es: EventSource | null = null
+
+    try {
+      es = new EventSource(sseUrl, { withCredentials: true })
+
+      es.onmessage = (event) => {
+        try {
+          if (!event.data || event.data.startsWith(':')) return
+          const payload = JSON.parse(event.data)
+          
+          if (payload.type === 'NEW_ANNOUNCEMENT' && payload.data) {
+            setAnnouncements(prev => {
+              if (prev.some(a => a.id === payload.data.id)) return prev
+              return [payload.data, ...prev]
+            })
+          } else if (payload.type === 'UPDATE_ANNOUNCEMENT' && payload.data) {
+            setAnnouncements(prev => prev.map(a => a.id === payload.data.id ? { ...a, content: payload.data.content, title: payload.data.title } : a))
+          } else if (payload.type === 'DELETE_ANNOUNCEMENT' && payload.data) {
+            setAnnouncements(prev => prev.filter(a => a.id !== payload.data.announcementId))
+          }
+        } catch (e) {
+          // ignore keepalive
+        }
+      }
+    } catch (err) {
+      console.warn('SSE not connected on lecturer detail', err)
+    }
+
+    return () => {
+      if (es) es.close()
+    }
+  }, [id])
 
   const handlePostAnnouncement = async () => {
     if (!announcement.trim() || !id || isPosting) return
