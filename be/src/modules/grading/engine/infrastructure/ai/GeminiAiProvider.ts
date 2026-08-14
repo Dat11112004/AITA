@@ -745,8 +745,10 @@ INSTRUCTIONS:
 2. IF THE USER PROVIDES A SHORT PROMPT, TOPIC, OR SUBJECT CODE (e.g., "Subject: PRM392" or "Mobile App Assignment"): You MUST AUTONOMOUSLY AUTHOR & GENERATE a complete, realistic, comprehensive university-level programming assignment from scratch. DO NOT ASK THE USER FOR MORE CONTENT. DO NOT SAY "Please provide the document". GENERATE THE COMPLETE ASSIGNMENT IMMEDIATELY!
 
 FORMATTING REQUIREMENTS:
-- Output pure HTML format with <h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <code>, <pre>.
+- Output pure body HTML snippet format with <h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <code>, <pre>.
 - Complete transcription of all parts, requirements, inputs, outputs, and constraints.
+- CRITICAL: DO NOT include <style>, <link>, <script>, <html>, <head>, <body>, or <!DOCTYPE> tags.
+- CRITICAL: DO NOT set fixed widths (no max-width, no width: 800px, no width: 210mm, no margin: auto). The layout must fluidly fill 100% width.
 - DO NOT use Markdown (no **, no ##). DO NOT wrap in \`\`\`html blocks.
 - Write the entire assignment content in clear, professional ENGLISH.`;
 
@@ -780,6 +782,14 @@ FORMATTING REQUIREMENTS:
 
         let text = response.choices[0]?.message?.content || "";
         text = text.replace(/^```html\s*/gi, '').replace(/^```\s*/g, '').replace(/```$/g, '').trim();
+        text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
+        text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
+        text = text.replace(/<head[\s\S]*?<\/head>/gi, '');
+        text = text.replace(/<link[\s\S]*?>/gi, '');
+        text = text.replace(/<meta[\s\S]*?>/gi, '');
+        text = text.replace(/<title[\s\S]*?<\/title>/gi, '');
+        text = text.replace(/<!DOCTYPE[\s\S]*?>/gi, '');
+        text = text.replace(/<\/?(?:html|head|body|meta|title)[^>]*>/gi, '');
         text = text.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim();
         return text;
     }

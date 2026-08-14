@@ -1,4 +1,5 @@
 import { gradingApi as api } from '@/lib/api';
+import { cleanAssignmentHtml } from '@/utils/htmlCleaner';
 
 export interface AiGenerationResult {
   content: string;
@@ -144,7 +145,7 @@ class AiGenerationStoreManager {
       }
 
       const result: AiGenerationResult = {
-        content: finalMarkdown,
+        content: cleanAssignmentHtml(finalMarkdown),
         rubric: generatedRubric,
         blueprint: draftBlueprint,
         metadata: {
@@ -248,7 +249,7 @@ class AiGenerationStoreManager {
       }
 
       const result: AiGenerationResult = {
-        content: finalMarkdown,
+        content: cleanAssignmentHtml(finalMarkdown),
         rubric: generatedRubric,
         blueprint: draftBlueprint,
         metadata: {

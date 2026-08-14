@@ -168,10 +168,20 @@ export function Profile() {
             >
               <div className="w-32 h-40 rounded-xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-4xl font-black">{user.fullName?.charAt(0) || user.name?.charAt(0) || user.email?.charAt(0)}</span>
-                )}
+                  <img 
+                    src={avatarPreview} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <span style={{ display: avatarPreview ? 'none' : 'block' }} className="text-4xl font-black">
+                  {user.fullName?.charAt(0) || user.name?.charAt(0) || user.email?.charAt(0)}
+                </span>
               </div>
               {user?.role !== 'student' && (
                 <>

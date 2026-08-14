@@ -40,6 +40,9 @@ export class CreateUserUseCase implements IUseCase<CreateUserDto, UserResponseDt
                 passwordHash,
                 role
             )
+            if (dto.avatar) {
+                user.avatar = dto.avatar
+            }
 
             await txUserRepo.create(user)
 

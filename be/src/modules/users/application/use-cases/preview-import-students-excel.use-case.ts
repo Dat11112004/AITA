@@ -2,18 +2,38 @@ import { PrismaClient } from '@prisma/client'
 import * as xlsx from 'xlsx'
 import { AppError } from '../../../../shared/application/app.error.js'
 import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '../../../../shared/utils/season-detector.util.js'
+import { getAvatarFromRow, normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
 
 const prisma = new PrismaClient()
 
-interface ImportStudentRow {
-    MSSV?: string;
-    'Họ và tên'?: string;
-    Email?: string;
-    'Số điện thoại'?: string;
-    'Kỳ học'?: string;
-    'Mùa'?: string;
-    'Lớp học'?: string;
-    'Mật khẩu tạm thời'?: string;
+type ImportStudentRow = Record<string, unknown>
+
+const HEADER_ALIASES: Record<string, string[]> = {
+    mssv: ['mssv', 'student id', 'studentid', 'student code', 'mssv/gv', 'ma sinh vien', 'mã sinh viên', 'ma sv', 'mã sv'],
+    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'họ tên', 'ho ten', 'tên', 'name'],
+    email: ['email', 'gmail', 'email address'],
+    phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone', 'sđt', 'sdt'],
+    semester: ['kỳ học', 'kì học', 'ky hoc', 'ki hoc', 'semester', 'kỳ', 'kì', 'ky', 'ki', 'mùa', 'mua'],
+    classCode: ['lớp học', 'lop hoc', 'class', 'lớp', 'lop', 'mã lớp', 'ma lop', 'class code'],
+    password: ['mật khẩu tạm thời', 'mat khau tam thoi', 'mật khẩu', 'mat khau', 'password', 'temp password'],
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'hình', 'hinh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'link hinh', 'link hình', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture', 'cloudinary', 'link cloudinary', 'ảnh cá nhân', 'anh ca nhan', 'hình cá nhân', 'hinh ca nhan']
+}
+
+function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
+    if (key === 'avatar') {
+        const avatar = getAvatarFromRow(row);
+        if (avatar) return avatar;
+    }
+    const aliases = HEADER_ALIASES[key]
+    for (const [header, value] of Object.entries(row)) {
+        const normH = normalizeExcelHeader(header);
+        const lowerH = header.trim().toLowerCase();
+        if (aliases.includes(lowerH) || aliases.some(a => normalizeExcelHeader(a) === normH)) {
+            const s = value?.toString().trim()
+            if (s && s !== 'undefined' && s !== 'null') return s
+        }
+    }
+    return undefined
 }
 
 export class PreviewImportStudentsExcelUseCase {
@@ -36,9 +56,7 @@ export class PreviewImportStudentsExcelUseCase {
             throw new AppError('INVALID_SEASON', errorMsg, 400)
         }
 
-        // 2. VALIDATE SEASON EXISTS.
-        // Uses matchesSeason() which handles all DB storage formats:
-        // 'Fall', 'Fall2026', 'Fall 2026', 'fall-2026', '2026Fall', etc.
+        // 2. VALIDATE SEASON EXISTS
         const allSemesters = await prisma.semester.findMany()
         const targetSemesters = allSemesters.filter(
             s => matchesSeason(s.Season, detectedSeasonInfo)
@@ -65,21 +83,20 @@ export class PreviewImportStudentsExcelUseCase {
         const previewRows = []
         let hasErrors = false
 
-        // Re-use the already-fetched semesters (case-insensitive filtered above)
-        // to prevent cross-season fuzzy match without an extra DB round-trip.
         const semesters = targetSemesters
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i]
             const rowIndex = i + 2
 
-            const mssv = row['MSSV']?.toString().trim()
-            const fullName = row['Họ và tên']?.toString().trim()
-            const email = row['Email']?.toString().trim()
-            const phone = row['Số điện thoại']?.toString().trim()
-            const semesterCode = (row['Kỳ học'] || row['Mùa'])?.toString().trim()
-            const classCode = row['Lớp học']?.toString().trim()
-            const password = row['Mật khẩu tạm thời']?.toString().trim() || ''
+            const mssv = getField(row, 'mssv')
+            const fullName = getField(row, 'fullName')
+            const email = getField(row, 'email')
+            const phone = getField(row, 'phone')
+            const semesterCode = getField(row, 'semester')
+            const classCode = getField(row, 'classCode')
+            const password = getField(row, 'password') || ''
+            const avatar = getAvatarFromRow(row) || ''
 
             const errors: string[] = []
 
@@ -121,6 +138,7 @@ export class PreviewImportStudentsExcelUseCase {
                 semester: resolvedSemesterCode || '',
                 className: classCode || '',
                 password: password,
+                avatar: avatar,
                 isValid: errors.length === 0,
                 errors: errors
             })

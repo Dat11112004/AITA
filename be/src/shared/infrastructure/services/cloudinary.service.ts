@@ -14,6 +14,13 @@ export class CloudinaryService {
   private static readonly apiSecret = process.env.CLOUDINARY_API_SECRET;
 
   /**
+   * Returns true if Cloudinary environment variables are configured.
+   */
+  static isConfigured(): boolean {
+    return Boolean(this.cloudName && this.apiKey && this.apiSecret);
+  }
+
+  /**
    * Uploads a file stream directly to Cloudinary (useful with multer memory storage)
    * @param fileBuffer The file buffer to upload
    * @param options Cloudinary upload options (like folder, resource_type, public_id)

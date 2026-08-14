@@ -11,6 +11,7 @@ import { DateTimePicker } from '@/components/ui/DateTimePicker';
 import { extractAssignmentTypesFromSyllabus } from '@/utils/subjectHelper';
 import { RubricRuleSpecViewer } from '@/components/modules/grading/evidence/RubricRuleSpecViewer';
 import { FormattedText } from '@/components/ui/FormattedText';
+import { cleanAssignmentHtml } from '@/utils/htmlCleaner';
 
 export interface PromptTemplate {
     id: string;
@@ -214,7 +215,7 @@ export default function AssignmentUploadPage() {
             if (storeState.loadingMsg) setLoadingMsg(storeState.loadingMsg);
             if (storeState.error) setError(storeState.error);
             if (storeState.result) {
-                setContent(storeState.result.content);
+                setContent(cleanAssignmentHtml(storeState.result.content));
                 setRubric(storeState.result.rubric);
                 setBlueprint(storeState.result.blueprint);
                 setMetadata(storeState.result.metadata);
@@ -473,7 +474,7 @@ export default function AssignmentUploadPage() {
                 category: selectedAssignmentType || metadata.category || 'Assignment',
                 semesterId: selectedSemester,
                 classIds: selectedClasses,
-                content,
+                content: cleanAssignmentHtml(content),
                 gradingStrategy: defaultGradingStrategy
             };
             const assignment = await api.publishAssignment(finalMetadata, blueprint, rubric);

@@ -7,25 +7,32 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
+import { getAvatarFromRow, normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
 
 const prisma = new PrismaClient()
 
 type ImportLecturerRow = Record<string, unknown>
 
 const HEADER_ALIASES: Record<string, string[]> = {
-    code: ['mã', 'ma', 'mã giảng viên', 'instructor code', 'lecturer code', 'mssv/gv'],
-    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'tên', 'name'],
-    email: ['email', 'gmail'],
-    phone: ['số điện thoại', 'so dien thoai', 'sđt', 'sdt', 'phone'],
-    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture']
+    code: ['mã', 'ma', 'mã giảng viên', 'instructor code', 'lecturer code', 'mssv/gv', 'mã gv', 'ma gv', 'gv', 'giảng viên', 'giang vien'],
+    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'tên', 'name', 'họ tên', 'ho ten'],
+    email: ['email', 'gmail', 'email address'],
+    phone: ['số điện thoại', 'so dien thoai', 'sđt', 'sdt', 'phone', 'phone number'],
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'hình', 'hinh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture', 'cloudinary', 'link cloudinary', 'ảnh cá nhân', 'anh ca nhan', 'hình cá nhân', 'hinh ca nhan']
 }
 
 function getField(row: ImportLecturerRow, key: keyof typeof HEADER_ALIASES): string | undefined {
+    if (key === 'avatar') {
+        const avatar = getAvatarFromRow(row);
+        if (avatar) return avatar;
+    }
     const aliases = HEADER_ALIASES[key]
     for (const [header, value] of Object.entries(row)) {
-        if (aliases.includes(header.trim().toLowerCase())) {
+        const normH = normalizeExcelHeader(header);
+        const lowerH = header.trim().toLowerCase();
+        if (aliases.includes(lowerH) || aliases.some(a => normalizeExcelHeader(a) === normH)) {
             const s = value?.toString().trim()
-            if (s) return s
+            if (s && s !== 'undefined' && s !== 'null') return s
         }
     }
     return undefined
@@ -172,15 +179,16 @@ export class ImportLecturersExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
-                    let secureAvatarUrl: string | null = (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) ? avatarUrlRaw.trim() : null;
-                    if (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) {
+                    // Xử lý avatar URL: Nếu là link Cloudinary hoặc direct URL, dùng trực tiếp ngay
+                    let secureAvatarUrl: string | null = avatarUrlRaw ? avatarUrlRaw.trim() : null;
+                    if (avatarUrlRaw && !avatarUrlRaw.includes('cloudinary.com') && CloudinaryService.isConfigured()) {
                         try {
                             const uploadedUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw.trim());
                             if (uploadedUrl) {
                                 secureAvatarUrl = uploadedUrl;
                             }
                         } catch (err) {
-                            console.warn(`Lỗi re-upload avatar cho ${email}, sử dụng URL gốc:`, err);
+                            console.warn(`Lỗi upload avatar cho ${email}, sử dụng URL gốc:`, err);
                         }
                     }
 
@@ -210,6 +218,7 @@ export class ImportLecturersExcelUseCase {
                         const dataToUpdate: any = {}
                         if (secureAvatarUrl) dataToUpdate.Avatar = secureAvatarUrl
                         if (code && user.LecturerCode !== code) dataToUpdate.LecturerCode = code
+                        if (fullName && user.FullName !== fullName) dataToUpdate.FullName = fullName
                         if (phone && user.Phone !== phone) dataToUpdate.Phone = phone
 
                         if (Object.keys(dataToUpdate).length > 0) {

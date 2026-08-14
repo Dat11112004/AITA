@@ -5,6 +5,7 @@ export const CreateUserDto = z.object({
     fullName: z.string().min(2),
     password: z.string().min(6),
     role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])),
+    avatar: z.string().nullable().optional(),
 })
 
 export const UpdateUserDto = z.object({
@@ -13,6 +14,7 @@ export const UpdateUserDto = z.object({
     status: z.enum(['Active', 'Inactive', 'Locked']).optional(),
     password: z.string().min(6).optional(),
     role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])).optional(),
+    avatar: z.string().nullable().optional(),
     updatedClasses: z.array(z.object({
         classId: z.string().optional(),
         newClassCode: z.string(),
@@ -33,6 +35,7 @@ export const ImportUserDto = z.object({
     classCode: z.string().min(2).optional(),
     semesterCode: z.string().min(2).optional(),
     subjectCode: z.string().min(2).optional(),
+    avatar: z.string().nullable().optional(),
     role: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ADMIN', 'LECTURER', 'STUDENT'])).default('STUDENT'),
     status: z.preprocess((val) => typeof val === 'string' ? val.toUpperCase() : val, z.enum(['ACTIVE', 'INACTIVE', 'LOCKED'])).default('ACTIVE'),
 })

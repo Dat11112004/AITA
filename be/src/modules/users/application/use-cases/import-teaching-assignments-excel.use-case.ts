@@ -4,23 +4,27 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
 
+import { normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
+
 const prisma = new PrismaClient()
 
 type ImportAssignmentRow = Record<string, unknown>
 
 const HEADER_ALIASES: Record<string, string[]> = {
-    lecturerCode: ['mã gv', 'ma gv', 'mã giảng viên', 'instructor code', 'lecturer code', 'mssv/gv', 'gvien', 'g.viên', 'giảng viên'],
-    lecturerName: ['họ và tên gv', 'ho ten gv', 'tên gv', 'name', 'họ và tên'],
-    subjectCode: ['môn', 'môn dạy', 'mon day', 'subjects', 'mã môn', 'subject code'],
-    classCode: ['lớp', 'lớp dạy', 'lop day', 'classes', 'mã lớp', 'class code']
+    lecturerCode: ['mã gv', 'ma gv', 'mã giảng viên', 'instructor code', 'lecturer code', 'mssv/gv', 'gvien', 'g.viên', 'giảng viên', 'gv', 'ma'],
+    lecturerName: ['họ và tên gv', 'ho ten gv', 'tên gv', 'name', 'họ và tên', 'ho va ten', 'tên', 'họ tên', 'ho ten'],
+    subjectCode: ['môn', 'môn dạy', 'mon day', 'subjects', 'mã môn', 'subject code', 'ma mon', 'mã môn học'],
+    classCode: ['lớp', 'lớp dạy', 'lop day', 'classes', 'mã lớp', 'class code', 'ma lop', 'lớp học']
 }
 
 function getField(row: ImportAssignmentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
     const aliases = HEADER_ALIASES[key]
     for (const [header, value] of Object.entries(row)) {
-        if (aliases.includes(header.trim().toLowerCase())) {
+        const normH = normalizeExcelHeader(header);
+        const lowerH = header.trim().toLowerCase();
+        if (aliases.includes(lowerH) || aliases.some(a => normalizeExcelHeader(a) === normH)) {
             const s = value?.toString().trim()
-            if (s) return s
+            if (s && s !== 'undefined' && s !== 'null') return s
         }
     }
     return undefined

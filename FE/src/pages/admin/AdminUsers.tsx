@@ -764,13 +764,26 @@ export function AdminUsers() {
             </div>
             <div className="p-6 space-y-8">
               <div className="flex items-start gap-4">
-                {selectedUserDetail.avatar ? (
-                  <img src={selectedUserDetail.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-brand-100 dark:border-brand-900" />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-2xl border-2 border-brand-100 dark:border-brand-900">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-brand-100 dark:border-brand-900 shadow-sm bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center">
+                  {selectedUserDetail.avatar ? (
+                    <img 
+                      src={selectedUserDetail.avatar} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover relative z-10" 
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    style={{ display: selectedUserDetail.avatar ? 'none' : 'flex' }}
+                    className="w-full h-full items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-2xl"
+                  >
                     {selectedUserDetail.name?.charAt(0).toUpperCase()}
                   </div>
-                )}
+                </div>
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{selectedUserDetail.name}</h2>
                   <p className="text-slate-500 dark:text-slate-400 font-medium mb-3">{selectedUserDetail.email}</p>
@@ -1600,14 +1613,25 @@ export function AdminUsers() {
                     }
 
                     return (
-                      <div className="relative w-[111px] h-[146px] rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-800">
+                      <div className="relative w-[111px] h-[146px] rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                         {u.avatar ? (
-                          <img src={u.avatar} alt={u.name} className={`w-full h-full object-cover ${isLocked ? 'opacity-50 grayscale' : ''}`} />
-                        ) : (
-                          <div className={`w-full h-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-3xl ${isLocked ? 'opacity-50' : ''}`}>
-                            {u.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                          <img 
+                            src={u.avatar} 
+                            alt={u.name} 
+                            className={`w-full h-full object-cover relative z-10 ${isLocked ? 'opacity-50 grayscale' : ''}`} 
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          style={{ display: u.avatar ? 'none' : 'flex' }}
+                          className={`w-full h-full items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-3xl ${isLocked ? 'opacity-50' : ''}`}
+                        >
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
                         <span
                           className={`absolute bottom-1.5 right-1.5 block w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${dotColor}`}
                           title={isLocked ? 'Locked' : isOnline ? 'Active' : 'Inactive'}

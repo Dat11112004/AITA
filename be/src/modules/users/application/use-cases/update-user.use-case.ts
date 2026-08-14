@@ -35,6 +35,7 @@ export class UpdateUserUseCase implements IUseCase<UpdateUserInput, UserResponse
         // Apply domain updates
         user.updateProfile({
             fullName: dto.fullName,
+            avatar: dto.avatar !== undefined ? (dto.avatar || undefined) : undefined,
         })
         
         if (dto.email) user.email = dto.email.toLowerCase()

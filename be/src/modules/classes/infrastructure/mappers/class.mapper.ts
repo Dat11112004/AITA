@@ -23,6 +23,7 @@ export class ClassMapper {
       (classEntity as any).instructorName = raw.InstructorClass[0].User?.FullName;
       (classEntity as any).instructorId = raw.InstructorClass[0].User?.Id;
       (classEntity as any).instructorEmail = raw.InstructorClass[0].User?.Email;
+      (classEntity as any).instructorAvatar = raw.InstructorClass[0].User?.Avatar;
     }
     if (raw._count?.StudentClass !== undefined) {
       (classEntity as any).studentCount = raw._count.StudentClass

@@ -7,33 +7,39 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
-
+import { getAvatarFromRow, normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
 
 type ImportStudentRow = Record<string, unknown>
 
 // Chấp nhận cả header tiếng Việt lẫn tiếng Anh (file của Admin có thể xuất từ template khác nhau).
 // So khớp không phân biệt hoa thường và bỏ khoảng trắng thừa.
 const HEADER_ALIASES: Record<string, string[]> = {
-    mssv: ['mssv', 'student id', 'studentid', 'student code', 'mssv/gv'],
-    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname'],
-    email: ['email'],
-    phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone'],
-    semester: ['kỳ học', 'kì học', 'ky hoc', 'ki hoc', 'semester'],
-    classCode: ['lớp học', 'lop hoc', 'class'],
+    mssv: ['mssv', 'student id', 'studentid', 'student code', 'mssv/gv', 'ma sinh vien', 'mã sinh viên', 'ma sv', 'mã sv'],
+    fullName: ['họ và tên', 'ho va ten', 'full name', 'fullname', 'họ tên', 'ho ten', 'tên', 'name'],
+    email: ['email', 'gmail', 'email address'],
+    phone: ['số điện thoại', 'so dien thoai', 'phone number', 'phone', 'sđt', 'sdt'],
+    semester: ['kỳ học', 'kì học', 'ky hoc', 'ki hoc', 'semester', 'kỳ', 'kì', 'ky', 'ki'],
+    classCode: ['lớp học', 'lop hoc', 'class', 'lớp', 'lop', 'mã lớp', 'ma lop', 'class code'],
     outOfSemesterSubjects: ['môn khác kỳ hiện tại (nợ/học vượt)', 'môn khác kì hiện tại (nợ/học vượt)', 'mon khac ky hien tai', 'out of semester subjects', 'nợ/học vượt', 'khác kỳ', 'khác kì'],
     passedSubjects: ['môn đã học vượt thành công', 'mon da hoc vuot thanh cong', 'passed subjects', 'học vượt thành công', 'đã học'],
     // Cột nợ môn — dùng riêng biệt, lookup KHÔNG bị giới hạn theo mùa hiện tại
     retakeSubjects: ['nợ môn', 'no mon', 'môn nợ', 'mon no', 'retake subjects', 'retake', 'subject debt', 'nợ', 'debt subjects', 'môn học nợ', 'mon hoc no', 'môn học lại', 'mon hoc lai'],
     retakeClasses: ['lớp nợ môn', 'lop no mon', 'lớp nợ', 'lop no', 'lớp học lại', 'lop hoc lai', 'retake classes', 'retake class'],
-    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture'],
+    avatar: ['avatar', 'ảnh đại diện', 'anh dai dien', 'hình ảnh', 'hinh anh', 'ảnh', 'anh', 'hình', 'hinh', 'avatar url', 'avatar_url', 'link avatar', 'link_avatar', 'link anh', 'link ảnh', 'link hinh', 'link hình', 'link hinh anh', 'link hình ảnh', 'url anh', 'url ảnh', 'image', 'picture', 'photo', 'profile picture', 'profile_picture', 'cloudinary', 'link cloudinary', 'ảnh cá nhân', 'anh ca nhan', 'hình cá nhân', 'hinh ca nhan'],
 }
 
 function getField(row: ImportStudentRow, key: keyof typeof HEADER_ALIASES): string | undefined {
+    if (key === 'avatar') {
+        const avatar = getAvatarFromRow(row);
+        if (avatar) return avatar;
+    }
     const aliases = HEADER_ALIASES[key]
     for (const [header, value] of Object.entries(row)) {
-        if (aliases.includes(header.trim().toLowerCase())) {
+        const normH = normalizeExcelHeader(header);
+        const lowerH = header.trim().toLowerCase();
+        if (aliases.includes(lowerH) || aliases.some(a => normalizeExcelHeader(a) === normH)) {
             const s = value?.toString().trim()
-            if (s) return s
+            if (s && s !== 'undefined' && s !== 'null') return s
         }
     }
     return undefined
@@ -208,16 +214,16 @@ export class ImportStudentsExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
-                    // Xử lý upload avatar (nếu có URL hợp lệ, mặc định dùng URL gốc nếu Cloudinary chưa cấu hình hoặc lỗi)
-                    let secureAvatarUrl: string | null = (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) ? avatarUrlRaw.trim() : null;
-                    if (avatarUrlRaw && avatarUrlRaw.trim().startsWith('http')) {
+                    // Xử lý avatar URL: Nếu là link Cloudinary hoặc direct URL, dùng trực tiếp ngay
+                    let secureAvatarUrl: string | null = avatarUrlRaw ? avatarUrlRaw.trim() : null;
+                    if (avatarUrlRaw && !avatarUrlRaw.includes('cloudinary.com') && CloudinaryService.isConfigured()) {
                         try {
                             const uploadedUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw.trim());
                             if (uploadedUrl) {
                                 secureAvatarUrl = uploadedUrl;
                             }
                         } catch (err) {
-                            console.warn(`Lỗi re-upload avatar cho ${email}, sử dụng URL gốc:`, err);
+                            console.warn(`Lỗi upload avatar cho ${email}, sử dụng URL gốc:`, err);
                         }
                     }
 
@@ -242,12 +248,20 @@ export class ImportStudentsExcelUseCase {
                                 }
                             }
                         })
-                    } else if (secureAvatarUrl) {
-                        // Nếu user đã tồn tại nhưng trong Excel có truyền avatar URL mới, ta update avatar cho họ
-                        user = await prisma.user.update({
-                            where: { Id: user.Id },
-                            data: { Avatar: secureAvatarUrl }
-                        });
+                    } else {
+                        // Cập nhật Avatar và thông tin nếu user đã tồn tại
+                        const dataToUpdate: any = {}
+                        if (secureAvatarUrl) dataToUpdate.Avatar = secureAvatarUrl
+                        if (mssv && user.StudentCode !== mssv) dataToUpdate.StudentCode = mssv
+                        if (fullName && user.FullName !== fullName) dataToUpdate.FullName = fullName
+                        if (phone && user.Phone !== phone) dataToUpdate.Phone = phone
+
+                        if (Object.keys(dataToUpdate).length > 0) {
+                            user = await prisma.user.update({
+                                where: { Id: user.Id },
+                                data: dataToUpdate
+                            });
+                        }
                     }
 
                     // Store pending enrollments
