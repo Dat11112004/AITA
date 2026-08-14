@@ -1,6 +1,7 @@
 /**
- * Utility for extracting and normalizing Avatar/Image URLs from Excel rows.
- * Supports Cloudinary URLs, external image links, and various Vietnamese/English column aliases.
+ * Utility for extracting, resolving, and normalizing Avatar/Image URLs from Excel rows.
+ * Supports Cloudinary collection URLs, direct Cloudinary URLs, external image links,
+ * and various Vietnamese/English column aliases.
  */
 
 export function normalizeExcelHeader(str: string): string {
@@ -98,4 +99,45 @@ export function getAvatarFromRow(row: Record<string, unknown>): string | null {
     }
 
     return null;
+}
+
+/**
+ * Resolves Cloudinary Collection link (collection.cloudinary.com) or share link to direct image URL.
+ * e.g. https://collection.cloudinary.com/xadxabsr/259354b8d693ae70bb1fb91708324085
+ * => https://res.cloudinary.com/xadxabsr/image/upload/v1786376251/a0224bcc-6f48-41ba-8c5c-5dea0854d467_u2ujgk.jpg
+ */
+export async function resolveCloudinaryAvatarUrl(url: string | null | undefined): Promise<string | null> {
+    if (!url) return null;
+    const cleanUrl = extractAvatarUrl(url);
+    if (!cleanUrl) return null;
+
+    // Check if it's a collection.cloudinary.com link
+    const collectionMatch = cleanUrl.match(/collection\.cloudinary\.com\/([^/]+)\/([a-zA-Z0-9_-]+)/i);
+    if (collectionMatch) {
+        const [, cloudName, collectionId] = collectionMatch;
+        try {
+            const apiUrl = `https://console.cloudinary.com/console/api/v1/collections/public/${cloudName}/${collectionId}`;
+            const res = await fetch(apiUrl, {
+                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+                signal: AbortSignal.timeout(6000)
+            });
+            if (res.ok) {
+                const data: any = await res.json();
+                const asset = data.assets?.[0];
+                if (asset) {
+                    const directUrl = asset.delivery_urls?.original ||
+                                     asset.delivery_urls?.preview ||
+                                     asset.delivery_urls?.thumbnail ||
+                                     (asset.public_id ? `https://res.cloudinary.com/${cloudName}/image/upload/${asset.public_id}.${asset.format || 'jpg'}` : null);
+                    if (directUrl) {
+                        return directUrl;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn(`[Avatar Resolver] Không thể giải mã collection link ${cleanUrl}:`, err);
+        }
+    }
+
+    return cleanUrl;
 }

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import * as xlsx from 'xlsx'
 import { AppError } from '../../../../shared/application/app.error.js'
 import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '../../../../shared/utils/season-detector.util.js'
-import { getAvatarFromRow, normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
+import { getAvatarFromRow, normalizeExcelHeader, resolveCloudinaryAvatarUrl } from '../../../../shared/utils/avatar-extractor.util.js'
 
 const prisma = new PrismaClient()
 
@@ -96,7 +96,8 @@ export class PreviewImportStudentsExcelUseCase {
             const semesterCode = getField(row, 'semester')
             const classCode = getField(row, 'classCode')
             const password = getField(row, 'password') || ''
-            const avatar = getAvatarFromRow(row) || ''
+            const rawAvatar = getAvatarFromRow(row) || ''
+            const avatar = await resolveCloudinaryAvatarUrl(rawAvatar) || ''
 
             const errors: string[] = []
 

@@ -7,7 +7,7 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
-import { getAvatarFromRow, normalizeExcelHeader } from '../../../../shared/utils/avatar-extractor.util.js'
+import { getAvatarFromRow, normalizeExcelHeader, resolveCloudinaryAvatarUrl } from '../../../../shared/utils/avatar-extractor.util.js'
 
 type ImportStudentRow = Record<string, unknown>
 
@@ -214,11 +214,11 @@ export class ImportStudentsExcelUseCase {
                     let rawPassword = ''
                     let passwordHash = ''
 
-                    // Xử lý avatar URL: Nếu là link Cloudinary hoặc direct URL, dùng trực tiếp ngay
-                    let secureAvatarUrl: string | null = avatarUrlRaw ? avatarUrlRaw.trim() : null;
-                    if (avatarUrlRaw && !avatarUrlRaw.includes('cloudinary.com') && CloudinaryService.isConfigured()) {
+                    // Xử lý avatar URL: Hỗ trợ link Cloudinary Collection, direct URL và re-upload nếu cần
+                    let secureAvatarUrl: string | null = await resolveCloudinaryAvatarUrl(avatarUrlRaw);
+                    if (secureAvatarUrl && !secureAvatarUrl.includes('cloudinary.com') && CloudinaryService.isConfigured()) {
                         try {
-                            const uploadedUrl = await CloudinaryService.uploadImageFromUrl(avatarUrlRaw.trim());
+                            const uploadedUrl = await CloudinaryService.uploadImageFromUrl(secureAvatarUrl);
                             if (uploadedUrl) {
                                 secureAvatarUrl = uploadedUrl;
                             }
