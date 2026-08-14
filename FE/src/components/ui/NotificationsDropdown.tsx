@@ -67,8 +67,8 @@ export function NotificationsDropdown() {
     try {
       await api.deleteAllNotifications()
       emitNotificationEvent()
-    } catch (err) {
-      console.error(err)
+    } catch (e) {
+      console.error(e)
     }
   }
 
@@ -80,13 +80,18 @@ export function NotificationsDropdown() {
     }
     setOpen(false)
     const refId = n.referenceId || n.ReferenceId
-    const refType = n.referenceType || n.ReferenceType || n.type
+    const refType = (n.referenceType || n.ReferenceType || n.type || '').toUpperCase()
+    const nType = (n.type || '').toUpperCase()
+    const title = (n.title || n.Title || '').toLowerCase()
+
     if (refId) {
-      if (refType === 'Submission' || n.type === 'FEEDBACK') {
-        const isStudent = window.location.pathname.startsWith('/student')
+      const isStudent = window.location.pathname.startsWith('/student')
+      if (refType === 'CLASS' || refType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS' || title.includes('thông báo lớp')) {
+        navigate(isStudent ? `/student/classes/${refId}` : `/lecturer/classes/${refId}`)
+      } else if (refType === 'SUBMISSION' || nType === 'FEEDBACK') {
         navigate(isStudent ? `/student/grading/result/${refId}` : `/lecturer/grading/result/${refId}`)
       } else {
-        navigate(`/student/assignments/${refId}`)
+        navigate(isStudent ? `/student/assignments/${refId}` : `/lecturer/grading/assignments/${refId}`)
       }
     }
   }

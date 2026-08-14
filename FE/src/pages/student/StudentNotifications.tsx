@@ -80,8 +80,18 @@ export function StudentNotifications() {
       emitNotificationEvent()
     }
     const targetId = n.referenceId || n.ReferenceId
+    const refType = (n.referenceType || n.ReferenceType || n.type || '').toUpperCase()
+    const nType = (n.type || '').toUpperCase()
+    const title = (n.title || n.Title || '').toLowerCase()
+
     if (targetId) {
-      navigate(`/student/assignments/${targetId}`)
+      if (refType === 'CLASS' || refType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS' || title.includes('thông báo lớp')) {
+        navigate(`/student/classes/${targetId}`)
+      } else if (refType === 'SUBMISSION' || nType === 'FEEDBACK') {
+        navigate(`/student/grading/result/${targetId}`)
+      } else {
+        navigate(`/student/assignments/${targetId}`)
+      }
     }
   }
 

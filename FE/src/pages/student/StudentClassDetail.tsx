@@ -368,14 +368,21 @@ export function StudentClassDetail() {
                         {a.lecturer?.avatar ? (
                           <img
                             src={a.lecturer.avatar}
-                            alt={a.lecturer.name}
-                            className="w-full h-full object-cover"
+                            alt={a.lecturer.name || 'Giảng viên'}
+                            className="absolute inset-0 w-full h-full object-cover z-10"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'block';
                             }}
                           />
                         ) : null}
-                        <span>{(a.lecturer?.name || 'GV').charAt(0).toUpperCase()}</span>
+                        <span
+                          style={{ display: a.lecturer?.avatar ? 'none' : 'block' }}
+                          className="select-none font-bold text-white text-base"
+                        >
+                          {((a.lecturer?.name || 'GV').trim().split(/\s+/).pop()?.[0] || 'G').toUpperCase()}
+                        </span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
