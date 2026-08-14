@@ -238,11 +238,20 @@ export class ClassesController extends BaseController {
     const rows = await prisma.notification.findMany({
       where: {
         OR: [
-          { ReferenceId: { in: targetRefIds } },
+          {
+            ReferenceId: { in: targetRefIds },
+            Type: { in: ['CLASS_ANNOUNCEMENT', 'ANNOUNCEMENT'] }
+          },
           ...(classCode ? [
-            { ReferenceType: 'CLASS', Title: { contains: classCode } },
-            { Type: 'CLASS_ANNOUNCEMENT', Title: { contains: classCode } },
-            { Title: { contains: `Thông báo lớp ${classCode}` } }
+            {
+              ReferenceType: 'CLASS',
+              Type: { in: ['CLASS_ANNOUNCEMENT', 'ANNOUNCEMENT'] },
+              Title: { contains: classCode }
+            },
+            {
+              Type: 'CLASS_ANNOUNCEMENT',
+              Title: { contains: classCode }
+            }
           ] : [])
         ]
       },
@@ -260,7 +269,15 @@ export class ClassesController extends BaseController {
       take: 50
     })
 
-    const announcements = rows.map(r => ({
+    // Dedup by Id in case OR branches returned same row
+    const seen = new Set<string>()
+    const uniqueRows = rows.filter(r => {
+      if (seen.has(r.Id)) return false
+      seen.add(r.Id)
+      return true
+    })
+
+    const announcements = uniqueRows.map(r => ({
       id: r.Id,
       title: r.Title || 'Thông báo lớp học',
       content: r.Message,

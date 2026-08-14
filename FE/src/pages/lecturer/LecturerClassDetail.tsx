@@ -174,8 +174,14 @@ export function LecturerClassDetail() {
     if (!announcement.trim() || !id || isPosting) return
     setIsPosting(true)
     try {
+      // Lấy kết quả từ API, thêm vào list trực tiếp
+      // Không để SSE thêm nữa vì SSE sẽ broadcast lại - dùng dedup key
       const newAnn = await api.postClassAnnouncement(id, announcement.trim())
-      setAnnouncements(prev => [newAnn, ...prev])
+      setAnnouncements(prev => {
+        // Chỉ thêm nếu chưa có trong list (tránh duplicate với SSE)
+        if (prev.some(a => a.id === newAnn.id)) return prev
+        return [newAnn, ...prev]
+      })
       setAnnouncement('')
     } catch (err: any) {
       console.error('Failed to post announcement:', err)
