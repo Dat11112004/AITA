@@ -165,11 +165,9 @@ export class ClassesController extends BaseController {
     this.ok(res, result, MESSAGES.SUCCESS)
   }
 
-  async listAnnouncements(req: Request, res: Response): Promise<void> {
-    const classId = req.params.id as string
-    this.logger.info(`Fetching announcements for class ${classId}`)
+  private async resolveTargetRefIds(classId: string): Promise<{ targetRefIds: string[], classCode: string, subjectCode: string, cls: any, subject: any }> {
+    const targetRefIds: string[] = [classId]
 
-    // 1. Resolve potential class / subject / exam
     const cls = await prisma.class.findFirst({
       where: {
         OR: [
@@ -178,18 +176,75 @@ export class ClassesController extends BaseController {
           { ClassCode: classId },
           { ExamClass: { some: { ExamId: classId } } }
         ]
+      },
+      include: {
+        Subject: true,
+        StudentClass: {
+          include: {
+            User: {
+              select: { Id: true, Email: true, FullName: true }
+            }
+          }
+        }
       }
     })
 
-    const targetRefIds = [classId]
+    const subject = await prisma.subject.findFirst({
+      where: {
+        OR: [
+          { Id: classId },
+          { SubjectCode: classId }
+        ]
+      }
+    })
+
     if (cls?.Id && !targetRefIds.includes(cls.Id)) targetRefIds.push(cls.Id)
     if (cls?.SubjectId && !targetRefIds.includes(cls.SubjectId)) targetRefIds.push(cls.SubjectId)
     if (cls?.ClassCode && !targetRefIds.includes(cls.ClassCode)) targetRefIds.push(cls.ClassCode)
+    if (cls?.Subject?.SubjectCode && !targetRefIds.includes(cls.Subject.SubjectCode)) targetRefIds.push(cls.Subject.SubjectCode)
+
+    if (subject?.Id && !targetRefIds.includes(subject.Id)) targetRefIds.push(subject.Id)
+    if (subject?.SubjectCode && !targetRefIds.includes(subject.SubjectCode)) targetRefIds.push(subject.SubjectCode)
+
+    const relatedClasses = await prisma.class.findMany({
+      where: {
+        OR: [
+          { Id: classId },
+          { SubjectId: classId },
+          { ClassCode: classId },
+          ...(cls?.SubjectId ? [{ SubjectId: cls.SubjectId }] : []),
+          ...(subject?.Id ? [{ SubjectId: subject.Id }] : [])
+        ]
+      }
+    })
+    for (const rc of relatedClasses) {
+      if (rc.Id && !targetRefIds.includes(rc.Id)) targetRefIds.push(rc.Id)
+      if (rc.SubjectId && !targetRefIds.includes(rc.SubjectId)) targetRefIds.push(rc.SubjectId)
+      if (rc.ClassCode && !targetRefIds.includes(rc.ClassCode)) targetRefIds.push(rc.ClassCode)
+    }
+
+    const classCode = cls?.ClassCode || subject?.SubjectCode || relatedClasses[0]?.ClassCode || ''
+    const subjectCode = cls?.Subject?.SubjectCode || subject?.SubjectCode || ''
+
+    return { targetRefIds, classCode, subjectCode, cls, subject }
+  }
+
+  async listAnnouncements(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Fetching announcements for class ${classId}`)
+
+    const { targetRefIds, classCode } = await this.resolveTargetRefIds(classId)
 
     const rows = await prisma.notification.findMany({
       where: {
-        ReferenceId: { in: targetRefIds },
-        Type: { in: ['CLASS_ANNOUNCEMENT', 'CLASS', 'Announcement', 'ANNOUNCEMENT'] }
+        OR: [
+          { ReferenceId: { in: targetRefIds } },
+          ...(classCode ? [
+            { ReferenceType: 'CLASS', Title: { contains: classCode } },
+            { Type: 'CLASS_ANNOUNCEMENT', Title: { contains: classCode } },
+            { Title: { contains: `Thông báo lớp ${classCode}` } }
+          ] : [])
+        ]
       },
       include: {
         User: {
@@ -230,43 +285,9 @@ export class ClassesController extends BaseController {
       throw new Error('Nội dung thông báo không được để trống')
     }
 
-    // 1. Flexible lookup for class or subject or exam
-    const cls = await prisma.class.findFirst({
-      where: {
-        OR: [
-          { Id: classId },
-          { SubjectId: classId },
-          { ClassCode: classId },
-          { ExamClass: { some: { ExamId: classId } } }
-        ]
-      },
-      include: {
-        Subject: true,
-        StudentClass: {
-          include: {
-            User: {
-              select: {
-                Id: true,
-                Email: true,
-                FullName: true
-              }
-            }
-          }
-        }
-      }
-    })
+    const { targetRefIds, classCode, subjectCode, cls, subject } = await this.resolveTargetRefIds(classId)
 
-    const subject = await prisma.subject.findFirst({
-      where: {
-        OR: [
-          { Id: classId },
-          { SubjectCode: classId }
-        ]
-      }
-    })
-
-    const classCode = cls?.ClassCode || subject?.SubjectCode || 'LỚP HỌC'
-    const notifTitle = title?.trim() || `Thông báo lớp ${classCode}`
+    const notifTitle = title?.trim() || `Thông báo lớp ${classCode || 'học'}`
 
     const notif = await prisma.notification.create({
       data: {
@@ -291,7 +312,7 @@ export class ClassesController extends BaseController {
     })
 
     // Find student recipients
-    let studentUsers = (cls?.StudentClass || []).map(sc => sc.User).filter(Boolean)
+    let studentUsers = (cls?.StudentClass || []).map((sc: any) => sc.User).filter(Boolean)
     if (studentUsers.length === 0) {
       studentUsers = await prisma.user.findMany({
         where: {
@@ -304,12 +325,12 @@ export class ClassesController extends BaseController {
       })
     }
 
-    const studentUserIds = [...new Set(studentUsers.map(u => u!.Id))]
-    const validEmails = [...new Set(studentUsers.map(u => u!.Email).filter(Boolean))] as string[]
+    const studentUserIds = [...new Set(studentUsers.map((u: any) => u!.Id))]
+    const validEmails = [...new Set(studentUsers.map((u: any) => u!.Email).filter(Boolean))] as string[]
 
     if (studentUserIds.length > 0) {
       await prisma.notificationRecipient.createMany({
-        data: studentUserIds.map(sId => ({
+        data: studentUserIds.map((sId: any) => ({
           NotificationId: notif.Id,
           UserId: sId,
           IsRead: false
@@ -318,7 +339,6 @@ export class ClassesController extends BaseController {
     }
 
     const lecturerName = notif.User?.FullName || (req.user as any)?.name || 'Giảng viên'
-    const subjectCode = cls?.Subject?.SubjectCode || subject?.SubjectCode || ''
     const subjectName = cls?.Subject?.SubjectName || subject?.SubjectName || ''
     const subjectLabel = subjectCode && subjectName ? `${subjectName} (${subjectCode})` : (subjectCode || subjectName || 'môn học')
 
@@ -338,10 +358,9 @@ export class ClassesController extends BaseController {
       }
     }
 
-    // 1. Broadcast Realtime SSE event
-    classEvents.emit(`class_announcement:${classId}`, announcementDto)
-    if (cls?.Id && cls.Id !== classId) {
-      classEvents.emit(`class_announcement:${cls.Id}`, announcementDto)
+    // 1. Broadcast Realtime SSE event across all associated identifiers
+    for (const refId of targetRefIds) {
+      classEvents.emit(`class_announcement:${refId}`, announcementDto)
     }
 
     // 2. Send email notification to all students in this class
@@ -441,6 +460,8 @@ export class ClassesController extends BaseController {
       }
     })
 
+    const { targetRefIds } = await this.resolveTargetRefIds(classId)
+
     const announcementDto = {
       id: updated.Id,
       title: updated.Title,
@@ -455,8 +476,10 @@ export class ClassesController extends BaseController {
       }
     }
 
-    // Broadcast Realtime update event
-    classEvents.emit(`class_announcement_updated:${classId}`, announcementDto)
+    // Broadcast Realtime update event across all associated identifiers
+    for (const refId of targetRefIds) {
+      classEvents.emit(`class_announcement_updated:${refId}`, announcementDto)
+    }
 
     this.ok(res, announcementDto, 'Đã cập nhật thông báo thành công')
   }
@@ -487,8 +510,12 @@ export class ClassesController extends BaseController {
       where: { Id: announcementId }
     })
 
-    // Broadcast Realtime deletion event
-    classEvents.emit(`class_announcement_deleted:${classId}`, { announcementId })
+    const { targetRefIds } = await this.resolveTargetRefIds(classId)
+
+    // Broadcast Realtime deletion event across all associated identifiers
+    for (const refId of targetRefIds) {
+      classEvents.emit(`class_announcement_deleted:${refId}`, { announcementId })
+    }
 
     this.ok(res, null, 'Đã xoá thông báo thành công')
   }
