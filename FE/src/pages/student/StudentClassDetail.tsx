@@ -130,6 +130,8 @@ export function StudentClassDetail() {
             // Pop floating realtime alert
             setNewAnnouncementAlert(payload.data.title || 'Giảng viên vừa đăng thông báo mới!')
             setTimeout(() => setNewAnnouncementAlert(null), 6000)
+          } else if (payload.type === 'UPDATE_ANNOUNCEMENT' && payload.data) {
+            setAnnouncements(prev => prev.map(a => a.id === payload.data.id ? { ...a, content: payload.data.content, title: payload.data.title } : a))
           } else if (payload.type === 'DELETE_ANNOUNCEMENT' && payload.data) {
             setAnnouncements(prev => prev.filter(a => a.id !== payload.data.announcementId))
           }

@@ -390,6 +390,77 @@ export class ClassesController extends BaseController {
     this.created(res, announcementDto, 'Đã đăng thông báo thành công')
   }
 
+  async updateAnnouncement(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    const announcementId = req.params.announcementId as string
+    const userId = req.user!.id
+    const userRole = req.user!.role
+    const { title, content } = req.body
+
+    if (!content || !content.trim()) {
+      throw new Error('Nội dung thông báo không được để trống')
+    }
+
+    const notif = await prisma.notification.findUnique({
+      where: { Id: announcementId },
+      include: {
+        User: {
+          select: {
+            Id: true,
+            FullName: true,
+            Email: true,
+            Avatar: true
+          }
+        }
+      }
+    })
+
+    if (!notif) {
+      throw new Error('Thông báo không tồn tại')
+    }
+
+    if (userRole !== 'ADMIN' && notif.CreatedBy !== userId) {
+      throw new Error('Bạn không có quyền chỉnh sửa thông báo này')
+    }
+
+    const updated = await prisma.notification.update({
+      where: { Id: announcementId },
+      data: {
+        Title: title?.trim() || notif.Title,
+        Message: content.trim(),
+      },
+      include: {
+        User: {
+          select: {
+            Id: true,
+            FullName: true,
+            Email: true,
+            Avatar: true
+          }
+        }
+      }
+    })
+
+    const announcementDto = {
+      id: updated.Id,
+      title: updated.Title,
+      content: updated.Message,
+      createdAt: updated.CreatedAt,
+      classId: classId,
+      lecturer: {
+        id: updated.User?.Id || userId,
+        name: updated.User?.FullName || 'Giảng viên',
+        email: updated.User?.Email || '',
+        avatar: updated.User?.Avatar || null
+      }
+    }
+
+    // Broadcast Realtime update event
+    classEvents.emit(`class_announcement_updated:${classId}`, announcementDto)
+
+    this.ok(res, announcementDto, 'Đã cập nhật thông báo thành công')
+  }
+
   async deleteAnnouncement(req: Request, res: Response): Promise<void> {
     const classId = req.params.id as string
     const announcementId = req.params.announcementId as string
@@ -440,6 +511,12 @@ export class ClassesController extends BaseController {
       } catch (e) { }
     }
 
+    const onUpdateAnnouncement = (data: any) => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'UPDATE_ANNOUNCEMENT', data })}\n\n`)
+      } catch (e) { }
+    }
+
     const onDeleteAnnouncement = (data: any) => {
       try {
         res.write(`data: ${JSON.stringify({ type: 'DELETE_ANNOUNCEMENT', data })}\n\n`)
@@ -447,6 +524,7 @@ export class ClassesController extends BaseController {
     }
 
     classEvents.on(`class_announcement:${classId}`, onNewAnnouncement)
+    classEvents.on(`class_announcement_updated:${classId}`, onUpdateAnnouncement)
     classEvents.on(`class_announcement_deleted:${classId}`, onDeleteAnnouncement)
 
     // Keepalive ping every 25 seconds
@@ -461,6 +539,7 @@ export class ClassesController extends BaseController {
     req.on('close', () => {
       clearInterval(keepAliveTimer)
       classEvents.removeListener(`class_announcement:${classId}`, onNewAnnouncement)
+      classEvents.removeListener(`class_announcement_updated:${classId}`, onUpdateAnnouncement)
       classEvents.removeListener(`class_announcement_deleted:${classId}`, onDeleteAnnouncement)
     })
   }

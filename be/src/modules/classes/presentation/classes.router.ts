@@ -26,6 +26,8 @@ export class ClassesRouter {
     this.router.get('/:id/announcements/stream', asyncHandler((req, res) => controller.streamAnnouncements(req, res)))
     this.router.get('/:id/announcements', authenticate, asyncHandler((req, res) => controller.listAnnouncements(req, res)))
     this.router.post('/:id/announcements', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.createAnnouncement(req, res)))
+    this.router.put('/:id/announcements/:announcementId', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.updateAnnouncement(req, res)))
+    this.router.patch('/:id/announcements/:announcementId', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.updateAnnouncement(req, res)))
     this.router.delete('/:id/announcements/:announcementId', authenticate, requireRoles('ADMIN', 'LECTURER'), asyncHandler((req, res) => controller.deleteAnnouncement(req, res)))
     this.router.delete('/:id', authenticate, requireRoles('ADMIN'), asyncHandler((req, res) => controller.delete(req, res)))
   }

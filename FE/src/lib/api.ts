@@ -265,6 +265,8 @@ export const api = {
   getClassAnnouncements: (classId: string) => request<any[]>(`/classes/${classId}/announcements`),
   postClassAnnouncement: (classId: string, content: string, title?: string) =>
     request<any>(`/classes/${classId}/announcements`, { method: 'POST', body: JSON.stringify({ content, title }) }),
+  updateClassAnnouncement: (classId: string, announcementId: string, content: string, title?: string) =>
+    request<any>(`/classes/${classId}/announcements/${announcementId}`, { method: 'PUT', body: JSON.stringify({ content, title }) }),
   deleteClassAnnouncement: (classId: string, announcementId: string) =>
     request<any>(`/classes/${classId}/announcements/${announcementId}`, { method: 'DELETE' }),
 

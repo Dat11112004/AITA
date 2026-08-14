@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, gradingApi, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
-import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send, Trash2, Clock } from 'lucide-react'
+import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send, Trash2, Clock, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
@@ -20,6 +20,11 @@ export function LecturerClassDetail() {
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [isPosting, setIsPosting] = useState(false)
   
+  // Edit announcement state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('stream')
 
@@ -138,6 +143,32 @@ export function LecturerClassDetail() {
       alert(err.message || 'Lỗi khi đăng thông báo')
     } finally {
       setIsPosting(false)
+    }
+  }
+
+  const handleStartEdit = (a: any) => {
+    setEditingId(a.id)
+    setEditContent(a.content)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditContent('')
+  }
+
+  const handleSaveEdit = async (announcementId: string) => {
+    if (!editContent.trim() || !id || isSavingEdit) return
+    setIsSavingEdit(true)
+    try {
+      await api.updateClassAnnouncement(id, announcementId, editContent.trim())
+      setAnnouncements(prev => prev.map(a => a.id === announcementId ? { ...a, content: editContent.trim() } : a))
+      setEditingId(null)
+      setEditContent('')
+    } catch (err: any) {
+      console.error('Failed to update announcement:', err)
+      alert(err.message || 'Lỗi khi cập nhật thông báo')
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -322,19 +353,49 @@ export function LecturerClassDetail() {
                               </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteAnnouncement(a.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                            title="Xoá thông báo"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleStartEdit(a)}
+                              className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-950/30 rounded-lg transition-colors"
+                              title="Chỉnh sửa thông báo"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAnnouncement(a.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                              title="Xoá thông báo"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                          <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
-                            {a.content}
-                          </p>
-                        </div>
+
+                        {editingId === a.id ? (
+                          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 space-y-3">
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              className="w-full min-h-[75px] p-3 text-sm bg-slate-50 dark:bg-slate-900 rounded-xl border border-brand-300 dark:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none transition-all"
+                              placeholder="Nội dung thông báo..."
+                              autoFocus
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="outline" onClick={handleCancelEdit} disabled={isSavingEdit}>
+                                Huỷ
+                              </Button>
+                              <Button size="sm" className="bg-brand-600 hover:bg-brand-700 text-white" onClick={() => handleSaveEdit(a.id)} disabled={!editContent.trim() || isSavingEdit}>
+                                {isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                            <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                              {a.content}
+                            </p>
+                          </div>
+                        )}
                       </Card>
                     ))}
                   </div>
