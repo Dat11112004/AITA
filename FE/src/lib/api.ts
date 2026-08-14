@@ -261,6 +261,13 @@ export const api = {
   getStudentClassDetail: (classId: string) => request<any>(`/student-portal/classes/${classId}`),
   getStudentAiHint: (submissionId: string, ruleScoreId: string) => request<any>(`/submissions/${submissionId}/ai-feedback?ruleScoreId=${ruleScoreId}`),
 
+  // Class Announcements
+  getClassAnnouncements: (classId: string) => request<any[]>(`/classes/${classId}/announcements`),
+  postClassAnnouncement: (classId: string, content: string, title?: string) =>
+    request<any>(`/classes/${classId}/announcements`, { method: 'POST', body: JSON.stringify({ content, title }) }),
+  deleteClassAnnouncement: (classId: string, announcementId: string) =>
+    request<any>(`/classes/${classId}/announcements/${announcementId}`, { method: 'DELETE' }),
+
   getAssignment: (id: string) => request<AssignmentRow>(`/assignments/${id}`),
   createAssignment: (body: unknown) => {
     const isFormData = body instanceof FormData;

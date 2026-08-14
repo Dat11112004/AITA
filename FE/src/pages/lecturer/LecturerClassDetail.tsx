@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, gradingApi, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
-import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send } from 'lucide-react'
+import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send, Trash2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
@@ -17,6 +17,8 @@ export function LecturerClassDetail() {
   const [cls, setCls] = useState<ClassRow | null>(null)
   const [students, setStudents] = useState<any[]>([])
   const [assignments, setAssignments] = useState<AssignmentRow[]>([])
+  const [announcements, setAnnouncements] = useState<any[]>([])
+  const [isPosting, setIsPosting] = useState(false)
   
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('stream')
@@ -31,13 +33,15 @@ export function LecturerClassDetail() {
       const foundClass = classesData?.find(c => c.id === id)
       setCls(foundClass || null)
 
-      const [studentsData, assignmentsData] = await Promise.all([
+      const [studentsData, assignmentsData, announcementsData] = await Promise.all([
         api.getClassStudents(id),
-        api.getAssignments({ classId: id })
+        api.getAssignments({ classId: id }),
+        api.getClassAnnouncements(id).catch(() => [])
       ])
 
       const assignmentList = assignmentsData || []
       setAssignments(assignmentList)
+      setAnnouncements(announcementsData || [])
 
       const submissionLists = await Promise.all(
         assignmentList.map(async a => {
@@ -122,10 +126,30 @@ export function LecturerClassDetail() {
     }
   }, [loadData])
 
-  const handlePostAnnouncement = () => {
-    if (!announcement.trim()) return
-    alert(t('lc.cd.posted'))
-    setAnnouncement('')
+  const handlePostAnnouncement = async () => {
+    if (!announcement.trim() || !id || isPosting) return
+    setIsPosting(true)
+    try {
+      const newAnn = await api.postClassAnnouncement(id, announcement.trim())
+      setAnnouncements(prev => [newAnn, ...prev])
+      setAnnouncement('')
+    } catch (err: any) {
+      console.error('Failed to post announcement:', err)
+      alert(err.message || 'Lỗi khi đăng thông báo')
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    if (!id || !window.confirm('Bạn có chắc muốn xoá thông báo này không?')) return
+    try {
+      await api.deleteClassAnnouncement(id, announcementId)
+      setAnnouncements(prev => prev.filter(a => a.id !== announcementId))
+    } catch (err: any) {
+      console.error('Failed to delete announcement:', err)
+      alert(err.message || 'Lỗi khi xoá thông báo')
+    }
   }
 
   if (loading) {
@@ -250,12 +274,64 @@ export function LecturerClassDetail() {
                   </div>
                 </Card>
 
-                {/* Announcements section */}
-                <div className="p-8 text-center bg-white dark:bg-[#151821] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                  <Megaphone className="mx-auto mb-3 text-slate-300 dark:text-slate-600" size={32} />
-                  <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">{t('lc.cd.stream_title')}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{t('lc.cd.stream_desc')}</p>
-                </div>
+                {/* Announcements Feed */}
+                {announcements.length === 0 ? (
+                  <div className="p-12 text-center bg-white dark:bg-[#151821] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                    <Megaphone className="mx-auto mb-3 text-slate-300 dark:text-slate-600 animate-bounce" size={36} />
+                    <p className="font-bold text-slate-700 dark:text-slate-200 text-base">{t('lc.cd.stream_title')}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-md mx-auto">{t('lc.cd.stream_desc')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {announcements.map((a) => (
+                      <Card key={a.id} className="p-6 border-slate-200/90 dark:border-slate-800 shadow-sm bg-white dark:bg-[#151821] hover:shadow-md transition-all rounded-2xl">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-brand-500 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
+                              {a.lecturer?.avatar ? (
+                                <img
+                                  src={a.lecturer.avatar}
+                                  alt={a.lecturer.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : null}
+                              <span>{(a.lecturer?.name || 'GV').charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                                  {a.lecturer?.name || 'Giảng viên'}
+                                </h4>
+                                <span className="text-[11px] font-semibold bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-md border border-brand-200/60 dark:border-brand-800/40">
+                                  Giảng viên
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                                <Clock size={12} />
+                                <span>{a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Vừa xong'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteAnnouncement(a.id)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                            title="Xoá thông báo"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                          <p className="text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                            {a.content}
+                          </p>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

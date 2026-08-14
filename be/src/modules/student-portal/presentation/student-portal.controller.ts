@@ -321,6 +321,38 @@ export class StudentPortalController extends BaseController {
       }))
     }
 
+    const announcementRows = await prisma.notification.findMany({
+      where: {
+        ReferenceId: c.Id,
+        ReferenceType: 'CLASS'
+      },
+      include: {
+        User: {
+          select: {
+            Id: true,
+            FullName: true,
+            Email: true,
+            Avatar: true
+          }
+        }
+      },
+      orderBy: { CreatedAt: 'desc' },
+      take: 50
+    })
+
+    const announcements = announcementRows.map(r => ({
+      id: r.Id,
+      title: r.Title || 'Thông báo lớp học',
+      content: r.Message,
+      createdAt: r.CreatedAt,
+      lecturer: {
+        id: r.User?.Id || r.CreatedBy,
+        name: r.User?.FullName || 'Giảng viên',
+        email: r.User?.Email || '',
+        avatar: r.User?.Avatar || null
+      }
+    }))
+
     const result = {
       id: c.Id,
       classCode: c.ClassCode,
@@ -336,6 +368,7 @@ export class StudentPortalController extends BaseController {
         avatar: ic.User.Avatar || null
       })),
       students: studentList,
+      announcements: announcements,
       assignments: (c.ExamClass || []).map((ec: any) => ({
         id: ec.Exam?.Id,
         title: ec.Exam?.Title,

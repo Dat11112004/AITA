@@ -12,6 +12,8 @@ import type { ILogger } from '../../../shared/application/ports/logger.interface
 import { GetClassCodesBySubjectUseCase } from '../application/use-cases/get-class-codes-by-subject.use-case.js'
 import { MESSAGES } from '../../../shared/constants/messages.js'
 import { prisma } from '../../../database/prisma.js'
+import { classEvents } from '../../../shared/infrastructure/events/class-events.js'
+import { NodemailerService } from '../../../shared/infrastructure/email/nodemailer.service.js'
 
 export class ClassesController extends BaseController {
   constructor(
@@ -161,5 +163,257 @@ export class ClassesController extends BaseController {
     this.logger.info(`Fetching class codes for subject ${subjectId}`)
     const result = await this.getClassCodesBySubjectUseCase.execute(subjectId)
     this.ok(res, result, MESSAGES.SUCCESS)
+  }
+
+  async listAnnouncements(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    this.logger.info(`Fetching announcements for class ${classId}`)
+    const rows = await prisma.notification.findMany({
+      where: {
+        ReferenceId: classId,
+        ReferenceType: 'CLASS'
+      },
+      include: {
+        User: {
+          select: {
+            Id: true,
+            FullName: true,
+            Email: true,
+            Avatar: true
+          }
+        }
+      },
+      orderBy: { CreatedAt: 'desc' },
+      take: 50
+    })
+
+    const announcements = rows.map(r => ({
+      id: r.Id,
+      title: r.Title || 'Thông báo lớp học',
+      content: r.Message,
+      createdAt: r.CreatedAt,
+      lecturer: {
+        id: r.User?.Id || r.CreatedBy,
+        name: r.User?.FullName || 'Giảng viên',
+        email: r.User?.Email || '',
+        avatar: r.User?.Avatar || null
+      }
+    }))
+
+    this.ok(res, announcements, MESSAGES.SUCCESS)
+  }
+
+  async createAnnouncement(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    const userId = req.user!.id
+    const { title, content } = req.body
+
+    if (!content || !content.trim()) {
+      throw new Error('Nội dung thông báo không được để trống')
+    }
+
+    const cls = await prisma.class.findUnique({
+      where: { Id: classId },
+      include: {
+        Subject: true,
+        StudentClass: {
+          include: {
+            User: {
+              select: {
+                Id: true,
+                Email: true,
+                FullName: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!cls) {
+      throw new Error('Lớp học không tồn tại')
+    }
+
+    const notifTitle = title?.trim() || `Thông báo lớp ${cls.ClassCode}`
+    const notif = await prisma.notification.create({
+      data: {
+        Title: notifTitle,
+        Message: content.trim(),
+        Type: 'CLASS_ANNOUNCEMENT',
+        ReferenceId: classId,
+        ReferenceType: 'CLASS',
+        CreatedBy: userId,
+        CreatedAt: new Date()
+      },
+      include: {
+        User: {
+          select: {
+            Id: true,
+            FullName: true,
+            Email: true,
+            Avatar: true
+          }
+        }
+      }
+    })
+
+    // Create NotificationRecipient for all students in this class
+    const studentUsers = (cls.StudentClass || []).map(sc => sc.User).filter(Boolean)
+    const studentUserIds = [...new Set(studentUsers.map(u => u!.Id))]
+    const validEmails = [...new Set(studentUsers.map(u => u!.Email).filter(Boolean))] as string[]
+
+    if (studentUserIds.length > 0) {
+      await prisma.notificationRecipient.createMany({
+        data: studentUserIds.map(sId => ({
+          NotificationId: notif.Id,
+          UserId: sId,
+          IsRead: false
+        }))
+      })
+    }
+
+    const lecturerName = notif.User?.FullName || (req.user as any)?.name || 'Giảng viên'
+    const subjectCode = cls.Subject?.SubjectCode || ''
+    const subjectName = cls.Subject?.SubjectName || ''
+    const subjectLabel = subjectCode && subjectName ? `${subjectName} (${subjectCode})` : (subjectCode || subjectName || 'môn học')
+
+    const announcementDto = {
+      id: notif.Id,
+      title: notif.Title,
+      content: notif.Message,
+      createdAt: notif.CreatedAt,
+      classId: classId,
+      classCode: cls.ClassCode,
+      subjectCode: subjectCode,
+      lecturer: {
+        id: notif.User?.Id || userId,
+        name: lecturerName,
+        email: notif.User?.Email || (req.user as any)?.email || '',
+        avatar: notif.User?.Avatar || null
+      }
+    }
+
+    // 1. Broadcast Realtime SSE event
+    classEvents.emit(`class_announcement:${classId}`, announcementDto)
+
+    // 2. Send email notification to all students in this class
+    if (validEmails.length > 0) {
+      const emailSubject = `[AITA] Thông báo mới lớp ${cls.ClassCode} - Môn ${subjectCode || subjectName}`
+      const emailHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+          <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f5f9;">
+            <h2 style="color: #ea580c; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">AITA Platform</h2>
+            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 13px;">Hệ thống Hỗ trợ Đào tạo & Chấm điểm Tự động</p>
+          </div>
+
+          <p style="font-size: 15px; color: #334155; margin-top: 0;">Xin chào các bạn sinh viên lớp <strong>${cls.ClassCode}</strong>,</p>
+          <p style="font-size: 14px; color: #475569; line-height: 1.6;">Giảng viên <strong>${lecturerName}</strong> vừa đăng một thông báo mới trên bảng tin lớp học:</p>
+
+          <div style="background-color: #fff7ed; padding: 18px 20px; border-radius: 12px; border-left: 5px solid #ea580c; margin: 20px 0;">
+            <div style="font-size: 12px; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+              Lớp: ${cls.ClassCode} • Môn: ${subjectLabel}
+            </div>
+            <div style="font-size: 15px; color: #1e293b; line-height: 1.6; white-space: pre-wrap; font-weight: 500;">${content.trim()}</div>
+          </div>
+
+          <div style="margin: 28px 0; text-align: center;">
+            <a href="https://feaita.edubridge.edu.vn/student/classes/${classId}" style="display: inline-block; background-color: #ea580c; color: #ffffff; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);">
+              👉 Xem bảng tin lớp học trên AITA
+            </a>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">
+            Email này được gửi tự động từ hệ thống AITA Platform. Vui lòng không trả lời trực tiếp email này.
+          </p>
+        </div>
+      `
+
+      try {
+        const emailService = new NodemailerService()
+        emailService.sendEmail(validEmails, emailSubject, emailHtml).catch(err => {
+          console.error(`[ClassesController] Lỗi gửi email thông báo cho lớp ${classId}:`, err)
+        })
+      } catch (emailErr) {
+        console.error(`[ClassesController] Lỗi khởi tạo email service:`, emailErr)
+      }
+    }
+
+    this.created(res, announcementDto, 'Đã đăng thông báo thành công')
+  }
+
+  async deleteAnnouncement(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+    const announcementId = req.params.announcementId as string
+    const userId = req.user!.id
+    const userRole = req.user!.role
+
+    const notif = await prisma.notification.findUnique({
+      where: { Id: announcementId }
+    })
+
+    if (!notif) {
+      this.ok(res, null, MESSAGES.SUCCESS)
+      return
+    }
+
+    if (userRole !== 'ADMIN' && notif.CreatedBy !== userId) {
+      throw new Error('Bạn không có quyền xoá thông báo này')
+    }
+
+    await prisma.notificationRecipient.deleteMany({
+      where: { NotificationId: announcementId }
+    })
+    await prisma.notification.delete({
+      where: { Id: announcementId }
+    })
+
+    // Broadcast Realtime deletion event
+    classEvents.emit(`class_announcement_deleted:${classId}`, { announcementId })
+
+    this.ok(res, null, 'Đã xoá thông báo thành công')
+  }
+
+  async streamAnnouncements(req: Request, res: Response): Promise<void> {
+    const classId = req.params.id as string
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+
+    // Send initial ping
+    res.write(`data: ${JSON.stringify({ type: 'CONNECTED', classId })}\n\n`)
+
+    const onNewAnnouncement = (data: any) => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'NEW_ANNOUNCEMENT', data })}\n\n`)
+      } catch (e) { }
+    }
+
+    const onDeleteAnnouncement = (data: any) => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'DELETE_ANNOUNCEMENT', data })}\n\n`)
+      } catch (e) { }
+    }
+
+    classEvents.on(`class_announcement:${classId}`, onNewAnnouncement)
+    classEvents.on(`class_announcement_deleted:${classId}`, onDeleteAnnouncement)
+
+    // Keepalive ping every 25 seconds
+    const keepAliveTimer = setInterval(() => {
+      try {
+        res.write(`: keepalive\n\n`)
+      } catch (e) {
+        clearInterval(keepAliveTimer)
+      }
+    }, 25000)
+
+    req.on('close', () => {
+      clearInterval(keepAliveTimer)
+      classEvents.removeListener(`class_announcement:${classId}`, onNewAnnouncement)
+      classEvents.removeListener(`class_announcement_deleted:${classId}`, onDeleteAnnouncement)
+    })
   }
 }
