@@ -168,10 +168,28 @@ export class ClassesController extends BaseController {
   async listAnnouncements(req: Request, res: Response): Promise<void> {
     const classId = req.params.id as string
     this.logger.info(`Fetching announcements for class ${classId}`)
+
+    // 1. Resolve potential class / subject / exam
+    const cls = await prisma.class.findFirst({
+      where: {
+        OR: [
+          { Id: classId },
+          { SubjectId: classId },
+          { ClassCode: classId },
+          { ExamClass: { some: { ExamId: classId } } }
+        ]
+      }
+    })
+
+    const targetRefIds = [classId]
+    if (cls?.Id && !targetRefIds.includes(cls.Id)) targetRefIds.push(cls.Id)
+    if (cls?.SubjectId && !targetRefIds.includes(cls.SubjectId)) targetRefIds.push(cls.SubjectId)
+    if (cls?.ClassCode && !targetRefIds.includes(cls.ClassCode)) targetRefIds.push(cls.ClassCode)
+
     const rows = await prisma.notification.findMany({
       where: {
-        ReferenceId: classId,
-        ReferenceType: 'CLASS'
+        ReferenceId: { in: targetRefIds },
+        Type: { in: ['CLASS_ANNOUNCEMENT', 'CLASS', 'Announcement', 'ANNOUNCEMENT'] }
       },
       include: {
         User: {
@@ -212,8 +230,16 @@ export class ClassesController extends BaseController {
       throw new Error('Nội dung thông báo không được để trống')
     }
 
-    const cls = await prisma.class.findUnique({
-      where: { Id: classId },
+    // 1. Flexible lookup for class or subject or exam
+    const cls = await prisma.class.findFirst({
+      where: {
+        OR: [
+          { Id: classId },
+          { SubjectId: classId },
+          { ClassCode: classId },
+          { ExamClass: { some: { ExamId: classId } } }
+        ]
+      },
       include: {
         Subject: true,
         StudentClass: {
@@ -230,11 +256,18 @@ export class ClassesController extends BaseController {
       }
     })
 
-    if (!cls) {
-      throw new Error('Lớp học không tồn tại')
-    }
+    const subject = await prisma.subject.findFirst({
+      where: {
+        OR: [
+          { Id: classId },
+          { SubjectCode: classId }
+        ]
+      }
+    })
 
-    const notifTitle = title?.trim() || `Thông báo lớp ${cls.ClassCode}`
+    const classCode = cls?.ClassCode || subject?.SubjectCode || 'LỚP HỌC'
+    const notifTitle = title?.trim() || `Thông báo lớp ${classCode}`
+
     const notif = await prisma.notification.create({
       data: {
         Title: notifTitle,
@@ -257,8 +290,20 @@ export class ClassesController extends BaseController {
       }
     })
 
-    // Create NotificationRecipient for all students in this class
-    const studentUsers = (cls.StudentClass || []).map(sc => sc.User).filter(Boolean)
+    // Find student recipients
+    let studentUsers = (cls?.StudentClass || []).map(sc => sc.User).filter(Boolean)
+    if (studentUsers.length === 0) {
+      studentUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { UserRole: { some: { Role: { RoleName: { in: ['STUDENT', 'Student', 'student'] } } } } },
+            { StudentCode: { not: null } }
+          ]
+        },
+        select: { Id: true, Email: true, FullName: true }
+      })
+    }
+
     const studentUserIds = [...new Set(studentUsers.map(u => u!.Id))]
     const validEmails = [...new Set(studentUsers.map(u => u!.Email).filter(Boolean))] as string[]
 
@@ -273,8 +318,8 @@ export class ClassesController extends BaseController {
     }
 
     const lecturerName = notif.User?.FullName || (req.user as any)?.name || 'Giảng viên'
-    const subjectCode = cls.Subject?.SubjectCode || ''
-    const subjectName = cls.Subject?.SubjectName || ''
+    const subjectCode = cls?.Subject?.SubjectCode || subject?.SubjectCode || ''
+    const subjectName = cls?.Subject?.SubjectName || subject?.SubjectName || ''
     const subjectLabel = subjectCode && subjectName ? `${subjectName} (${subjectCode})` : (subjectCode || subjectName || 'môn học')
 
     const announcementDto = {
@@ -283,7 +328,7 @@ export class ClassesController extends BaseController {
       content: notif.Message,
       createdAt: notif.CreatedAt,
       classId: classId,
-      classCode: cls.ClassCode,
+      classCode: classCode,
       subjectCode: subjectCode,
       lecturer: {
         id: notif.User?.Id || userId,
@@ -295,10 +340,13 @@ export class ClassesController extends BaseController {
 
     // 1. Broadcast Realtime SSE event
     classEvents.emit(`class_announcement:${classId}`, announcementDto)
+    if (cls?.Id && cls.Id !== classId) {
+      classEvents.emit(`class_announcement:${cls.Id}`, announcementDto)
+    }
 
     // 2. Send email notification to all students in this class
     if (validEmails.length > 0) {
-      const emailSubject = `[AITA] Thông báo mới lớp ${cls.ClassCode} - Môn ${subjectCode || subjectName}`
+      const emailSubject = `[AITA] Thông báo mới lớp ${classCode} - Môn ${subjectCode || subjectName}`
       const emailHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
           <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f1f5f9;">
@@ -306,12 +354,12 @@ export class ClassesController extends BaseController {
             <p style="color: #64748b; margin: 4px 0 0 0; font-size: 13px;">Hệ thống Hỗ trợ Đào tạo & Chấm điểm Tự động</p>
           </div>
 
-          <p style="font-size: 15px; color: #334155; margin-top: 0;">Xin chào các bạn sinh viên lớp <strong>${cls.ClassCode}</strong>,</p>
+          <p style="font-size: 15px; color: #334155; margin-top: 0;">Xin chào các bạn sinh viên lớp <strong>${classCode}</strong>,</p>
           <p style="font-size: 14px; color: #475569; line-height: 1.6;">Giảng viên <strong>${lecturerName}</strong> vừa đăng một thông báo mới trên bảng tin lớp học:</p>
 
           <div style="background-color: #fff7ed; padding: 18px 20px; border-radius: 12px; border-left: 5px solid #ea580c; margin: 20px 0;">
             <div style="font-size: 12px; font-weight: 700; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-              Lớp: ${cls.ClassCode} • Môn: ${subjectLabel}
+              Lớp: ${classCode} • Môn: ${subjectLabel}
             </div>
             <div style="font-size: 15px; color: #1e293b; line-height: 1.6; white-space: pre-wrap; font-weight: 500;">${content.trim()}</div>
           </div>
@@ -332,10 +380,10 @@ export class ClassesController extends BaseController {
       try {
         const emailService = new NodemailerService()
         emailService.sendEmail(validEmails, emailSubject, emailHtml).catch(err => {
-          console.error(`[ClassesController] Lỗi gửi email thông báo cho lớp ${classId}:`, err)
+          console.error(`[ClassesController] Lỗi gửi email thông báo:`, err)
         })
       } catch (emailErr) {
-        console.error(`[ClassesController] Lỗi khởi tạo email service:`, emailErr)
+        console.error(`[ClassesController] Lỗi email service:`, emailErr)
       }
     }
 

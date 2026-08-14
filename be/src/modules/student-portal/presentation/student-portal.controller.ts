@@ -242,8 +242,13 @@ export class StudentPortalController extends BaseController {
 
     // 2. If no direct class record matches, resolve via Subject or Exam and construct class view
     if (!cls) {
-      const subject = await prisma.subject.findUnique({ where: { Id: classId } })
-      const exam = await prisma.exam.findUnique({ where: { Id: classId }, include: { Subject: true } })
+      const subject = await prisma.subject.findFirst({
+        where: { OR: [{ Id: classId }, { SubjectCode: classId }] }
+      })
+      const exam = await prisma.exam.findFirst({
+        where: { Id: classId },
+        include: { Subject: true }
+      })
 
       const activeStudents = await prisma.user.findMany({
         where: {
@@ -264,6 +269,51 @@ export class StudentPortalController extends BaseController {
         joinedAt: s.LastLoginAt ? s.LastLoginAt.toISOString() : null
       }))
 
+      // Find lecturers
+      const lecturers = await prisma.user.findMany({
+        where: {
+          UserRole: { some: { Role: { RoleName: { in: ['LECTURER', 'Lecturer', 'lecturer', 'ADMIN', 'Admin'] } } } }
+        },
+        select: { Id: true, FullName: true, Email: true, Avatar: true },
+        take: 3
+      })
+
+      const targetRefIds = [classId]
+      if (subject?.Id && !targetRefIds.includes(subject.Id)) targetRefIds.push(subject.Id)
+      if (subject?.SubjectCode && !targetRefIds.includes(subject.SubjectCode)) targetRefIds.push(subject.SubjectCode)
+
+      const announcementRows = await prisma.notification.findMany({
+        where: {
+          ReferenceId: { in: targetRefIds },
+          Type: { in: ['CLASS_ANNOUNCEMENT', 'CLASS', 'Announcement', 'ANNOUNCEMENT'] }
+        },
+        include: {
+          User: {
+            select: {
+              Id: true,
+              FullName: true,
+              Email: true,
+              Avatar: true
+            }
+          }
+        },
+        orderBy: { CreatedAt: 'desc' },
+        take: 50
+      })
+
+      const announcements = announcementRows.map(r => ({
+        id: r.Id,
+        title: r.Title || 'Thông báo lớp học',
+        content: r.Message,
+        createdAt: r.CreatedAt,
+        lecturer: {
+          id: r.User?.Id || r.CreatedBy,
+          name: r.User?.FullName || 'Giảng viên',
+          email: r.User?.Email || '',
+          avatar: r.User?.Avatar || null
+        }
+      }))
+
       const result = {
         id: classId,
         classCode: subject?.SubjectCode || exam?.Subject?.SubjectCode || 'LỚP HỌC',
@@ -272,8 +322,14 @@ export class StudentPortalController extends BaseController {
           code: subject?.SubjectCode || exam?.Subject?.SubjectCode,
           name: subject?.SubjectName || exam?.Subject?.SubjectName
         } : null,
-        lecturers: [],
+        lecturers: lecturers.map(l => ({
+          id: l.Id,
+          name: l.FullName,
+          email: l.Email,
+          avatar: l.Avatar
+        })),
         students: studentList,
+        announcements,
         assignments: exam ? [{
           id: exam.Id,
           title: exam.Title,
