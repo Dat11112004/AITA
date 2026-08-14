@@ -41,12 +41,12 @@ export function LecturerClassDetail() {
       const [studentsData, assignmentsData, announcementsData] = await Promise.all([
         api.getClassStudents(id),
         api.getAssignments({ classId: id }),
-        api.getClassAnnouncements(id).catch(() => [])
+        api.getClassAnnouncements(id).catch((err) => { console.error('[LecturerClassDetail] Failed to load announcements:', err); return [] as any[] })
       ])
 
       const assignmentList = assignmentsData || []
       setAssignments(assignmentList)
-      setAnnouncements(announcementsData || [])
+      setAnnouncements(Array.isArray(announcementsData) ? announcementsData : [])
 
       const submissionLists = await Promise.all(
         assignmentList.map(async a => {
