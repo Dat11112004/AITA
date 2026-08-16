@@ -233,37 +233,35 @@ export class ClassesController extends BaseController {
     const classId = req.params.id as string
     this.logger.info(`[listAnnouncements] classId=${classId}`)
 
-    // Step 1: Try to find the Class record (same as student portal)
+    // Step 1: Try to find the Class record
+    // classId from URL is always a UUID — only search by UUID fields
     const cls = await prisma.class.findFirst({
       where: {
         OR: [
           { Id: classId },
           { SubjectId: classId },
-          { ClassCode: classId },
           { ExamClass: { some: { ExamId: classId } } }
         ]
       },
       include: { Subject: true }
     })
 
-    // Step 2: Build targetRefIds (same approach as student portal)
-    const targetRefIds: string[] = [classId]
-    if (cls?.Id && !targetRefIds.includes(cls.Id)) targetRefIds.push(cls.Id)
-    if (cls?.SubjectId && !targetRefIds.includes(cls.SubjectId)) targetRefIds.push(cls.SubjectId)
-    if (cls?.ClassCode && !targetRefIds.includes(cls.ClassCode)) targetRefIds.push(cls.ClassCode)
-    if (cls?.Subject?.Id && !targetRefIds.includes(cls.Subject.Id)) targetRefIds.push(cls.Subject.Id)
-    if (cls?.Subject?.SubjectCode && !targetRefIds.includes(cls.Subject.SubjectCode)) targetRefIds.push(cls.Subject.SubjectCode)
-
-    // Also try direct subject lookup (for subject-based class pages)
-    const subject = await prisma.subject.findFirst({
-      where: { OR: [{ Id: classId }, { SubjectCode: classId }] }
-    })
-    if (subject?.Id && !targetRefIds.includes(subject.Id)) targetRefIds.push(subject.Id)
-    if (subject?.SubjectCode && !targetRefIds.includes(subject.SubjectCode)) targetRefIds.push(subject.SubjectCode)
+    // Step 2: Build targetRefIds — ONLY include valid UUIDs!
+    // IMPORTANT: ReferenceId is SQL Server UniqueIdentifier (UUID-only).
+    // Adding non-UUID strings (ClassCode, SubjectCode) causes a SQL cast error
+    // → Prisma throws → frontend .catch() returns [] → announcements disappear!
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const refIdSet = new Set<string>()
+    const addUuid = (v: string | null | undefined) => { if (v && uuidRegex.test(v)) refIdSet.add(v) }
+    addUuid(classId)
+    addUuid(cls?.Id)
+    addUuid(cls?.SubjectId)
+    addUuid(cls?.Subject?.Id)
+    const targetRefIds = Array.from(refIdSet)
 
     this.logger.info(`[listAnnouncements] targetRefIds=${JSON.stringify(targetRefIds)}`)
 
-    // Step 3: Query notifications — exact same as student portal
+    // Step 3: Query notifications — match ReferenceId exactly as stored by createAnnouncement
     const rows = await prisma.notification.findMany({
       where: {
         ReferenceId: { in: targetRefIds },
