@@ -25,6 +25,9 @@ export function LecturerClassDetail() {
   const [editContent, setEditContent] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
+  // Delete confirmation modal state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('stream')
 
@@ -217,8 +220,14 @@ export function LecturerClassDetail() {
     }
   }
 
-  const handleDeleteAnnouncement = async (announcementId: string) => {
-    if (!id || !window.confirm('Bạn có chắc muốn xoá thông báo này không?')) return
+  const handleDeleteAnnouncement = (announcementId: string) => {
+    setConfirmDeleteId(announcementId)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!id || !confirmDeleteId) return
+    const announcementId = confirmDeleteId
+    setConfirmDeleteId(null)
     try {
       await api.deleteClassAnnouncement(id, announcementId)
       setAnnouncements(prev => prev.filter(a => a.id !== announcementId))
@@ -248,6 +257,7 @@ export function LecturerClassDetail() {
   ]
 
   return (
+    <>
     <div className="animate-in fade-in duration-500 min-h-screen pb-20">
       
       {/* Simple Header (Class Header) */}
@@ -611,5 +621,46 @@ export function LecturerClassDetail() {
         </div>
       </div>
     </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setConfirmDeleteId(null)}
+          />
+          {/* Modal */}
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center">
+                <Trash2 size={18} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Xoá thông báo</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Hành động này không thể hoàn tác</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+              Bạn có chắc muốn xoá thông báo này không?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
+              >
+                Xoá
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
