@@ -134,13 +134,19 @@ export class SemesterRepository implements ISemesterRepository {
 
   async createSeason(season: string, startDate?: Date, endDate?: Date): Promise<Semester[]> {
     return await this.prisma.$transaction(async (tx: any) => {
+      // 1. Deactivate existing seasons so the newly created season is the primary active one
+      await tx.semester.updateMany({
+        where: { Season: { not: season } },
+        data: { IsActive: false }
+      })
+
       const createdSemesters: Semester[] = []
 
       for (let i = 1; i <= 9; i++) {
         const id = randomUUID()
         const code = `Kỳ ${i}`
 
-        // Create semester
+        // Create semester with IsActive = true
         await tx.semester.create({
           data: {
             Id: id,
@@ -159,7 +165,7 @@ export class SemesterRepository implements ISemesterRepository {
         })
 
         if (matchingSubjects.length > 0) {
-          // Professional approach: check existing to avoid duplicates
+          // Check existing to avoid duplicates
           const existingLinks = await tx.semesterSubject.findMany({
             where: { SemesterId: id, SubjectId: { in: matchingSubjects.map((s: any) => s.Id) } },
             select: { SubjectId: true }
@@ -179,6 +185,20 @@ export class SemesterRepository implements ISemesterRepository {
       }
 
       return createdSemesters
+    })
+  }
+
+  async setActiveSeason(season: string): Promise<void> {
+    await this.prisma.$transaction(async (tx: any) => {
+      // Deactivate all
+      await tx.semester.updateMany({
+        data: { IsActive: false }
+      })
+      // Activate matching season
+      await tx.semester.updateMany({
+        where: { Season: season },
+        data: { IsActive: true }
+      })
     })
   }
 

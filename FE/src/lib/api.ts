@@ -226,8 +226,8 @@ export const api = {
   getUsers: (role = 'all', page = 1, limit = 10, search?: string) =>
     request<UserRow[]>(`/users?role=${role}&page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getUser: (id: string) => request<any>(`/users/${id}`),
-  createUser: (body: CreateUserBody) =>
-    request<UserRow>('/users', { method: 'POST', body: JSON.stringify(body) }),
+  createUser: (body: CreateUserBody | FormData) =>
+    request<UserRow>('/users', { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
 
   getClasses: (page = 1, limit = 10) => request<ClassRow[]>(`/classes?page=${page}&limit=${limit}`),
   createClass: (body: CreateClassBody) =>
@@ -237,6 +237,8 @@ export const api = {
   deleteClass: (id: string) =>
     request<void>(`/classes/${id}`, { method: 'DELETE' }),
   getClassStudents: (classId: string) => request<StudentRow[]>(`/classes/${classId}/students`),
+  enrollStudent: (classId: string, studentId: string) =>
+    request<any>(`/classes/${classId}/enroll`, { method: 'POST', body: JSON.stringify({ studentId }) }),
   getClassCodes: (semesterCode?: string, subjectCode?: string) => {
     const params = new URLSearchParams();
     if (semesterCode) params.append('semesterCode', semesterCode);
@@ -284,8 +286,8 @@ export const api = {
   getLecturerOptions: () => request<Option[]>(`/settings/options/lecturers`),
 
   // â”€â”€â”€ Admin: User CRUD â”€â”€â”€
-  updateUser: (id: string, body: Partial<CreateUserBody> & { status?: string, updatedClasses?: { classId: string, newClassCode: string, newSubjectCode?: string }[] }) =>
-    request<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  updateUser: (id: string, body: (Partial<CreateUserBody> & { status?: string, updatedClasses?: { classId: string, newClassCode: string, newSubjectCode?: string }[] }) | FormData) =>
+    request<UserRow>(`/users/${id}`, { method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body) }),
   deleteUser: (id: string) =>
     request<void>(`/users/${id}`, { method: 'DELETE' }),
   // One request for the whole selection — the server deletes sequentially so the
@@ -338,6 +340,7 @@ export const api = {
   addSemesterSubjects: (semesterId: string, subjectIds: string[]) => request<void>(`/semesters/${semesterId}/subjects`, { method: 'POST', body: JSON.stringify({ subjectIds }) }),
   removeSemesterSubject: (semesterId: string, subjectId: string) => request<void>(`/semesters/${semesterId}/subjects/${subjectId}`, { method: 'DELETE' }),
   deleteSeason: (season: string) => request<void>(`/semesters/season/${encodeURIComponent(season)}`, { method: 'DELETE' }),
+  activateSeason: (season: string) => request<{ season: string; isActive: boolean }>(`/semesters/season/${encodeURIComponent(season)}/activate`, { method: 'POST' }),
   getClassesBySubject: (semesterId: string, subjectId: string) => request<any[]>(`/semesters/${semesterId}/subjects/${subjectId}/classes`),
 
   // ── Prompts ───────────────────────────────────────────────────
@@ -535,6 +538,11 @@ export interface CreateUserBody {
   password: string
   fullName: string
   role: string
+  studentCode?: string
+  lecturerCode?: string
+  phone?: string
+  avatar?: string | null
+  classIds?: string[]
   externalId?: string
 }
 
@@ -1009,7 +1017,7 @@ export const gradingApi = {
       try {
         const json = await res.json();
         errMsg = json.Message || json.message || errMsg;
-      } catch (e) {}
+      } catch (e) { }
       throw new ApiError(errMsg, res.status);
     }
 

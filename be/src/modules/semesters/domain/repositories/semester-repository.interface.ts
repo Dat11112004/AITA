@@ -16,6 +16,7 @@ export interface ISemesterRepository {
   removeSubject(semesterId: string, subjectId: string): Promise<void>
   getClassesBySubject(semesterId: string, subjectId: string): Promise<any[]>
   manageSemesterSubjects(semesterId: string, addIds: string[], removeIds: string[]): Promise<any[]>
+  setActiveSeason(season: string): Promise<void>
   listSemesterSubjects(
     semesterId: string,
     options?: { page?: number; pageSize?: number }

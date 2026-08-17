@@ -11,6 +11,7 @@ export function createSemestersRouter(controller: SemestersController): Router {
   router.get('/', requireRoles('ADMIN', 'LECTURER', 'STUDENT'), asyncHandler(controller.list.bind(controller)))
   router.post('/', requireRoles('ADMIN'), asyncHandler(controller.create.bind(controller)))
   router.post('/season', requireRoles('ADMIN'), asyncHandler(controller.createSeason.bind(controller)))
+  router.post('/season/:season/activate', requireRoles('ADMIN'), asyncHandler(controller.activateSeason.bind(controller)))
   router.delete('/season/:season', requireRoles('ADMIN'), asyncHandler(controller.deleteSeason.bind(controller)))
   router.patch('/:id', requireRoles('ADMIN'), asyncHandler(controller.update.bind(controller)))
   router.delete('/:id', requireRoles('ADMIN'), asyncHandler(controller.delete.bind(controller)))

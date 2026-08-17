@@ -18,6 +18,8 @@ import { GetUserDetailsUseCase } from '../application/use-cases/get-user-details
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 import fs from 'fs'
 
+import { CloudinaryService } from '../../../shared/infrastructure/services/cloudinary.service.js'
+
 export class UsersController extends BaseController {
     constructor(
         private readonly listUseCase: ListUsersUseCase,
@@ -56,14 +58,83 @@ export class UsersController extends BaseController {
 
     async create(req: Request, res: Response): Promise<void> {
         this.logger.debug('Received create user request')
-        const dto = CreateUserDto.parse(req.body)
+        
+        let avatarUrl: string | undefined = undefined
+        if (req.file) {
+            if (CloudinaryService.isConfigured()) {
+                try {
+                    const fileBuffer = fs.readFileSync(req.file.path)
+                    const result = await CloudinaryService.uploadStream(fileBuffer, {
+                        folder: 'avatars',
+                        public_id: `avatar_${Date.now()}`
+                    })
+                    avatarUrl = result.secure_url
+                } catch (e) {
+                    this.logger.warn(`Failed to upload avatar to Cloudinary: ${e}`)
+                    avatarUrl = `/uploads/avatars/${req.file.filename}`
+                }
+            } else {
+                avatarUrl = `/uploads/avatars/${req.file.filename}`
+            }
+        } else if (req.body.avatar) {
+            avatarUrl = req.body.avatar
+        }
+
+        let classIds: string[] | undefined = undefined
+        if (req.body.classIds) {
+            if (typeof req.body.classIds === 'string') {
+                try {
+                    const parsed = JSON.parse(req.body.classIds)
+                    classIds = Array.isArray(parsed) ? parsed : [req.body.classIds]
+                } catch {
+                    classIds = req.body.classIds.split(',').map((s: string) => s.trim()).filter(Boolean)
+                }
+            } else if (Array.isArray(req.body.classIds)) {
+                classIds = req.body.classIds
+            }
+        }
+
+        const rawData = {
+            ...req.body,
+            avatar: avatarUrl || undefined,
+            classIds
+        }
+
+        const dto = CreateUserDto.parse(rawData)
         const result = await this.createUseCase.execute(dto)
         this.created(res, result, MESSAGES.USER_CREATE_SUCCESS)
     }
 
     async update(req: Request, res: Response): Promise<void> {
         this.logger.debug(`Received update user request for ID: ${req.params.id}`)
-        const dto = UpdateUserDto.parse(req.body)
+        
+        let avatarUrl: string | undefined = undefined
+        if (req.file) {
+            if (CloudinaryService.isConfigured()) {
+                try {
+                    const fileBuffer = fs.readFileSync(req.file.path)
+                    const result = await CloudinaryService.uploadStream(fileBuffer, {
+                        folder: 'avatars',
+                        public_id: `avatar_${Date.now()}`
+                    })
+                    avatarUrl = result.secure_url
+                } catch (e) {
+                    this.logger.warn(`Failed to upload avatar to Cloudinary: ${e}`)
+                    avatarUrl = `/uploads/avatars/${req.file.filename}`
+                }
+            } else {
+                avatarUrl = `/uploads/avatars/${req.file.filename}`
+            }
+        } else if (req.body.avatar) {
+            avatarUrl = req.body.avatar
+        }
+
+        const rawData = {
+            ...req.body,
+            ...(avatarUrl !== undefined ? { avatar: avatarUrl } : {})
+        }
+
+        const dto = UpdateUserDto.parse(rawData)
         const result = await this.updateUseCase.execute({ id: String(req.params.id), dto })
         this.ok(res, result, MESSAGES.USER_UPDATE_SUCCESS)
     }

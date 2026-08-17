@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -7,16 +8,12 @@ import { Input, Select } from '@/components/ui/Input'
 import { Tabs } from '@/components/ui/Tabs'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
-import { api, type UserRow } from '@/lib/api'
-import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical, ChevronDown } from 'lucide-react'
+import { api, type UserRow, type SemesterRow, type SubjectRow, type ClassRow } from '@/lib/api'
+import { formatSemesterCode } from '@/utils/semester'
+import { Pencil, Trash2, Plus, Users, AlertTriangle, Loader2, X, ShieldAlert, Upload, FileSpreadsheet, CheckSquare, MoreVertical, ChevronDown, GraduationCap, UserPlus, Sparkles, BookOpen, Check, Camera, User } from 'lucide-react'
 
-const ROLE_TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'lecturer', label: 'Lecturer' },
-  { id: 'student', label: 'Student' },
-]
-
-const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) => {
+const ActionMenu = ({ onEdit, onAssign, onDelete, role }: { onEdit: () => void, onAssign?: () => void, onDelete: () => void, role?: string }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -61,8 +58,8 @@ const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
       {open && rect && createPortal(
         <div
           ref={menuRef}
-          style={{ top: rect.bottom + window.scrollY + 4, left: rect.right + window.scrollX - 160 }}
-          className="absolute w-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl shadow-slate-200/20 border border-slate-200 dark:border-slate-700 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          style={{ top: rect.bottom + window.scrollY + 4, left: rect.right + window.scrollX - 180 }}
+          className="absolute w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl shadow-slate-200/20 border border-slate-200 dark:border-slate-700 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-100"
           onClick={e => e.stopPropagation()}
         >
           <div className="py-1">
@@ -70,13 +67,21 @@ const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
               onClick={(e) => { e.preventDefault(); setOpen(false); onEdit(); }}
             >
-              <Pencil size={14} className="text-slate-400" /> Edit Info
+              <Pencil size={14} className="text-slate-400" /> {t('admin.users.action_edit')}
             </button>
+            {onAssign && (
+              <button
+                className="w-full text-left px-4 py-2.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center gap-2"
+                onClick={(e) => { e.preventDefault(); setOpen(false); onAssign(); }}
+              >
+                <GraduationCap size={14} /> {role === 'lecturer' ? t('admin.users.assign_modal_lecturer_title') : t('admin.users.assign_modal_student_title')}
+              </button>
+            )}
             <button
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
               onClick={(e) => { e.preventDefault(); setOpen(false); onDelete(); }}
             >
-              <Trash2 size={14} /> Delete Account
+              <Trash2 size={14} /> {t('admin.users.action_delete')}
             </button>
           </div>
         </div>,
@@ -87,6 +92,14 @@ const ActionMenu = ({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
 };
 
 export function AdminUsers() {
+  const { t } = useTranslation()
+
+  const ROLE_TABS = [
+    { id: 'all', label: t('admin.users.tab_all') },
+    { id: 'lecturer', label: t('admin.users.tab_lecturer') },
+    { id: 'student', label: t('admin.users.tab_student') },
+  ]
+
   const [activeTab, setActiveTab] = useState('all')
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
@@ -124,10 +137,49 @@ export function AdminUsers() {
   const [availableClassCodes, setAvailableClassCodes] = useState<Record<string, { classId: string, classCode: string, studentCount: number }[]>>({})
   const [semesterFilter, setSemesterFilter] = useState<string>('')
   const [subjectsBySemester, setSubjectsBySemester] = useState<Record<string, any[]>>({})
-  const [allSemesters, setAllSemesters] = useState<any[]>([])
+  const [allSemesters, setAllSemesters] = useState<SemesterRow[]>([])
+  const [allSubjects, setAllSubjects] = useState<SubjectRow[]>([])
+  const [allClasses, setAllClasses] = useState<ClassRow[]>([])
+
+  // ─── Dedicated Manual Create Modal State (Cascade Multi-Select) ───
+  const [showManualCreateModal, setShowManualCreateModal] = useState(false)
+  const [manualCreateRole, setManualCreateRole] = useState<'lecturer' | 'student'>('lecturer')
+  const [manualCreateForm, setManualCreateForm] = useState({
+    fullName: '',
+    email: '',
+    code: '',
+    phone: '',
+    password: ''
+  })
+  const [manualCreateSeason, setManualCreateSeason] = useState('')
+  const [manualSelectedSemesterIds, setManualSelectedSemesterIds] = useState<string[]>([])
+  const [manualSelectedSubjectIds, setManualSelectedSubjectIds] = useState<string[]>([])
+  const [manualSelectedClassIds, setManualSelectedClassIds] = useState<string[]>([])
+  const [manualAvatarFile, setManualAvatarFile] = useState<File | null>(null)
+  const [manualAvatarPreview, setManualAvatarPreview] = useState<string | null>(null)
+  const [creatingManualUser, setCreatingManualUser] = useState(false)
+
+  // ─── Dedicated Assign Classes Modal State (Cascade Multi-Select) ───
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignUser, setAssignUser] = useState<UserRow | null>(null)
+  const [assignUserCurrentClasses, setAssignUserCurrentClasses] = useState<any[]>([])
+  const [assignSeason, setAssignSeason] = useState('')
+  const [assignSelectedSemesterIds, setAssignSelectedSemesterIds] = useState<string[]>([])
+  const [assignSelectedSubjectIds, setAssignSelectedSubjectIds] = useState<string[]>([])
+  const [assignSelectedClassIds, setAssignSelectedClassIds] = useState<string[]>([])
+  const [loadingAssignDetails, setLoadingAssignDetails] = useState(false)
+  const [savingAssignClass, setSavingAssignClass] = useState(false)
 
   useEffect(() => {
-    api.getSemesters().then(setAllSemesters).catch(console.error)
+    Promise.all([
+      api.getSemesters().catch(() => []),
+      api.getSubjects(1, 1000).catch(() => []),
+      api.getClasses(1, 1000).catch(() => []),
+    ]).then(([sems, subs, cls]) => {
+      setAllSemesters(sems || [])
+      setAllSubjects(subs || [])
+      setAllClasses(cls || [])
+    })
   }, [])
 
   useEffect(() => {
@@ -195,11 +247,6 @@ export function AdminUsers() {
     setError('')
   }
 
-  const handleOpenCreate = () => {
-    resetForm()
-    setShowForm(true)
-  }
-
   const handleOpenEdit = async (user: UserRow) => {
     setEditingUser(user)
     setForm({ fullName: user.name, email: user.email, password: '', role: user.role, externalId: user.studentCode || user.lecturerCode || '' })
@@ -235,12 +282,386 @@ export function AdminUsers() {
       if (uniqueSems.length > 0) {
         setSemesterFilter(uniqueSems[0]);
       } else if (allSemesters.length > 0) {
-        setSemesterFilter(allSemesters[0].Code || allSemesters[0].id || '');
+        setSemesterFilter(allSemesters[0].code || allSemesters[0].id || '');
       } else {
         setSemesterFilter('');
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  // ─── Smart Season Grouping & Active Season ───
+  const groupedAllSeasons = allSemesters.reduce((acc, sem) => {
+    const s = sem.season || 'Unclassified'
+    if (!acc[s]) acc[s] = []
+    acc[s].push(sem)
+    return acc
+  }, {} as Record<string, SemesterRow[]>)
+
+  const activeSeasonName = allSemesters.find(s => s.isActive)?.season || Object.keys(groupedAllSeasons)[0] || ''
+
+  // ─── Helper Queries for Cascade Selection ───
+  const getSubjectsForSemesterIds = (semesterIds: string[]) => {
+    if (semesterIds.length === 0) return []
+    const semNumbers = semesterIds.map(id => {
+      const s = allSemesters.find(item => item.id === id)
+      return parseInt(s?.code.match(/\d+/)?.[0] || '0', 10)
+    })
+    return allSubjects.filter(sub => {
+      const subSem = typeof sub.semester === 'number' ? sub.semester : parseInt(String(sub.semester || '').match(/\d+/)?.[0] || '0', 10)
+      return semNumbers.includes(subSem) || ((sub as any).semesterId && semesterIds.includes((sub as any).semesterId))
+    })
+  }
+
+  const getClassesForSubjectIds = (subjectIds: string[], semesterIds: string[]) => {
+    if (subjectIds.length === 0) return []
+    return allClasses.filter(cls => {
+      const subId = typeof cls.subject === 'object' ? cls.subject?.id : cls.subject
+      const semId = typeof cls.semester === 'object' ? cls.semester?.id : cls.semester
+      const matchSubject = subjectIds.includes(subId)
+      const matchSemester = semesterIds.length === 0 || semesterIds.includes(semId)
+      return matchSubject && matchSemester
+    })
+  }
+
+  // ─── Computed Values for Current Modal State ───
+  const manualAvailableSubjects = getSubjectsForSemesterIds(manualSelectedSemesterIds)
+  const manualAvailableClasses = getClassesForSubjectIds(manualSelectedSubjectIds, manualSelectedSemesterIds)
+
+  const assignAvailableSubjects = getSubjectsForSemesterIds(assignSelectedSemesterIds)
+  const assignAvailableClasses = getClassesForSubjectIds(assignSelectedSubjectIds, assignSelectedSemesterIds)
+
+  // ─── Manual Create Handlers ───
+  const handleManualAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      setError('Chỉ chấp nhận file ảnh định dạng JPG, PNG, WebP hoặc GIF')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Dung lượng ảnh tối đa là 5MB')
+      return
+    }
+    if (manualAvatarPreview && manualAvatarPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(manualAvatarPreview)
+    }
+    setManualAvatarFile(file)
+    setManualAvatarPreview(URL.createObjectURL(file))
+    setError('')
+  }
+
+  const handleRemoveManualAvatar = () => {
+    if (manualAvatarPreview && manualAvatarPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(manualAvatarPreview)
+    }
+    setManualAvatarFile(null)
+    setManualAvatarPreview(null)
+  }
+
+  const openManualCreate = (role: 'lecturer' | 'student') => {
+    setManualCreateRole(role)
+    setManualCreateForm({
+      fullName: '',
+      email: '',
+      code: '',
+      phone: '',
+      password: ''
+    })
+    if (manualAvatarPreview && manualAvatarPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(manualAvatarPreview)
+    }
+    setManualAvatarFile(null)
+    setManualAvatarPreview(null)
+
+    const defaultSeason = activeSeasonName || (allSemesters.length > 0 ? allSemesters[0].season || '' : '')
+    setManualCreateSeason(defaultSeason)
+
+    const sems = (groupedAllSeasons[defaultSeason] || []).sort((a, b) => {
+      const numA = parseInt(a.code.match(/\d+/)?.[0] || '99')
+      const numB = parseInt(b.code.match(/\d+/)?.[0] || '99')
+      return numA - numB
+    })
+    // Auto-select the first semester by default
+    const initialSemIds = sems.length > 0 ? [sems[0].id] : []
+    setManualSelectedSemesterIds(initialSemIds)
+
+    // Auto-select matching subjects
+    const matchingSubs = getSubjectsForSemesterIds(initialSemIds)
+    const initialSubIds = matchingSubs.map(s => s.id)
+    setManualSelectedSubjectIds(initialSubIds)
+
+    // Auto-select matching classes
+    const matchingClasses = getClassesForSubjectIds(initialSubIds, initialSemIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+
+    setError('')
+    setShowManualCreateModal(true)
+  }
+
+  const handleManualChangeSeason = (newSeason: string) => {
+    setManualCreateSeason(newSeason)
+    const sems = (groupedAllSeasons[newSeason] || []).sort((a, b) => {
+      const numA = parseInt(a.code.match(/\d+/)?.[0] || '99')
+      const numB = parseInt(b.code.match(/\d+/)?.[0] || '99')
+      return numA - numB
+    })
+    const initialSemIds = sems.length > 0 ? [sems[0].id] : []
+    setManualSelectedSemesterIds(initialSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(initialSemIds)
+    const initialSubIds = matchingSubs.map(s => s.id)
+    setManualSelectedSubjectIds(initialSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(initialSubIds, initialSemIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleManualSemester = (semId: string) => {
+    const nextSemIds = manualSelectedSemesterIds.includes(semId)
+      ? manualSelectedSemesterIds.filter(id => id !== semId)
+      : [...manualSelectedSemesterIds, semId]
+    setManualSelectedSemesterIds(nextSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(nextSemIds)
+    const nextSubIds = matchingSubs.map(s => s.id)
+    setManualSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, nextSemIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleSelectAllManualSemesters = (selectAll: boolean) => {
+    const sems = groupedAllSeasons[manualCreateSeason] || []
+    const nextSemIds = selectAll ? sems.map(s => s.id) : []
+    setManualSelectedSemesterIds(nextSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(nextSemIds)
+    const nextSubIds = matchingSubs.map(s => s.id)
+    setManualSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, nextSemIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleManualSubject = (subId: string) => {
+    const nextSubIds = manualSelectedSubjectIds.includes(subId)
+      ? manualSelectedSubjectIds.filter(id => id !== subId)
+      : [...manualSelectedSubjectIds, subId]
+    setManualSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, manualSelectedSemesterIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleSelectAllManualSubjects = (selectAll: boolean) => {
+    const availableSubs = getSubjectsForSemesterIds(manualSelectedSemesterIds)
+    const nextSubIds = selectAll ? availableSubs.map(s => s.id) : []
+    setManualSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, manualSelectedSemesterIds)
+    setManualSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleManualClass = (classId: string) => {
+    setManualSelectedClassIds(prev =>
+      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
+    )
+  }
+
+  const handleSelectAllManualClasses = (selectAll: boolean) => {
+    const availableClasses = getClassesForSubjectIds(manualSelectedSubjectIds, manualSelectedSemesterIds)
+    setManualSelectedClassIds(selectAll ? availableClasses.map(c => c.id) : [])
+  }
+
+  const handleManualCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (!manualCreateForm.fullName.trim() || manualCreateForm.fullName.trim().length < 2) {
+      setError('Họ và tên phải từ 2 ký tự trở lên')
+      return
+    }
+    if (!manualCreateForm.email || !manualCreateForm.email.includes('@')) {
+      setError('Email không hợp lệ')
+      return
+    }
+    if (!manualCreateForm.password || manualCreateForm.password.length < 6) {
+      setError('Mật khẩu phải từ 6 ký tự trở lên')
+      return
+    }
+    if (!manualCreateForm.code.trim()) {
+      setError(manualCreateRole === 'lecturer' ? 'Vui lòng nhập Mã Giảng viên (VD: GV001)' : 'Vui lòng nhập Mã Sinh viên (VD: SE180001)')
+      return
+    }
+
+    setCreatingManualUser(true)
+    try {
+      const formData = new FormData()
+      formData.append('fullName', manualCreateForm.fullName.trim())
+      formData.append('email', manualCreateForm.email.trim().toLowerCase())
+      formData.append('password', manualCreateForm.password)
+      formData.append('role', manualCreateRole)
+      if (manualCreateRole === 'lecturer') {
+        formData.append('lecturerCode', manualCreateForm.code.trim().toUpperCase())
+      } else {
+        formData.append('studentCode', manualCreateForm.code.trim().toUpperCase())
+      }
+      if (manualCreateForm.phone.trim()) {
+        formData.append('phone', manualCreateForm.phone.trim())
+      }
+      if (manualAvatarFile) {
+        formData.append('avatar', manualAvatarFile)
+      }
+      if (manualSelectedClassIds.length > 0) {
+        formData.append('classIds', JSON.stringify(manualSelectedClassIds))
+      }
+
+      await api.createUser(formData)
+
+      setShowManualCreateModal(false)
+      setImportSuccess(`Đã tạo thành công ${manualCreateRole === 'lecturer' ? 'Giảng viên' : 'Sinh viên'} ${manualCreateForm.fullName} cùng ${manualSelectedClassIds.length} lớp học!`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Tạo người dùng thất bại')
+    } finally {
+      setCreatingManualUser(false)
+    }
+  }
+
+  // ─── Assign Classes Handlers ───
+  const handleOpenAssignModal = async (u: UserRow) => {
+    setAssignUser(u)
+    setAssignUserCurrentClasses([])
+    const defaultSeason = activeSeasonName || (allSemesters.length > 0 ? allSemesters[0].season || '' : '')
+    setAssignSeason(defaultSeason)
+
+    const sems = (groupedAllSeasons[defaultSeason] || []).sort((a, b) => {
+      const numA = parseInt(a.code.match(/\d+/)?.[0] || '99')
+      const numB = parseInt(b.code.match(/\d+/)?.[0] || '99')
+      return numA - numB
+    })
+    const initialSemIds = sems.length > 0 ? [sems[0].id] : []
+    setAssignSelectedSemesterIds(initialSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(initialSemIds)
+    const initialSubIds = matchingSubs.map(s => s.id)
+    setAssignSelectedSubjectIds(initialSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(initialSubIds, initialSemIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+
+    setShowAssignModal(true)
+    setLoadingAssignDetails(true)
+    try {
+      const details = await api.getUser(u.id)
+      const classes = u.role === 'lecturer' ? (details.instructingClasses || []) : (details.enrolledClasses || [])
+      setAssignUserCurrentClasses(classes)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingAssignDetails(false)
+    }
+  }
+
+  const handleAssignChangeSeason = (newSeason: string) => {
+    setAssignSeason(newSeason)
+    const sems = (groupedAllSeasons[newSeason] || []).sort((a, b) => {
+      const numA = parseInt(a.code.match(/\d+/)?.[0] || '99')
+      const numB = parseInt(b.code.match(/\d+/)?.[0] || '99')
+      return numA - numB
+    })
+    const initialSemIds = sems.length > 0 ? [sems[0].id] : []
+    setAssignSelectedSemesterIds(initialSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(initialSemIds)
+    const initialSubIds = matchingSubs.map(s => s.id)
+    setAssignSelectedSubjectIds(initialSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(initialSubIds, initialSemIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleAssignSemester = (semId: string) => {
+    const nextSemIds = assignSelectedSemesterIds.includes(semId)
+      ? assignSelectedSemesterIds.filter(id => id !== semId)
+      : [...assignSelectedSemesterIds, semId]
+    setAssignSelectedSemesterIds(nextSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(nextSemIds)
+    const nextSubIds = matchingSubs.map(s => s.id)
+    setAssignSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, nextSemIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleSelectAllAssignSemesters = (selectAll: boolean) => {
+    const sems = groupedAllSeasons[assignSeason] || []
+    const nextSemIds = selectAll ? sems.map(s => s.id) : []
+    setAssignSelectedSemesterIds(nextSemIds)
+
+    const matchingSubs = getSubjectsForSemesterIds(nextSemIds)
+    const nextSubIds = matchingSubs.map(s => s.id)
+    setAssignSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, nextSemIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleAssignSubject = (subId: string) => {
+    const nextSubIds = assignSelectedSubjectIds.includes(subId)
+      ? assignSelectedSubjectIds.filter(id => id !== subId)
+      : [...assignSelectedSubjectIds, subId]
+    setAssignSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, assignSelectedSemesterIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleSelectAllAssignSubjects = (selectAll: boolean) => {
+    const availableSubs = getSubjectsForSemesterIds(assignSelectedSemesterIds)
+    const nextSubIds = selectAll ? availableSubs.map(s => s.id) : []
+    setAssignSelectedSubjectIds(nextSubIds)
+
+    const matchingClasses = getClassesForSubjectIds(nextSubIds, assignSelectedSemesterIds)
+    setAssignSelectedClassIds(matchingClasses.map(c => c.id))
+  }
+
+  const handleToggleAssignClass = (classId: string) => {
+    setAssignSelectedClassIds(prev =>
+      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
+    )
+  }
+
+  const handleSelectAllAssignClasses = (selectAll: boolean) => {
+    const availableClasses = getClassesForSubjectIds(assignSelectedSubjectIds, assignSelectedSemesterIds)
+    setAssignSelectedClassIds(selectAll ? availableClasses.map(c => c.id) : [])
+  }
+
+  const handleAssignClassesDirectly = async () => {
+    if (!assignUser || assignSelectedClassIds.length === 0) return
+    setSavingAssignClass(true)
+    try {
+      if (assignUser.role === 'student') {
+        for (const cId of assignSelectedClassIds) {
+          await api.enrollStudent(cId, assignUser.id).catch(() => { })
+        }
+      } else {
+        for (const cId of assignSelectedClassIds) {
+          await api.updateClass(cId, { lecturerId: assignUser.id }).catch(() => { })
+        }
+      }
+      const details = await api.getUser(assignUser.id)
+      const classes = assignUser.role === 'lecturer' ? (details.instructingClasses || []) : (details.enrolledClasses || [])
+      setAssignUserCurrentClasses(classes)
+      setImportSuccess(`Đã gán thành công ${assignSelectedClassIds.length} lớp học!`)
+      await load()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gán lớp thất bại')
+    } finally {
+      setSavingAssignClass(false)
     }
   }
 
@@ -498,9 +919,9 @@ export function AdminUsers() {
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       <PageHeader
-        title="User Management"
-        description="Manage permissions and status of lecturers, students, and admins."
-        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: 'Users' }]}
+        title={t('admin.users.title')}
+        description={t('admin.users.desc')}
+        breadcrumbs={[{ label: 'Admin', path: '/admin' }, { label: t('admin.users.title') }]}
         actions={
           <div className="flex gap-2 items-center flex-wrap">
             <Button
@@ -509,7 +930,7 @@ export function AdminUsers() {
               className={isSelectionMode ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'text-slate-700 dark:text-slate-300 border-slate-200'}
               onClick={toggleSelectionMode}
             >
-              <CheckSquare size={16} className="mr-2" /> {isSelectionMode ? 'Deselect' : 'Select'}
+              <CheckSquare size={16} className="mr-2" /> {isSelectionMode ? t('admin.users.deselect') : 'Select'}
             </Button>
             {isSelectionMode && (
               <Button
@@ -518,7 +939,7 @@ export function AdminUsers() {
                 className="text-brand-700 border-brand-200 hover:bg-brand-50"
                 onClick={toggleSelectAll}
               >
-                {selectedIds.size === filteredUsers.length && filteredUsers.length > 0 ? 'Deselect All' : 'Select All'}
+                {selectedIds.size === filteredUsers.length && filteredUsers.length > 0 ? t('admin.users.deselect') : t('admin.users.select_all')}
               </Button>
             )}
             {isSelectionMode && selectedIds.size > 0 && (
@@ -564,7 +985,7 @@ export function AdminUsers() {
                     onClick={() => setIsImportDropdownOpen(prev => !prev)}
                   >
                     <Upload size={16} className="text-brand-600 dark:text-brand-400" />
-                    <span>Import Excel/CSV</span>
+                    <span>{t('admin.users.import_excel')}</span>
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isImportDropdownOpen ? 'rotate-180' : ''}`} />
                   </Button>
 
@@ -586,7 +1007,7 @@ export function AdminUsers() {
                           }}
                         >
                           <Upload size={14} className="text-slate-400 shrink-0" />
-                          <span>Import Lecturer</span>
+                          <span>{t('admin.users.import_lecturer')}</span>
                         </button>
 
                         <button
@@ -603,7 +1024,7 @@ export function AdminUsers() {
                           }}
                         >
                           <Upload size={14} className="text-slate-400 shrink-0" />
-                          <span>Import Assignment</span>
+                          <span>{t('admin.users.import_assignment')}</span>
                         </button>
 
                         <button
@@ -620,7 +1041,7 @@ export function AdminUsers() {
                           }}
                         >
                           <Upload size={14} className="text-slate-400 shrink-0" />
-                          <span>Import Student</span>
+                          <span>{t('admin.users.import_student')}</span>
                         </button>
                       </div>
                     </>
@@ -628,11 +1049,20 @@ export function AdminUsers() {
                 </div>
                 <Button
                   size="sm"
-                  className="bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
-                  onClick={handleOpenCreate}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+                  onClick={() => openManualCreate('lecturer')}
                 >
                   <Plus size={16} />
-                  Add New User
+                  {t('admin.users.add_lecturer')}
+                </Button>
+
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 active:scale-95 transition-transform shadow-sm"
+                  onClick={() => openManualCreate('student')}
+                >
+                  <Plus size={16} />
+                  {t('admin.users.add_student')}
                 </Button>
               </>
             )}
@@ -766,10 +1196,10 @@ export function AdminUsers() {
               <div className="flex items-start gap-4">
                 <div className="relative w-20 h-20 rounded-full overflow-hidden shrink-0 border-2 border-brand-100 dark:border-brand-900 shadow-sm bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center">
                   {selectedUserDetail.avatar ? (
-                    <img 
-                      src={selectedUserDetail.avatar} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover relative z-10" 
+                    <img
+                      src={selectedUserDetail.avatar}
+                      alt="Avatar"
+                      className="w-full h-full object-cover relative z-10"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none';
                         const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
@@ -777,7 +1207,7 @@ export function AdminUsers() {
                       }}
                     />
                   ) : null}
-                  <div 
+                  <div
                     style={{ display: selectedUserDetail.avatar ? 'none' : 'flex' }}
                     className="w-full h-full items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-2xl"
                   >
@@ -1009,7 +1439,7 @@ export function AdminUsers() {
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
                   <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
                 </div>
-                
+
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
                   <table className="w-full text-left font-mono">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
@@ -1123,7 +1553,7 @@ export function AdminUsers() {
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
                   <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
                 </div>
-                
+
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
                   <table className="w-full text-left font-mono">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
@@ -1235,7 +1665,7 @@ export function AdminUsers() {
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Excel Template Structure</span>
                   <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 rounded-md border border-brand-100 dark:border-brand-800">Standard Format</span>
                 </div>
-                
+
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
                   <table className="w-full text-left font-mono">
                     <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
@@ -1531,7 +1961,7 @@ export function AdminUsers() {
           <div className="relative max-w-xs w-full sm:ml-auto flex items-center">
             <div className="relative w-full">
               <Input
-                placeholder="Quick filter by name | student/lecturer ID"
+                placeholder={t('admin.users.search_placeholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pr-10"
@@ -1579,7 +2009,7 @@ export function AdminUsers() {
                 }] : []),
                 {
                   key: 'id',
-                  header: 'System ID',
+                  header: 'ID',
                   render: (r) => {
                     const u = r as UserRow
                     const code = u.studentCode || u.lecturerCode || '-'
@@ -1589,7 +2019,7 @@ export function AdminUsers() {
                 },
                 {
                   key: 'avatar',
-                  header: 'Avatar',
+                  header: t('admin.users.col_avatar'),
                   render: (r) => {
                     const u = r as UserRow;
                     const isLocked = u.status !== 'active';
@@ -1598,10 +2028,9 @@ export function AdminUsers() {
                       if (!u.lastLoginAt) return false;
                       let timeStr = String(u.lastLoginAt);
                       if (!timeStr.endsWith('Z') && !timeStr.includes('+')) {
-                        timeStr += 'Z'; // Fix timezone issue (BE returns UTC without Z)
+                        timeStr += 'Z';
                       }
                       const diff = Date.now() - new Date(timeStr).getTime();
-                      // Active session window: exactly 30 minutes to simulate real-time "Online" status
                       return diff > -60000 && diff < 30 * 60 * 1000;
                     })();
 
@@ -1615,10 +2044,10 @@ export function AdminUsers() {
                     return (
                       <div className="relative w-[111px] h-[146px] rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                         {u.avatar ? (
-                          <img 
-                            src={u.avatar} 
-                            alt={u.name} 
-                            className={`w-full h-full object-cover relative z-10 ${isLocked ? 'opacity-50 grayscale' : ''}`} 
+                          <img
+                            src={u.avatar}
+                            alt={u.name}
+                            className={`w-full h-full object-cover relative z-10 ${isLocked ? 'opacity-50 grayscale' : ''}`}
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = 'none';
                               const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
@@ -1626,7 +2055,7 @@ export function AdminUsers() {
                             }}
                           />
                         ) : null}
-                        <div 
+                        <div
                           style={{ display: u.avatar ? 'none' : 'flex' }}
                           className={`w-full h-full items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-3xl ${isLocked ? 'opacity-50' : ''}`}
                         >
@@ -1643,35 +2072,34 @@ export function AdminUsers() {
                 },
                 {
                   key: 'name',
-                  header: 'Full Name',
+                  header: t('admin.users.col_name'),
                   render: (r) => <span className="font-semibold text-slate-800 dark:text-slate-200">{(r as UserRow).name}</span>
                 },
                 {
                   key: 'email',
-                  header: 'Email Address',
+                  header: t('admin.users.col_email'),
                   render: (r) => <span className="text-slate-600 dark:text-slate-400 font-medium">{(r as UserRow).email}</span>
                 },
                 {
                   key: 'role',
-                  header: 'Role',
+                  header: t('admin.users.col_role'),
                   render: (r) => {
                     const u = r as UserRow
                     const variant = u.role === 'admin' ? 'info' : u.role === 'lecturer' ? 'warning' : 'success'
-                    const label = u.role === 'admin' ? 'Admin' : u.role === 'lecturer' ? 'Lecturer' : 'Student'
+                    const label = u.role === 'admin' ? 'Admin' : u.role === 'lecturer' ? t('admin.users.tab_lecturer') : t('admin.users.tab_student')
                     return <Badge variant={variant} className="px-2.5 py-0.5 rounded-full font-medium text-[11px]">{label}</Badge>
                   },
                   className: 'w-32'
                 },
-
-
                 {
                   key: 'actions',
-                  header: 'Actions',
+                  header: t('admin.users.col_actions'),
                   render: (r) => {
                     const u = r as UserRow
                     return (
                       <div className="flex gap-1 justify-end pr-2">
                         <ActionMenu
+                          role={u.role}
                           onEdit={() => {
                             if (selectedIds.size === 1) {
                               const id = Array.from(selectedIds)[0]
@@ -1681,6 +2109,7 @@ export function AdminUsers() {
                               handleOpenEdit(u)
                             }
                           }}
+                          onAssign={u.role !== 'admin' ? () => handleOpenAssignModal(u) : undefined}
                           onDelete={() => {
                             if (selectedIds.size > 0) {
                               setConfirmBulkDelete(true)
@@ -1702,6 +2131,588 @@ export function AdminUsers() {
           </div>
         )}
       </Card>
+
+      {/* ═══════════════════════ MODAL: THÊM THỦ CÔNG GIẢNG VIÊN / SINH VIÊN ═══════════════════════ */}
+      {showManualCreateModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowManualCreateModal(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${manualCreateRole === 'lecturer' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
+                  {manualCreateRole === 'lecturer' ? <GraduationCap size={20} /> : <UserPlus size={20} />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                    {manualCreateRole === 'lecturer' ? t('admin.users.modal_create_lecturer_title') : t('admin.users.modal_create_student_title')}
+                  </h3>
+                  <p className="text-xs text-slate-500">{t('admin.users.modal_create_desc')}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowManualCreateModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+
+            {error && (
+              <div className="mb-4 flex items-start gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleManualCreateSubmit} className="space-y-4">
+              {/* ── Avatar Upload Section ── */}
+              <div className="flex items-center gap-4 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="relative group shrink-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm transition-all group-hover:border-brand-500">
+                    {manualAvatarPreview ? (
+                      <img src={manualAvatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-8 h-8 text-slate-400" />
+                    )}
+                  </div>
+                  <label className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
+                    <Camera size={18} />
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      onChange={handleManualAvatarChange}
+                    />
+                  </label>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg shadow-sm transition-colors">
+                      <Camera size={14} className="text-brand-600 dark:text-brand-400" />
+                      <span>{manualAvatarPreview ? t('admin.users.avatar_change_btn') : t('admin.users.avatar_upload_btn')}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        onChange={handleManualAvatarChange}
+                      />
+                    </label>
+                    {manualAvatarPreview && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveManualAvatar}
+                        className="text-xs text-red-500 hover:text-red-700 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      >
+                        {t('admin.users.avatar_remove_btn')}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    {t('admin.users.avatar_hint')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label={t('admin.users.full_name')}
+                  placeholder={manualCreateRole === 'lecturer' ? 'TS. Nguyễn Văn A' : 'Nguyễn Văn B'}
+                  value={manualCreateForm.fullName}
+                  onChange={e => setManualCreateForm({ ...manualCreateForm, fullName: e.target.value })}
+                  required
+                />
+                <Input
+                  label={t('admin.users.fpt_email')}
+                  type="email"
+                  placeholder={manualCreateRole === 'lecturer' ? 'anv@fe.edu.vn' : 'bnvse180001@fpt.edu.vn'}
+                  value={manualCreateForm.email}
+                  onChange={e => setManualCreateForm({ ...manualCreateForm, email: e.target.value })}
+                  required
+                />
+                <Input
+                  label={manualCreateRole === 'lecturer' ? t('admin.users.lecturer_code') : t('admin.users.student_code')}
+                  placeholder={manualCreateRole === 'lecturer' ? 'GV021' : 'SE180001'}
+                  value={manualCreateForm.code}
+                  onChange={e => setManualCreateForm({ ...manualCreateForm, code: e.target.value })}
+                  required
+                />
+                <Input
+                  label={t('admin.users.phone')}
+                  placeholder="0912345678"
+                  value={manualCreateForm.phone}
+                  onChange={e => setManualCreateForm({ ...manualCreateForm, phone: e.target.value })}
+                />
+                <div className="sm:col-span-2">
+                  <Input
+                    label={t('admin.users.password')}
+                    type="password"
+                    placeholder={t('admin.users.password_min')}
+                    value={manualCreateForm.password}
+                    onChange={e => setManualCreateForm({ ...manualCreateForm, password: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* ── Phân công lớp học ngay khi tạo (Cascade Multi-Select) ── */}
+              <div className="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Sparkles size={16} className="text-amber-500" />
+                    {manualCreateRole === 'lecturer' ? t('admin.users.assign_section_lecturer') : t('admin.users.assign_section_student')}
+                  </h4>
+                  <span className="text-[11px] text-slate-400">{t('admin.users.multi_select_hint')}</span>
+                </div>
+
+                {/* Season Selector */}
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">{t('admin.users.season')}</label>
+                  <select
+                    value={manualCreateSeason}
+                    onChange={e => handleManualChangeSeason(e.target.value)}
+                    className="text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 font-semibold text-slate-800 dark:text-slate-200 shadow-sm"
+                  >
+                    {Object.keys(groupedAllSeasons).map(sName => (
+                      <option key={sName} value={sName}>
+                        {sName} {sName === activeSeasonName ? `⭐ ${t('admin.users.current_season_badge')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-slate-400 ml-auto hidden sm:inline">
+                    {groupedAllSeasons[manualCreateSeason]?.length || 0} semesters
+                  </span>
+                </div>
+
+                {/* BƯỚC 1: CHỌN KỲ HỌC */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {t('admin.users.step1_semesters')} ({manualSelectedSemesterIds.length}/{(groupedAllSeasons[manualCreateSeason] || []).length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAllManualSemesters(true)}
+                        className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline px-1.5 py-0.5"
+                      >
+                        {t('admin.users.select_all')}
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectAllManualSemesters(false)}
+                        className="text-[11px] font-semibold text-slate-500 hover:underline px-1.5 py-0.5"
+                      >
+                        {t('admin.users.deselect')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Semester Chips Grid */}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-1.5">
+                    {(groupedAllSeasons[manualCreateSeason] || []).map(sem => {
+                      const isSelected = manualSelectedSemesterIds.includes(sem.id)
+                      return (
+                        <button
+                          key={sem.id}
+                          type="button"
+                          onClick={() => handleToggleManualSemester(sem.id)}
+                          className={`px-2 py-2 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center border text-center ${isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm ring-2 ring-indigo-300 dark:ring-indigo-800'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30'
+                            }`}
+                        >
+                          <span>{formatSemesterCode(sem.code)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* BƯỚC 2: CHỌN MÔN HỌC */}
+                {manualSelectedSemesterIds.length > 0 && (
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {t('admin.users.step2_subjects')} ({manualSelectedSubjectIds.length}/{manualAvailableSubjects.length})
+                        </span>
+                      </div>
+                      {manualAvailableSubjects.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllManualSubjects(true)}
+                            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline px-1.5 py-0.5"
+                          >
+                            {t('admin.users.select_all_subjects')}
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllManualSubjects(false)}
+                            className="text-[11px] font-semibold text-slate-500 hover:underline px-1.5 py-0.5"
+                          >
+                            {t('admin.users.deselect')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {manualAvailableSubjects.length === 0 ? (
+                      <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-700 text-center text-xs text-slate-400">
+                        {t('admin.users.no_subjects_found')}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+                        {manualAvailableSubjects.map(sub => {
+                          const isSelected = manualSelectedSubjectIds.includes(sub.id)
+                          return (
+                            <div
+                              key={sub.id}
+                              onClick={() => handleToggleManualSubject(sub.id)}
+                              className={`p-2 rounded-lg border text-left cursor-pointer transition-all flex items-start justify-between gap-2 select-none ${isSelected
+                                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-950 dark:text-indigo-100 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100/60 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400">{sub.code}</span>
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
+                                    {sub.semester ? `Sem ${sub.semester}` : ''}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] truncate text-slate-700 dark:text-slate-300 mt-0.5">{sub.name}</p>
+                              </div>
+                              <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 border ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                                }`}>
+                                {isSelected && <Check size={12} />}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* BƯỚC 3: CHỌN LỚP HỌC */}
+                {manualSelectedSubjectIds.length > 0 && (
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {t('admin.users.step3_classes')} ({manualSelectedClassIds.length}/{manualAvailableClasses.length})
+                        </span>
+                      </div>
+                      {manualAvailableClasses.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllManualClasses(true)}
+                            className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline px-1.5 py-0.5"
+                          >
+                            {t('admin.users.select_all_classes')}
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllManualClasses(false)}
+                            className="text-[11px] font-semibold text-slate-500 hover:underline px-1.5 py-0.5"
+                          >
+                            {t('admin.users.deselect')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {manualAvailableClasses.length === 0 ? (
+                      <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-700 text-center text-xs text-slate-400">
+                        {t('admin.users.no_classes_found')}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-44 overflow-y-auto pr-1">
+                        {manualAvailableClasses.map(cls => {
+                          const isSelected = manualSelectedClassIds.includes(cls.id)
+                          const subCode = typeof cls.subject === 'object' ? cls.subject?.code : (allSubjects.find(s => s.id === cls.subject)?.code || '')
+                          const semCode = typeof cls.semester === 'object' ? cls.semester?.code : (allSemesters.find(s => s.id === cls.semester)?.code || '')
+
+                          return (
+                            <div
+                              key={cls.id}
+                              onClick={() => handleToggleManualClass(cls.id)}
+                              className={`p-2 rounded-lg border text-left cursor-pointer transition-all flex items-center justify-between gap-1.5 select-none ${isSelected
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100/60 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">{cls.code}</span>
+                                <p className="text-[10px] truncate text-slate-500">{subCode} {semCode ? `• ${formatSemesterCode(semCode)}` : ''}</p>
+                              </div>
+                              <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                                }`}>
+                                {isSelected && <Check size={12} />}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* BƯỚC 4: TỔNG KẾT PHÂN CÔNG */}
+                {manualSelectedClassIds.length > 0 && (
+                  <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-indigo-900 dark:text-indigo-200">
+                      <BookOpen size={15} className="text-indigo-600" />
+                      <span>{t('admin.users.will_assign', { classes: manualSelectedClassIds.length, subjects: manualSelectedSubjectIds.length, semesters: manualSelectedSemesterIds.length })}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setManualSelectedClassIds([])}
+                      className="text-[11px] text-red-500 hover:underline font-medium"
+                    >
+                      {t('admin.users.clear_all_classes')}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Button type="button" variant="outline" onClick={() => setShowManualCreateModal(false)}>
+                  {t('admin.users.cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  className={manualCreateRole === 'lecturer' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
+                  disabled={creatingManualUser}
+                >
+                  {creatingManualUser ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
+                  {manualCreateRole === 'lecturer' ? t('admin.users.create_lecturer_btn') : t('admin.users.create_student_btn')}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ═══════════════════════ MODAL: PHÂN CÔNG GIẢNG DẠY / XẾP LỚP CHO USER HIỆN CÓ ═══════════════════════ */}
+      {showAssignModal && assignUser && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAssignModal(false)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-900/30 text-brand-600 flex items-center justify-center">
+                  <GraduationCap size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                    {assignUser.role === 'lecturer' ? t('admin.users.assign_modal_lecturer_title') : t('admin.users.assign_modal_student_title')}: {assignUser.name}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {assignUser.role === 'lecturer' ? `Mã GV: ${assignUser.lecturerCode || '—'}` : `MSSV: ${assignUser.studentCode || '—'}`} • {assignUser.email}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowAssignModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Current Classes List */}
+            <div className="mb-5">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-2">
+                {assignUser.role === 'lecturer' ? t('admin.users.current_classes_lecturer') : t('admin.users.current_classes_student')} ({assignUserCurrentClasses.length})
+              </h4>
+              {loadingAssignDetails ? (
+                <div className="text-center py-6">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" />
+                </div>
+              ) : assignUserCurrentClasses.length === 0 ? (
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center text-slate-400 text-xs">
+                  {t('admin.users.no_assigned_classes')}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+                  {assignUserCurrentClasses.map((cls, idx) => (
+                    <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
+                      <div>
+                        <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-200">{cls.classCode || cls.code}</span>
+                        <p className="text-xs text-slate-500">{cls.subjectCode || cls.subject?.code} • {cls.semesterCode || cls.semester?.code}</p>
+                      </div>
+                      <Badge variant="success" className="text-[10px]">{t('admin.users.active_status')}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Form to Assign Classes with Cascade Multi-Select */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3.5">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Plus size={16} className="text-brand-600" /> {t('admin.users.assign_new_title')}
+              </h4>
+
+              {/* Season */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">{t('admin.users.season')}</label>
+                <select
+                  value={assignSeason}
+                  onChange={e => handleAssignChangeSeason(e.target.value)}
+                  className="text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 font-semibold text-slate-800 dark:text-slate-200 shadow-sm"
+                >
+                  {Object.keys(groupedAllSeasons).map(sName => (
+                    <option key={sName} value={sName}>
+                      {sName} {sName === activeSeasonName ? `⭐ ${t('admin.users.current_season_badge')}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 1. Chọn Kỳ */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">1. {t('admin.users.step1_semesters')} ({assignSelectedSemesterIds.length}):</span>
+                  <div className="flex items-center gap-1 text-[11px]">
+                    <button type="button" onClick={() => handleSelectAllAssignSemesters(true)} className="text-brand-600 hover:underline">{t('admin.users.select_all')}</button>
+                    <span className="text-slate-300">|</span>
+                    <button type="button" onClick={() => handleSelectAllAssignSemesters(false)} className="text-slate-500 hover:underline">{t('admin.users.deselect')}</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-1.5">
+                  {(groupedAllSeasons[assignSeason] || []).map(sem => {
+                    const isSelected = assignSelectedSemesterIds.includes(sem.id)
+                    return (
+                      <button
+                        key={sem.id}
+                        type="button"
+                        onClick={() => handleToggleAssignSemester(sem.id)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-bold transition-all border ${isSelected
+                            ? 'bg-brand-600 text-white border-brand-700 ring-2 ring-brand-300 dark:ring-brand-800'
+                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
+                      >
+                        {formatSemesterCode(sem.code)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Chọn Môn */}
+              {assignSelectedSemesterIds.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">2. {t('admin.users.step2_subjects')} ({assignSelectedSubjectIds.length}/{assignAvailableSubjects.length}):</span>
+                    {assignAvailableSubjects.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button type="button" onClick={() => handleSelectAllAssignSubjects(true)} className="text-brand-600 hover:underline">{t('admin.users.select_all_subjects')}</button>
+                        <span className="text-slate-300">|</span>
+                        <button type="button" onClick={() => handleSelectAllAssignSubjects(false)} className="text-slate-500 hover:underline">{t('admin.users.deselect')}</button>
+                      </div>
+                    )}
+                  </div>
+                  {assignAvailableSubjects.length === 0 ? (
+                    <div className="p-2 rounded bg-white dark:bg-slate-900 text-xs text-slate-400 text-center">{t('admin.users.no_subjects_found')}</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
+                      {assignAvailableSubjects.map(sub => {
+                        const isSelected = assignSelectedSubjectIds.includes(sub.id)
+                        return (
+                          <div
+                            key={sub.id}
+                            onClick={() => handleToggleAssignSubject(sub.id)}
+                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all flex items-center justify-between gap-1 select-none ${isSelected
+                                ? 'bg-brand-50 dark:bg-brand-950/40 border-brand-300 dark:border-brand-700 text-brand-950 dark:text-brand-100'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                              }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="font-mono font-bold text-xs text-brand-600 dark:text-brand-400">{sub.code}</span>
+                              <p className="text-[10px] truncate text-slate-500">{sub.name}</p>
+                            </div>
+                            {isSelected && <Check size={12} className="text-brand-600 shrink-0" />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. Chọn Lớp */}
+              {assignSelectedSubjectIds.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">3. {t('admin.users.step3_classes')} ({assignSelectedClassIds.length}/{assignAvailableClasses.length}):</span>
+                    {assignAvailableClasses.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button type="button" onClick={() => handleSelectAllAssignClasses(true)} className="text-emerald-600 hover:underline">{t('admin.users.select_all_classes')}</button>
+                        <span className="text-slate-300">|</span>
+                        <button type="button" onClick={() => handleSelectAllAssignClasses(false)} className="text-slate-500 hover:underline">{t('admin.users.deselect')}</button>
+                      </div>
+                    )}
+                  </div>
+                  {assignAvailableClasses.length === 0 ? (
+                    <div className="p-2 rounded bg-white dark:bg-slate-900 text-xs text-slate-400 text-center">{t('admin.users.no_classes_found')}</div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto">
+                      {assignAvailableClasses.map(cls => {
+                        const isSelected = assignSelectedClassIds.includes(cls.id)
+                        const subCode = typeof cls.subject === 'object' ? cls.subject?.code : (allSubjects.find(s => s.id === cls.subject)?.code || '')
+                        return (
+                          <div
+                            key={cls.id}
+                            onClick={() => handleToggleAssignClass(cls.id)}
+                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all flex items-center justify-between gap-1 select-none ${isSelected
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                              }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">{cls.code}</span>
+                              <p className="text-[10px] truncate text-slate-500">{subCode}</p>
+                            </div>
+                            {isSelected && <Check size={12} className="text-emerald-600 shrink-0" />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  {t('admin.users.selected_classes_count', { n: assignSelectedClassIds.length })}
+                </span>
+                <Button
+                  size="sm"
+                  className="bg-brand-600 hover:bg-brand-700 text-white text-xs h-9 font-semibold"
+                  onClick={handleAssignClassesDirectly}
+                  disabled={assignSelectedClassIds.length === 0 || savingAssignClass}
+                >
+                  {savingAssignClass ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus size={14} className="mr-1.5" />}
+                  {assignUser.role === 'lecturer' ? t('admin.users.assign_btn_lecturer', { n: assignSelectedClassIds.length }) : t('admin.users.assign_btn_student', { n: assignSelectedClassIds.length })}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button variant="outline" onClick={() => setShowAssignModal(false)}>
+                {t('admin.users.close')}
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

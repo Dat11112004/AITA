@@ -83,6 +83,18 @@ export class SemestersController extends BaseController {
     this.noContent(res)
   }
 
+  async activateSeason(req: Request, res: Response): Promise<void> {
+    const seasonParam = req.params.season
+    if (typeof seasonParam !== 'string' || !seasonParam.trim()) {
+      throw new ValidationError('Tên mùa học không hợp lệ')
+    }
+    const season = decodeURIComponent(seasonParam)
+
+    this.logger.info(`Setting active season: ${season}`)
+    await this.semesterRepo.setActiveSeason(season)
+    this.ok(res, { season, isActive: true }, 'Đã kích hoạt mùa học thành công')
+  }
+
   async getSubjects(req: Request, res: Response): Promise<void> {
     const { id } = req.params
     this.logger.info(`Fetching subjects for semester ${id}`)

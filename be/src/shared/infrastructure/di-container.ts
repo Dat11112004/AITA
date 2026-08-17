@@ -373,7 +373,7 @@ export class DIContainer {
 
       // ── Users ────────────────────────────────────────────────
       const listUsersUseCase = new ListUsersUseCase(userRepo, logger)
-      const createUserUseCase = new CreateUserUseCase(userRepo, uow, hashService, logger)
+      const createUserUseCase = new CreateUserUseCase(userRepo, uow, hashService, logger, emailService)
       const updateUserUseCase = new UpdateUserUseCase(userRepo, hashService, logger)
       const deleteUserUseCase = new DeleteUserUseCase(userRepo, logger)
       const bulkDeleteUsersUseCase = new BulkDeleteUsersUseCase(userRepo, logger)

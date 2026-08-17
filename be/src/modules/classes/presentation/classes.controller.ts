@@ -388,6 +388,7 @@ export class ClassesController extends BaseController {
 
     // 2. Send email notification to all students in this class
     if (validEmails.length > 0) {
+      const webUrl = (process.env.FRONTEND_URL || 'https://feaita.edubridge.edu.vn').replace(/\/$/, '')
       const emailSubject = `[AITA] Thông báo mới lớp ${classCode} - Môn ${subjectCode || subjectName}`
       const emailHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
@@ -407,7 +408,7 @@ export class ClassesController extends BaseController {
           </div>
 
           <div style="margin: 28px 0; text-align: center;">
-            <a href="https://feaita.edubridge.edu.vn/student/classes/${classId}" style="display: inline-block; background-color: #ea580c; color: #ffffff; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);">
+            <a href="${webUrl}/student/classes/${classId}" style="display: inline-block; background-color: #ea580c; color: #ffffff; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);">
               👉 Xem bảng tin lớp học trên AITA
             </a>
           </div>

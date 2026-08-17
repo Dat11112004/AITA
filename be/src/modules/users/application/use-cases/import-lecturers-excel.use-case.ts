@@ -239,12 +239,13 @@ export class ImportLecturersExcelUseCase {
                     }
 
                     // Accumulate emails instead of awaiting them inside the loop
+                    const webUrl = (process.env.FRONTEND_URL || 'https://feaita.edubridge.edu.vn').replace(/\/$/, '')
                     if (rawPassword) {
                         const accountEmailHtml = `
                         <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
                             <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 30px 20px; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 0.5px;">Chào mừng đến với AITA</h1>
-                                <p style="color: #e2e8f0; margin: 8px 0 0 0; font-size: 15px;">Hệ thống Quản lý & Điểm danh Thông minh</p>
+                                <p style="color: #e2e8f0; margin: 8px 0 0 0; font-size: 15px;">Hệ thống Quản lý & Hỗ trợ Giảng dạy Thông minh</p>
                             </div>
                             <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
                                 <p style="font-size: 16px; margin-top: 0;">Kính gửi Giảng viên <strong style="color: #0f172a;">${fullName}</strong>,</p>
@@ -267,6 +268,12 @@ export class ImportLecturersExcelUseCase {
                                             </td>
                                         </tr>
                                     </table>
+                                </div>
+
+                                <div style="text-align: center; margin: 28px 0;">
+                                    <a href="${webUrl}/login" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: #ffffff; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 15px; text-decoration: none; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); letter-spacing: 0.3px;">
+                                        👉 Đăng nhập vào hệ thống AITA
+                                    </a>
                                 </div>
                                 
                                 <p style="background: #fef2f2; color: #b91c1c; padding: 12px 16px; border-radius: 6px; font-size: 14px; border-left: 4px solid #ef4444; margin-bottom: 24px;">

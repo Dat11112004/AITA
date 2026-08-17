@@ -5,6 +5,7 @@ import type { IUnitOfWork } from '../../../../shared/application/ports/unit-of-w
 import { EnrollStudentRequestDto } from '../dtos/class.dto.js'
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../../../../shared/application/app.error.js'
 import { MESSAGES } from '../../../../shared/constants/messages.js'
+import { TOKENS } from '../../../../shared/infrastructure/tokens.js'
 
 interface AuthUser {
   id: string
@@ -31,22 +32,27 @@ export class EnrollStudentUseCase implements IUseCase<{ classId: string; dto: En
       throw new ForbiddenError(MESSAGES.CLASS_FORBIDDEN_ENROLL)
     }
 
-    // Validate student exists and is active
-    const student = await this.uow.resolve<any>(Symbol.for('UserRepository')).findById(dto.data.studentId)
+    // Validate student exists and is active (lookup by ID or Email/StudentCode)
+    const userRepo = this.uow.resolve<any>(TOKENS.UserRepository)
+    let student = await userRepo.findById(dto.data.studentId)
+    if (!student) {
+      student = await userRepo.findByEmail(dto.data.studentId)
+    }
     if (!student) {
       throw new NotFoundError(MESSAGES.USER_NOT_FOUND)
     }
 
-    // Using legacy repo access to check status since it's not mapped yet or might not be cleanly exposed
-    if (student.status !== 'Active') {
+    if (student.status && student.status.toLowerCase() !== 'active') {
       throw new ValidationError(MESSAGES.CLASS_STUDENT_INACTIVE)
     }
 
+    const resolvedStudentId = student.id
+
     // Prevent duplicate enrollment
-    const enrollmentRepo = this.uow.resolve<IEnrollmentRepository>(Symbol.for('EnrollmentRepository'))
+    const enrollmentRepo = this.uow.resolve<IEnrollmentRepository>(TOKENS.EnrollmentRepository)
     const existingEnrollment = await enrollmentRepo.findMany({
       ClassId: classId,
-      UserId: dto.data.studentId,
+      UserId: resolvedStudentId,
     })
 
     if (existingEnrollment && existingEnrollment.length > 0) {
@@ -55,7 +61,7 @@ export class EnrollStudentUseCase implements IUseCase<{ classId: string; dto: En
 
     const enrollment = await enrollmentRepo.create({
       ClassId: classId,
-      UserId: dto.data.studentId,
+      UserId: resolvedStudentId,
     })
 
     return enrollment

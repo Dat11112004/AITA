@@ -267,6 +267,7 @@ export class ImportTeachingAssignmentsExcelUseCase {
             }
 
             // Gửi email tổng hợp cho mỗi giảng viên
+            const webUrl = (process.env.FRONTEND_URL || 'https://feaita.edubridge.edu.vn').replace(/\/$/, '')
             for (const data of assignmentsByUser.values()) {
                 const { user, assignments } = data
                 if (!user.Email) continue
@@ -304,6 +305,12 @@ export class ImportTeachingAssignmentsExcelUseCase {
                                         ${enrolledClassDetails.length > 0 ? enrolledClassDetails.join('\n') : '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #64748b; font-style: italic;">Chưa có dữ liệu phân công</td></tr>'}
                                     </tbody>
                                 </table>
+                            </div>
+                            
+                            <div style="text-align: center; margin: 28px 0;">
+                                <a href="${webUrl}/lecturer" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 15px; text-decoration: none; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35); letter-spacing: 0.3px;">
+                                    👉 Xem lịch phân công trên AITA
+                                </a>
                             </div>
                             
                             <p>Thầy/cô vui lòng đăng nhập vào hệ thống để kiểm tra danh sách sinh viên, quản lý điểm danh và thiết lập cấu hình môn học.</p>
