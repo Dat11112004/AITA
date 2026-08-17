@@ -780,10 +780,15 @@ export interface CreateExamBody {
 
 export const gradingApi = {
   getAssignments: () => request<any[]>('/grading/assignments'),
+  getTrashAssignments: () => request<any[]>('/grading/assignments/trash'),
   clearCache: () => request<void>('/grading/cache/clear', { method: 'POST' }),
   getAssignment: (id: string) => request<any>('/grading/assignments/' + id),
   updateAssignment: (id: string, data: any) => request<any>('/grading/assignments/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   deleteAssignment: (id: string) => request<void>('/grading/assignments/' + id, { method: 'DELETE' }),
+  restoreAssignment: (id: string) => request<void>('/grading/assignments/' + id + '/restore', { method: 'POST' }),
+  hardDeleteAssignment: (id: string) => request<void>('/grading/assignments/' + id + '/hard-delete', { method: 'DELETE' }),
+  bulkHardDeleteAssignments: (ids: string[]) => request<{ count: number }>('/grading/assignments/bulk-hard-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+  bulkRestoreAssignments: (ids: string[]) => request<{ count: number }>('/grading/assignments/bulk-restore', { method: 'POST', body: JSON.stringify({ ids }) }),
   publishSubmission: (id: string, data?: any) => request<any>('/grading/submissions/' + id + '/publish', {
     method: 'POST',
     body: data ? JSON.stringify(data) : undefined,

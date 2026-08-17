@@ -24,6 +24,7 @@ export class StudentPortalController extends BaseController {
     const rawUpcomingAssignments = await prisma.exam.findMany({
       where: {
         Status: 'Published',
+        OR: [{ IsDeleted: false }, { IsDeleted: null }],
         ExamClass: {
           some: {
             Class: {

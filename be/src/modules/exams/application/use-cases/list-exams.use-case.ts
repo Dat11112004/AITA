@@ -27,6 +27,7 @@ export class ListExamsUseCase implements IUseCase<{ user: AuthUser; params: any 
     if (status) filter.status = String(status) as ExamStatusValue
 
     let exams = await this.examRepo.findMany(filter)
+    exams = exams.filter(exam => !(exam as any).isDeleted && !(exam as any).IsDeleted)
 
     // Role-based filtering (in-memory for now to reuse legacy repo logic)
     if (user.role === 'LECTURER') {

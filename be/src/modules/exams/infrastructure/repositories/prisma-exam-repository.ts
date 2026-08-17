@@ -39,7 +39,9 @@ export class PrismaExamRepository implements IExamRepository {
   }
 
   async findMany(filter?: ExamFilter, options?: { skip?: number; take?: number }): Promise<Exam[]> {
-    const where: any = {}
+    const where: any = {
+      NOT: { IsDeleted: true }
+    }
 
     if (filter?.classId) {
       where.OR = [

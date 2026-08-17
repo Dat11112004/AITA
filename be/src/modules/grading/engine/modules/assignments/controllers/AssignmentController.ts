@@ -760,21 +760,136 @@ export class AssignmentController extends BaseController {
         try {
             const id = req.params.id;
 
-            // 1. Delete Core SQL records to ensure it's removed from Student view
+            // 1. Soft Delete Core SQL record
             try {
+                await prisma.exam.update({
+                    where: { Id: id },
+                    data: {
+                        IsDeleted: true,
+                        DeletedAt: new Date()
+                    }
+                });
+            } catch (e) {
+                console.warn(`[AssignmentController] Failed to soft-delete exam record for ${id}:`, e);
+            }
+
+            // 2. Soft Delete in PublishedAssignmentRepository
+            await this.assignmentRepository.softDeleteAsync(id);
+            this.ok(res, null, 'Assignment soft-deleted successfully');
+        } catch (error) {
+            throw new Error('Error soft-deleting assignment');
+        }
+    };
+
+    getTrash = async (_req: Request, res: Response): Promise<void> => {
+        try {
+            const assignments = await this.assignmentRepository.getTrashAsync();
+            this.ok(res, assignments, 'Trash assignments fetched');
+        } catch (error) {
+            console.error("GetTrash Error:", error);
+            throw new Error('Error fetching trash assignments');
+        }
+    };
+
+    restore = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+
+            // 1. Restore Core SQL record
+            try {
+                await prisma.exam.update({
+                    where: { Id: id },
+                    data: {
+                        IsDeleted: false,
+                        DeletedAt: null
+                    }
+                });
+            } catch (e) {
+                console.warn(`[AssignmentController] Failed to restore exam record for ${id}:`, e);
+            }
+
+            // 2. Restore in PublishedAssignmentRepository
+            await this.assignmentRepository.restoreAsync(id);
+            this.ok(res, null, 'Assignment restored successfully');
+        } catch (error) {
+            throw new Error('Error restoring assignment');
+        }
+    };
+
+    hardDelete = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id;
+
+            // 1. Delete Core SQL records
+            try {
+                await prisma.submissionOverride.deleteMany({ where: { ExamId: id } });
                 await prisma.examClass.deleteMany({ where: { ExamId: id } });
                 await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
                 await prisma.submission.deleteMany({ where: { ExamId: id } });
                 await prisma.exam.delete({ where: { Id: id } });
             } catch (e) {
-                console.warn(`[AssignmentController] Failed to clean up core exam records for ${id}:`, e);
+                console.warn(`[AssignmentController] Failed to clean up core exam records for hard delete ${id}:`, e);
             }
 
-            // 2. Delete from Document DB
+            // 2. Hard delete from Document DB
             await this.assignmentRepository.deleteAsync(id);
-            this.ok(res, null, 'Assignment deleted successfully');
+            this.ok(res, null, 'Assignment permanently deleted');
         } catch (error) {
-            throw new Error('Error deleting assignment');
+            throw new Error('Error permanently deleting assignment');
+        }
+    };
+
+    bulkHardDelete = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                throw new BadRequestError('Ids array is required');
+            }
+
+            for (const id of ids) {
+                try {
+                    await prisma.submissionOverride.deleteMany({ where: { ExamId: id } });
+                    await prisma.examClass.deleteMany({ where: { ExamId: id } });
+                    await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
+                    await prisma.submission.deleteMany({ where: { ExamId: id } });
+                    await prisma.exam.delete({ where: { Id: id } });
+                } catch (e) {
+                    console.warn(`[AssignmentController] Failed to clean up core exam records for bulk hard delete ${id}:`, e);
+                }
+                await this.assignmentRepository.deleteAsync(id);
+            }
+
+            this.ok(res, { count: ids.length }, 'Assignments permanently deleted');
+        } catch (error) {
+            throw new Error('Error performing bulk hard delete');
+        }
+    };
+
+    bulkRestore = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                throw new BadRequestError('Ids array is required');
+            }
+
+            for (const id of ids) {
+                try {
+                    await prisma.exam.update({
+                        where: { Id: id },
+                        data: {
+                            IsDeleted: false,
+                            DeletedAt: null
+                        }
+                    });
+                } catch (e) {
+                    console.warn(`[AssignmentController] Failed to restore exam record for bulk restore ${id}:`, e);
+                }
+                await this.assignmentRepository.restoreAsync(id);
+            }
+
+            this.ok(res, { count: ids.length }, 'Assignments restored successfully');
+        } catch (error) {
+            throw new Error('Error performing bulk restore');
         }
     };
 
