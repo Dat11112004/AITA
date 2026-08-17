@@ -256,6 +256,8 @@ model Exam {
   LatePenaltyValue      Decimal?                @db.Decimal(18, 2)
   MaxLatePenalty        Decimal?                @db.Decimal(18, 2)
   AllowLateSubmission   Boolean?                @default(true)
+  IsDeleted             Boolean?                @default(false)
+  DeletedAt             DateTime?               @db.DateTime2
   AiUsageLog            AiUsageLog[]
   AssignmentTemplate    AssignmentTemplate?     @relation(fields: [AssignmentTemplateId], references: [Id], onDelete: NoAction, onUpdate: NoAction)
   User                  User?                   @relation(fields: [CreatedBy], references: [Id], onDelete: NoAction, onUpdate: NoAction)
@@ -748,8 +750,10 @@ model PublishedAssignment {
   ProjectType String?
   BlueprintId String?
   Data        String?  @db.NVarChar(Max)
-  CreatedAt   DateTime @default(now()) @db.DateTime2
-  UpdatedAt   DateTime @updatedAt @db.DateTime2
+  CreatedAt   DateTime  @default(now()) @db.DateTime2
+  UpdatedAt   DateTime  @updatedAt @db.DateTime2
+  IsDeleted   Boolean?  @default(false)
+  DeletedAt   DateTime? @db.DateTime2
 }
 
 model SubmissionOverride {

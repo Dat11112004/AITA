@@ -50,9 +50,58 @@ export class PublishedAssignmentRepository {
 
     public async getAllAsync(): Promise<PublishedAssignment[]> {
         const rows = await prisma.publishedAssignment.findMany({
+            where: { OR: [{ IsDeleted: false }, { IsDeleted: null }] },
             orderBy: { CreatedAt: 'desc' }
         });
         return rows.map(r => JSON.parse(r.Data!) as PublishedAssignment);
+    }
+
+    public async getTrashAsync(): Promise<PublishedAssignment[]> {
+        const rows = await prisma.publishedAssignment.findMany({
+            where: { IsDeleted: true },
+            orderBy: { DeletedAt: 'desc' }
+        });
+        return rows.map(r => {
+            const data = JSON.parse(r.Data!) as PublishedAssignment;
+            return {
+                ...data,
+                deletedAt: r.DeletedAt
+            };
+        });
+    }
+
+    public async softDeleteAsync(id: string): Promise<boolean> {
+        try {
+            await prisma.publishedAssignment.update({
+                where: { Id: id },
+                data: {
+                    IsDeleted: true,
+                    DeletedAt: new Date()
+                }
+            });
+            console.log(`[PublishedAssignmentRepository] Soft-deleted assignment ${id} in DB.`);
+            return true;
+        } catch (error) {
+            console.error(`[PublishedAssignmentRepository] Error soft deleting ${id}:`, error);
+            return false;
+        }
+    }
+
+    public async restoreAsync(id: string): Promise<boolean> {
+        try {
+            await prisma.publishedAssignment.update({
+                where: { Id: id },
+                data: {
+                    IsDeleted: false,
+                    DeletedAt: null
+                }
+            });
+            console.log(`[PublishedAssignmentRepository] Restored assignment ${id} in DB.`);
+            return true;
+        } catch (error) {
+            console.error(`[PublishedAssignmentRepository] Error restoring ${id}:`, error);
+            return false;
+        }
     }
 
     public async deleteAsync(id: string): Promise<boolean> {

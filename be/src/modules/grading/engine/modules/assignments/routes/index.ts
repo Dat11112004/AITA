@@ -23,11 +23,16 @@ export function createAssignmentRoutes(): Router {
   router.post('/generate-rubric', controller.generateRubric);
   router.post('/publish', controller.publish);
   router.get('/', controller.getAll);
+  router.get('/trash', controller.getTrash);
+  router.post('/bulk-hard-delete', controller.bulkHardDelete);
+  router.post('/bulk-restore', controller.bulkRestore);
   router.get('/:id/events', controller.streamAssignmentEvents);
   router.get('/:id/sql-key', controller.downloadSqlKey);
   router.get('/:id', controller.getById);
   router.put('/strategy/update-all', controller.updateAllStrategy);
   router.post('/:id/update-answer-key', upload.single('file'), controller.updateAnswerKey);
+  router.post('/:id/restore', controller.restore);
+  router.delete('/:id/hard-delete', controller.hardDelete);
   router.put('/:id', controller.update);
   router.delete('/:id', controller.delete);
 
