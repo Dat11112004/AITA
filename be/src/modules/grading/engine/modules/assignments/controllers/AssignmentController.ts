@@ -712,7 +712,7 @@ export class AssignmentController extends BaseController {
             let parsedDueDate: Date | undefined;
             if (dueDate) {
                 parsedDueDate = new Date(dueDate);
-                if (parsedDueDate < examRecord.StartDate) {
+                if (examRecord.StartDate && parsedDueDate < examRecord.StartDate) {
                     throw new BadRequestError('Due date cannot be earlier than the assignment start date');
                 }
             }
@@ -735,6 +735,29 @@ export class AssignmentController extends BaseController {
                 }
             });
 
+            // 2.1 Đồng bộ: Nếu deadline được gia hạn tới tương lai, dọn dẹp các bài nộp 0 điểm tạm thời để sinh viên có thể nộp bài bình thường
+            if (parsedDueDate && parsedDueDate > new Date()) {
+                await prisma.submission.deleteMany({
+                    where: {
+                        ExamId: id,
+                        ReportData: { contains: '"isAutoZero":true' },
+                        GradingStatus: 'Graded',
+                        TotalScore: 0
+                    }
+                }).catch(err => {
+                    console.warn('[AssignmentController] Cleanup auto-zero submissions error:', err);
+                });
+            }
+
+            try {
+                const { globalJobManager } = await import('../../application/queue/SubmissionJobManager.js');
+                globalJobManager.emit(`assignment_event:${id}`, {
+                    type: 'ASSIGNMENT_DEADLINE_UPDATED',
+                    assignmentId: id,
+                    dueDate: parsedDueDate ? parsedDueDate.toISOString() : null
+                });
+            } catch (e) {}
+
             // 3. Update Document Store Metadata
             const updatedAssignment = {
                 ...assignment,
@@ -750,9 +773,13 @@ export class AssignmentController extends BaseController {
             await this.assignmentRepository.saveAsync(updatedAssignment);
 
             this.ok(res, updatedAssignment, 'Assignment updated successfully');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Update Error:", error);
-            throw new Error('Error updating assignment');
+            if (error instanceof BadRequestError) {
+                res.status(400).json({ success: false, message: error.message });
+                return;
+            }
+            res.status(500).json({ success: false, message: error.message || 'Error updating assignment' });
         }
     };
 

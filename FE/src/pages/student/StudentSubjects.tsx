@@ -101,19 +101,30 @@ export function StudentSubjects() {
     const cleanup = loadData(true)
 
     let submissionChannel: BroadcastChannel | null = null
+    let assignmentChannel: BroadcastChannel | null = null
     try {
       submissionChannel = new BroadcastChannel('aita_submission_events')
       submissionChannel.onmessage = (event) => {
-        if (event.data?.type === 'SUBMISSION_PUBLISHED') {
-          console.log('[StudentSubjects] Real-time publish event received!')
+        if (event.data?.type === 'SUBMISSION_PUBLISHED' || event.data?.type === 'ASSIGNMENT_DEADLINE_UPDATED') {
+          console.log('[StudentSubjects] Real-time event received:', event.data?.type)
+          loadData(false)
+        }
+      }
+    } catch (e) { }
+
+    try {
+      assignmentChannel = new BroadcastChannel('aita_assignment_updates')
+      assignmentChannel.onmessage = (event) => {
+        if (event.data?.type === 'ASSIGNMENT_DEADLINE_UPDATED') {
+          console.log('[StudentSubjects] Real-time deadline update received!')
           loadData(false)
         }
       }
     } catch (e) { }
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'aita_last_publish_event' && e.newValue) {
-        console.log('[StudentSubjects] Storage publish event received!')
+      if ((e.key === 'aita_last_publish_event' || e.key === 'aita_last_assignment_update') && e.newValue) {
+        console.log('[StudentSubjects] Storage event received!')
         loadData(false)
       }
     }
@@ -122,6 +133,7 @@ export function StudentSubjects() {
     return () => {
       if (cleanup) cleanup()
       if (submissionChannel) submissionChannel.close()
+      if (assignmentChannel) assignmentChannel.close()
       window.removeEventListener('storage', handleStorage)
     }
   }, [loadData])

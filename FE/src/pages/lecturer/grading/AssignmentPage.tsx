@@ -602,7 +602,18 @@ export default function AssignmentPage() {
   });
 
   const handleCalendarDaySelect = (day: number) => {
-    const target = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day, 23, 59, 0);
+    const currentHour = selectedDateObj ? selectedDateObj.getHours() : 23;
+    const currentMinute = selectedDateObj ? selectedDateObj.getMinutes() : 59;
+    const target = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day, currentHour, currentMinute, 0);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setNewDueDate(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
+  };
+
+  const handleTimeChange = (timeStr: string) => {
+    if (!timeStr) return;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const base = selectedDateObj || new Date();
+    const target = new Date(base.getFullYear(), base.getMonth(), base.getDate(), isNaN(hours) ? 23 : hours, isNaN(minutes) ? 59 : minutes, 0);
     const pad = (n: number) => n.toString().padStart(2, '0');
     setNewDueDate(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`);
   };
@@ -1509,12 +1520,28 @@ export default function AssignmentPage() {
                 </div>
               </div>
 
+              {/* Time Selection */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold">
+                  <Clock size={16} className="text-brand-500" />
+                  <span>Thời gian đến hạn (Giờ:Phút)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="time"
+                    value={selectedDateObj ? `${selectedDateObj.getHours().toString().padStart(2, '0')}:${selectedDateObj.getMinutes().toString().padStart(2, '0')}` : '23:59'}
+                    onChange={(e) => handleTimeChange(e.target.value)}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono font-bold text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none cursor-pointer shadow-2xs"
+                  />
+                </div>
+              </div>
+
               {/* Result Preview Banner */}
               <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">{t('lc.ap.dl.new_due')}</span>
-                <span className="font-bold text-brand-600 dark:text-brand-400">
+                <span className="font-bold text-brand-600 dark:text-brand-400 font-mono">
                   {selectedDateObj ? (
-                    `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} 23:59`
+                    `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${selectedDateObj.getHours().toString().padStart(2, '0')}:${selectedDateObj.getMinutes().toString().padStart(2, '0')}`
                   ) : (
                     t('lc.ap.dl.no_date')
                   )}
