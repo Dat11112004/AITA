@@ -93,23 +93,43 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     })
     const existingSubmission = existingSubmissionList && existingSubmissionList.length > 0 ? existingSubmissionList[0] : null
 
-    // Check deadline considering student-specific SubmissionOverride extension
+    // Check deadline considering student-specific SubmissionOverride extension and late penalty policy
     const { prisma } = await import('../../../../database/prisma.js')
-    const override = await prisma.submissionOverride.findUnique({
-      where: {
-        ExamId_StudentId: {
-          ExamId: examId,
-          StudentId: user.id,
+    const examRecord = await (prisma.exam as any).findUnique({
+      where: { Id: examId },
+      select: {
+        Status: true,
+        DueDate: true,
+        AllowLateSubmission: true,
+        LatePenaltyType: true,
+        LatePenaltyValue: true,
+        MaxLatePenalty: true,
+        SubmissionOverride: {
+          where: { StudentId: user.id }
         }
       }
     })
 
-    const effectiveDueDate = override?.ExtendedDueDate ? new Date(override.ExtendedDueDate) : (exam.dueDate ? new Date(exam.dueDate) : null)
+    const userOverride = examRecord?.SubmissionOverride?.[0]
+    const effectiveDueDate = userOverride?.ExtendedDueDate 
+      ? new Date(userOverride.ExtendedDueDate) 
+      : (examRecord?.DueDate ? new Date(examRecord.DueDate) : (exam.dueDate ? new Date(exam.dueDate) : null))
+
+    const allowLateSubmission = examRecord?.AllowLateSubmission ?? (exam as any)?.allowLateSubmission ?? true
+    const latePenaltyType = examRecord?.LatePenaltyType ?? (exam as any)?.latePenaltyType ?? 'NONE'
+    const isClosed = (examRecord?.Status || (exam as any)?.status || '').toLowerCase() === 'closed'
+
+    if (isClosed) {
+      throw new ValidationError('Bài tập này đã bị đóng bởi giảng viên, không thể nộp bài.')
+    }
 
     if (effectiveDueDate) {
       const now = new Date()
       if (now > effectiveDueDate) {
-        throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết, không thể nộp bài.')
+        // Chỉ chặn nộp bài khi giảng viên KHÔNG cho phép nộp trễ hoặc KHÔNG cài đặt trừ điểm (NONE)
+        if (!allowLateSubmission || latePenaltyType === 'NONE') {
+          throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết, bài tập đã đóng không thể nộp bài.')
+        }
       }
     }
 

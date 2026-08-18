@@ -514,15 +514,16 @@ export function StudentAssignmentDetail() {
   const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
-  const isSubmitted = !!submission;
+  const isSubmitted = !!submission && !(submission as any)?.isAutoZero && !!submission.zipFileUrl;
   const isPublished = submission && ((submission as any).reviewStatus === 'PUBLISHED' || (submission as any).isPublished === true);
-  const displayScore = (submission && isPublished) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
+  const displayScore = (submission && isPublished && !(submission as any)?.isAutoZero) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
   const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
   const allowLateSubmission = (assignment as any)?.allowLateSubmission ?? (assignment as any)?.metadata?.allowLateSubmission ?? true;
-  const isLocked = isPastDue && !allowLateSubmission;
   const penaltyType = (assignment as any)?.latePenaltyType || (assignment as any)?.metadata?.latePenaltyType || (assignment as any)?.ExamClass?.[0]?.LatePenaltyType || 'NONE';
   const penaltyVal = (assignment as any)?.latePenaltyValue ?? (assignment as any)?.metadata?.latePenaltyValue ?? (assignment as any)?.ExamClass?.[0]?.LatePenaltyValue ?? 2;
+  const canSubmitOrResubmit = !isPastDue || (allowLateSubmission && penaltyType !== 'NONE');
+  const isLocked = isPastDue && (!allowLateSubmission || penaltyType === 'NONE');
 
   let latePolicyText = t('st.asg.no_late_penalty');
   if (!allowLateSubmission) {
@@ -1237,7 +1238,7 @@ export function StudentAssignmentDetail() {
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold">
-                      You have submitted your work{submission?.submittedAt ? ` at ${new Date(submission.submittedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString(undefined)}` : ''}. You can resubmit if you need to make changes.
+                      You have submitted your work{submission?.submittedAt ? ` at ${new Date(submission.submittedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ${new Date(submission.submittedAt).toLocaleDateString(undefined)}` : ''}. {canSubmitOrResubmit ? 'You can resubmit if you need to make changes.' : 'Resubmission is now locked.'}
                     </p>
                   </div>
                 </div>
@@ -1603,7 +1604,7 @@ export function StudentAssignmentDetail() {
                   </div>
 
                   {/* Resubmission Section */}
-                  {!isPastDue ? (
+                  {canSubmitOrResubmit ? (
                     !isResubmitting ? (
                       <Button
                         variant="outline"
@@ -1611,12 +1612,17 @@ export function StudentAssignmentDetail() {
                         className="w-full border-2 border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400 bg-blue-50/50 hover:bg-blue-100/80 dark:bg-blue-950/30 dark:hover:bg-blue-900/50 font-bold py-2.5 h-auto rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
                       >
                         <RotateCcw size={16} className="text-blue-600 dark:text-blue-400" />
-                        <span>{t('st.asg.resubmit')}</span>
+                        <span>{t('st.asg.resubmit') || 'Nộp lại bài'}</span>
                       </Button>
                     ) : (
                       <div className="border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 bg-blue-50/50 dark:bg-slate-900/50 space-y-3 animate-in fade-in duration-300">
-                        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                          <strong>⚠️ Note:</strong> Resubmitting replaces your latest file and moves the submission back to <strong>{t('st.asg.awaiting_regrade')}</strong> so the lecturer can grade it again.
+                        {isPastDue && allowLateSubmission && penaltyType !== 'NONE' && (
+                          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs text-amber-900 dark:text-amber-300 leading-relaxed font-medium">
+                            <strong>⚠️ Cảnh báo nộp trễ:</strong> Nộp lại bài sau thời hạn sẽ tự động áp dụng mức trừ điểm: {penaltyType === 'DAILY_POINTS' ? `-${penaltyVal} điểm / 24 giờ` : penaltyType === 'DAILY_PERCENT' ? `-${penaltyVal}% / 24 giờ` : `-${penaltyVal} điểm cố định`}.
+                          </div>
+                        )}
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-lg text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                          <strong>ℹ️ Lưu ý:</strong> Nộp lại bài sẽ thay thế file bài nộp cũ và chuyển bài tập về trạng thái <strong>{t('st.asg.awaiting_regrade') || 'Chờ giảng viên chấm lại'}</strong>.
                         </div>
 
                         <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 bg-white dark:bg-slate-900 relative cursor-pointer group">
@@ -1626,7 +1632,7 @@ export function StudentAssignmentDetail() {
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
                           />
                           <UploadCloud size={24} className="mb-1 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('st.asg.choose_new_file')}</p>
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('st.asg.choose_new_file') || 'Chọn tệp bài làm mới'}</p>
                           <p className="text-[11px] text-slate-400">PDF, DOCX, ZIP (max 10MB)</p>
                         </div>
 
@@ -1644,7 +1650,7 @@ export function StudentAssignmentDetail() {
                             disabled={isSubmitting || !file}
                           >
                             {isSubmitting ? <Loader2 className="animate-spin w-3.5 h-3.5 mr-1" /> : <Send size={14} className="mr-1" />}
-                            Confirm resubmission
+                            Xác nhận nộp lại
                           </Button>
                           <Button
                             variant="outline"
@@ -1652,14 +1658,14 @@ export function StudentAssignmentDetail() {
                             onClick={() => { setIsResubmitting(false); setFile(null); }}
                             disabled={isSubmitting}
                           >
-                            Cancel
+                            Hủy
                           </Button>
                         </div>
                       </div>
                     )
                   ) : (
                     <div className="p-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-lg text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      🔒 Deadline passed - resubmission is not available.
+                      🔒 Hạn nộp đã hết - bài tập đã khoá không thể nộp lại.
                     </div>
                   )}
                 </div>
@@ -1675,7 +1681,7 @@ export function StudentAssignmentDetail() {
                     <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-900 dark:text-amber-300 font-medium flex items-center gap-2 mb-3">
                       <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                       <span>
-                        <strong>Overdue warning:</strong> Submitting late will automatically deduct {penaltyType === 'DAILY_POINTS' ? `${penaltyVal} pts per 24 hours` : `${penaltyVal} pts flat`}.
+                        <strong>Overdue warning:</strong> Submitting late will automatically deduct {penaltyType === 'DAILY_POINTS' ? `${penaltyVal} pts per 24 hours` : penaltyType === 'DAILY_PERCENT' ? `${penaltyVal}% per 24 hours` : `${penaltyVal} pts flat`}.
                       </span>
                     </div>
                   )}
@@ -1763,12 +1769,14 @@ export function StudentAssignmentDetail() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Score</span>
-                {displayScore != null ? (
+                {displayScore != null && isPublished ? (
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${Number(displayScore) >= 8 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : Number(displayScore) >= 5 ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
                     {Number(displayScore).toLocaleString(undefined)}
                   </span>
                 ) : (
-                  <span className="font-medium text-slate-700 dark:text-slate-300">—</span>
+                  <span className="font-medium text-slate-500 dark:text-slate-400 text-xs">
+                    {submission ? (submission.gradingStatus === 'Pending' || submission.reviewStatus === 'pending' || !isPublished ? 'Pending evaluation' : '—') : '—'}
+                  </span>
                 )}
               </div>
             </div>
