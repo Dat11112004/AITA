@@ -78,21 +78,10 @@ export default function UploadPage() {
         async () => {
           try {
             setProgressData({ percent: 100, task: 'Fetching final report...' });
-            let result: any = null;
-            for (let attempt = 0; attempt < 20; attempt++) {
-              try {
-                result = await api.getSubmissionResult(subId);
-                if (result) break;
-              } catch (pollErr: any) {
-                if (attempt === 19) throw pollErr;
-                await new Promise(r => setTimeout(r, 1500));
-              }
-            }
+            const result = await api.getSubmissionResult(subId);
             setIsUploading(false);
-            if (result) {
-              const finalTime = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
-              navigate(`/lecturer/grading/result/${result.submissionId}`, { state: { result, gradingTime: finalTime } });
-            }
+            const finalTime = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
+            navigate(`/lecturer/grading/result/${result.submissionId}`, { state: { result, gradingTime: finalTime } });
           } catch (err: any) {
             setError(err.response?.data?.error || err.message || "Failed to fetch result");
             setIsUploading(false);

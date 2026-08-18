@@ -720,9 +720,7 @@ export class SubmissionController extends BaseController {
                         publishedAssignment.rubric,
                         context,
                         (current, total, msg, meta) => {
-                            const currentSafe = Math.max(0, current || 0);
-                            const totalSafe = Math.max(1, total || 1);
-                            const pct = Math.min(95, 50 + Math.floor((currentSafe / totalSafe) * 45));
+                            const pct = 50 + Math.floor((current / total) * 50);
                             globalJobManager.updateProgress(submissionId, pct, msg, meta);
                         }
                     );
@@ -807,9 +805,8 @@ export class SubmissionController extends BaseController {
         const id = req.params.id as string;
 
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
         res.flushHeaders();
 
         // Send initial state
@@ -821,34 +818,26 @@ export class SubmissionController extends BaseController {
                     include: { Exam: true }
                 });
                 if (subRecord) {
-                    const score = subRecord.FinalScore !== null ? Number(subRecord.FinalScore) : (subRecord.TotalScore !== null ? Number(subRecord.TotalScore) : null);
-                    const statusUpper = (subRecord.GradingStatus || '').toUpperCase();
-                    if (statusUpper === 'GRADED' || statusUpper === 'COMPLETED' || score !== null) {
+                    if (subRecord.GradingStatus === 'Graded' || subRecord.GradingStatus === 'Completed' || subRecord.Score !== null) {
                         res.write(`data: ${JSON.stringify({
                             id,
-                            submissionId: id,
                             state: 'completed',
                             progressPercent: 100,
                             currentTask: 'Grading completed',
-                            result: { totalScore: score }
+                            result: { totalScore: subRecord.Score }
                         })}\n\n`);
-                        setTimeout(() => {
-                            try { res.end(); } catch (e) {}
-                        }, 500);
+                        res.end();
                         return;
                     } else if (subRecord.ZipFileUrl) {
                         const strat = (subRecord as any).Exam?.GradingStrategy || 'CONTINUOUS_QUEUE';
                         if (strat === 'BATCH_POST_DEADLINE') {
                             res.write(`data: ${JSON.stringify({
                                 id,
-                                submissionId: id,
                                 state: 'pending',
                                 progressPercent: 0,
                                 currentTask: 'Holding in pending status for batch grading'
                             })}\n\n`);
-                            setTimeout(() => {
-                                try { res.end(); } catch (e) {}
-                            }, 500);
+                            res.end();
                             return;
                         }
                         // Self-healing: if in DB but memory job missing and in Continuous Queue mode, start grading job immediately
@@ -860,48 +849,16 @@ export class SubmissionController extends BaseController {
         }
 
         if (job) {
-            const initialPayload = {
-                id: job.submissionId || id,
-                submissionId: job.submissionId || id,
-                state: job.state,
-                progressPercent: job.progressPercent,
-                currentTask: job.currentTask,
-                meta: job.meta,
-                error: job.error
-            };
-            res.write(`data: ${JSON.stringify(initialPayload)}\n\n`);
+            res.write(`data: ${JSON.stringify(job)}\n\n`);
         } else {
             res.write(`data: ${JSON.stringify({ error: 'Job not found' })}\n\n`);
         }
 
         const onUpdate = (updatedJob: any) => {
-            const payload: any = {
-                id: updatedJob.submissionId || id,
-                submissionId: updatedJob.submissionId || id,
-                state: updatedJob.state,
-                progressPercent: updatedJob.progressPercent,
-                currentTask: updatedJob.currentTask,
-                meta: updatedJob.meta,
-                error: updatedJob.error,
-                isCancelled: updatedJob.isCancelled
-            };
-            if (updatedJob.state === 'completed' && updatedJob.result?.totalScore !== undefined) {
-                payload.totalScore = updatedJob.result.totalScore;
-                payload.maxScore = updatedJob.result.maxPossibleScore;
-            }
-
-            try {
-                res.write(`data: ${JSON.stringify(payload)}\n\n`);
-            } catch (e) {}
-
+            res.write(`data: ${JSON.stringify(updatedJob)}\n\n`);
             if (updatedJob.state === 'completed' || updatedJob.state === 'failed') {
+                res.end();
                 globalJobManager.removeListener(`update:${id}`, onUpdate);
-                // Allow client time to process the terminal frame before ending connection
-                setTimeout(() => {
-                    try {
-                        res.end();
-                    } catch (e) {}
-                }, 1000);
             }
         };
 
@@ -965,29 +922,13 @@ export class SubmissionController extends BaseController {
             if (historyItem && historyItem.report && Object.keys(historyItem.report).length > 0) {
                 report = historyItem.report;
             } else {
-                const subRecord = await prisma.submission.findUnique({
-                    where: { Id: id },
-                    include: { Exam: true }
-                });
-                const statusUpper = (subRecord?.GradingStatus || '').toUpperCase();
-                if (subRecord && (statusUpper === 'GRADED' || statusUpper === 'COMPLETED' || subRecord.FinalScore !== null)) {
-                    report = {
-                        submissionId: id,
-                        assignmentId: subRecord.ExamId,
-                        studentId: subRecord.StudentId,
-                        totalScore: subRecord.FinalScore !== null ? Number(subRecord.FinalScore) : (subRecord.TotalScore !== null ? Number(subRecord.TotalScore) : 0),
-                        maxPossibleScore: subRecord.Exam?.TotalPoints ? Number(subRecord.Exam.TotalPoints) : 10,
-                        passedRules: [],
-                        failedRules: [],
-                        overallFeedback: 'Đã hoàn thành chấm điểm.'
-                    };
-                } else {
-                    throw new BadRequestError('Submission report not found. The grading data may have expired — please re-submit and grade again.');
-                }
+                throw new BadRequestError('Submission report not found. The grading data may have expired — please re-submit and grade again.');
             }
         } else {
             if (job.state === 'completed') {
                 report = job.result;
+                // Clear job to save memory since we've already saved it to History DB
+                globalJobManager.clearJob(id);
             } else if (job.state === 'failed') {
                 // Try to fetch partial report from history db
                 const historyItem = await this.historyRepo.getByIdAsync(id);
@@ -996,6 +937,8 @@ export class SubmissionController extends BaseController {
                 } else {
                     throw new BadRequestError('Job failed and no partial report was generated. Error: ' + job.error);
                 }
+                // Clear job to save memory
+                globalJobManager.clearJob(id);
             } else {
                 throw new BadRequestError('Job is not completed yet. Current state: ' + job.state);
             }

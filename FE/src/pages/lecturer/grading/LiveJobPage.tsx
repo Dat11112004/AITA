@@ -61,20 +61,9 @@ export default function LiveJobPage() {
       async () => {
         try {
           setProgressData({ percent: 100, task: t('lc.lj.fetching_report') });
-          let result: any = null;
-          for (let attempt = 0; attempt < 20; attempt++) {
-            try {
-              result = await api.getSubmissionResult(id);
-              if (result) break;
-            } catch (pollErr: any) {
-              if (attempt === 19) throw pollErr;
-              await new Promise(r => setTimeout(r, 1500));
-            }
-          }
-          if (result) {
-            const finalTime = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
-            navigate(`/lecturer/grading/result/${result.submissionId}`, { state: { result, gradingTime: finalTime } });
-          }
+          const result = await api.getSubmissionResult(id);
+          const finalTime = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
+          navigate(`/lecturer/grading/result/${result.submissionId}`, { state: { result, gradingTime: finalTime } });
         } catch (err: any) {
           setError(err.response?.data?.error || err.message || t('lc.lj.fetch_result_failed'));
         }
