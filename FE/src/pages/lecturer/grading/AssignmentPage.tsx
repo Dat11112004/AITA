@@ -69,7 +69,7 @@ function CustomSelect({ value, onChange, options, className, label }: { value: s
 export default function AssignmentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [assignment, setAssignment] = useState<PublishedAssignment | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1395,7 +1395,7 @@ export default function AssignmentPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Adjust the due date
+                    {t('lc.ap.dl.adjust_title')}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px] font-medium">
                     {assignment?.metadata?.title || t('lc.ap.assignment_fallback')}
@@ -1425,9 +1425,9 @@ export default function AssignmentPage() {
                   <Calendar size={15} className="text-slate-400" />
                   <span>{t('lc.ap.dl.current_due')}</span>
                 </div>
-                <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                <span className="font-bold text-slate-800 dark:text-slate-200 px-2.5 py-0.5 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700 font-mono">
                   {(assignment as any)?.stats?.dueDate
-                    ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString('vi-VN')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+                    ? `${new Date((assignment as any).stats.dueDate).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')} ${new Date((assignment as any).stats.dueDate).toLocaleTimeString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`
                     : t('lc.ap.not_set')}
                 </span>
               </div>
@@ -1435,17 +1435,17 @@ export default function AssignmentPage() {
               {/* Quick Extension Chips */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                  Quick extend
+                  {t('lc.ap.dl.quick_extend')}
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[
-                    { label: '+1 day', days: 1 },
-                    { label: '+3 days', days: 3 },
-                    { label: '+7 days', days: 7 },
-                    { label: '+14 days', days: 14 }
+                    { label: t('lc.ap.dl.days_1'), days: 1 },
+                    { label: t('lc.ap.dl.days_3'), days: 3 },
+                    { label: t('lc.ap.dl.days_7'), days: 7 },
+                    { label: t('lc.ap.dl.days_14'), days: 14 }
                   ].map(preset => (
                     <button
-                      key={preset.label}
+                      key={preset.days}
                       type="button"
                       onClick={() => handleApplyPreset(preset.days)}
                       className="py-2 px-1 bg-slate-50 dark:bg-slate-700/40 hover:bg-brand-50 dark:hover:bg-brand-500/15 text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-xl text-xs font-bold transition-all border border-slate-200/60 dark:border-slate-700/60 hover:border-brand-300 dark:hover:border-brand-500/40 text-center"
@@ -1520,32 +1520,29 @@ export default function AssignmentPage() {
                 </div>
               </div>
 
-              {/* Time Selection */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold">
-                  <Clock size={16} className="text-brand-500" />
-                  <span>Thời gian đến hạn (Giờ:Phút)</span>
+              {/* Result Preview & Time Adjustment Banner (Unified Card) */}
+              <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-slate-600 dark:text-slate-400 font-medium shrink-0">{t('lc.ap.dl.new_due')}</span>
+                  <span className="font-bold text-brand-600 dark:text-brand-400 font-mono truncate">
+                    {selectedDateObj ? (
+                      selectedDateObj.toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    ) : (
+                      t('lc.ap.dl.no_date')
+                    )}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="time"
-                    value={selectedDateObj ? `${selectedDateObj.getHours().toString().padStart(2, '0')}:${selectedDateObj.getMinutes().toString().padStart(2, '0')}` : '23:59'}
-                    onChange={(e) => handleTimeChange(e.target.value)}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono font-bold text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none cursor-pointer shadow-2xs"
-                  />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 border border-brand-300 dark:border-brand-500/40 rounded-xl shadow-2xs">
+                    <Clock size={13} className="text-brand-500 shrink-0" />
+                    <input
+                      type="time"
+                      value={selectedDateObj ? `${selectedDateObj.getHours().toString().padStart(2, '0')}:${selectedDateObj.getMinutes().toString().padStart(2, '0')}` : '23:59'}
+                      onChange={(e) => handleTimeChange(e.target.value)}
+                      className="bg-transparent text-brand-700 dark:text-brand-300 font-mono font-bold text-xs focus:outline-none cursor-pointer"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              {/* Result Preview Banner */}
-              <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 border border-brand-500/30 rounded-2xl flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">{t('lc.ap.dl.new_due')}</span>
-                <span className="font-bold text-brand-600 dark:text-brand-400 font-mono">
-                  {selectedDateObj ? (
-                    `${selectedDateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${selectedDateObj.getHours().toString().padStart(2, '0')}:${selectedDateObj.getMinutes().toString().padStart(2, '0')}`
-                  ) : (
-                    t('lc.ap.dl.no_date')
-                  )}
-                </span>
               </div>
 
             </div>
@@ -1558,7 +1555,7 @@ export default function AssignmentPage() {
                 disabled={savingDeadline}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
               >
-                Cancel
+                {t('lc.ap.del.cancel')}
               </button>
               <button
                 type="button"
