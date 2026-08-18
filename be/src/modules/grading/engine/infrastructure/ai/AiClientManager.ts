@@ -72,7 +72,7 @@ export class AiClientManager {
         for (let globalAttempt = 1; globalAttempt <= maxGlobalAttempts; globalAttempt++) {
             // 1. Try Gemini keys first
             if (config.ai.geminiKeys && config.ai.geminiKeys.length > 0) {
-                const displayModel = config.ai.geminiModel || 'gemini-3.6-flash';
+                const displayModel = config.ai.geminiModel || 'gemini-3.5-flash-lite';
                 const model = displayModel;
                 const totalKeys = config.ai.geminiKeys.length;
 
@@ -135,8 +135,20 @@ export class AiClientManager {
                                             }
                                         }
 
-                                        const targetModel = config.ai.geminiModel || 'gemini-3.6-flash';
+                                        const targetModel = config.ai.geminiModel || 'gemini-3.5-flash-lite';
                                         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
+
+                                        const generationConfig: any = {};
+                                        if (params.temperature !== undefined) {
+                                            generationConfig.temperature = params.temperature;
+                                        }
+
+                                        const bodyPayload: any = {
+                                            contents: [{ parts }]
+                                        };
+                                        if (Object.keys(generationConfig).length > 0) {
+                                            bodyPayload.generationConfig = generationConfig;
+                                        }
 
                                         const res = await fetch(endpoint, {
                                             method: 'POST',
@@ -144,9 +156,7 @@ export class AiClientManager {
                                                 'Content-Type': 'application/json',
                                                 'x-goog-api-key': key
                                             },
-                                            body: JSON.stringify({
-                                                contents: [{ parts }]
-                                            })
+                                            body: JSON.stringify(bodyPayload)
                                         });
 
                                         if (!res.ok) {
@@ -157,7 +167,7 @@ export class AiClientManager {
                                         }
 
                                         const data: any = await res.json();
-                                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                        const text = (data.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
                                         return { choices: [{ message: { content: text } }] };
                                     }
                                 }
@@ -225,19 +235,15 @@ export class AiClientManager {
                             const result = await apiCall(client, model);
                             const duration = Date.now() - startTime;
 
-                            // Log usage to DB
-                            try {
-                                await prisma.aiUsageLog.create({
-                                    data: {
-                                        Provider: 'Gemini',
-                                        ModelUsed: model,
-                                        IsSuccess: true,
-                                        DurationMs: duration
-                                    }
-                                });
-                            } catch (e) {
-                                console.error('Failed to log AI usage to DB', e);
-                            }
+                            // Non-blocking usage logging to DB
+                            prisma.aiUsageLog.create({
+                                data: {
+                                    Provider: 'Gemini',
+                                    ModelUsed: model,
+                                    IsSuccess: true,
+                                    DurationMs: duration
+                                }
+                            }).catch(() => {});
 
                             if (cacheKey) AiCache.set(cacheKey, result);
                             return result;
@@ -260,16 +266,14 @@ export class AiClientManager {
                             continue;
                         } else {
                             console.error(`[AiClientManager] Key #${keyIndex + 1} failed (HTTP ${status}): ${errBody}`);
-                            try {
-                                await prisma.aiUsageLog.create({
-                                    data: {
-                                        Provider: 'Gemini',
-                                        ModelUsed: model,
-                                        IsSuccess: false,
-                                        ErrorMessage: `HTTP ${status}: ${err.message || String(err)}`
-                                    }
-                                });
-                            } catch (e) { }
+                            prisma.aiUsageLog.create({
+                                data: {
+                                    Provider: 'Gemini',
+                                    ModelUsed: model,
+                                    IsSuccess: false,
+                                    ErrorMessage: `HTTP ${status}: ${err.message || String(err)}`
+                                }
+                            }).catch(() => {});
 
                             // Put key on short 5s cooldown instead of 1h to allow quick recovery
                             AiClientManager.rateLimitExpiry.set(key, Date.now() + 5000);

@@ -27,7 +27,7 @@ export const config = {
 
   ai: {
     geminiKeys: (process.env.GEMINI_API_KEYS || '').split(',').map(k => k.trim()).filter(k => k.length > 0),
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     geminiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 
     githubToken: process.env.GITHUB_TOKEN || '',
