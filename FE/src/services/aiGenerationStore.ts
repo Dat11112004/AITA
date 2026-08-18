@@ -99,7 +99,7 @@ class AiGenerationStoreManager {
     this.setState({
       isGenerating: true,
       loadingMsg: 'AITA is generating the assignment content...',
-      progress: 25,
+      progress: 20,
       error: null,
       result: null,
       isCompleted: false,
@@ -121,13 +121,13 @@ class AiGenerationStoreManager {
 
       this.setState({
         loadingMsg: 'Analyzing content & extracting grading blueprint...',
-        progress: 60,
+        progress: 50,
       });
       const draftBlueprint = await api.parseRequirements(markdown, null, subjectCode);
 
       this.setState({
-        loadingMsg: 'Generating scoring criteria & rubric rules...',
-        progress: 85,
+        loadingMsg: 'Running background execution to compute Test Cases...',
+        progress: 80,
       });
       const generatedRubric = await api.generateRubric(draftBlueprint);
 
@@ -166,7 +166,7 @@ class AiGenerationStoreManager {
         isCompleted: true,
       });
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message === 'canceled') return;
+      if (err.name === 'AbortError') return;
       this.setState({
         isGenerating: false,
         loadingMsg: '',
@@ -184,7 +184,7 @@ class AiGenerationStoreManager {
     this.setState({
       isGenerating: true,
       loadingMsg: `Reading & extracting text from file ${file.name}...`,
-      progress: 25,
+      progress: 15,
       error: null,
       result: null,
       isCompleted: false,
@@ -195,9 +195,19 @@ class AiGenerationStoreManager {
     });
 
     try {
-      const extractedData: any = await api.extractText(file, selectedSemester, subjectCode, {
-        signal: this.abortController.signal,
-      });
+      let pageImages: string[] = [];
+      if (file.type === 'application/pdf') {
+        try {
+          this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
+          const { renderPdfToImages } = await import('@/lib/pdf');
+          pageImages = await renderPdfToImages(file, 0.9, 30);
+          this.setState({ pageImages, loadingMsg: `Extracted ${file.name} (${pageImages.length} pages) successfully. Generating assignment...`, progress: 25 });
+        } catch (pdfErr) {
+          console.warn('[AiGenerationStore] PDF page rendering warning, falling back to text extraction:', pdfErr);
+        }
+      }
+
+      const extractedData: any = await api.extractText(file, selectedSemester, subjectCode);
       const extractedText = (extractedData?.text?.rawText && extractedData.text.rawText.trim().length > 0)
         ? extractedData.text.rawText
         : (typeof extractedData?.text === 'string' && extractedData.text.trim().length > 0
@@ -205,18 +215,27 @@ class AiGenerationStoreManager {
           : (extractedData?.rawText || ''));
 
       this.setState({
-        loadingMsg: 'Analyzing requirements & extracting grading blueprint...',
-        progress: 60,
+        loadingMsg: 'AITA is generating assignment structure from extracted file...',
+        progress: 40,
       });
-      const draftBlueprint = await api.parseRequirements(extractedText, extractedData?.documentImageKey, subjectCode);
+      const promptHeader = [
+        subjectCode ? `Subject: ${subjectCode}` : '',
+        assignmentType ? `Assignment type: ${assignmentType}` : ''
+      ].filter(Boolean).join('\n');
+      const finalPrompt = promptHeader ? `${promptHeader}\n\n${extractedText}` : extractedText;
+      const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
+        signal: this.abortController.signal,
+        pageImages: pageImages
+      });
 
       this.setState({
-        loadingMsg: 'Generating scoring criteria & rubric rules...',
-        progress: 85,
+        loadingMsg: 'Analyzing requirements & building rubric rules...',
+        progress: 70,
       });
+      const draftBlueprint = await api.parseRequirements(markdown, null, subjectCode);
       const generatedRubric = await api.generateRubric(draftBlueprint);
 
-      let finalMarkdown = extractedData?.text?.html || extractedText;
+      let finalMarkdown = markdown;
       if (draftBlueprint.projectType === 'algorithm') {
         const ioRule = generatedRubric.rules?.find((r: any) => r.scoringStrategy === 'StdInOutProbe');
         const testCases = ioRule?.requiredEvidence?.[0]?.stdInOutProbe?.testCases;
@@ -234,16 +253,13 @@ class AiGenerationStoreManager {
         rubric: generatedRubric,
         blueprint: draftBlueprint,
         metadata: {
-          title: draftBlueprint.assignmentTitle || file.name.replace(/\.[^/.]+$/, "") || 'AI Generated Assignment',
+          title: draftBlueprint.assignmentTitle || 'AI Generated Assignment',
           description: draftBlueprint.description || '',
           projectType: draftBlueprint.projectType || 'backend',
           subject: subjectCode || draftBlueprint.subject || '',
           category: assignmentType || 'Assignment',
-          fileUrl: extractedData.uploadedFile?.url,
-          fileName: extractedData.uploadedFile?.fileName || file.name,
-          fileType: extractedData.uploadedFile?.fileType || file.type,
         },
-        step: 3,
+        step: 2,
       };
 
       this.setState({
@@ -254,7 +270,7 @@ class AiGenerationStoreManager {
         isCompleted: true,
       });
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message === 'canceled') return;
+      if (err.name === 'AbortError') return;
       this.setState({
         isGenerating: false,
         loadingMsg: '',
