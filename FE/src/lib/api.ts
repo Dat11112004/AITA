@@ -964,7 +964,7 @@ export const gradingApi = {
 
         onProgress(job)
 
-        if (job.state === 'completed' || job.progressPercent === 100) {
+        if (job.state === 'completed') {
           isTerminated = true
           eventSource.close()
           onComplete()
@@ -979,10 +979,10 @@ export const gradingApi = {
     }
 
     eventSource.onerror = (err) => {
-      eventSource.close()
       if (isTerminated) return
       // When connection drops or finishes gracefully on server, attempt to fetch result
       console.warn('SSE stream disconnected, attempting fallback result check:', err)
+      eventSource.close()
       onComplete()
     }
 

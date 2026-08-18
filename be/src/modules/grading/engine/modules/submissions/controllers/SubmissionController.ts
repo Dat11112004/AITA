@@ -720,7 +720,9 @@ export class SubmissionController extends BaseController {
                         publishedAssignment.rubric,
                         context,
                         (current, total, msg, meta) => {
-                            const pct = 50 + Math.floor((current / total) * 50);
+                            const currentSafe = Math.max(0, current || 0);
+                            const totalSafe = Math.max(1, total || 1);
+                            const pct = Math.min(95, 50 + Math.floor((currentSafe / totalSafe) * 45));
                             globalJobManager.updateProgress(submissionId, pct, msg, meta);
                         }
                     );
@@ -820,7 +822,8 @@ export class SubmissionController extends BaseController {
                 });
                 if (subRecord) {
                     const score = subRecord.FinalScore !== null ? Number(subRecord.FinalScore) : (subRecord.TotalScore !== null ? Number(subRecord.TotalScore) : null);
-                    if (subRecord.GradingStatus === 'Graded' || subRecord.GradingStatus === 'Completed' || score !== null) {
+                    const statusUpper = (subRecord.GradingStatus || '').toUpperCase();
+                    if (statusUpper === 'GRADED' || statusUpper === 'COMPLETED' || score !== null) {
                         res.write(`data: ${JSON.stringify({
                             id,
                             submissionId: id,
@@ -962,13 +965,29 @@ export class SubmissionController extends BaseController {
             if (historyItem && historyItem.report && Object.keys(historyItem.report).length > 0) {
                 report = historyItem.report;
             } else {
-                throw new BadRequestError('Submission report not found. The grading data may have expired — please re-submit and grade again.');
+                const subRecord = await prisma.submission.findUnique({
+                    where: { Id: id },
+                    include: { Exam: true }
+                });
+                const statusUpper = (subRecord?.GradingStatus || '').toUpperCase();
+                if (subRecord && (statusUpper === 'GRADED' || statusUpper === 'COMPLETED' || subRecord.FinalScore !== null)) {
+                    report = {
+                        submissionId: id,
+                        assignmentId: subRecord.ExamId,
+                        studentId: subRecord.StudentId,
+                        totalScore: subRecord.FinalScore !== null ? Number(subRecord.FinalScore) : (subRecord.TotalScore !== null ? Number(subRecord.TotalScore) : 0),
+                        maxPossibleScore: subRecord.Exam?.TotalPoints ? Number(subRecord.Exam.TotalPoints) : 10,
+                        passedRules: [],
+                        failedRules: [],
+                        overallFeedback: 'Đã hoàn thành chấm điểm.'
+                    };
+                } else {
+                    throw new BadRequestError('Submission report not found. The grading data may have expired — please re-submit and grade again.');
+                }
             }
         } else {
             if (job.state === 'completed') {
                 report = job.result;
-                // Clear job to save memory since we've already saved it to History DB
-                globalJobManager.clearJob(id);
             } else if (job.state === 'failed') {
                 // Try to fetch partial report from history db
                 const historyItem = await this.historyRepo.getByIdAsync(id);
@@ -977,8 +996,6 @@ export class SubmissionController extends BaseController {
                 } else {
                     throw new BadRequestError('Job failed and no partial report was generated. Error: ' + job.error);
                 }
-                // Clear job to save memory
-                globalJobManager.clearJob(id);
             } else {
                 throw new BadRequestError('Job is not completed yet. Current state: ' + job.state);
             }

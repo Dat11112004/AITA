@@ -62,13 +62,13 @@ export default function LiveJobPage() {
         try {
           setProgressData({ percent: 100, task: t('lc.lj.fetching_report') });
           let result: any = null;
-          for (let attempt = 0; attempt < 5; attempt++) {
+          for (let attempt = 0; attempt < 20; attempt++) {
             try {
               result = await api.getSubmissionResult(id);
               if (result) break;
-            } catch (pollErr) {
-              if (attempt === 4) throw pollErr;
-              await new Promise(r => setTimeout(r, 1000));
+            } catch (pollErr: any) {
+              if (attempt === 19) throw pollErr;
+              await new Promise(r => setTimeout(r, 1500));
             }
           }
           if (result) {
