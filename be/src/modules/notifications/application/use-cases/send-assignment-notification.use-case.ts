@@ -13,6 +13,8 @@ export interface SendAssignmentNotificationParams {
     subjectId?: string
     dueDate?: string | Date
     createdBy: string
+    isUpdate?: boolean
+    filterUnsubmittedOnly?: boolean
 }
 
 export class SendAssignmentNotificationUseCase {
@@ -79,20 +81,44 @@ export class SendAssignmentNotificationUseCase {
                 return
             }
 
+            // 2.1 Lọc chỉ gửi cho sinh viên CHƯA nộp bài nếu filterUnsubmittedOnly = true
+            if (params.filterUnsubmittedOnly) {
+                const submittedRecords = await prisma.submission.findMany({
+                    where: {
+                        ExamId: params.examId,
+                        NOT: {
+                            ReportData: { contains: '"isAutoZero":true' }
+                        },
+                        ZipFileUrl: { not: null }
+                    },
+                    select: { StudentId: true }
+                })
+                const submittedStudentIds = new Set(submittedRecords.map(s => s.StudentId))
+                students = students.filter(student => !submittedStudentIds.has(student.Id))
+
+                if (students.length === 0) {
+                    logger.info(`SendAssignmentNotificationUseCase: All students have already submitted for exam ${params.examId}. No update notification needed.`)
+                    return
+                }
+            }
+
             // 3. Format Notification Title and Message with clear Subject, Exam Title & Deadline
+            const isUpdate = !!params.isUpdate
             const subjectLabel = subjectCode && subjectName
                 ? `${subjectName} (${subjectCode})`
                 : (subjectCode || subjectName || 'môn học')
-
-            const notifTitle = subjectCode
-                ? `[${subjectCode}] Bài tập mới: ${params.title}`
-                : `Bài tập mới: ${params.title}`
 
             const isExamType = params.type === 'Exam' || params.type === 'Đề thi'
             const itemTypeLabel = isExamType ? 'đề thi' : 'bài tập'
             const deadlineText = formattedDueDate ? ` (Hạn nộp: ${formattedDueDate})` : ''
 
-            const notifMessage = `Môn ${subjectLabel}: Giảng viên vừa đăng ${itemTypeLabel} "${params.title}"${deadlineText}. Vui lòng nhấp vào đây để xem chi tiết và nộp bài.`
+            const notifTitle = isUpdate
+                ? (subjectCode ? `[${subjectCode}] Cập nhật hạn nộp: ${params.title}` : `Cập nhật hạn nộp: ${params.title}`)
+                : (subjectCode ? `[${subjectCode}] Bài tập mới: ${params.title}` : `Bài tập mới: ${params.title}`)
+
+            const notifMessage = isUpdate
+                ? `Môn ${subjectLabel}: Giảng viên vừa cập nhật hạn nộp mới cho ${itemTypeLabel} "${params.title}" đến ${formattedDueDate || 'thời gian mới'}. Vui lòng nhấp vào đây để xem chi tiết và nộp bài.`
+                : `Môn ${subjectLabel}: Giảng viên vừa đăng ${itemTypeLabel} "${params.title}"${deadlineText}. Vui lòng nhấp vào đây để xem chi tiết và nộp bài.`
 
             // 4. Create In-App Notification
             const notificationId = uuidv4()
@@ -101,7 +127,7 @@ export class SendAssignmentNotificationUseCase {
                     Id: notificationId,
                     Title: notifTitle,
                     Message: notifMessage,
-                    Type: 'ASSIGNMENT',
+                    Type: isUpdate ? 'DEADLINE' : 'ASSIGNMENT',
                     ReferenceId: params.examId,
                     ReferenceType: 'EXAM',
                     CreatedBy: params.createdBy,
@@ -120,19 +146,45 @@ export class SendAssignmentNotificationUseCase {
                 data: recipients
             })
 
-            // 6. Send Emails asynchronously
+            // 6. Send Emails asynchronously with direct redirect link
+            const webUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
+            const assignmentLink = `${webUrl}/student/assignments/${params.examId}`
+
             const emailHtml = `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                    <h3 style="color: #1e293b; margin-top: 0;">Xin chào sinh viên,</h3>
-                    <p style="color: #475569;">Bạn nhận được thông báo bài tập mới trên hệ thống <strong>AITA</strong>:</p>
-                    <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 16px 0;">
-                        <p style="margin: 0 0 8px 0; color: #334155;"><strong>Môn học:</strong> ${subjectLabel}</p>
-                        <p style="margin: 0 0 8px 0; color: #334155;"><strong>Tên ${itemTypeLabel}:</strong> ${params.title}</p>
-                        ${formattedDueDate ? `<p style="margin: 0; color: #dc2626;"><strong>Hạn nộp (Deadline):</strong> ${formattedDueDate}</p>` : ''}
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #1e293b;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 style="color: #2563eb; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">AITA SUPPORT PLATFORM</h2>
                     </div>
-                    <p style="color: #475569;">Vui lòng đăng nhập hệ thống AITA để làm bài và nộp đúng hạn.</p>
-                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">Trân trọng,<br>Hệ thống AITA Platform</p>
+                    
+                    <h3 style="color: #0f172a; margin-top: 0; font-size: 16px;">Xin chào sinh viên,</h3>
+                    <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                        ${isUpdate 
+                            ? `Giảng viên vừa <strong>cập nhật thời hạn nộp bài mới</strong> cho bài tập <strong>${params.title}</strong> trên hệ thống AITA:` 
+                            : `Bạn nhận được thông báo bài tập mới trên hệ thống <strong>AITA</strong>:`}
+                    </p>
+                    
+                    <div style="background-color: #f8fafc; padding: 18px; border-radius: 12px; border-left: 4px solid ${isUpdate ? '#f59e0b' : '#3b82f6'}; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0; color: #334155; font-size: 14px;"><strong>Môn học:</strong> ${subjectLabel}</p>
+                        <p style="margin: 0 0 10px 0; color: #334155; font-size: 14px;"><strong>Tên ${itemTypeLabel}:</strong> ${params.title}</p>
+                        ${formattedDueDate ? `<p style="margin: 0 0 10px 0; color: #dc2626; font-size: 14px;"><strong>Hạn nộp mới (Deadline):</strong> ${formattedDueDate}</p>` : ''}
+                        ${isUpdate ? `<p style="margin: 0; color: #d97706; font-size: 13px; font-weight: 600;">⚠️ Ghi chú: Bạn chưa nộp bài tập này, vui lòng hoàn thành trước thời hạn mới.</p>` : ''}
+                    </div>
+
+                    <div style="text-align: center; margin: 28px 0;">
+                        <a href="${assignmentLink}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 32px; border-radius: 10px; font-weight: 700; text-decoration: none; font-size: 14px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                            Truy cập bài tập và nộp bài →
+                        </a>
+                    </div>
+
+                    <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 16px;">
+                        Nếu nút bấm trên không hoạt động, bạn có thể copy và truy cập đường link trực tiếp sau:<br>
+                        <a href="${assignmentLink}" style="color: #2563eb; word-break: break-all;">${assignmentLink}</a>
+                    </p>
+
+                    <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">
+                        Email này được gửi tự động từ Hệ thống AITA Platform. Vui lòng không trả lời trực tiếp email này.
+                    </p>
                 </div>
             `
 
@@ -144,7 +196,7 @@ export class SendAssignmentNotificationUseCase {
                 })
             }
 
-            logger.info(`Assignment notification sent to ${students.length} students for exam ${params.examId}`)
+            logger.info(`Assignment notification sent to ${students.length} students for exam ${params.examId} (isUpdate: ${isUpdate})`)
 
         } catch (error: any) {
             logger.error(`SendAssignmentNotificationUseCase error: ${error.message}`)

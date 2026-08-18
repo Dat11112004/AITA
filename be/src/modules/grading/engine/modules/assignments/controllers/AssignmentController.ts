@@ -772,6 +772,22 @@ export class AssignmentController extends BaseController {
 
             await this.assignmentRepository.saveAsync(updatedAssignment);
 
+            // 4. Gửi thông báo hệ thống và Email cho các sinh viên CHƯA NỘP BÀI
+            try {
+                const sendNotificationUseCase = new SendAssignmentNotificationUseCase(new NodemailerService());
+                sendNotificationUseCase.execute({
+                    examId: id,
+                    title: title || examRecord.Title || 'AI Assignment',
+                    type: 'Assignment',
+                    dueDate: parsedDueDate || examRecord.DueDate,
+                    createdBy: (req as any).user?.id || examRecord.CreatedBy || 'system',
+                    isUpdate: true,
+                    filterUnsubmittedOnly: true
+                }).catch((err) => console.error("[AssignmentController] Error sending update notification:", err));
+            } catch (notifErr) {
+                console.error("[AssignmentController] Failed to initialize update notification:", notifErr);
+            }
+
             this.ok(res, updatedAssignment, 'Assignment updated successfully');
         } catch (error: any) {
             console.error("Update Error:", error);
