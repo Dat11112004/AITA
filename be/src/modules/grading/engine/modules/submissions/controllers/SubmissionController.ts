@@ -805,8 +805,9 @@ export class SubmissionController extends BaseController {
         const id = req.params.id as string;
 
         res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
         res.flushHeaders();
 
         // Send initial state
@@ -818,26 +819,33 @@ export class SubmissionController extends BaseController {
                     include: { Exam: true }
                 });
                 if (subRecord) {
-                    if (subRecord.GradingStatus === 'Graded' || subRecord.GradingStatus === 'Completed' || subRecord.Score !== null) {
+                    const score = subRecord.FinalScore !== null ? Number(subRecord.FinalScore) : (subRecord.TotalScore !== null ? Number(subRecord.TotalScore) : null);
+                    if (subRecord.GradingStatus === 'Graded' || subRecord.GradingStatus === 'Completed' || score !== null) {
                         res.write(`data: ${JSON.stringify({
                             id,
+                            submissionId: id,
                             state: 'completed',
                             progressPercent: 100,
                             currentTask: 'Grading completed',
-                            result: { totalScore: subRecord.Score }
+                            result: { totalScore: score }
                         })}\n\n`);
-                        res.end();
+                        setTimeout(() => {
+                            try { res.end(); } catch (e) {}
+                        }, 500);
                         return;
                     } else if (subRecord.ZipFileUrl) {
                         const strat = (subRecord as any).Exam?.GradingStrategy || 'CONTINUOUS_QUEUE';
                         if (strat === 'BATCH_POST_DEADLINE') {
                             res.write(`data: ${JSON.stringify({
                                 id,
+                                submissionId: id,
                                 state: 'pending',
                                 progressPercent: 0,
                                 currentTask: 'Holding in pending status for batch grading'
                             })}\n\n`);
-                            res.end();
+                            setTimeout(() => {
+                                try { res.end(); } catch (e) {}
+                            }, 500);
                             return;
                         }
                         // Self-healing: if in DB but memory job missing and in Continuous Queue mode, start grading job immediately
@@ -849,16 +857,48 @@ export class SubmissionController extends BaseController {
         }
 
         if (job) {
-            res.write(`data: ${JSON.stringify(job)}\n\n`);
+            const initialPayload = {
+                id: job.submissionId || id,
+                submissionId: job.submissionId || id,
+                state: job.state,
+                progressPercent: job.progressPercent,
+                currentTask: job.currentTask,
+                meta: job.meta,
+                error: job.error
+            };
+            res.write(`data: ${JSON.stringify(initialPayload)}\n\n`);
         } else {
             res.write(`data: ${JSON.stringify({ error: 'Job not found' })}\n\n`);
         }
 
         const onUpdate = (updatedJob: any) => {
-            res.write(`data: ${JSON.stringify(updatedJob)}\n\n`);
+            const payload: any = {
+                id: updatedJob.submissionId || id,
+                submissionId: updatedJob.submissionId || id,
+                state: updatedJob.state,
+                progressPercent: updatedJob.progressPercent,
+                currentTask: updatedJob.currentTask,
+                meta: updatedJob.meta,
+                error: updatedJob.error,
+                isCancelled: updatedJob.isCancelled
+            };
+            if (updatedJob.state === 'completed' && updatedJob.result?.totalScore !== undefined) {
+                payload.totalScore = updatedJob.result.totalScore;
+                payload.maxScore = updatedJob.result.maxPossibleScore;
+            }
+
+            try {
+                res.write(`data: ${JSON.stringify(payload)}\n\n`);
+            } catch (e) {}
+
             if (updatedJob.state === 'completed' || updatedJob.state === 'failed') {
-                res.end();
                 globalJobManager.removeListener(`update:${id}`, onUpdate);
+                // Allow client time to process the terminal frame before ending connection
+                setTimeout(() => {
+                    try {
+                        res.end();
+                    } catch (e) {}
+                }, 1000);
             }
         };
 

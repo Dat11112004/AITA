@@ -950,22 +950,26 @@ export const gradingApi = {
     // Usually tokens for SSE are passed via query params.
     const url = '/api/grading/submissions/' + submissionId + '/stream?token=' + token
     const eventSource = new EventSource(url)
+    let isTerminated = false
 
     eventSource.onmessage = (event) => {
       try {
         const job = JSON.parse(event.data)
         if (job.error) {
-          onError(new Error(job.error))
+          isTerminated = true
           eventSource.close()
+          onError(new Error(job.error))
           return
         }
 
         onProgress(job)
 
-        if (job.state === 'completed') {
+        if (job.state === 'completed' || job.progressPercent === 100) {
+          isTerminated = true
           eventSource.close()
           onComplete()
         } else if (job.state === 'failed') {
+          isTerminated = true
           eventSource.close()
           onError(new Error(job.error || 'Evaluation failed'))
         }
@@ -975,12 +979,15 @@ export const gradingApi = {
     }
 
     eventSource.onerror = (err) => {
-      console.error('SSE Error', err)
       eventSource.close()
-      onError(new Error('Connection to server lost.'))
+      if (isTerminated) return
+      // When connection drops or finishes gracefully on server, attempt to fetch result
+      console.warn('SSE stream disconnected, attempting fallback result check:', err)
+      onComplete()
     }
 
     return () => {
+      isTerminated = true
       eventSource.close()
     }
   },
