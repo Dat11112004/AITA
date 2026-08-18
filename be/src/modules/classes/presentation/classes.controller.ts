@@ -195,7 +195,7 @@ export class ClassesController extends BaseController {
         }
       })
     } catch (e) {
-      this.logger.warn(`[resolveTargetRefIds] Error querying class for ${classId}:`, e)
+      this.logger.warn(`[resolveTargetRefIds] Error querying class for ${classId}: ${e}`)
     }
 
     try {
@@ -208,7 +208,7 @@ export class ClassesController extends BaseController {
         where: { OR: subjectOrConditions }
       })
     } catch (e) {
-      this.logger.warn(`[resolveTargetRefIds] Error querying subject for ${classId}:`, e)
+      this.logger.warn(`[resolveTargetRefIds] Error querying subject for ${classId}: ${e}`)
     }
 
     if (cls?.Id && !targetRefIds.includes(cls.Id)) targetRefIds.push(cls.Id)
@@ -240,7 +240,7 @@ export class ClassesController extends BaseController {
         if (rc.ClassCode && !targetRefIds.includes(rc.ClassCode)) targetRefIds.push(rc.ClassCode)
       }
     } catch (e) {
-      this.logger.warn(`[resolveTargetRefIds] Error querying related classes for ${classId}:`, e)
+      this.logger.warn(`[resolveTargetRefIds] Error querying related classes for ${classId}: ${e}`)
     }
 
     const classCode = cls?.ClassCode || subject?.SubjectCode || relatedClasses[0]?.ClassCode || ''
@@ -268,7 +268,7 @@ export class ClassesController extends BaseController {
         include: { Subject: true }
       })
     } catch (e) {
-      this.logger.warn(`[listAnnouncements] Error querying class for ${classId}:`, e)
+      this.logger.warn(`[listAnnouncements] Error querying class for ${classId}: ${e}`)
     }
 
     // Step 2: Build targetRefIds — ONLY include valid UUIDs!
@@ -389,7 +389,7 @@ export class ClassesController extends BaseController {
           }))
         })
       } catch (recipErr) {
-        this.logger.warn(`[createAnnouncement] Failed creating recipients:`, recipErr)
+        this.logger.warn(`[createAnnouncement] Failed creating recipients: ${recipErr}`)
       }
     }
 
@@ -419,7 +419,7 @@ export class ClassesController extends BaseController {
         classEvents.emit(`class_announcement:${refId}`, announcementDto)
       }
     } catch (broadcastErr) {
-      this.logger.warn(`[createAnnouncement] Broadcast event error:`, broadcastErr)
+      this.logger.warn(`[createAnnouncement] Broadcast event error: ${broadcastErr}`)
     }
 
     // 2. Send email notification to all students in this class
@@ -572,7 +572,7 @@ export class ClassesController extends BaseController {
           })
         }
       } catch (recipErr) {
-        this.logger.warn(`[updateAnnouncement] Failed updating notification recipients:`, recipErr)
+        this.logger.warn(`[updateAnnouncement] Failed updating notification recipients: ${recipErr}`)
       }
     }
 
@@ -602,7 +602,7 @@ export class ClassesController extends BaseController {
         classEvents.emit(`class_announcement_updated:${refId}`, announcementDto)
       }
     } catch (e) {
-      this.logger.warn(`[updateAnnouncement] Failed to broadcast event:`, e)
+      this.logger.warn(`[updateAnnouncement] Failed to broadcast event: ${e}`)
       classEvents.emit(`class_announcement_updated:${classId}`, announcementDto)
     }
 
@@ -695,7 +695,7 @@ export class ClassesController extends BaseController {
         where: { NotificationId: announcementId }
       })
     } catch (err) {
-      this.logger.warn(`[deleteAnnouncement] Failed to delete NotificationRecipient:`, err)
+      this.logger.warn(`[deleteAnnouncement] Failed to delete NotificationRecipient: ${err}`)
     }
 
     // 2. Delete notification record
@@ -706,7 +706,7 @@ export class ClassesController extends BaseController {
     } catch (err: any) {
       // If already deleted or not found, proceed smoothly
       if (err.code !== 'P2025') {
-        this.logger.error(`[deleteAnnouncement] Error deleting notification ${announcementId}:`, err)
+        this.logger.error(`[deleteAnnouncement] Error deleting notification ${announcementId}: ${err instanceof Error ? err.message : String(err)}`)
         throw err
       }
     }
@@ -718,7 +718,7 @@ export class ClassesController extends BaseController {
         classEvents.emit(`class_announcement_deleted:${refId}`, { announcementId })
       }
     } catch (e) {
-      this.logger.warn(`[deleteAnnouncement] Failed to broadcast deletion event:`, e)
+      this.logger.warn(`[deleteAnnouncement] Failed to broadcast deletion event: ${e}`)
       classEvents.emit(`class_announcement_deleted:${classId}`, { announcementId })
     }
 
