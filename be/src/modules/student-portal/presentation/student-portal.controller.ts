@@ -21,10 +21,9 @@ export class StudentPortalController extends BaseController {
     const submittedExamIds = studentSubmissions.map(s => s.ExamId).filter(Boolean) as string[];
 
     // Aggregate data: Assignments due soon, classes, notifications
-    const rawUpcomingAssignments = await prisma.exam.findMany({
+    const rawUpcomingAssignments: any[] = await (prisma.exam as any).findMany({
       where: {
         Status: 'Published',
-        OR: [{ IsDeleted: false }, { IsDeleted: null }],
         ExamClass: {
           some: {
             Class: {

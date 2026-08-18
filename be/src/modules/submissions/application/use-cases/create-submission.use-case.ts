@@ -158,6 +158,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     }
 
     let targetSubmission: Submission
+    const isResubmission = !!existingSubmission
 
     if (existingSubmission) {
       // RESUBMISSION LOGIC:
@@ -190,6 +191,68 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
           submissionId: targetSubmission.id
         });
       } catch (e) { }
+
+      // Gửi thông báo đến Giảng viên khi sinh viên nộp lại bài
+      if (isResubmission) {
+        try {
+          const { prisma } = await import('../../../../database/prisma.js');
+          const studentUser = await prisma.user.findUnique({
+            where: { Id: user.id },
+            select: { FullName: true, StudentCode: true, Email: true }
+          });
+          const studentName = studentUser?.FullName || studentUser?.StudentCode || (user as any).name || 'Một sinh viên';
+
+          const examRecord: any = await (prisma.exam as any).findUnique({
+            where: { Id: examId },
+            include: {
+              ExamClass: {
+                where: { ClassId: classId },
+                include: {
+                  Class: {
+                    include: {
+                      InstructorClass: true
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          const recipientUserIds = new Set<string>();
+          if (examRecord?.CreatedBy) {
+            recipientUserIds.add(examRecord.CreatedBy);
+          }
+          if (examRecord?.ExamClass) {
+            for (const ec of examRecord.ExamClass) {
+              for (const ic of ec.Class?.InstructorClass || []) {
+                if (ic.UserId) recipientUserIds.add(ic.UserId);
+              }
+            }
+          }
+
+          const examTitle = (exam as any).title || examRecord?.Title || 'Bài tập';
+
+          for (const targetUserId of recipientUserIds) {
+            await prisma.notification.create({
+              data: {
+                Title: 'Sinh viên nộp lại bài tập',
+                Message: `Sinh viên ${studentName} đã nộp lại bài cho "${examTitle}".`,
+                Type: 'SUBMISSION',
+                ReferenceId: targetSubmission.id,
+                ReferenceType: 'Submission',
+                NotificationRecipient: {
+                  create: {
+                    UserId: targetUserId,
+                    IsRead: false
+                  }
+                }
+              }
+            });
+          }
+        } catch (resubmitNotifErr) {
+          console.error('Lỗi tạo thông báo nộp lại bài cho giảng viên:', resubmitNotifErr);
+        }
+      }
 
       // Clean up any deadline warning notifications for this student and assignment
       try {

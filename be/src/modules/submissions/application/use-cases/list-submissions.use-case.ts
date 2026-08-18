@@ -3,6 +3,7 @@ import type { ISubmissionRepository } from '../../domain/repositories/submission
 import type { AuthUser } from '../../../../types/express.js'
 import { ListSubmissionsQueryDto, SubmissionResponseDto } from '../dtos/submission.dto.js'
 import type { GradingStatusValue } from '../../domain/entities/submission.entity.js'
+import { autoZeroSubmissionService } from '../services/auto-zero-submission.service.js'
 
 export class ListSubmissionsUseCase implements IUseCase<{ user: AuthUser; query: ListSubmissionsQueryDto }, ReturnType<typeof SubmissionResponseDto.from>[]> {
   constructor(
@@ -12,6 +13,13 @@ export class ListSubmissionsUseCase implements IUseCase<{ user: AuthUser; query:
   async execute({ user, query }: { user: AuthUser; query: ListSubmissionsQueryDto }) {
     const { assignmentId, examId, status } = query.data
     const targetExamId = examId ?? assignmentId
+
+    // On-demand sync: Đồng bộ điểm 0 cho các bài quá hạn nếu có
+    if (user.role === 'STUDENT') {
+      await autoZeroSubmissionService.syncZeroScoresForStudent(user.id)
+    } else if (targetExamId) {
+      await autoZeroSubmissionService.syncZeroScoresForExam(targetExamId)
+    }
 
     const filter: any = {}
     if (targetExamId) filter.examId = targetExamId
@@ -24,3 +32,4 @@ export class ListSubmissionsUseCase implements IUseCase<{ user: AuthUser; query:
     return submissions.map(SubmissionResponseDto.from)
   }
 }
+

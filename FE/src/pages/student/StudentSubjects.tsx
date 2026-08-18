@@ -16,6 +16,8 @@ type SubjectInfo = {
   name: string
   description?: string
   lecturers?: LecturerInfo[]
+  classId?: string
+  classCode?: string
 }
 
 import { SemesterSelector, type SemesterOption } from '@/components/ui/SemesterSelector'
@@ -229,7 +231,13 @@ export function StudentSubjects() {
             ) : (
               visibleSubjects.map(sub => {
                 const isExpanded = expandedSubjectId === sub.id
-                const subjectAssignments = assignments.filter(a => (a as any).subjectId === sub.id || (a as any).subjectCode === sub.code || a.class?.includes(sub.code))
+                const subjectAssignments = assignments.filter(a => {
+                  const matchSubjectId = a.subjectId && (a.subjectId === sub.id)
+                  const matchSubjectCode = (a as any).subjectCode && ((a as any).subjectCode.toLowerCase() === sub.code.toLowerCase())
+                  const matchSubjectName = a.subjectName && (a.subjectName.toLowerCase().includes(sub.code.toLowerCase()) || a.subjectName.toLowerCase().includes(sub.name.toLowerCase()))
+                  const matchClass = (a as any).classes && Array.isArray((a as any).classes) && (a as any).classes.includes(sub.classId)
+                  return matchSubjectId || matchSubjectCode || matchSubjectName || matchClass
+                })
 
                 const hwCount = subjectAssignments.filter(a => a.type !== 'Exam').length
                 const examCount = subjectAssignments.filter(a => a.type === 'Exam').length
@@ -368,8 +376,16 @@ export function StudentSubjects() {
                                             </td>
                                             <td className="px-5 py-4">
                                               <div className="flex justify-center">
-                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'}`}>
-                                                  {isSubmitted ? 'Submitted' : 'Not submitted'}
+                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap ${
+                                                  a.status === 'Graded' || (a as any).score !== undefined
+                                                    ? (numScore !== null && numScore <= 0 ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400')
+                                                    : isSubmitted
+                                                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                                                      : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'
+                                                }`}>
+                                                  {a.status === 'Graded' || (a as any).score !== undefined
+                                                    ? (numScore !== null && numScore <= 0 ? 'Overdue (0.0)' : 'Graded')
+                                                    : (isSubmitted ? 'Submitted' : 'Not submitted')}
                                                 </span>
                                               </div>
                                             </td>
@@ -388,7 +404,7 @@ export function StudentSubjects() {
                                                   onClick={(e) => { e.stopPropagation(); navigate(`/student/assignments/${a.id}`) }}
                                                   className={`inline-flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow ${!isSubmitted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-transparent dark:border-emerald-800 dark:hover:bg-emerald-900/30'}`}
                                                 >
-                                                  {!isSubmitted ? 'Submit' : 'Submitted'}
+                                                  {!isSubmitted ? 'Submit' : ((a as any).score !== undefined ? 'View Result' : 'Submitted')}
                                                 </button>
                                               </div>
                                             </td>
@@ -441,8 +457,16 @@ export function StudentSubjects() {
                                             </td>
                                             <td className="px-5 py-4">
                                               <div className="flex justify-center">
-                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide ${isSubmitted ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                                                  {isSubmitted ? 'Completed' : 'Upcoming'}
+                                                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
+                                                  a.status === 'Graded' || (a as any).score !== undefined
+                                                    ? (numScore !== null && numScore <= 0 ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400')
+                                                    : isSubmitted
+                                                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                                      : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                                                }`}>
+                                                  {a.status === 'Graded' || (a as any).score !== undefined
+                                                    ? (numScore !== null && numScore <= 0 ? 'Overdue (0.0)' : 'Completed')
+                                                    : (isSubmitted ? 'Completed' : 'Upcoming')}
                                                 </span>
                                               </div>
                                             </td>

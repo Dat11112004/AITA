@@ -48,7 +48,8 @@ export class ListExamsUseCase implements IUseCase<{ user: AuthUser; params: any 
       const enrolledSubjectIds = new Set(enrolled.map((c: any) => c.subjectId).filter(Boolean))
 
       exams = exams.filter(exam => {
-        if (exam.status !== 'Published') return false;
+        const statusLower = (exam.status || (exam as any).Status || '')?.toLowerCase()
+        if (statusLower !== 'published') return false;
         
         // Match by explicitly assigned class OR match by subject if the exam hasn't been specifically assigned
         const classIds = (exam as any).classes || [];
