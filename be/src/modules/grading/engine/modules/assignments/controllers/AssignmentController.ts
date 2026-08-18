@@ -315,9 +315,33 @@ export class AssignmentController extends BaseController {
             await this.assignmentRepository.saveAsync(publishedAssignment);
 
             // INTEGRATION WITH AITA CORE
-            const { title, description, subject, semesterId, classIds, dueDate, fileUrl, fileName, fileType, examType, assignmentType, category, weightPercentage, gradingStrategy } = metadata;
+            const { 
+                title, 
+                description, 
+                subject, 
+                semesterId, 
+                classIds, 
+                dueDate, 
+                fileUrl, 
+                fileName, 
+                fileType, 
+                examType, 
+                assignmentType, 
+                category, 
+                weightPercentage, 
+                gradingStrategy,
+                allowLateSubmission,
+                latePenaltyType,
+                latePenaltyValue,
+                maxLatePenalty
+            } = metadata;
             const selectedGradingStrategy = gradingStrategy || 'CONTINUOUS_QUEUE';
             const resolvedExamType = assignmentType || category || examType || 'Assignment';
+
+            const effectiveAllowLate = allowLateSubmission !== undefined ? Boolean(allowLateSubmission) : true;
+            const effectivePenaltyType = latePenaltyType || (effectiveAllowLate ? 'DAILY_POINTS' : 'NONE');
+            const effectivePenaltyValue = latePenaltyValue !== undefined && latePenaltyValue !== null ? Number(latePenaltyValue) : (effectivePenaltyType === 'NONE' ? 0 : 2);
+            const effectiveMaxPenalty = maxLatePenalty !== undefined && maxLatePenalty !== null ? Number(maxLatePenalty) : null;
 
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -385,6 +409,10 @@ export class AssignmentController extends BaseController {
                     StartDate: new Date(),
                     DueDate: parsedDueDate,
                     GradingStrategy: selectedGradingStrategy,
+                    AllowLateSubmission: effectiveAllowLate,
+                    LatePenaltyType: effectivePenaltyType,
+                    LatePenaltyValue: effectivePenaltyValue,
+                    MaxLatePenalty: effectiveMaxPenalty,
                     AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id, weightPercentage: weightPercentage ? Number(weightPercentage) : 0 }),
                     ...(validClassIds.length > 0 ? {
                         ExamClass: {
@@ -527,6 +555,10 @@ export class AssignmentController extends BaseController {
                         StartDate: true,
                         DueDate: true,
                         GradingStrategy: true,
+                        AllowLateSubmission: true,
+                        LatePenaltyType: true,
+                        LatePenaltyValue: true,
+                        MaxLatePenalty: true,
                         ExamClass: {
                             select: {
                                 Class: {
@@ -596,12 +628,25 @@ export class AssignmentController extends BaseController {
 
                 const sqlSetupScript = extractSqlSetupScript(assignment.rubric);
 
+                const allowLate = exam?.AllowLateSubmission ?? assignment.metadata?.allowLateSubmission ?? true;
+                const lateType = (exam?.LatePenaltyType && exam.LatePenaltyType !== 'NONE') ? exam.LatePenaltyType : (assignment.metadata?.latePenaltyType || 'DAILY_POINTS');
+                const lateVal = exam?.LatePenaltyValue !== undefined && exam?.LatePenaltyValue !== null ? Number(exam.LatePenaltyValue) : (assignment.metadata?.latePenaltyValue ?? 2);
+                const maxLate = exam?.MaxLatePenalty !== undefined && exam?.MaxLatePenalty !== null ? Number(exam.MaxLatePenalty) : (assignment.metadata?.maxLatePenalty ?? null);
+
                 const enhancedAssignment = {
                     ...assignment,
                     sqlSetupScript,
+                    allowLateSubmission: allowLate,
+                    latePenaltyType: lateType,
+                    latePenaltyValue: lateVal,
+                    maxLatePenalty: maxLate,
                     metadata: {
                         ...assignment.metadata,
-                        gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE'
+                        gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE',
+                        allowLateSubmission: allowLate,
+                        latePenaltyType: lateType,
+                        latePenaltyValue: lateVal,
+                        maxLatePenalty: maxLate
                     },
                     stats
                 };
@@ -696,7 +741,7 @@ export class AssignmentController extends BaseController {
     update = async (req: Request, res: Response): Promise<void> => {
         try {
             const id = req.params.id;
-            const { title, description, dueDate, gradingStrategy } = req.body;
+            const { title, description, dueDate, gradingStrategy, allowLateSubmission, latePenaltyType, latePenaltyValue, maxLatePenalty } = req.body;
 
             const assignment = await this.assignmentRepository.getAsync(id);
             if (!assignment) {
@@ -717,14 +762,20 @@ export class AssignmentController extends BaseController {
                 }
             }
 
+            const updateData: any = {
+                Title: title,
+                Description: description,
+                DueDate: parsedDueDate,
+                GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
+            };
+            if (allowLateSubmission !== undefined) updateData.AllowLateSubmission = Boolean(allowLateSubmission);
+            if (latePenaltyType !== undefined) updateData.LatePenaltyType = latePenaltyType;
+            if (latePenaltyValue !== undefined && latePenaltyValue !== null) updateData.LatePenaltyValue = Number(latePenaltyValue);
+            if (maxLatePenalty !== undefined) updateData.MaxLatePenalty = maxLatePenalty !== null ? Number(maxLatePenalty) : null;
+
             await prisma.exam.update({
                 where: { Id: id },
-                data: {
-                    Title: title,
-                    Description: description,
-                    DueDate: parsedDueDate,
-                    GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
-                }
+                data: updateData
             });
 
             // 2. Update Prisma ExamClass Records
@@ -735,8 +786,10 @@ export class AssignmentController extends BaseController {
                 }
             });
 
-            // 2.1 Đồng bộ: Nếu deadline được gia hạn tới tương lai, dọn dẹp các bài nộp 0 điểm tạm thời để sinh viên có thể nộp bài bình thường
-            if (parsedDueDate && parsedDueDate > new Date()) {
+            // 2.1 Đồng bộ: Nếu deadline được gia hạn tới tương lai hoặc chính sách nộp trễ được mở, dọn dẹp các bài nộp 0 điểm tạm thời để sinh viên có thể nộp bài bình thường
+            const effectiveAllow = allowLateSubmission !== undefined ? Boolean(allowLateSubmission) : (examRecord.AllowLateSubmission ?? true);
+            const effectiveType = latePenaltyType !== undefined ? latePenaltyType : (examRecord.LatePenaltyType ?? 'NONE');
+            if ((parsedDueDate && parsedDueDate > new Date()) || (effectiveAllow && effectiveType !== 'NONE')) {
                 await prisma.submission.deleteMany({
                     where: {
                         ExamId: id,
@@ -766,7 +819,11 @@ export class AssignmentController extends BaseController {
                     title,
                     description,
                     dueDate,
-                    gradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
+                    gradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE',
+                    ...(allowLateSubmission !== undefined ? { allowLateSubmission } : {}),
+                    ...(latePenaltyType !== undefined ? { latePenaltyType } : {}),
+                    ...(latePenaltyValue !== undefined ? { latePenaltyValue } : {}),
+                    ...(maxLatePenalty !== undefined ? { maxLatePenalty } : {})
                 }
             };
 

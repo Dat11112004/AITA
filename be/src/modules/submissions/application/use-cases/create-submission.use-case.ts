@@ -110,13 +110,24 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       }
     })
 
+    let publishedMeta: any = null
+    try {
+      const pubRow: any = await prisma.$queryRaw`SELECT Data FROM PublishedAssignment WHERE Id = ${examId}`
+      if (pubRow && pubRow[0]?.Data) {
+        publishedMeta = JSON.parse(pubRow[0].Data)?.metadata
+      }
+    } catch (e) {}
+
     const userOverride = examRecord?.SubmissionOverride?.[0]
     const effectiveDueDate = userOverride?.ExtendedDueDate 
       ? new Date(userOverride.ExtendedDueDate) 
       : (examRecord?.DueDate ? new Date(examRecord.DueDate) : (exam.dueDate ? new Date(exam.dueDate) : null))
 
-    const allowLateSubmission = examRecord?.AllowLateSubmission ?? (exam as any)?.allowLateSubmission ?? true
-    const latePenaltyType = examRecord?.LatePenaltyType ?? (exam as any)?.latePenaltyType ?? 'NONE'
+    const allowLateSubmission = examRecord?.AllowLateSubmission ?? publishedMeta?.allowLateSubmission ?? (exam as any)?.allowLateSubmission ?? true
+    const rawPenaltyType = examRecord?.LatePenaltyType && examRecord.LatePenaltyType !== 'NONE'
+      ? examRecord.LatePenaltyType
+      : (publishedMeta?.latePenaltyType || (exam as any)?.latePenaltyType || 'DAILY_POINTS')
+    const latePenaltyType = String(rawPenaltyType).toUpperCase()
     const isClosed = (examRecord?.Status || (exam as any)?.status || '').toLowerCase() === 'closed'
 
     if (isClosed) {
@@ -126,7 +137,7 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
     if (effectiveDueDate) {
       const now = new Date()
       if (now > effectiveDueDate) {
-        // Chỉ chặn nộp bài khi giảng viên KHÔNG cho phép nộp trễ hoặc KHÔNG cài đặt trừ điểm (NONE)
+        // Chỉ chặn nộp bài khi giảng viên KHÔNG cho phép nộp trễ hoặc chính sách phạt là NONE
         if (!allowLateSubmission || latePenaltyType === 'NONE') {
           throw new ValidationError('Hạn nộp bài (bao gồm thời gian gia hạn) đã hết, bài tập đã đóng không thể nộp bài.')
         }
@@ -184,6 +195,8 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
       // RESUBMISSION LOGIC:
       // Reset scores, feedback, and grading status to 'Pending' so the teacher MUST regrade it.
       existingSubmission.resubmit(fileUrl, dto.data.content)
+      ;(existingSubmission as any).reportData = null
+      ;(existingSubmission as any).latePenaltyAmount = 0
       targetSubmission = existingSubmission
     } else {
       // NEW SUBMISSION LOGIC:

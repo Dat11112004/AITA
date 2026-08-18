@@ -74,7 +74,9 @@ export class SubmissionMapper {
       StudentFeedback: submission.studentFeedback,
       ReviewedBy: submission.reviewedBy,
       ReviewedAt: submission.reviewedAt,
-      GradedAt: submission.gradedAt
+      GradedAt: submission.gradedAt,
+      ReportData: (submission as any).reportData ?? null,
+      LatePenaltyAmount: (submission as any).latePenaltyAmount !== undefined ? (submission as any).latePenaltyAmount : null,
     }
   }
 }

@@ -72,8 +72,16 @@ export class AutoZeroSubmissionService {
         // LƯU Ý: Nếu bài tập cho phép nộp trễ và CÓ CHỌN hình thức trừ điểm (LatePenaltyType !== 'NONE')
         // Thì sinh viên vẫn được phép nộp trễ (và bị trừ điểm khi nộp), KHÔNG tự động chốt 0 điểm
         // Chỉ chốt 0 điểm khi bài tập không cho nộp trễ (LatePenaltyType === 'NONE' / AllowLateSubmission === false) hoặc bài đã Closed
-        const allowLate = exam.AllowLateSubmission ?? true
-        const latePenaltyType = exam.LatePenaltyType || 'NONE'
+        let publishedMeta: any = null
+        try {
+          const pubRow: any = await prisma.$queryRaw`SELECT Data FROM PublishedAssignment WHERE Id = ${exam.Id}`
+          if (pubRow && pubRow[0]?.Data) {
+            publishedMeta = JSON.parse(pubRow[0].Data)?.metadata
+          }
+        } catch (e) {}
+
+        const allowLate = exam.AllowLateSubmission ?? publishedMeta?.allowLateSubmission ?? true
+        const latePenaltyType = (exam.LatePenaltyType && exam.LatePenaltyType !== 'NONE') ? exam.LatePenaltyType : (publishedMeta?.latePenaltyType || 'NONE')
         const statusLower = (exam.Status || '').toLowerCase()
 
         if (allowLate && latePenaltyType !== 'NONE' && statusLower !== 'closed') {
@@ -158,8 +166,16 @@ export class AutoZeroSubmissionService {
       // LƯU Ý: Nếu bài tập cho phép nộp trễ và CÓ CHỌN hình thức trừ điểm (LatePenaltyType !== 'NONE')
       // Thì sinh viên vẫn được phép nộp trễ (và bị trừ điểm khi nộp), KHÔNG tự động chốt 0 điểm
       // Chỉ chốt 0 điểm khi bài tập không cho nộp trễ hoặc bài đã Closed
-      const allowLate = exam.AllowLateSubmission ?? true
-      const latePenaltyType = exam.LatePenaltyType || 'NONE'
+      let publishedMeta: any = null
+      try {
+        const pubRow: any = await prisma.$queryRaw`SELECT Data FROM PublishedAssignment WHERE Id = ${exam.Id}`
+        if (pubRow && pubRow[0]?.Data) {
+          publishedMeta = JSON.parse(pubRow[0].Data)?.metadata
+        }
+      } catch (e) {}
+
+      const allowLate = exam.AllowLateSubmission ?? publishedMeta?.allowLateSubmission ?? true
+      const latePenaltyType = (exam.LatePenaltyType && exam.LatePenaltyType !== 'NONE') ? exam.LatePenaltyType : (publishedMeta?.latePenaltyType || 'NONE')
       const statusLower = (exam.Status || '').toLowerCase()
 
       if (allowLate && latePenaltyType !== 'NONE' && statusLower !== 'closed') {

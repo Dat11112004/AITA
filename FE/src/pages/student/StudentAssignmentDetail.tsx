@@ -514,20 +514,29 @@ export function StudentAssignmentDetail() {
   const timeRemaining = dueDate ? new Date(dueDate).getTime() - new Date().getTime() : 0;
   const isPastDue = timeRemaining < 0;
   const isNearDeadline = !isPastDue && timeRemaining < 24 * 60 * 60 * 1000;
-  const isSubmitted = !!submission && !(submission as any)?.isAutoZero && !!submission.zipFileUrl;
-  const isPublished = submission && ((submission as any).reviewStatus === 'PUBLISHED' || (submission as any).isPublished === true);
-  const displayScore = (submission && isPublished && !(submission as any)?.isAutoZero) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
-  const isGraded = submission && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
+  const isAutoZeroSub = !!submission && (
+    (submission as any)?.isAutoZero === true ||
+    (typeof (submission as any)?.reportData === 'string' && (submission as any).reportData.includes('"isAutoZero":true')) ||
+    (typeof (submission as any)?.reportData === 'object' && (submission as any)?.reportData?.isAutoZero === true) ||
+    (!submission.zipFileUrl && (submission as any)?.reviewStatus === 'PUBLISHED' && (submission.score === 0 || (submission as any).totalScore === 0))
+  );
+  const isSubmitted = !!submission && !isAutoZeroSub && !!submission.zipFileUrl;
+  const isPublished = submission && !isAutoZeroSub && ((submission as any).reviewStatus === 'PUBLISHED' || (submission as any).isPublished === true);
+  const displayScore = (submission && isPublished && !isAutoZeroSub) ? ((submission as any).finalScore ?? submission.score ?? (submission as any).totalScore) : null;
+  const isGraded = submission && !isAutoZeroSub && (submission.status === 'Graded' || (submission as any).gradingStatus === 'Graded' || (submission as any).score != null);
   const gradedDate = submission ? ((submission as any).gradedAt || (submission as any).reviewedAt) : null;
-  const allowLateSubmission = (assignment as any)?.allowLateSubmission ?? (assignment as any)?.metadata?.allowLateSubmission ?? true;
-  const penaltyType = (assignment as any)?.latePenaltyType || (assignment as any)?.metadata?.latePenaltyType || (assignment as any)?.ExamClass?.[0]?.LatePenaltyType || 'NONE';
-  const penaltyVal = (assignment as any)?.latePenaltyValue ?? (assignment as any)?.metadata?.latePenaltyValue ?? (assignment as any)?.ExamClass?.[0]?.LatePenaltyValue ?? 2;
-  const canSubmitOrResubmit = !isPastDue || (allowLateSubmission && penaltyType !== 'NONE');
-  const isLocked = isPastDue && (!allowLateSubmission || penaltyType === 'NONE');
 
-  let latePolicyText = t('st.asg.no_late_penalty');
-  if (!allowLateSubmission) {
-    latePolicyText = t('st.asg.late_blocked');
+  const allowLateSubmission = (assignment as any)?.allowLateSubmission ?? (assignment as any)?.metadata?.allowLateSubmission ?? true;
+  const rawPenaltyType = (assignment as any)?.latePenaltyType || (assignment as any)?.metadata?.latePenaltyType || (assignment as any)?.ExamClass?.[0]?.LatePenaltyType;
+  const penaltyType = rawPenaltyType ? String(rawPenaltyType).toUpperCase() : (allowLateSubmission ? 'DAILY_POINTS' : 'NONE');
+  const penaltyVal = (assignment as any)?.latePenaltyValue ?? (assignment as any)?.metadata?.latePenaltyValue ?? (assignment as any)?.ExamClass?.[0]?.LatePenaltyValue ?? 2;
+  const isLateAllowed = allowLateSubmission && penaltyType !== 'NONE';
+  const canSubmitOrResubmit = !isPastDue || isLateAllowed;
+  const isLocked = isPastDue && !isLateAllowed;
+
+  let latePolicyText = t('st.asg.no_late_penalty') || 'No late penalty';
+  if (!allowLateSubmission || penaltyType === 'NONE') {
+    latePolicyText = !allowLateSubmission ? (t('st.asg.late_blocked') || 'Không cho phép nộp trễ') : (t('st.asg.no_late_penalty') || 'Không trừ điểm');
   } else if (penaltyType === 'DAILY_POINTS') {
     latePolicyText = `-${penaltyVal} pts / 24h late`;
   } else if (penaltyType === 'FLAT_POINTS') {
@@ -1248,29 +1257,42 @@ export function StudentAssignmentDetail() {
                 </div>
               </div>
             ) : (
-              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${isPastDue
-                ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
-                : isNearDeadline
-                  ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
-                  : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
-                }`}>
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm mb-4 transition-all ${
+                isPastDue
+                  ? (canSubmitOrResubmit 
+                      ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-300'
+                      : 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300'
+                    )
+                  : isNearDeadline
+                    ? 'bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-200 animate-pulse'
+                    : 'bg-gradient-to-r from-blue-500/10 via-brand-500/5 to-blue-500/10 border-blue-200 dark:border-blue-800/50 text-blue-900 dark:text-blue-200'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${isPastDue ? 'bg-rose-500 text-white' : isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
-                    }`}>
+                  <div className={`p-2.5 rounded-xl font-bold flex items-center justify-center shrink-0 shadow-sm ${
+                    isPastDue 
+                      ? (canSubmitOrResubmit ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white')
+                      : (isNearDeadline ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white')
+                  }`}>
                     <Clock size={20} className={!isPastDue ? 'animate-spin' : ''} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${isPastDue ? 'bg-rose-600 text-white' : isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
-                        }`}>
-                        {isPastDue ? 'CLOSED' : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full ${
+                        isPastDue 
+                          ? (canSubmitOrResubmit ? 'bg-amber-600 text-white' : 'bg-rose-600 text-white')
+                          : (isNearDeadline ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white')
+                      }`}>
+                        {isPastDue ? (canSubmitOrResubmit ? 'LATE SUBMISSION ACTIVE' : 'CLOSED') : isNearDeadline ? 'DEADLINE WARNING' : 'TIME REMAINING'}
                       </span>
                       <span className="text-xs font-semibold">
-                        Due: {new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Due: {dueDate ? new Date(dueDate).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'No deadline'}
                       </span>
                     </div>
                     <p className="text-xs mt-1 font-bold flex items-center gap-1">
-                      {isPastDue ? t('st.asg.closed_official') : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>}
+                      {isPastDue 
+                        ? (canSubmitOrResubmit ? `Quá hạn nộp bài — Đang chấp nhận nộp trễ (${latePolicyText})` : (t('st.asg.closed_official') || 'Bài tập đã đóng không nhận thêm bài nộp.'))
+                        : <>Time remaining: <CountdownDisplay dueDate={dueDate} /></>
+                      }
                     </p>
                   </div>
                 </div>
@@ -1775,7 +1797,7 @@ export function StudentAssignmentDetail() {
                   </span>
                 ) : (
                   <span className="font-medium text-slate-500 dark:text-slate-400 text-xs">
-                    {submission ? (submission.gradingStatus === 'Pending' || submission.reviewStatus === 'pending' || !isPublished ? 'Pending evaluation' : '—') : '—'}
+                    {isSubmitted ? (submission.gradingStatus === 'Pending' || submission.reviewStatus === 'pending' || !isPublished ? 'Pending evaluation' : '—') : '—'}
                   </span>
                 )}
               </div>
