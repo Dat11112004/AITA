@@ -198,10 +198,10 @@ class AiGenerationStoreManager {
       let pageImages: string[] = [];
       if (file.type === 'application/pdf') {
         try {
-          this.setState({ loadingMsg: 'Rendering PDF pages for AI vision...', progress: 10 });
+          this.setState({ loadingMsg: 'Reading PDF pages...', progress: 10 });
           const { renderPdfToImages } = await import('@/lib/pdf');
-          pageImages = await renderPdfToImages(file, 0.9, 30);
-          this.setState({ pageImages, loadingMsg: `Extracted ${file.name} (${pageImages.length} pages) successfully. Generating assignment...`, progress: 25 });
+          pageImages = await renderPdfToImages(file, 0.75, 5);
+          this.setState({ pageImages, loadingMsg: `Extracted ${file.name} successfully. Generating assignment...`, progress: 25 });
         } catch (pdfErr) {
           console.warn('[AiGenerationStore] PDF page rendering warning, falling back to text extraction:', pdfErr);
         }
@@ -223,9 +223,13 @@ class AiGenerationStoreManager {
         assignmentType ? `Assignment type: ${assignmentType}` : ''
       ].filter(Boolean).join('\n');
       const finalPrompt = promptHeader ? `${promptHeader}\n\n${extractedText}` : extractedText;
+      
+      // If text extraction was successful (>100 chars), prioritize text to avoid sending heavy base64 payloads that cause 504 timeouts
+      const imagesToSend = extractedText.trim().length > 100 ? (pageImages.slice(0, 2)) : pageImages;
+
       const markdown = await api.generateContent(finalPrompt, selectedSemester, subjectCode, {
         signal: this.abortController.signal,
-        pageImages: pageImages
+        pageImages: imagesToSend
       });
 
       this.setState({

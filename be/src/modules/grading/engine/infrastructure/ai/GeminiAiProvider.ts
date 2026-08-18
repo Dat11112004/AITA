@@ -754,8 +754,9 @@ FORMATTING REQUIREMENTS:
 
         let userMessageContent: any;
         if (pageImages && pageImages.length > 0) {
+            const effectiveImages = pageImages.slice(0, 5);
             const parts: any[] = [{ type: "text", text: prompt }];
-            pageImages.forEach(base64 => {
+            effectiveImages.forEach(base64 => {
                 const cleanB64 = base64.replace(/^data:image\/\w+;base64,/, '');
                 parts.push({
                     type: "image_url",
