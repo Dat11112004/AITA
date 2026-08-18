@@ -27,6 +27,7 @@ export function LecturerClassDetail() {
 
   // Delete confirmation modal state
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('stream')
@@ -225,15 +226,18 @@ export function LecturerClassDetail() {
   }
 
   const handleConfirmDelete = async () => {
-    if (!id || !confirmDeleteId) return
+    if (!id || !confirmDeleteId || isDeleting) return
     const announcementId = confirmDeleteId
-    setConfirmDeleteId(null)
+    setIsDeleting(true)
     try {
       await api.deleteClassAnnouncement(id, announcementId)
       setAnnouncements(prev => prev.filter(a => a.id !== announcementId))
+      setConfirmDeleteId(null)
     } catch (err: any) {
       console.error('Failed to delete announcement:', err)
       alert(err.message || 'Lỗi khi xoá thông báo')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -647,15 +651,17 @@ export function LecturerClassDetail() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
               >
                 Huỷ
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
-                Xoá
+                {isDeleting ? 'Đang xoá...' : 'Xoá'}
               </button>
             </div>
           </div>
