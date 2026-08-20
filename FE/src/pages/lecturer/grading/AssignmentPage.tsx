@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw, Download } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw, Download, Copy } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -102,6 +102,11 @@ export default function AssignmentPage() {
   const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
   const [isPublishingAll, setIsPublishingAll] = useState(false);
   const [showPublishAllWarningModal, setShowPublishAllWarningModal] = useState(false);
+
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateReport, setDuplicateReport] = useState<Awaited<ReturnType<typeof api.detectDuplicateSubmissions>> | null>(null);
+  const [duplicateError, setDuplicateError] = useState<boolean>(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -385,6 +390,22 @@ export default function AssignmentPage() {
     } finally {
       setIsPublishingAll(false);
       setShowPublishAllWarningModal(false);
+    }
+  };
+
+  const handleCheckDuplicates = async () => {
+    if (!id || isCheckingDuplicates) return;
+    setIsCheckingDuplicates(true);
+    setDuplicateError(false);
+    try {
+      const report = await api.detectDuplicateSubmissions(id);
+      setDuplicateReport(report);
+    } catch (e) {
+      setDuplicateReport(null);
+      setDuplicateError(true);
+    } finally {
+      setIsCheckingDuplicates(false);
+      setShowDuplicateModal(true);
     }
   };
 
@@ -718,6 +739,19 @@ export default function AssignmentPage() {
                     Grade all
                   </>
                 )}
+              </button>
+              <button
+                onClick={handleCheckDuplicates}
+                disabled={isCheckingDuplicates}
+                className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm text-base disabled:opacity-50 cursor-pointer"
+                title={t('lc.dup.check') || 'Check duplicates'}
+              >
+                {isCheckingDuplicates ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Copy size={18} />
+                )}
+                <span>{isCheckingDuplicates ? (t('lc.dup.checking') || 'Checking...') : (t('lc.dup.check') || 'Check duplicates')}</span>
               </button>
               <button
                 onClick={handlePublishAll}
@@ -1815,6 +1849,78 @@ export default function AssignmentPage() {
               >
                 <Send size={16} />
                 <span>Publish All Scores Anyway</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showDuplicateModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-900/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center gap-3 text-orange-600 dark:text-orange-400">
+              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                <Copy size={22} />
+              </div>
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">{t('lc.dup.title') || 'Duplicate submissions report'}</h3>
+            </div>
+
+            {duplicateError ? (
+              <div className="bg-red-50 dark:bg-red-950/40 p-4 rounded-xl border border-red-200/80 dark:border-red-900/30 text-sm text-red-700 dark:text-red-300">
+                {t('lc.dup.error') || 'Duplicate check failed. Please try again.'}
+              </div>
+            ) : duplicateReport && (
+              <>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {t('lc.dup.summary', { checked: duplicateReport.checkedCount, clusters: duplicateReport.clusters.length }) || `Checked ${duplicateReport.checkedCount} submissions, found ${duplicateReport.clusters.length} duplicate group(s).`}
+                  {duplicateReport.failedCount > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400"> {t('lc.dup.failed', { n: duplicateReport.failedCount }) || `${duplicateReport.failedCount} submission file(s) could not be read (skipped).`}</span>
+                  )}
+                </p>
+
+                {duplicateReport.clusters.length === 0 ? (
+                  <div className="bg-emerald-50 dark:bg-emerald-950/40 p-4 rounded-xl border border-emerald-200/80 dark:border-emerald-900/30 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="shrink-0" />
+                    {t('lc.dup.none') || 'No identical submissions detected.'}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {duplicateReport.clusters.map((cluster, idx) => (
+                      <div key={cluster.contentHash} className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-xl border border-orange-200/80 dark:border-orange-900/30">
+                        <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mb-2 flex items-center gap-2">
+                          <AlertTriangle size={16} className="shrink-0" />
+                          {t('lc.dup.cluster', { n: idx + 1, count: cluster.count }) || `Group ${idx + 1}: ${cluster.count} identical submissions`}
+                        </p>
+                        <ul className="space-y-1.5">
+                          {cluster.submissions.map((s) => (
+                            <li key={s.submissionId} className="text-sm text-slate-700 dark:text-slate-300 flex flex-wrap items-baseline gap-x-2">
+                              <span className="font-medium">{s.studentName || s.studentId || s.submissionId}</span>
+                              {s.studentCode && <span className="text-xs text-slate-500 dark:text-slate-400">({s.studentCode})</span>}
+                              {s.submittedAt && (
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  {t('lc.dup.submitted_at') || 'Submitted at'} {new Date(s.submittedAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.note') || 'This is only a warning based on 100% identical file content. The lecturer decides how to handle it.'}</p>
+              </>
+            )}
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDuplicateModal(false)}
+                className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-sm font-bold transition-all cursor-pointer"
+              >
+                {t('lc.dup.close') || 'Close'}
               </button>
             </div>
           </div>

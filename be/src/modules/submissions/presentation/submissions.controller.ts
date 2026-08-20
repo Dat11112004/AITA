@@ -12,6 +12,7 @@ import { SubmitFeedbackUseCase } from '../application/use-cases/submit-feedback.
 import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-grades.use-case.js'
 import { GetAiHintUseCase } from '../application/use-cases/get-ai-hint.use-case.js'
 import { ReopenSubmissionUseCase } from '../application/use-cases/reopen-submission.use-case.js'
+import { DetectDuplicateSubmissionsUseCase } from '../application/use-cases/detect-duplicate-submissions.use-case.js'
 import { ListSubmissionsQueryDto, ReopenSubmissionRequestDto } from '../application/dtos/submission.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
@@ -155,6 +156,14 @@ export class SubmissionsController extends BaseController {
         this.logger.debug(`Received request for AI hint for submission: ${submissionId}, rule: ${ruleScoreId}`)
         const result = await this.getAiHintUseCase.execute({ submissionId, ruleScoreId, user: req.user! })
         this.ok(res, result, 'Lấy gợi ý AI thành công')
+    }
+
+    async detectDuplicates(req: Request, res: Response): Promise<void> {
+        const assignmentId = String(req.query.assignmentId || '')
+        this.logger.debug(`Received request to detect duplicate submissions for assignment: ${assignmentId}`)
+        const useCase = new DetectDuplicateSubmissionsUseCase()
+        const result = await useCase.execute({ assignmentId, user: req.user! })
+        this.ok(res, result, 'Kiểm tra trùng bài thành công')
     }
 
     async reopen(req: Request, res: Response): Promise<void> {

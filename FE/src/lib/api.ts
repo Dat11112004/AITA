@@ -796,6 +796,26 @@ export const gradingApi = {
   unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
   bulkPublishGrades: (assignmentId: string) =>
     request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
+  detectDuplicateSubmissions: (assignmentId: string) =>
+    request<{
+      assignmentId: string
+      checkedCount: number
+      failedCount: number
+      failedSubmissionIds: string[]
+      clusters: Array<{
+        contentHash: string
+        count: number
+        submissions: Array<{
+          submissionId: string
+          studentId: string | null
+          studentName: string | null
+          studentCode: string | null
+          attemptNumber: number | null
+          submittedAt: string | null
+          zipFileUrl: string | null
+        }>
+      }>
+    }>(`/submissions/duplicates?assignmentId=${encodeURIComponent(assignmentId)}`),
   updateSubmissionResult: (id: string, data: any) => request<any>('/grading/submissions/' + id + '/result', {
     method: 'PUT',
     body: JSON.stringify(data),
