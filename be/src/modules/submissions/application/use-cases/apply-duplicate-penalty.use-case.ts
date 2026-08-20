@@ -77,44 +77,37 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
       throw new NotFoundError('Không tìm thấy bài nộp nào phù hợp để trừ điểm')
     }
 
-    // Safeguard: Check if all submissions have already been penalized
-    const alreadyPenalized = submissions.filter(sub =>
-      sub.InstructorFeedback && sub.InstructorFeedback.includes('[Trừ điểm trùng lặp')
-    )
-
-    if (alreadyPenalized.length === submissions.length) {
-      throw new ValidationError('Các bài nộp này đã được áp dụng trừ điểm trùng lặp rồi. Hệ thống chỉ cho phép áp dụng trừ điểm 1 lần duy nhất.')
-    }
-
     const updatedSubmissions: ApplyDuplicatePenaltyResult['updatedSubmissions'] = []
 
     for (const sub of submissions) {
-      // Skip if this specific submission has already been penalized
-      if (sub.InstructorFeedback && sub.InstructorFeedback.includes('[Trừ điểm trùng lặp')) {
-        continue
-      }
-      const currentScore = sub.FinalScore !== null && sub.FinalScore !== undefined
-        ? Number(sub.FinalScore)
-        : (sub.RawScore !== null && sub.RawScore !== undefined ? Number(sub.RawScore) : (sub.TotalScore ? Number(sub.TotalScore) : 10))
+      // Determine original base score
+      const originalScore = sub.RawScore !== null && sub.RawScore !== undefined
+        ? Number(sub.RawScore)
+        : (sub.FinalScore !== null && sub.FinalScore !== undefined ? Number(sub.FinalScore) : (sub.TotalScore ? Number(sub.TotalScore) : 10))
 
-      let newScore = currentScore
+      let newScore = originalScore
       let deductedPoints = 0
 
       if (penaltyType === 'ZERO_SCORE') {
-        deductedPoints = currentScore
+        deductedPoints = originalScore
         newScore = 0
       } else if (penaltyType === 'PERCENT') {
         const pct = Math.min(100, Math.max(0, penaltyValue))
-        deductedPoints = Number((currentScore * (pct / 100)).toFixed(2))
-        newScore = Number(Math.max(0, currentScore - deductedPoints).toFixed(2))
+        deductedPoints = Number((originalScore * (pct / 100)).toFixed(2))
+        newScore = Number(Math.max(0, originalScore - deductedPoints).toFixed(2))
       } else if (penaltyType === 'FLAT_POINTS') {
-        deductedPoints = Math.min(currentScore, Math.max(0, penaltyValue))
-        newScore = Number(Math.max(0, currentScore - deductedPoints).toFixed(2))
+        deductedPoints = Math.min(originalScore, Math.max(0, penaltyValue))
+        newScore = Number(Math.max(0, originalScore - deductedPoints).toFixed(2))
       }
 
-      // Build audit feedback note
-      const reasonText = dto.reason?.trim() || 'Phát hiện nội dung mã nguồn trùng lặp với bài nộp khác trong cùng bài tập'
-      const penaltyNote = `[Trừ điểm trùng lặp / Plagiarism]: Đã trừ ${deductedPoints} điểm (${penaltyType === 'PERCENT' ? `-${penaltyValue}%` : penaltyType === 'ZERO_SCORE' ? 'về 0 điểm' : `-${penaltyValue}đ`}). Lý do: ${reasonText}.`
+      // Build detailed feedback note explaining why points were deducted
+      const penaltyDesc = penaltyType === 'ZERO_SCORE'
+        ? 'hủy bài làm (về 0 điểm)'
+        : penaltyType === 'PERCENT'
+          ? `trừ ${penaltyValue}% điểm (-${deductedPoints}đ)`
+          : `trừ cố định ${deductedPoints} điểm`
+
+      const penaltyNote = `[Trừ điểm trùng lặp / Plagiarism]: Đã áp dụng ${penaltyDesc}. Điểm gốc: ${originalScore}đ -> Điểm công bố: ${newScore}đ. Lý do: Phát hiện nội dung mã nguồn trùng lặp với bài nộp khác trong cùng bài tập.`
 
       const existingFeedback = sub.InstructorFeedback ? sub.InstructorFeedback.trim() : ''
       const updatedFeedback = existingFeedback
@@ -125,15 +118,15 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
 
       // Update ReportData JSON for AI feedback & score synchronization
       let updatedReportData: string | null = null
-      const aiDuplicateNote = `\n\n> ⚠️ **Lưu ý chống gian lận & Trùng lặp**: Bài làm có nội dung mã nguồn trùng lặp với 1 số học sinh khác trong cùng bài tập. ${deductedPoints > 0 ? `Đã áp dụng trừ ${deductedPoints} điểm theo quy định đối soát mã nguồn.` : 'Đã ghi nhận cảnh báo trùng lặp.'}`
+      const aiDuplicateNote = `\n\n> ⚠️ **Lưu ý đánh giá từ AI (Trừ điểm trùng lặp)**:\n> - **Lý do bị trừ điểm**: Phát hiện nội dung mã nguồn bài làm có mức độ tương đồng/trùng lặp cao với một số bài nộp của học sinh khác trong cùng bài tập.\n> - **Mức phạt áp dụng**: Đã ${penaltyDesc} (Điểm gốc: **${originalScore}**đ ➔ Điểm cuối cùng công bố: **${newScore}**đ).\n> - **Quy định**: Sinh viên cần nghiêm túc tuân thủ tính trung thực học thuật và tự viết mã nguồn độc lập.`
 
       if (sub.ReportData) {
         try {
           const parsedReport = JSON.parse(sub.ReportData)
           parsedReport.totalScore = newScore
           let currentOverall = parsedReport.overallFeedback || ''
-          if (currentOverall.includes('Lưu ý chống gian lận & Trùng lặp')) {
-            currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý chống gian lận & Trùng lặp\*\*:[^\n]*/g, aiDuplicateNote.trim())
+          if (currentOverall.includes('Lưu ý đánh giá từ AI (Trừ điểm trùng lặp)') || currentOverall.includes('Lưu ý chống gian lận & Trùng lặp')) {
+            currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý[^\n]*\n(?:> [^\n]*\n?)*/g, aiDuplicateNote.trim())
           } else {
             currentOverall = `${currentOverall}${aiDuplicateNote}`
           }
@@ -145,6 +138,7 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
       await prisma.submission.update({
         where: { Id: sub.Id },
         data: {
+          RawScore: sub.RawScore !== null && sub.RawScore !== undefined ? sub.RawScore : originalScore,
           TotalScore: newScore,
           FinalScore: newScore,
           InstructorFeedback: updatedFeedback,
@@ -157,7 +151,7 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
       updatedSubmissions.push({
         id: sub.Id,
         studentName: sub.User_Submission_StudentIdToUser?.FullName || sub.StudentId,
-        oldScore: currentScore,
+        oldScore: originalScore,
         newScore,
         deductedPoints
       })

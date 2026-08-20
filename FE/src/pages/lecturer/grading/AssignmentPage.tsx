@@ -113,6 +113,7 @@ export default function AssignmentPage() {
   const [isApplyingPenalty, setIsApplyingPenalty] = useState<boolean>(false);
   const [penaltySuccessMsg, setPenaltySuccessMsg] = useState<string | null>(null);
   const [appliedDuplicateIds, setAppliedDuplicateIds] = useState<string[]>([]);
+  const [showConfirmPenaltyModal, setShowConfirmPenaltyModal] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -2214,7 +2215,7 @@ export default function AssignmentPage() {
 
                     <button
                       type="button"
-                      onClick={() => handleApplyDuplicatePenalty()}
+                      onClick={() => setShowConfirmPenaltyModal(true)}
                       disabled={isApplyingPenalty || !!isAllPenalized || !duplicateReport || duplicateReport.clusters.length === 0}
                       className={`
                         px-4 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-md
@@ -2256,6 +2257,79 @@ export default function AssignmentPage() {
                 </div>
               );
             })()}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Confirmation Modal: Confirm / Cancel before applying penalty */}
+      {showConfirmPenaltyModal && createPortal(
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                  Xác nhận áp dụng trừ điểm
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Cập nhật điểm công bố và thêm giải thích trong AI Feedback.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+                <span className="font-medium text-slate-500 dark:text-slate-400">Mức trừ điểm:</span>
+                <span className="font-extrabold text-rose-600 dark:text-rose-400">
+                  {duplicatePenaltyType === 'ZERO_SCORE'
+                    ? 'Hủy bài làm (về 0 điểm)'
+                    : duplicatePenaltyType === 'PERCENT'
+                      ? `Trừ ${duplicatePenaltyValue}% điểm`
+                      : `Trừ ${duplicatePenaltyValue} điểm`}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
+                <span className="font-medium text-slate-500 dark:text-slate-400">Nhận xét từ AI:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">Tự động viết lý do bị trừ điểm</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+                Điểm số sau khi trừ sẽ được áp dụng vào kết quả bài thi để <strong>công bố (Publish) cho sinh viên</strong>, kèm giải thích chi tiết trong phần nhận xét của AI Mentor.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmPenaltyModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmPenaltyModal(false);
+                  handleApplyDuplicatePenalty();
+                }}
+                disabled={isApplyingPenalty}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isApplyingPenalty ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Đang áp dụng...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Đồng ý trừ điểm</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>,
         document.body
