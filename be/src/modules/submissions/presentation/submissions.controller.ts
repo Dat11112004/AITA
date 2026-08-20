@@ -160,9 +160,11 @@ export class SubmissionsController extends BaseController {
 
     async detectDuplicates(req: Request, res: Response): Promise<void> {
         const assignmentId = String(req.query.assignmentId || '')
+        const rawThreshold = req.query.threshold
+        const threshold = rawThreshold !== undefined && rawThreshold !== '' ? Number(rawThreshold) : undefined
         this.logger.debug(`Received request to detect duplicate submissions for assignment: ${assignmentId}`)
         const useCase = new DetectDuplicateSubmissionsUseCase()
-        const result = await useCase.execute({ assignmentId, user: req.user! })
+        const result = await useCase.execute({ assignmentId, user: req.user!, threshold })
         this.ok(res, result, 'Kiểm tra trùng bài thành công')
     }
 

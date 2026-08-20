@@ -107,6 +107,7 @@ export default function AssignmentPage() {
   const [duplicateReport, setDuplicateReport] = useState<Awaited<ReturnType<typeof api.detectDuplicateSubmissions>> | null>(null);
   const [duplicateError, setDuplicateError] = useState<boolean>(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateThreshold, setDuplicateThreshold] = useState(80);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -398,7 +399,7 @@ export default function AssignmentPage() {
     setIsCheckingDuplicates(true);
     setDuplicateError(false);
     try {
-      const report = await api.detectDuplicateSubmissions(id);
+      const report = await api.detectDuplicateSubmissions(id, duplicateThreshold);
       setDuplicateReport(report);
     } catch (e) {
       setDuplicateReport(null);
@@ -1857,68 +1858,193 @@ export default function AssignmentPage() {
       )}
 
       {showDuplicateModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-900/50 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center gap-3 text-orange-600 dark:text-orange-400">
-              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
-                <Copy size={22} />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-start gap-3 px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/25">
+                <Copy size={20} />
               </div>
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">{t('lc.dup.title') || 'Duplicate submissions report'}</h3>
-            </div>
-
-            {duplicateError ? (
-              <div className="bg-red-50 dark:bg-red-950/40 p-4 rounded-xl border border-red-200/80 dark:border-red-900/30 text-sm text-red-700 dark:text-red-300">
-                {t('lc.dup.error') || 'Duplicate check failed. Please try again.'}
-              </div>
-            ) : duplicateReport && (
-              <>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {t('lc.dup.summary', { checked: duplicateReport.checkedCount, clusters: duplicateReport.clusters.length }) || `Checked ${duplicateReport.checkedCount} submissions, found ${duplicateReport.clusters.length} duplicate group(s).`}
-                  {duplicateReport.failedCount > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400"> {t('lc.dup.failed', { n: duplicateReport.failedCount }) || `${duplicateReport.failedCount} submission file(s) could not be read (skipped).`}</span>
-                  )}
-                </p>
-
-                {duplicateReport.clusters.length === 0 ? (
-                  <div className="bg-emerald-50 dark:bg-emerald-950/40 p-4 rounded-xl border border-emerald-200/80 dark:border-emerald-900/30 text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                    <CheckCircle2 size={18} className="shrink-0" />
-                    {t('lc.dup.none') || 'No identical submissions detected.'}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {duplicateReport.clusters.map((cluster, idx) => (
-                      <div key={cluster.contentHash} className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-xl border border-orange-200/80 dark:border-orange-900/30">
-                        <p className="text-sm font-bold text-orange-800 dark:text-orange-300 mb-2 flex items-center gap-2">
-                          <AlertTriangle size={16} className="shrink-0" />
-                          {t('lc.dup.cluster', { n: idx + 1, count: cluster.count }) || `Group ${idx + 1}: ${cluster.count} identical submissions`}
-                        </p>
-                        <ul className="space-y-1.5">
-                          {cluster.submissions.map((s) => (
-                            <li key={s.submissionId} className="text-sm text-slate-700 dark:text-slate-300 flex flex-wrap items-baseline gap-x-2">
-                              <span className="font-medium">{s.studentName || s.studentId || s.submissionId}</span>
-                              {s.studentCode && <span className="text-xs text-slate-500 dark:text-slate-400">({s.studentCode})</span>}
-                              {s.submittedAt && (
-                                <span className="text-xs text-slate-500 dark:text-slate-400">
-                                  {t('lc.dup.submitted_at') || 'Submitted at'} {new Date(s.submittedAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{t('lc.dup.title') || 'Duplicate submissions report'}</h3>
+                {duplicateReport && !duplicateError && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {t('lc.dup.summary_v2', {
+                      checked: duplicateReport.checkedCount,
+                      clusters: duplicateReport.clusters.length,
+                      threshold: duplicateReport.threshold,
+                    })}
+                  </p>
                 )}
-
-                <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.note') || 'This is only a warning based on 100% identical file content. The lecturer decides how to handle it.'}</p>
-              </>
-            )}
-
-            <div className="flex items-center justify-end pt-2">
+              </div>
               <button
                 type="button"
                 onClick={() => setShowDuplicateModal(false)}
-                className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-sm font-bold transition-all cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {duplicateError ? (
+                <div className="bg-red-50 dark:bg-red-950/40 p-4 rounded-2xl border border-red-200/80 dark:border-red-900/30 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+                  <AlertTriangle size={18} className="shrink-0" />
+                  {t('lc.dup.error') || 'Duplicate check failed. Please try again.'}
+                </div>
+              ) : duplicateReport && (
+                <>
+                  {(duplicateReport.failedCount > 0 || duplicateReport.emptyCount > 0) && (
+                    <div className="flex flex-wrap gap-2">
+                      {duplicateReport.failedCount > 0 && (
+                        <span className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/40">
+                          {t('lc.dup.failed', { n: duplicateReport.failedCount })}
+                        </span>
+                      )}
+                      {duplicateReport.emptyCount > 0 && (
+                        <span className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                          {t('lc.dup.empty_files', { n: duplicateReport.emptyCount })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {duplicateReport.clusters.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-10 text-center">
+                      <div className="h-12 w-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                        <CheckCircle2 size={24} className="text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('lc.dup.none')}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {t('lc.dup.none_desc', { threshold: duplicateReport.threshold })}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {duplicateReport.clusters.map((cluster, idx) => {
+                        const pct = cluster.maxSimilarity
+                        const severe = pct >= 95
+                        const barTone = severe ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-amber-500'
+                        const chipTone = severe
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                        return (
+                          <div
+                            key={`${cluster.submissions.map(s => s.submissionId).join('-')}`}
+                            className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900/40"
+                          >
+                            {/* Cluster header with the headline percentage */}
+                            <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0">
+                                {t('lc.dup.cluster', { n: idx + 1, count: cluster.count })}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                  <div className={`h-full rounded-full ${barTone}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                                </div>
+                              </div>
+                              <span className={`px-2.5 py-1 text-sm font-extrabold rounded-lg shrink-0 tabular-nums ${chipTone}`}>
+                                {pct}%
+                              </span>
+                              {cluster.allIdentical && (
+                                <span className="px-2 py-1 text-[10px] font-bold rounded-lg bg-red-600 text-white shrink-0 whitespace-nowrap">
+                                  {t('lc.dup.identical_badge')}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Members */}
+                            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                              {cluster.submissions.map((s) => (
+                                <li key={s.submissionId} className="flex items-center gap-3 px-4 py-2.5">
+                                  <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-[11px] font-bold text-slate-500 dark:text-slate-300">
+                                    {(s.studentName || '?').trim().charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                      {s.studentName || s.studentId || s.submissionId}
+                                      {s.studentCode && (
+                                        <span className="ml-1.5 text-xs font-normal text-slate-500 dark:text-slate-400">({s.studentCode})</span>
+                                      )}
+                                    </p>
+                                    {s.submittedAt && (
+                                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                        {t('lc.dup.submitted_at')} {new Date(s.submittedAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 tabular-nums shrink-0">
+                                    {s.topSimilarity}%
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+
+                            {/* Pair breakdown — only adds value beyond the member list when there are 3+ */}
+                            {cluster.pairs.length > 1 && (
+                              <div className="px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">
+                                  {t('lc.dup.pairs_title')}
+                                </p>
+                                <ul className="space-y-1">
+                                  {cluster.pairs.map((p, pIdx) => (
+                                    <li key={`${p.submissionIdA}-${p.submissionIdB}-${pIdx}`} className="flex items-center gap-2 text-xs">
+                                      <span className="text-slate-600 dark:text-slate-300 truncate flex-1 min-w-0">
+                                        {p.studentNameA || p.submissionIdA} ↔ {p.studentNameB || p.submissionIdB}
+                                      </span>
+                                      {p.identical && (
+                                        <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 shrink-0">
+                                          {t('lc.dup.pair_identical')}
+                                        </span>
+                                      )}
+                                      <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums shrink-0">{p.similarity}%</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="space-y-1 pt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.method')}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.note')}</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60">
+              <div className="flex items-center gap-2">
+                <label htmlFor="dup-threshold" className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {t('lc.dup.threshold_label')}
+                </label>
+                <select
+                  id="dup-threshold"
+                  value={duplicateThreshold}
+                  onChange={(e) => setDuplicateThreshold(Number(e.target.value))}
+                  className="text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 px-2 py-1.5 cursor-pointer"
+                >
+                  {[60, 70, 80, 90, 100].map(v => <option key={v} value={v}>{v}%</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleCheckDuplicates}
+                  disabled={isCheckingDuplicates}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isCheckingDuplicates ? t('lc.dup.checking') : t('lc.dup.recheck')}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDuplicateModal(false)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-sm font-bold transition-all cursor-pointer"
               >
                 {t('lc.dup.close') || 'Close'}
               </button>

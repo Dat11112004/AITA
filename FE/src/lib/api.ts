@@ -796,15 +796,18 @@ export const gradingApi = {
   unpublishSubmission: (id: string) => request<any>('/grading/submissions/' + id + '/unpublish', { method: 'POST' }),
   bulkPublishGrades: (assignmentId: string) =>
     request<{ success: boolean, count: number }>('/submissions/bulk-publish', { method: 'POST', body: JSON.stringify({ assignmentId }) }),
-  detectDuplicateSubmissions: (assignmentId: string) =>
+  detectDuplicateSubmissions: (assignmentId: string, threshold?: number) =>
     request<{
       assignmentId: string
       checkedCount: number
       failedCount: number
       failedSubmissionIds: string[]
+      emptyCount: number
+      threshold: number
       clusters: Array<{
-        contentHash: string
         count: number
+        maxSimilarity: number
+        allIdentical: boolean
         submissions: Array<{
           submissionId: string
           studentId: string | null
@@ -813,9 +816,18 @@ export const gradingApi = {
           attemptNumber: number | null
           submittedAt: string | null
           zipFileUrl: string | null
+          topSimilarity: number
+        }>
+        pairs: Array<{
+          submissionIdA: string
+          submissionIdB: string
+          studentNameA: string | null
+          studentNameB: string | null
+          similarity: number
+          identical: boolean
         }>
       }>
-    }>(`/submissions/duplicates?assignmentId=${encodeURIComponent(assignmentId)}`),
+    }>(`/submissions/duplicates?assignmentId=${encodeURIComponent(assignmentId)}${threshold !== undefined ? `&threshold=${threshold}` : ''}`),
   updateSubmissionResult: (id: string, data: any) => request<any>('/grading/submissions/' + id + '/result', {
     method: 'PUT',
     body: JSON.stringify(data),
