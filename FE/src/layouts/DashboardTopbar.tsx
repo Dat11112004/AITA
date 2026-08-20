@@ -90,7 +90,7 @@ export function DashboardTopbar(_props: Props) {
         <button
           type="button"
           onClick={toggleTheme}
-          title={theme === 'light' ? 'Dark mode' : 'Light mode'}
+          title={theme === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
           className="
             h-9 w-9 flex items-center justify-center rounded-xl
             text-slate-500 hover:bg-slate-100 hover:text-slate-700
@@ -140,7 +140,7 @@ export function DashboardTopbar(_props: Props) {
             </div>
             <div className="hidden sm:block text-left min-w-0">
               <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 leading-none truncate max-w-[110px]">
-                {user?.fullName ?? 'Account'}
+                {user?.fullName ?? t('ui.account')}
               </p>
               <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500 leading-none">
                 {user?.role ? t(`role.${user.role}`, roleLabel[user.role] ?? user.role) : '—'}
@@ -199,7 +199,7 @@ export function DashboardTopbar(_props: Props) {
                   "
                 >
                   <LayoutDashboard size={15} className="text-slate-400" />
-                  Dashboard
+                  {t('nav.item.dashboard')}
                 </Link>
               </div>
 
@@ -216,7 +216,7 @@ export function DashboardTopbar(_props: Props) {
                   "
                 >
                   <LogOut size={15} />
-                  Log out
+                  {t('ui.log_out')}
                 </button>
               </div>
             </div>

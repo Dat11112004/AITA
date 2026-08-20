@@ -181,7 +181,7 @@ export function DashboardSidebar({ navItems, role, roleLabel, collapsed, onToggl
           {!collapsed && <span>{t('ui.home')}</span>}
           {collapsed && (
             <div className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg bg-slate-900 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-              Home
+              {t('ui.home')}
               <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-y-4 border-y-transparent border-r-4 border-r-slate-900 dark:border-r-slate-800" />
             </div>
           )}
