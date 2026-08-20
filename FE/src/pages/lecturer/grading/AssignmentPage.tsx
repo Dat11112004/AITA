@@ -441,6 +441,13 @@ export default function AssignmentPage() {
         reason: 'Phát hiện nội dung tệp mã nguồn trùng lặp qua hệ thống đối soát tự động'
       });
 
+      // Invalidate frontend local storage cache so ResultPage immediately loads fresh score & feedback
+      submissionIds.forEach(subId => {
+        try {
+          localStorage.removeItem(`aita_override_result_${subId}`);
+        } catch (e) {}
+      });
+
       setPenaltySuccessMsg(`Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
       await fetchHistoryData(false);
       await fetchAssignmentData();

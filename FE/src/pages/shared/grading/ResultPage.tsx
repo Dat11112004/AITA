@@ -202,23 +202,7 @@ export default function ResultPage() {
 
   useEffect(() => {
     if (id) {
-      try {
-        const cachedStr = localStorage.getItem(`aita_override_result_${id}`);
-        if (cachedStr) {
-          const cached = JSON.parse(cachedStr);
-          if (cached && typeof cached === 'object') {
-            setResult(cached);
-            if (cached.studentFeedback) {
-              setFeedbackText(cached.studentFeedback);
-            }
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (e) { }
-    }
-
-    if (!result && id) {
+      setLoading(true);
       api.getSubmissionResult(id)
         .then(res => {
           setResult(res);
@@ -228,6 +212,21 @@ export default function ResultPage() {
           setLoading(false);
         })
         .catch(err => {
+          // Fallback to local storage if API fails
+          try {
+            const cachedStr = localStorage.getItem(`aita_override_result_${id}`);
+            if (cachedStr) {
+              const cached = JSON.parse(cachedStr);
+              if (cached && typeof cached === 'object') {
+                setResult(cached);
+                if (cached.studentFeedback) {
+                  setFeedbackText(cached.studentFeedback);
+                }
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (e) { }
           setError(err.message || err.response?.data?.Message || "Failed to load result");
           setLoading(false);
         });

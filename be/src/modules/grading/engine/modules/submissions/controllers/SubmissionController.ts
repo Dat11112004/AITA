@@ -949,28 +949,50 @@ export class SubmissionController extends BaseController {
         let studentFeedback: string | null = null;
         let assignmentId: string | null = null;
         let dueDate: string | null = null;
+        let effectiveScore = report.totalScore !== undefined ? report.totalScore : 0;
+        let effectiveFeedback = report.overallFeedback || '';
+
         try {
             const subRecord = await prisma.submission.findUnique({
                 where: { Id: id },
-                select: { ReviewStatus: true, StudentFeedback: true, ExamId: true, Exam: { select: { DueDate: true } } }
+                select: {
+                    ReviewStatus: true,
+                    StudentFeedback: true,
+                    ExamId: true,
+                    FinalScore: true,
+                    TotalScore: true,
+                    InstructorFeedback: true,
+                    Exam: { select: { DueDate: true } }
+                }
             });
             reviewStatus = subRecord?.ReviewStatus || 'DRAFT';
             isPublished = reviewStatus === 'PUBLISHED';
             studentFeedback = subRecord?.StudentFeedback || null;
             assignmentId = subRecord?.ExamId || null;
             dueDate = subRecord?.Exam?.DueDate ? new Date(subRecord.Exam.DueDate).toISOString() : null;
+
+            if (subRecord?.FinalScore !== null && subRecord?.FinalScore !== undefined) {
+                effectiveScore = Number(subRecord.FinalScore);
+            }
+
+            if (subRecord?.InstructorFeedback) {
+                const note = subRecord.InstructorFeedback.trim();
+                if (note && !effectiveFeedback.includes(note)) {
+                    effectiveFeedback = `${effectiveFeedback}\n\n---\n**Ghi chú đối soát & Nhận xét:**\n${note}`.trim();
+                }
+            }
         } catch (e) { }
 
         this.ok(res, {
             submissionId: id,
             assignmentId,
             dueDate,
-            score: report.totalScore || 0,
+            score: effectiveScore,
             maxScore: report.maxPossibleScore || 0,
             rules: report.passedRules || [],
             failedRules: report.failedRules || [],
             manualReviewNotes: report.manualReviewNotes || [],
-            overallFeedback: report.overallFeedback,
+            overallFeedback: effectiveFeedback,
             isPublished,
             reviewStatus,
             studentFeedback

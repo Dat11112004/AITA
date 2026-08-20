@@ -110,12 +110,32 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
           : `${existingFeedback}\n\n${penaltyNote}`)
         : penaltyNote
 
+      // Update ReportData JSON for AI feedback & score synchronization
+      let updatedReportData: string | null = null
+      const aiDuplicateNote = `\n\n> ⚠️ **Lưu ý chống gian lận & Trùng lặp**: Bài làm có nội dung mã nguồn trùng lặp với 1 số học sinh khác trong cùng bài tập. ${deductedPoints > 0 ? `Đã áp dụng trừ ${deductedPoints} điểm theo quy định đối soát mã nguồn.` : 'Đã ghi nhận cảnh báo trùng lặp.'}`
+
+      if (sub.ReportData) {
+        try {
+          const parsedReport = JSON.parse(sub.ReportData)
+          parsedReport.totalScore = newScore
+          let currentOverall = parsedReport.overallFeedback || ''
+          if (currentOverall.includes('Lưu ý chống gian lận & Trùng lặp')) {
+            currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý chống gian lận & Trùng lặp\*\*:[^\n]*/g, aiDuplicateNote.trim())
+          } else {
+            currentOverall = `${currentOverall}${aiDuplicateNote}`
+          }
+          parsedReport.overallFeedback = currentOverall
+          updatedReportData = JSON.stringify(parsedReport)
+        } catch (e) { }
+      }
+
       await prisma.submission.update({
         where: { Id: sub.Id },
         data: {
           TotalScore: newScore,
           FinalScore: newScore,
           InstructorFeedback: updatedFeedback,
+          ...(updatedReportData ? { ReportData: updatedReportData } : {}),
           ReviewedBy: user.id,
           ReviewedAt: new Date()
         }
