@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { EmptyState } from './EmptyState'
 
 export interface Column<T> {
@@ -21,12 +22,18 @@ export function DataTable<T>({
   columns,
   data,
   keyExtractor,
-  emptyTitle = 'No data yet',
-  emptyDescription = 'Data will appear here once you connect a data source.',
+  emptyTitle,
+  emptyDescription,
   onRowClick
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   if (data.length === 0) {
-    return <EmptyState title={emptyTitle} description={emptyDescription} />
+    return (
+      <EmptyState
+        title={emptyTitle ?? t('ui.no_data')}
+        description={emptyDescription ?? t('ui.no_data_desc')}
+      />
+    )
   }
 
   return (

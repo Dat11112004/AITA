@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Calendar, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function DateTime() {
+  const { t, i18n } = useTranslation()
   const [dateTime, setDateTime] = useState(new Date())
+  const locale = i18n.language?.toLowerCase().startsWith('vi') ? 'vi-VN' : 'en-GB'
 
   useEffect(() => {
     const timer = setInterval(() => setDateTime(new Date()), 1000)
@@ -10,7 +13,7 @@ export function DateTime() {
   }, [])
 
   const formatDate = () => {
-    return dateTime.toLocaleDateString('en-GB', {
+    return dateTime.toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -19,7 +22,7 @@ export function DateTime() {
   }
 
   const formatTime = () => {
-    return dateTime.toLocaleTimeString('en-GB', {
+    return dateTime.toLocaleTimeString(locale, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -35,7 +38,7 @@ export function DateTime() {
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Date
+            {t('ui.date')}
           </p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">
             {formatDate()}
@@ -50,7 +53,7 @@ export function DateTime() {
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Time
+            {t('ui.time')}
           </p>
           <p className="font-mono text-sm font-bold text-slate-900 dark:text-white">
             {formatTime()}

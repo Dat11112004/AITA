@@ -40,7 +40,7 @@ export function PublicFooter() {
           </div>
         </div>
         <p className="mt-10 border-t border-slate-800 pt-6 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} AITA. All rights reserved.
+          © {new Date().getFullYear()} AITA. {t('ui.rights_reserved')}
         </p>
       </div>
     </footer>

@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function LanguageDropdown({ variant = 'compact' }: Props) {
-  const { language, setLanguage } = useLanguage()
+  const { language, setLanguage, t } = useLanguage()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -66,7 +66,7 @@ export function LanguageDropdown({ variant = 'compact' }: Props) {
       {open && (
         <div
           role="listbox"
-          aria-label="Select language"
+          aria-label={t('ui.select_language')}
           className="
             absolute right-0 top-full mt-2 z-[60] w-44
             rounded-2xl border border-slate-200 bg-white
@@ -79,7 +79,7 @@ export function LanguageDropdown({ variant = 'compact' }: Props) {
           {/* Header */}
           <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-700/60">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-              Language
+              {t('ui.language')}
             </p>
           </div>
 

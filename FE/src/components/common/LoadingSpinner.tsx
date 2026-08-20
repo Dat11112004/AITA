@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface LoadingSpinnerProps {
   fullScreen?: boolean
@@ -15,15 +16,18 @@ const sizeClasses = {
 /**
  * Loading spinner component
  */
-export function LoadingSpinner({ 
-  fullScreen = false, 
+export function LoadingSpinner({
+  fullScreen = false,
   size = 'md',
-  text = 'Loading...'
+  text
 }: LoadingSpinnerProps) {
+  const { t } = useTranslation()
+  // Only default when the caller omitted the prop — text="" still hides the label.
+  const label = text === undefined ? t('ui.loading') : text
   const content = (
     <div className="flex flex-col items-center justify-center gap-3">
       <Loader2 className={`${sizeClasses[size]} animate-spin text-primary`} />
-      {text && <p className="text-sm text-gray-600">{text}</p>}
+      {label && <p className="text-sm text-gray-600">{label}</p>}
     </div>
   )
 

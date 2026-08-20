@@ -109,7 +109,7 @@ export function PublicHeader() {
 
             <button type="button" onClick={toggleTheme}
               className="h-9 w-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all"
-              aria-label="Toggle theme"
+              aria-label={t('ui.toggle_theme')}
             >
               {theme === 'light' ? <Moon size={17} /> : <Sun size={17} className="text-amber-400" />}
             </button>
@@ -160,7 +160,7 @@ export function PublicHeader() {
 
               <div className="px-1 py-1">
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600 px-2">
-                  Language
+                  {t('ui.language')}
                 </p>
                 <LanguageDropdown variant="full" />
               </div>

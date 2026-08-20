@@ -1,5 +1,6 @@
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ErrorStateProps {
   title?: string
@@ -13,19 +14,20 @@ interface ErrorStateProps {
  * Error state display component
  */
 export function ErrorState({
-  title = 'Something went wrong',
+  title,
   message,
   onRetry,
   icon,
   className = '',
 }: ErrorStateProps) {
+  const { t } = useTranslation()
   return (
     <div className={`flex items-center justify-center p-8 bg-red-50 rounded-lg ${className}`}>
       <div className="text-center">
         <div className="flex justify-center mb-3">
           {icon || <AlertCircle className="h-12 w-12 text-red-600" />}
         </div>
-        <h3 className="font-semibold text-lg text-red-900 mb-2">{title}</h3>
+        <h3 className="font-semibold text-lg text-red-900 mb-2">{title ?? t('ui.error_generic')}</h3>
         <p className="text-sm text-red-700 mb-4">{message}</p>
         {onRetry && (
           <button
@@ -33,7 +35,7 @@ export function ErrorState({
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
           >
             <RefreshCw className="h-4 w-4" />
-            Try again
+            {t('ui.try_again')}
           </button>
         )}
       </div>
@@ -51,16 +53,17 @@ export function APIError({
   error: Error | null
   onRetry?: () => void
 }) {
+  const { t } = useTranslation()
   if (!error) return null
 
   const message =
     error instanceof Error
       ? error.message
-      : 'The error could not be identified. Please try again.'
+      : t('ui.error_unknown')
 
   return (
     <ErrorState
-      title="Failed to load data"
+      title={t('ui.load_failed')}
       message={message}
       onRetry={onRetry}
       className="my-4"

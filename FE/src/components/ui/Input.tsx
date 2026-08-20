@@ -1,5 +1,6 @@
 import React, { useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const baseInput = `
   w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm
@@ -75,6 +76,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function Select({ label, hint, options, className = '', id, ...props }: SelectProps) {
+  const { t } = useTranslation()
   const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className="space-y-1.5">
@@ -84,7 +86,7 @@ export function Select({ label, hint, options, className = '', id, ...props }: S
         className={`${baseInput} border-slate-300 cursor-pointer ${className}`}
         {...props}
       >
-        <option value="">— Select —</option>
+        <option value="">{t('ui.select')}</option>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {hint && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 
 export interface DonutChartProps {
   value: number;
@@ -84,13 +85,14 @@ export interface BarChartProps {
 }
 
 export function BarChart({ data, height = 200, className = '' }: BarChartProps) {
+  const { t } = useTranslation();
   if (!data || data.length === 0) {
     return (
       <div
         style={{ height }}
         className="flex items-center justify-center text-slate-400 text-sm font-medium"
       >
-        No chart data yet
+        {t('ui.no_chart_data')}
       </div>
     );
   }

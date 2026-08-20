@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 
 export interface DropdownMenuItem {
     id: string
@@ -18,6 +19,7 @@ interface DropdownMenuProps {
 }
 
 export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' }: DropdownMenuProps) {
+    const { t } = useTranslation()
     const [isOpen, setIsOpen] = useState(false)
     const [coords, setCoords] = useState({ top: 0, right: 0 })
     const triggerRef = useRef<HTMLButtonElement>(null)
@@ -74,7 +76,7 @@ export function DropdownMenu({ items, triggerClassName = '', menuClassName = '' 
                 ref={triggerRef}
                 onClick={toggleMenu}
                 className={`p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300 rounded-md transition-colors ${triggerClassName}`}
-                title="Actions"
+                title={t('ui.actions')}
             >
                 <MoreVertical size={16} />
             </button>
