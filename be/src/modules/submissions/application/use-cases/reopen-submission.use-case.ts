@@ -85,7 +85,6 @@ export class ReopenSubmissionUseCase implements IUseCase<{ dto: ReopenSubmission
           ReferenceId: examId,
           ReferenceType: 'EXAM',
           CreatedBy: user.id,
-          CreatedAt: new Date(),
         }
       })
 

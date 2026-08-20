@@ -273,7 +273,6 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
                 Type: 'SUBMISSION',
                 ReferenceId: targetSubmission.id,
                 ReferenceType: 'Submission',
-                CreatedAt: new Date(),
                 NotificationRecipient: {
                   create: {
                     UserId: targetUserId,

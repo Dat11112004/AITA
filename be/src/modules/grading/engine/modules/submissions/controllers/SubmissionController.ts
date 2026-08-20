@@ -1051,9 +1051,6 @@ export class SubmissionController extends BaseController {
                         ReferenceId: submission.Id,
                         ReferenceType: 'SUBMISSION',
                         CreatedBy: (req as any).user?.id,
-                        // Notification.CreatedAt has no database default, and the bell sorts on
-                        // it descending — a null lands at the bottom of the list instead of the top.
-                        CreatedAt: new Date(),
                     }
                 });
                 await prisma.notificationRecipient.create({
