@@ -269,10 +269,11 @@ export class CreateSubmissionUseCase implements IUseCase<{ dto: CreateSubmission
             await prisma.notification.create({
               data: {
                 Title: 'Sinh viên nộp lại bài tập',
-                Message: `Sinh viên ${studentName} đã nộp lại bài cho "${examTitle}".`,
-                Type: 'SUBMISSION',
-                ReferenceId: targetSubmission.id,
-                ReferenceType: 'Submission',
+                Message: `Sinh viên ${studentName} đã nộp lại bài làm cho bài tập "${examTitle}".`,
+                Type: 'RESUBMISSION',
+                ReferenceId: examId,
+                ReferenceType: 'ASSIGNMENT_GRADING',
+                CreatedBy: user.id,
                 NotificationRecipient: {
                   create: {
                     UserId: targetUserId,

@@ -83,11 +83,22 @@ export function NotificationsDropdown() {
     const refType = (n.referenceType || n.ReferenceType || n.type || '').toUpperCase()
     const nType = (n.type || '').toUpperCase()
     const title = (n.title || n.Title || '').toLowerCase()
+    const message = (n.message || n.Message || '').toLowerCase()
 
     if (refId) {
       const isStudent = window.location.pathname.startsWith('/student')
       if (refType === 'CLASS' || refType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS_ANNOUNCEMENT' || nType === 'CLASS' || title.includes('thông báo lớp')) {
         navigate(isStudent ? `/student/classes/${refId}` : `/lecturer/classes/${refId}`)
+      } else if (
+        title.includes('nộp lại') ||
+        title.includes('resubmit') ||
+        nType === 'RESUBMISSION' ||
+        refType === 'RESUBMISSION' ||
+        refType === 'ASSIGNMENT_GRADING' ||
+        message.includes('nộp lại')
+      ) {
+        // Điều hướng trực tiếp sang trang chấm điểm của bài tập đó
+        navigate(isStudent ? `/student/assignments/${refId}` : `/lecturer/grading/assignments/${refId}`)
       } else if (refType === 'SUBMISSION' || nType === 'FEEDBACK') {
         navigate(isStudent ? `/student/grading/result/${refId}` : `/lecturer/grading/result/${refId}`)
       } else {

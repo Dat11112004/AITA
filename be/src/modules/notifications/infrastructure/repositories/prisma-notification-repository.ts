@@ -51,7 +51,11 @@ export class PrismaNotificationRepository implements INotificationRepository {
         const examIds = [
             ...new Set(
                 filteredList
-                    .filter((l: any) => String(l.ReferenceType ?? '').toUpperCase() === 'EXAM' && l.ReferenceId)
+                    .filter((l: any) => {
+                        const ref = String(l.ReferenceType ?? '').toUpperCase()
+                        const typ = String(l.Type ?? '').toUpperCase()
+                        return (ref === 'EXAM' || ref === 'ASSIGNMENT' || ref === 'ASSIGNMENT_GRADING' || typ === 'RESUBMISSION') && l.ReferenceId
+                    })
                     .map((l: any) => l.ReferenceId as string)
             )
         ]

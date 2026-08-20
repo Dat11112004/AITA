@@ -78,9 +78,22 @@ export function LecturerNotifications() {
       emitNotificationEvent()
     }
     const targetId = n.referenceId || n.ReferenceId
-    const targetType = n.referenceType || n.ReferenceType || n.type
+    const targetType = (n.referenceType || n.ReferenceType || n.type || '').toUpperCase()
+    const nType = (n.type || '').toUpperCase()
+    const title = (n.title || n.Title || '').toLowerCase()
+    const message = (n.message || n.Message || '').toLowerCase()
+
     if (targetId) {
-      if (targetType === 'Submission' || n.type === 'FEEDBACK') {
+      if (
+        title.includes('nộp lại') ||
+        title.includes('resubmit') ||
+        nType === 'RESUBMISSION' ||
+        targetType === 'RESUBMISSION' ||
+        targetType === 'ASSIGNMENT_GRADING' ||
+        message.includes('nộp lại')
+      ) {
+        navigate(`/lecturer/grading/assignments/${targetId}`)
+      } else if (targetType === 'SUBMISSION' || n.type === 'FEEDBACK') {
         navigate(`/lecturer/grading/result/${targetId}`)
       } else {
         navigate(`/lecturer/grading/assignments/${targetId}`)
