@@ -451,7 +451,7 @@ export default function AssignmentPage() {
       });
 
       setAppliedDuplicateIds(prev => Array.from(new Set([...prev, ...submissionIds])));
-      setPenaltySuccessMsg(`Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
+      setPenaltySuccessMsg(t('lc.dup.apply_success', { count: res.updatedCount }) || `Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
       await fetchHistoryData(false);
       await fetchAssignmentData();
       setTimeout(() => setPenaltySuccessMsg(null), 6000);
@@ -1920,10 +1920,10 @@ export default function AssignmentPage() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    {t('lc.dup.title') || 'Báo cáo kiểm tra trùng lặp bài nộp'}
+                    {t('lc.dup.title') || 'Báo cáo trùng lặp bài nộp'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Đối soát mức độ tương đồng mã nguồn và áp dụng trừ điểm bài trùng lặp
+                    {t('lc.dup.subtitle') || 'Đối soát mức độ tương đồng mã nguồn và áp dụng trừ điểm bài trùng lặp'}
                   </p>
                 </div>
               </div>
@@ -1971,11 +1971,11 @@ export default function AssignmentPage() {
                         const diffMin = Math.floor(diffSec / 60);
                         const remSec = diffSec % 60;
                         if (diffMin < 60) {
-                          diffLabel = `+${diffMin}p ${remSec > 0 ? `${remSec}s` : ''} sau`;
+                          diffLabel = `${diffMin}m ${remSec > 0 ? `${remSec}s` : ''}`;
                         } else {
                           const diffHours = Math.floor(diffMin / 60);
                           const remMin = diffMin % 60;
-                          diffLabel = `+${diffHours}h ${remMin > 0 ? `${remMin}p` : ''} sau`;
+                          diffLabel = `${diffHours}h ${remMin > 0 ? `${remMin}m` : ''}`;
                         }
                       }
                     }
@@ -2004,9 +2004,11 @@ export default function AssignmentPage() {
                           <Users size={18} />
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Đã quét</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            {t('lc.dup.metric_scanned') || 'Đã quét'}
+                          </p>
                           <p className="text-base font-extrabold text-slate-900 dark:text-white">
-                            {duplicateReport.checkedCount} <span className="text-xs font-medium text-slate-400">bài nộp</span>
+                            {duplicateReport.checkedCount} <span className="text-xs font-medium text-slate-400">{t('lc.dup.metric_scanned_unit') || 'bài nộp'}</span>
                           </p>
                         </div>
                       </div>
@@ -2024,9 +2026,11 @@ export default function AssignmentPage() {
                           {dupList.length > 0 ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trùng lặp</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            {t('lc.dup.metric_duplicates') || 'Trùng lặp'}
+                          </p>
                           <p className="text-base font-extrabold">
-                            {dupList.length} <span className="text-xs font-medium opacity-80">bài nộp phát hiện</span>
+                            {dupList.length} <span className="text-xs font-medium opacity-80">{t('lc.dup.metric_duplicates_unit') || 'bài nộp phát hiện'}</span>
                           </p>
                         </div>
                       </div>
@@ -2036,9 +2040,11 @@ export default function AssignmentPage() {
                           <Flame size={18} />
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Độ tương đồng</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            {t('lc.dup.metric_similarity') || 'Độ tương đồng'}
+                          </p>
                           <p className="text-base font-extrabold text-rose-600 dark:text-rose-400">
-                            {dupList.length > 0 ? `${maxSimilarity}% Giống nhau` : '0%'}
+                            {dupList.length > 0 ? (t('lc.dup.similarity_badge', { pct: maxSimilarity }) || `${maxSimilarity}% Giống nhau`) : '0%'}
                           </p>
                         </div>
                       </div>
@@ -2060,7 +2066,7 @@ export default function AssignmentPage() {
                           {t('lc.dup.none') || 'Không phát hiện bài nộp nào bị trùng lặp!'}
                         </p>
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 max-w-md mx-auto">
-                          Tất cả các bài làm đã nộp đều có nội dung tệp mã nguồn độc lập và khác biệt.
+                          {t('lc.dup.none_desc', { threshold: duplicateThreshold }) || 'Tất cả các bài làm đã nộp đều có nội dung tệp mã nguồn độc lập và khác biệt.'}
                         </p>
                       </div>
                     ) : (
@@ -2072,7 +2078,11 @@ export default function AssignmentPage() {
                             ? studentName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
                             : 'SV';
                           const pct = s.topSimilarity || 100;
-                          const isPenalized = appliedDuplicateIds.includes(s.submissionId) || history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') || history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp');
+                          const isPenalized = appliedDuplicateIds.includes(s.submissionId) ||
+                            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
+                            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
+                            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
+                            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism');
 
                           return (
                             <div
@@ -2115,14 +2125,14 @@ export default function AssignmentPage() {
                                 {isPenalized && (
                                   <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
                                     <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
-                                    Đã trừ điểm
+                                    {t('lc.dup.penalized_badge') || 'Đã trừ điểm'}
                                   </span>
                                 )}
 
                                 {/* Similarity percentage badge */}
                                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-xs">
                                   <Flame size={13} className="text-rose-500 fill-rose-500" />
-                                  <span>{pct}% Giống nhau</span>
+                                  <span>{t('lc.dup.similarity_badge', { pct }) || `${pct}% Giống nhau`}</span>
                                 </div>
 
                                 {subDate && (
@@ -2136,11 +2146,11 @@ export default function AssignmentPage() {
 
                                 {s.isFirst ? (
                                   <span className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-extrabold border border-blue-200 dark:border-blue-800">
-                                    Nộp sớm nhất
+                                    {t('lc.dup.earliest_sub') || 'Nộp sớm nhất'}
                                   </span>
                                 ) : (
                                   <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800">
-                                    {s.diffLabel ? `Nộp sau (${s.diffLabel})` : 'Nộp sau'}
+                                    {s.diffLabel ? (t('lc.dup.later_sub', { diff: s.diffLabel }) || `Nộp sau (+${s.diffLabel} sau)`) : (t('lc.dup.later_sub_simple') || 'Nộp sau')}
                                   </span>
                                 )}
                               </div>
@@ -2154,8 +2164,10 @@ export default function AssignmentPage() {
                     <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-500 dark:text-slate-400">
                       <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
                       <div className="leading-relaxed">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">Cơ chế xử lý: </span>
-                        Hệ thống đối soát mã nguồn và chỉ cho phép <strong>áp dụng trừ điểm 1 lần duy nhất</strong> cho các bài nộp bị trùng lặp để đảm bảo tính công bằng và tránh trừ điểm nhiều lần.
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {t('lc.dup.mechanism_label') || 'Cơ chế xử lý: '}
+                        </span>
+                        {t('lc.dup.mechanism_text') || 'Hệ thống đối soát mã nguồn và chỉ cho phép áp dụng trừ điểm 1 lần duy nhất cho các bài nộp bị trùng lặp để đảm bảo tính công bằng và tránh trừ điểm nhiều lần.'}
                       </div>
                     </div>
                   </>
@@ -2169,7 +2181,9 @@ export default function AssignmentPage() {
                 c.submissions.every(s =>
                   appliedDuplicateIds.includes(s.submissionId) ||
                   history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
-                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp')
+                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
+                  history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
+                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism')
                 )
               );
 
@@ -2180,7 +2194,7 @@ export default function AssignmentPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1.5">
                         <ShieldAlert size={15} className="text-rose-500" />
-                        Mức trừ điểm:
+                        {t('lc.dup.penalty_label') || 'Mức trừ điểm:'}
                       </span>
                       <select
                         disabled={isApplyingPenalty || !!isAllPenalized}
@@ -2188,10 +2202,10 @@ export default function AssignmentPage() {
                         onChange={(e) => setDuplicatePenaltyType(e.target.value as any)}
                         className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <option value="FLAT_POINTS">Trừ điểm cố định (-X điểm)</option>
-                        <option value="PERCENT">Trừ theo % (-X%)</option>
-                        <option value="ZERO_SCORE">Trừ về 0 điểm (Hủy bài)</option>
-                        <option value="NONE">Không trừ điểm</option>
+                        <option value="FLAT_POINTS">{t('lc.dup.opt_flat') || 'Trừ điểm cố định (-X điểm)'}</option>
+                        <option value="PERCENT">{t('lc.dup.opt_percent') || 'Trừ theo % (-X%)'}</option>
+                        <option value="ZERO_SCORE">{t('lc.dup.opt_zero') || 'Trừ về 0 điểm (Hủy bài)'}</option>
+                        <option value="NONE">{t('lc.dup.opt_none') || 'Không trừ điểm'}</option>
                       </select>
 
                       {(duplicatePenaltyType === 'FLAT_POINTS' || duplicatePenaltyType === 'PERCENT') && (
@@ -2228,17 +2242,17 @@ export default function AssignmentPage() {
                       {isApplyingPenalty ? (
                         <>
                           <Loader2 size={14} className="animate-spin" />
-                          <span>Đang áp dụng...</span>
+                          <span>{t('lc.dup.applying') || 'Đang áp dụng...'}</span>
                         </>
                       ) : isAllPenalized ? (
                         <>
                           <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                          <span>Đã áp dụng trừ điểm (1 lần duy nhất)</span>
+                          <span>{t('lc.dup.already_applied') || 'Đã áp dụng trừ điểm (1 lần duy nhất)'}</span>
                         </>
                       ) : (
                         <>
                           <Flame size={14} className="fill-white" />
-                          <span>Áp dụng trừ điểm ngay</span>
+                          <span>{t('lc.dup.apply_btn') || 'Áp dụng trừ điểm ngay'}</span>
                         </>
                       )}
                     </button>
@@ -2272,31 +2286,37 @@ export default function AssignmentPage() {
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                  Xác nhận áp dụng trừ điểm
+                  {t('lc.dup.confirm_title') || 'Xác nhận áp dụng trừ điểm'}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cập nhật điểm công bố và thêm giải thích trong AI Feedback.
+                  {t('lc.dup.confirm_subtitle') || 'Cập nhật điểm công bố và thêm giải thích trong AI Feedback.'}
                 </p>
               </div>
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
               <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-                <span className="font-medium text-slate-500 dark:text-slate-400">Mức trừ điểm:</span>
+                <span className="font-medium text-slate-500 dark:text-slate-400">
+                  {t('lc.dup.penalty_label') || 'Mức trừ điểm:'}
+                </span>
                 <span className="font-extrabold text-rose-600 dark:text-rose-400">
                   {duplicatePenaltyType === 'ZERO_SCORE'
-                    ? 'Hủy bài làm (về 0 điểm)'
+                    ? (t('lc.dup.zero_desc') || 'Hủy bài làm (về 0 điểm)')
                     : duplicatePenaltyType === 'PERCENT'
-                      ? `Trừ ${duplicatePenaltyValue}% điểm`
-                      : `Trừ ${duplicatePenaltyValue} điểm`}
+                      ? (t('lc.dup.percent_desc', { val: duplicatePenaltyValue }) || `Trừ ${duplicatePenaltyValue}% điểm`)
+                      : (t('lc.dup.flat_desc', { val: duplicatePenaltyValue }) || `Trừ ${duplicatePenaltyValue} điểm`)}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-                <span className="font-medium text-slate-500 dark:text-slate-400">Nhận xét từ AI:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">Tự động viết lý do bị trừ điểm</span>
+                <span className="font-medium text-slate-500 dark:text-slate-400">
+                  {t('lc.dup.confirm_ai_label') || 'Nhận xét từ AI:'}
+                </span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {t('lc.dup.confirm_ai_val') || 'Tự động viết lý do bị trừ điểm'}
+                </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
-                Điểm số sau khi trừ sẽ được áp dụng vào kết quả bài thi để <strong>công bố (Publish) cho sinh viên</strong>, kèm giải thích chi tiết trong phần nhận xét của AI Mentor.
+                {t('lc.dup.confirm_desc') || 'Điểm số sau khi trừ sẽ được áp dụng vào kết quả bài thi để công bố (Publish) cho sinh viên, kèm giải thích chi tiết trong phần nhận xét của AI Mentor.'}
               </p>
             </div>
 
@@ -2306,7 +2326,7 @@ export default function AssignmentPage() {
                 onClick={() => setShowConfirmPenaltyModal(false)}
                 className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
-                Hủy
+                {t('lc.dup.cancel') || 'Hủy'}
               </button>
               <button
                 type="button"
@@ -2320,12 +2340,12 @@ export default function AssignmentPage() {
                 {isApplyingPenalty ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    <span>Đang áp dụng...</span>
+                    <span>{t('lc.dup.applying') || 'Đang áp dụng...'}</span>
                   </>
                 ) : (
                   <>
                     <Check size={14} />
-                    <span>Đồng ý trừ điểm</span>
+                    <span>{t('lc.dup.confirm_btn') || 'Đồng ý trừ điểm'}</span>
                   </>
                 )}
               </button>

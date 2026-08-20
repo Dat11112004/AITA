@@ -111,21 +111,21 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
 
       const existingFeedback = sub.InstructorFeedback ? sub.InstructorFeedback.trim() : ''
       const updatedFeedback = existingFeedback
-        ? (existingFeedback.includes('[Trừ điểm trùng lặp')
-          ? existingFeedback.replace(/\[Trừ điểm trùng lặp[^\]]*\]:[^\n]*/g, penaltyNote)
+        ? (existingFeedback.includes('[Trừ điểm trùng lặp') || existingFeedback.includes('[Plagiarism')
+          ? existingFeedback.replace(/\[(?:Trừ điểm trùng lặp|Plagiarism)[^\]]*\]:[^\n]*/g, penaltyNote)
           : `${existingFeedback}\n\n${penaltyNote}`)
         : penaltyNote
 
       // Update ReportData JSON for AI feedback & score synchronization
       let updatedReportData: string | null = null
-      const aiDuplicateNote = `\n\n> ⚠️ **Lưu ý đánh giá từ AI (Trừ điểm trùng lặp)**:\n> - **Lý do bị trừ điểm**: Phát hiện nội dung mã nguồn bài làm có mức độ tương đồng/trùng lặp cao với một số bài nộp của học sinh khác trong cùng bài tập.\n> - **Mức phạt áp dụng**: Đã ${penaltyDesc} (Điểm gốc: **${originalScore}**đ ➔ Điểm cuối cùng công bố: **${newScore}**đ).\n> - **Quy định**: Sinh viên cần nghiêm túc tuân thủ tính trung thực học thuật và tự viết mã nguồn độc lập.`
+      const aiDuplicateNote = `\n\n> ⚠️ **Lưu ý đánh giá từ AI (Trừ điểm trùng lặp / Plagiarism Penalty)**:\n> - **Lý do bị trừ điểm / Reason**: Phát hiện nội dung mã nguồn bài làm có mức độ tương đồng/trùng lặp cao với bài nộp khác trong cùng bài tập (High source code similarity detected with other submissions).\n> - **Mức phạt áp dụng / Applied Penalty**: Đã ${penaltyDesc} (Điểm gốc / Original: **${originalScore}**đ ➔ Điểm cuối cùng công bố / Final: **${newScore}**đ).\n> - **Quy định / Academic Integrity**: Sinh viên cần nghiêm túc tuân thủ tính trung thực học thuật và tự viết mã nguồn độc lập (Students must maintain academic integrity and write code independently).`
 
       if (sub.ReportData) {
         try {
           const parsedReport = JSON.parse(sub.ReportData)
           parsedReport.totalScore = newScore
           let currentOverall = parsedReport.overallFeedback || ''
-          if (currentOverall.includes('Lưu ý đánh giá từ AI (Trừ điểm trùng lặp)') || currentOverall.includes('Lưu ý chống gian lận & Trùng lặp')) {
+          if (currentOverall.includes('Lưu ý đánh giá từ AI') || currentOverall.includes('Lưu ý chống gian lận & Trùng lặp')) {
             currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý[^\n]*\n(?:> [^\n]*\n?)*/g, aiDuplicateNote.trim())
           } else {
             currentOverall = `${currentOverall}${aiDuplicateNote}`
