@@ -112,6 +112,7 @@ export default function AssignmentPage() {
   const [duplicatePenaltyValue, setDuplicatePenaltyValue] = useState<number>(5);
   const [isApplyingPenalty, setIsApplyingPenalty] = useState<boolean>(false);
   const [penaltySuccessMsg, setPenaltySuccessMsg] = useState<string | null>(null);
+  const [appliedDuplicateIds, setAppliedDuplicateIds] = useState<string[]>([]);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -448,6 +449,7 @@ export default function AssignmentPage() {
         } catch (e) {}
       });
 
+      setAppliedDuplicateIds(prev => Array.from(new Set([...prev, ...submissionIds])));
       setPenaltySuccessMsg(`Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
       await fetchHistoryData(false);
       await fetchAssignmentData();
@@ -2069,6 +2071,7 @@ export default function AssignmentPage() {
                             ? studentName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
                             : 'SV';
                           const pct = s.topSimilarity || 100;
+                          const isPenalized = appliedDuplicateIds.includes(s.submissionId) || history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') || history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp');
 
                           return (
                             <div
@@ -2106,8 +2109,15 @@ export default function AssignmentPage() {
                                 </div>
                               </div>
 
-                              {/* Right Details: Similarity % + Timestamp + Seq Tag */}
+                              {/* Right Details: Similarity % + Timestamp + Seq Tag + Penalized Tag */}
                               <div className="flex items-center gap-3 flex-wrap shrink-0">
+                                {isPenalized && (
+                                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                                    <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
+                                    Đã trừ điểm
+                                  </span>
+                                )}
+
                                 {/* Similarity percentage badge */}
                                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-xs">
                                   <Flame size={13} className="text-rose-500 fill-rose-500" />
@@ -2144,7 +2154,7 @@ export default function AssignmentPage() {
                       <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
                       <div className="leading-relaxed">
                         <span className="font-bold text-slate-700 dark:text-slate-300">Cơ chế xử lý: </span>
-                        Hệ thống đối soát cấu trúc và dấu vân tay mã nguồn để phát hiện mức độ trùng lặp. Giảng viên có thể điều chỉnh mức trừ điểm ở thanh công cụ bên dưới và nhấn <strong>Áp dụng trừ điểm ngay</strong> để trừ điểm trực tiếp vào kết quả bài thi của các sinh viên trùng bài.
+                        Hệ thống đối soát mã nguồn và chỉ cho phép <strong>áp dụng trừ điểm 1 lần duy nhất</strong> cho các bài nộp bị trùng lặp để đảm bảo tính công bằng và tránh trừ điểm nhiều lần.
                       </div>
                     </div>
                   </>
@@ -2153,74 +2163,99 @@ export default function AssignmentPage() {
             </div>
 
             {/* Modal Footer with Penalty Policy Configuration & One-Click Apply */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0e121a]">
-              {/* Penalty Controls */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1.5">
-                    <ShieldAlert size={15} className="text-rose-500" />
-                    Mức trừ điểm:
-                  </span>
-                  <select
-                    value={duplicatePenaltyType}
-                    onChange={(e) => setDuplicatePenaltyType(e.target.value as any)}
-                    className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  >
-                    <option value="FLAT_POINTS">Trừ điểm cố định (-X điểm)</option>
-                    <option value="PERCENT">Trừ theo % (-X%)</option>
-                    <option value="ZERO_SCORE">Trừ về 0 điểm (Hủy bài)</option>
-                    <option value="NONE">Không trừ điểm</option>
-                  </select>
+            {(() => {
+              const isAllPenalized = duplicateReport && duplicateReport.clusters.length > 0 && duplicateReport.clusters.every(c =>
+                c.submissions.every(s =>
+                  appliedDuplicateIds.includes(s.submissionId) ||
+                  history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
+                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp')
+                )
+              );
 
-                  {(duplicatePenaltyType === 'FLAT_POINTS' || duplicatePenaltyType === 'PERCENT') && (
-                    <div className="relative flex items-center shrink-0">
-                      <input
-                        type="number"
-                        step={duplicatePenaltyType === 'PERCENT' ? '5' : '0.5'}
-                        min="0"
-                        max={duplicatePenaltyType === 'PERCENT' ? '100' : '10'}
-                        value={duplicatePenaltyValue}
-                        onChange={(e) => setDuplicatePenaltyValue(Number(e.target.value))}
-                        className="w-20 pl-2.5 pr-6 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 text-center shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                      />
-                      <span className="absolute right-2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                        {duplicatePenaltyType === 'PERCENT' ? '%' : 'đ'}
+              return (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0e121a]">
+                  {/* Penalty Controls */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1.5">
+                        <ShieldAlert size={15} className="text-rose-500" />
+                        Mức trừ điểm:
                       </span>
+                      <select
+                        disabled={isApplyingPenalty || !!isAllPenalized}
+                        value={duplicatePenaltyType}
+                        onChange={(e) => setDuplicatePenaltyType(e.target.value as any)}
+                        className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="FLAT_POINTS">Trừ điểm cố định (-X điểm)</option>
+                        <option value="PERCENT">Trừ theo % (-X%)</option>
+                        <option value="ZERO_SCORE">Trừ về 0 điểm (Hủy bài)</option>
+                        <option value="NONE">Không trừ điểm</option>
+                      </select>
+
+                      {(duplicatePenaltyType === 'FLAT_POINTS' || duplicatePenaltyType === 'PERCENT') && (
+                        <div className="relative flex items-center shrink-0">
+                          <input
+                            type="number"
+                            disabled={isApplyingPenalty || !!isAllPenalized}
+                            step={duplicatePenaltyType === 'PERCENT' ? '5' : '0.5'}
+                            min="0"
+                            max={duplicatePenaltyType === 'PERCENT' ? '100' : '10'}
+                            value={duplicatePenaltyValue}
+                            onChange={(e) => setDuplicatePenaltyValue(Number(e.target.value))}
+                            className="w-20 pl-2.5 pr-6 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 text-center shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          <span className="absolute right-2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                            {duplicatePenaltyType === 'PERCENT' ? '%' : 'đ'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleApplyDuplicatePenalty()}
+                      disabled={isApplyingPenalty || !!isAllPenalized || !duplicateReport || duplicateReport.clusters.length === 0}
+                      className={`
+                        px-4 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-md
+                        ${isAllPenalized
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700 shadow-none'
+                          : 'bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-rose-600/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      {isApplyingPenalty ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Đang áp dụng...</span>
+                        </>
+                      ) : isAllPenalized ? (
+                        <>
+                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                          <span>Đã áp dụng trừ điểm (1 lần duy nhất)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Flame size={14} className="fill-white" />
+                          <span>Áp dụng trừ điểm ngay</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Close Button */}
+                  <div className="flex items-center justify-end shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowDuplicateModal(false)}
+                      className="px-6 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                    >
+                      {t('lc.dup.close') || 'Đóng'}
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleApplyDuplicatePenalty()}
-                  disabled={isApplyingPenalty || !duplicateReport || duplicateReport.clusters.length === 0}
-                  className="px-4 py-2 text-xs font-extrabold rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white transition-all shadow-md shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
-                >
-                  {isApplyingPenalty ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>Đang áp dụng...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Flame size={14} className="fill-white" />
-                      <span>Áp dụng trừ điểm ngay</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Close Button */}
-              <div className="flex items-center justify-end shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowDuplicateModal(false)}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  {t('lc.dup.close') || 'Đóng'}
-                </button>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>,
         document.body

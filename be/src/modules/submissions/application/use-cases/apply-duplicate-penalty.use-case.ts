@@ -77,9 +77,22 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
       throw new NotFoundError('Không tìm thấy bài nộp nào phù hợp để trừ điểm')
     }
 
+    // Safeguard: Check if all submissions have already been penalized
+    const alreadyPenalized = submissions.filter(sub =>
+      sub.InstructorFeedback && sub.InstructorFeedback.includes('[Trừ điểm trùng lặp')
+    )
+
+    if (alreadyPenalized.length === submissions.length) {
+      throw new ValidationError('Các bài nộp này đã được áp dụng trừ điểm trùng lặp rồi. Hệ thống chỉ cho phép áp dụng trừ điểm 1 lần duy nhất.')
+    }
+
     const updatedSubmissions: ApplyDuplicatePenaltyResult['updatedSubmissions'] = []
 
     for (const sub of submissions) {
+      // Skip if this specific submission has already been penalized
+      if (sub.InstructorFeedback && sub.InstructorFeedback.includes('[Trừ điểm trùng lặp')) {
+        continue
+      }
       const currentScore = sub.FinalScore !== null && sub.FinalScore !== undefined
         ? Number(sub.FinalScore)
         : (sub.RawScore !== null && sub.RawScore !== undefined ? Number(sub.RawScore) : (sub.TotalScore ? Number(sub.TotalScore) : 10))
