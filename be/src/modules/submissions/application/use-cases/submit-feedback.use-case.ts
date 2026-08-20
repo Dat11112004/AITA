@@ -50,6 +50,7 @@ export class SubmitFeedbackUseCase implements IUseCase<{ id: string; user: { id:
                     Type: 'FEEDBACK',
                     ReferenceId: submission.Id,
                     ReferenceType: 'Submission',
+                    CreatedAt: new Date(),
                     NotificationRecipient: {
                         create: {
                             UserId: targetUserId,

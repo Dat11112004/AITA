@@ -94,6 +94,7 @@ export class DeadlineReminderJob {
             Type: 'Reminder',
             ReferenceId: exam.Id,
             ReferenceType: 'Exam',
+            CreatedAt: new Date(),
             NotificationRecipient: {
               create: {
                 UserId: studentId,

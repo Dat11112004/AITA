@@ -28,7 +28,11 @@ export function StudentNotifications() {
     if (showLoading) setLoading(true)
     api.getNotifications(1, 50)
       .then(res => {
-        setNotifications(Array.isArray(res) ? res : (res?.data || []))
+        const list: Notification[] = Array.isArray(res) ? res : (res?.data || [])
+        // Newest first even for rows saved before CreatedAt was always populated.
+        setNotifications([...list].sort((a: any, b: any) =>
+          (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+        ))
       })
       .catch(err => console.error(err))
       .finally(() => { if (showLoading) setLoading(false) })
