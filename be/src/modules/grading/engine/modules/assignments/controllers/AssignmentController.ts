@@ -333,7 +333,9 @@ export class AssignmentController extends BaseController {
                 allowLateSubmission,
                 latePenaltyType,
                 latePenaltyValue,
-                maxLatePenalty
+                maxLatePenalty,
+                duplicatePenaltyType,
+                duplicatePenaltyValue
             } = metadata;
             const selectedGradingStrategy = gradingStrategy || 'CONTINUOUS_QUEUE';
             const resolvedExamType = assignmentType || category || examType || 'Assignment';
@@ -342,6 +344,8 @@ export class AssignmentController extends BaseController {
             const effectivePenaltyType = latePenaltyType || (effectiveAllowLate ? 'DAILY_POINTS' : 'NONE');
             const effectivePenaltyValue = latePenaltyValue !== undefined && latePenaltyValue !== null ? Number(latePenaltyValue) : (effectivePenaltyType === 'NONE' ? 0 : 2);
             const effectiveMaxPenalty = maxLatePenalty !== undefined && maxLatePenalty !== null ? Number(maxLatePenalty) : null;
+            const effectiveDuplicatePenaltyType = duplicatePenaltyType || 'FLAT_POINTS';
+            const effectiveDuplicatePenaltyValue = duplicatePenaltyValue !== undefined && duplicatePenaltyValue !== null ? Number(duplicatePenaltyValue) : 5;
 
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -413,7 +417,12 @@ export class AssignmentController extends BaseController {
                     LatePenaltyType: effectivePenaltyType,
                     LatePenaltyValue: effectivePenaltyValue,
                     MaxLatePenalty: effectiveMaxPenalty,
-                    AiGeneratedContent: JSON.stringify({ blueprintId: blueprint?.id, weightPercentage: weightPercentage ? Number(weightPercentage) : 0 }),
+                    AiGeneratedContent: JSON.stringify({
+                        blueprintId: blueprint?.id,
+                        weightPercentage: weightPercentage ? Number(weightPercentage) : 0,
+                        duplicatePenaltyType: effectiveDuplicatePenaltyType,
+                        duplicatePenaltyValue: effectiveDuplicatePenaltyValue
+                    }),
                     ...(validClassIds.length > 0 ? {
                         ExamClass: {
                             create: validClassIds.map((cId: string) => ({
@@ -633,6 +642,15 @@ export class AssignmentController extends BaseController {
                 const lateVal = exam?.LatePenaltyValue !== undefined && exam?.LatePenaltyValue !== null ? Number(exam.LatePenaltyValue) : (assignment.metadata?.latePenaltyValue ?? 2);
                 const maxLate = exam?.MaxLatePenalty !== undefined && exam?.MaxLatePenalty !== null ? Number(exam.MaxLatePenalty) : (assignment.metadata?.maxLatePenalty ?? null);
 
+                let aiContentParsed: any = {};
+                if (exam?.AiGeneratedContent) {
+                    try {
+                        aiContentParsed = JSON.parse(exam.AiGeneratedContent);
+                    } catch (e) { }
+                }
+                const duplicatePenaltyType = aiContentParsed.duplicatePenaltyType || assignment.metadata?.duplicatePenaltyType || 'FLAT_POINTS';
+                const duplicatePenaltyValue = aiContentParsed.duplicatePenaltyValue !== undefined && aiContentParsed.duplicatePenaltyValue !== null ? Number(aiContentParsed.duplicatePenaltyValue) : (assignment.metadata?.duplicatePenaltyValue ?? 5);
+
                 const enhancedAssignment = {
                     ...assignment,
                     sqlSetupScript,
@@ -640,13 +658,17 @@ export class AssignmentController extends BaseController {
                     latePenaltyType: lateType,
                     latePenaltyValue: lateVal,
                     maxLatePenalty: maxLate,
+                    duplicatePenaltyType,
+                    duplicatePenaltyValue,
                     metadata: {
                         ...assignment.metadata,
                         gradingStrategy: (stats as any)?.gradingStrategy || assignment.metadata?.gradingStrategy || 'CONTINUOUS_QUEUE',
                         allowLateSubmission: allowLate,
                         latePenaltyType: lateType,
                         latePenaltyValue: lateVal,
-                        maxLatePenalty: maxLate
+                        maxLatePenalty: maxLate,
+                        duplicatePenaltyType,
+                        duplicatePenaltyValue
                     },
                     stats
                 };
@@ -741,7 +763,7 @@ export class AssignmentController extends BaseController {
     update = async (req: Request, res: Response): Promise<void> => {
         try {
             const id = req.params.id;
-            const { title, description, dueDate, gradingStrategy, allowLateSubmission, latePenaltyType, latePenaltyValue, maxLatePenalty } = req.body;
+            const { title, description, dueDate, gradingStrategy, allowLateSubmission, latePenaltyType, latePenaltyValue, maxLatePenalty, duplicatePenaltyType, duplicatePenaltyValue } = req.body;
 
             const assignment = await this.assignmentRepository.getAsync(id);
             if (!assignment) {
@@ -762,11 +784,21 @@ export class AssignmentController extends BaseController {
                 }
             }
 
+            let currentAiContent: any = {};
+            if (examRecord.AiGeneratedContent) {
+                try {
+                    currentAiContent = JSON.parse(examRecord.AiGeneratedContent);
+                } catch (e) {}
+            }
+            if (duplicatePenaltyType !== undefined) currentAiContent.duplicatePenaltyType = duplicatePenaltyType;
+            if (duplicatePenaltyValue !== undefined && duplicatePenaltyValue !== null) currentAiContent.duplicatePenaltyValue = Number(duplicatePenaltyValue);
+
             const updateData: any = {
                 Title: title,
                 Description: description,
                 DueDate: parsedDueDate,
-                GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE'
+                GradingStrategy: gradingStrategy || examRecord.GradingStrategy || 'CONTINUOUS_QUEUE',
+                AiGeneratedContent: JSON.stringify(currentAiContent)
             };
             if (allowLateSubmission !== undefined) updateData.AllowLateSubmission = Boolean(allowLateSubmission);
             if (latePenaltyType !== undefined) updateData.LatePenaltyType = latePenaltyType;
@@ -823,7 +855,9 @@ export class AssignmentController extends BaseController {
                     ...(allowLateSubmission !== undefined ? { allowLateSubmission } : {}),
                     ...(latePenaltyType !== undefined ? { latePenaltyType } : {}),
                     ...(latePenaltyValue !== undefined ? { latePenaltyValue } : {}),
-                    ...(maxLatePenalty !== undefined ? { maxLatePenalty } : {})
+                    ...(maxLatePenalty !== undefined ? { maxLatePenalty } : {}),
+                    ...(duplicatePenaltyType !== undefined ? { duplicatePenaltyType } : {}),
+                    ...(duplicatePenaltyValue !== undefined ? { duplicatePenaltyValue } : {})
                 }
             };
 

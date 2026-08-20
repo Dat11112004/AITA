@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gradingApi as api, getStoredItem, AUTH_STORAGE_KEYS } from '@/lib/api';
 import type { PublishedAssignment } from '@/types';
-import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw, Download, Copy } from 'lucide-react';
+import { BookOpen, ListChecks, Upload, Layers, Clock, AlertCircle, Users, CheckCircle2, Hourglass, Star, Eye, ArrowLeft, Save, X, Calendar, ChevronDown, ChevronLeft, ChevronRight, Settings, Zap, Loader2, Database, HelpCircle, Check, Send, AlertTriangle, RotateCcw, Download, Copy, Flame, ShieldAlert, Info } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -107,7 +107,11 @@ export default function AssignmentPage() {
   const [duplicateReport, setDuplicateReport] = useState<Awaited<ReturnType<typeof api.detectDuplicateSubmissions>> | null>(null);
   const [duplicateError, setDuplicateError] = useState<boolean>(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [duplicateThreshold, setDuplicateThreshold] = useState(80);
+  const [duplicateThreshold] = useState(80);
+  const [duplicatePenaltyType, setDuplicatePenaltyType] = useState<'NONE' | 'FLAT_POINTS' | 'PERCENT' | 'ZERO_SCORE'>('FLAT_POINTS');
+  const [duplicatePenaltyValue, setDuplicatePenaltyValue] = useState<number>(5);
+  const [isApplyingPenalty, setIsApplyingPenalty] = useState<boolean>(false);
+  const [penaltySuccessMsg, setPenaltySuccessMsg] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scoreRangeFilter, setScoreRangeFilter] = useState('ALL');
@@ -398,6 +402,7 @@ export default function AssignmentPage() {
     if (!id || isCheckingDuplicates) return;
     setIsCheckingDuplicates(true);
     setDuplicateError(false);
+    setPenaltySuccessMsg(null);
     try {
       const report = await api.detectDuplicateSubmissions(id, duplicateThreshold);
       setDuplicateReport(report);
@@ -407,6 +412,43 @@ export default function AssignmentPage() {
     } finally {
       setIsCheckingDuplicates(false);
       setShowDuplicateModal(true);
+    }
+  };
+
+  const handleApplyDuplicatePenalty = async (targetSubmissionIds?: string[]) => {
+    if (!id || isApplyingPenalty) return;
+
+    let submissionIds = targetSubmissionIds;
+    if (!submissionIds || submissionIds.length === 0) {
+      if (!duplicateReport || duplicateReport.clusters.length === 0) return;
+      const idSet = new Set<string>();
+      duplicateReport.clusters.forEach(c => {
+        c.submissions.forEach(s => idSet.add(s.submissionId));
+      });
+      submissionIds = Array.from(idSet);
+    }
+
+    if (submissionIds.length === 0) return;
+
+    try {
+      setIsApplyingPenalty(true);
+      setPenaltySuccessMsg(null);
+      const res = await api.applyDuplicatePenalty({
+        assignmentId: id,
+        submissionIds,
+        penaltyType: duplicatePenaltyType,
+        penaltyValue: duplicatePenaltyValue,
+        reason: 'Phát hiện nội dung tệp mã nguồn trùng lặp qua hệ thống đối soát tự động'
+      });
+
+      setPenaltySuccessMsg(`Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
+      await fetchHistoryData(false);
+      await fetchAssignmentData();
+      setTimeout(() => setPenaltySuccessMsg(null), 6000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Áp dụng trừ điểm thất bại. Vui lòng thử lại.');
+    } finally {
+      setIsApplyingPenalty(false);
     }
   };
 
@@ -1858,196 +1900,328 @@ export default function AssignmentPage() {
       )}
 
       {showDuplicateModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
-            {/* Header */}
-            <div className="flex items-start gap-3 px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/25">
-                <Copy size={20} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{t('lc.dup.title') || 'Duplicate submissions report'}</h3>
-                {duplicateReport && !duplicateError && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {t('lc.dup.summary_v2', {
-                      checked: duplicateReport.checkedCount,
-                      clusters: duplicateReport.clusters.length,
-                      threshold: duplicateReport.threshold,
-                    })}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-[#121622] border border-slate-200/90 dark:border-slate-800 rounded-3xl max-w-3xl w-full shadow-2xl shadow-slate-950/30 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/25">
+                  <Copy size={22} className="stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    {t('lc.dup.title') || 'Báo cáo kiểm tra trùng lặp bài nộp'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Đối soát mức độ tương đồng mã nguồn và áp dụng trừ điểm bài trùng lặp
                   </p>
-                )}
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDuplicateModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
               {duplicateError ? (
-                <div className="bg-red-50 dark:bg-red-950/40 p-4 rounded-2xl border border-red-200/80 dark:border-red-900/30 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
-                  <AlertTriangle size={18} className="shrink-0" />
-                  {t('lc.dup.error') || 'Duplicate check failed. Please try again.'}
+                <div className="bg-rose-50 dark:bg-rose-950/30 p-4 rounded-2xl border border-rose-200 dark:border-rose-900/50 text-sm text-rose-700 dark:text-rose-300 flex items-center gap-3">
+                  <AlertTriangle size={20} className="text-rose-500 shrink-0" />
+                  <span>{t('lc.dup.error') || 'Kiểm tra trùng lặp thất bại. Vui lòng thử lại sau.'}</span>
                 </div>
               ) : duplicateReport && (
                 <>
-                  {(duplicateReport.failedCount > 0 || duplicateReport.emptyCount > 0) && (
-                    <div className="flex flex-wrap gap-2">
-                      {duplicateReport.failedCount > 0 && (
-                        <span className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/40">
-                          {t('lc.dup.failed', { n: duplicateReport.failedCount })}
-                        </span>
-                      )}
-                      {duplicateReport.emptyCount > 0 && (
-                        <span className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                          {t('lc.dup.empty_files', { n: duplicateReport.emptyCount })}
-                        </span>
-                      )}
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                        <Users size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Đã quét</p>
+                        <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                          {duplicateReport.checkedCount} <span className="text-xs font-medium text-slate-400">bài nộp</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
+                      duplicateReport.clusters.length > 0
+                        ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200'
+                        : 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200'
+                    }`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                        duplicateReport.clusters.length > 0
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {duplicateReport.clusters.length > 0 ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trùng lặp</p>
+                        <p className="text-base font-extrabold">
+                          {duplicateReport.clusters.length} <span className="text-xs font-medium opacity-80">nhóm phát hiện</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                        <Flame size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Mức phạt quy định</p>
+                        <p className="text-base font-extrabold text-rose-600 dark:text-rose-400">
+                          {duplicatePenaltyType === 'ZERO_SCORE'
+                            ? 'Về 0 điểm'
+                            : duplicatePenaltyType === 'PERCENT'
+                              ? `-${duplicatePenaltyValue}%`
+                              : duplicatePenaltyType === 'NONE'
+                                ? 'Không trừ'
+                                : `-${duplicatePenaltyValue} điểm`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {penaltySuccessMsg && (
+                    <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center gap-2.5 animate-in fade-in slide-in-from-top-1">
+                      <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{penaltySuccessMsg}</span>
                     </div>
                   )}
 
                   {duplicateReport.clusters.length === 0 ? (
-                    <div className="flex flex-col items-center gap-2 py-10 text-center">
-                      <div className="h-12 w-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                        <CheckCircle2 size={24} className="text-emerald-600 dark:text-emerald-400" />
+                    <div className="bg-emerald-50/80 dark:bg-emerald-950/20 p-8 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2">
+                        <CheckCircle2 size={26} />
                       </div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('lc.dup.none')}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {t('lc.dup.none_desc', { threshold: duplicateReport.threshold })}
+                      <p className="text-base font-bold text-emerald-800 dark:text-emerald-200">
+                        {t('lc.dup.none') || 'Không phát hiện bài nộp nào bị trùng lặp!'}
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 max-w-md mx-auto">
+                        Tất cả các bài làm đã nộp đều có nội dung tệp mã nguồn độc lập và khác biệt.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {duplicateReport.clusters.map((cluster, idx) => {
-                        const pct = cluster.maxSimilarity
-                        const severe = pct >= 95
-                        const barTone = severe ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-amber-500'
-                        const chipTone = severe
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                          : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                        const simPercent = cluster.maxSimilarity ?? 100
+                        const firstSubTime = cluster.submissions[0]?.submittedAt ? new Date(cluster.submissions[0].submittedAt).getTime() : 0
+                        const clusterSubIds = cluster.submissions.map(s => s.submissionId)
+
                         return (
                           <div
-                            key={`${cluster.submissions.map(s => s.submissionId).join('-')}`}
-                            className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900/40"
+                            key={`${clusterSubIds.join('-')}`}
+                            className="bg-gradient-to-b from-amber-50/50 via-white to-white dark:from-amber-950/20 dark:via-[#151926] dark:to-[#151926] rounded-2xl border border-amber-200/90 dark:border-amber-900/50 overflow-hidden shadow-sm transition-all"
                           >
-                            {/* Cluster header with the headline percentage */}
-                            <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0">
-                                {t('lc.dup.cluster', { n: idx + 1, count: cluster.count })}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                                  <div className={`h-full rounded-full ${barTone}`} style={{ width: `${Math.min(100, pct)}%` }} />
-                                </div>
-                              </div>
-                              <span className={`px-2.5 py-1 text-sm font-extrabold rounded-lg shrink-0 tabular-nums ${chipTone}`}>
-                                {pct}%
-                              </span>
-                              {cluster.allIdentical && (
-                                <span className="px-2 py-1 text-[10px] font-bold rounded-lg bg-red-600 text-white shrink-0 whitespace-nowrap">
-                                  {t('lc.dup.identical_badge')}
+                            {/* Cluster Header */}
+                            <div className="px-5 py-3.5 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-200/70 dark:border-amber-900/40 flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-extrabold text-xs shadow-sm">
+                                  Nhóm {idx + 1}
                                 </span>
-                              )}
+                                <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                                  {cluster.count} sinh viên nộp bài giống nhau
+                                </span>
+                              </div>
+
+                              {/* Percentage Badge & Action Button for this group */}
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-sm">
+                                  <Flame size={13} className="text-rose-500 fill-rose-500 animate-pulse" />
+                                  <span>{simPercent}% Giống nhau</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApplyDuplicatePenalty(clusterSubIds)}
+                                  disabled={isApplyingPenalty}
+                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                  title="Áp dụng trừ điểm riêng cho nhóm sinh viên này"
+                                >
+                                  {isApplyingPenalty ? <Loader2 size={12} className="animate-spin" /> : <ShieldAlert size={13} />}
+                                  <span>Trừ điểm nhóm này</span>
+                                </button>
+                              </div>
                             </div>
 
-                            {/* Members */}
-                            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {cluster.submissions.map((s) => (
-                                <li key={s.submissionId} className="flex items-center gap-3 px-4 py-2.5">
-                                  <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-[11px] font-bold text-slate-500 dark:text-slate-300">
-                                    {(s.studentName || '?').trim().charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                                      {s.studentName || s.studentId || s.submissionId}
-                                      {s.studentCode && (
-                                        <span className="ml-1.5 text-xs font-normal text-slate-500 dark:text-slate-400">({s.studentCode})</span>
-                                      )}
-                                    </p>
-                                    {s.submittedAt && (
-                                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                        {t('lc.dup.submitted_at')} {new Date(s.submittedAt).toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 tabular-nums shrink-0">
-                                    {s.topSimilarity}%
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
+                            {/* Submissions in Cluster */}
+                            <div className="p-4 space-y-2.5">
+                              {cluster.submissions.map((s, sIdx) => {
+                                const subDate = s.submittedAt ? new Date(s.submittedAt) : null
+                                const isFirst = sIdx === 0
+                                let diffLabel = ''
+                                if (!isFirst && subDate && firstSubTime > 0) {
+                                  const diffSec = Math.floor((subDate.getTime() - firstSubTime) / 1000)
+                                  if (diffSec >= 0) {
+                                    const diffMin = Math.floor(diffSec / 60)
+                                    const remSec = diffSec % 60
+                                    if (diffMin < 60) {
+                                      diffLabel = `+${diffMin}p ${remSec > 0 ? `${remSec}s` : ''} sau`
+                                    } else {
+                                      const diffHours = Math.floor(diffMin / 60)
+                                      const remMin = diffMin % 60
+                                      diffLabel = `+${diffHours}h ${remMin > 0 ? `${remMin}p` : ''} sau`
+                                    }
+                                  }
+                                }
 
-                            {/* Pair breakdown — only adds value beyond the member list when there are 3+ */}
-                            {cluster.pairs.length > 1 && (
-                              <div className="px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">
-                                  {t('lc.dup.pairs_title')}
-                                </p>
-                                <ul className="space-y-1">
-                                  {cluster.pairs.map((p, pIdx) => (
-                                    <li key={`${p.submissionIdA}-${p.submissionIdB}-${pIdx}`} className="flex items-center gap-2 text-xs">
-                                      <span className="text-slate-600 dark:text-slate-300 truncate flex-1 min-w-0">
-                                        {p.studentNameA || p.submissionIdA} ↔ {p.studentNameB || p.submissionIdB}
-                                      </span>
-                                      {p.identical && (
-                                        <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 shrink-0">
-                                          {t('lc.dup.pair_identical')}
+                                const studentName = s.studentName || s.studentId || s.submissionId
+                                const initials = studentName
+                                  ? studentName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
+                                  : 'SV'
+
+                                return (
+                                  <div
+                                    key={s.submissionId}
+                                    className={`
+                                      p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3
+                                      ${isFirst
+                                        ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/40'
+                                        : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80'
+                                      }
+                                    `}
+                                  >
+                                    {/* Student Info */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className={`
+                                        w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm
+                                        ${isFirst
+                                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                                          : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                                        }
+                                      `}>
+                                        {initials}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                                            {studentName}
+                                          </p>
+                                          {s.studentCode && (
+                                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                              {s.studentCode}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Time & Submission Chronology Tag */}
+                                    <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                                      {subDate && (
+                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                          <Clock size={12} className="text-slate-400 shrink-0" />
+                                          <span>
+                                            {subDate.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {isFirst ? (
+                                        <span className="px-2.5 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-[11px] font-extrabold border border-blue-200 dark:border-blue-800">
+                                          Nộp sớm nhất
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-[11px] font-bold border border-amber-200 dark:border-amber-800">
+                                          {diffLabel ? `Nộp sau (${diffLabel})` : 'Nộp sau'}
                                         </span>
                                       )}
-                                      <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums shrink-0">{p.similarity}%</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
                         )
                       })}
                     </div>
                   )}
 
-                  <div className="space-y-1 pt-1">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.method')}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('lc.dup.note')}</p>
+                  {/* Information note */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-500 dark:text-slate-400">
+                    <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Cơ chế xử lý: </span>
+                      Hệ thống đối soát cấu trúc và dấu vân tay mã nguồn để phát hiện mức độ trùng lặp. Giảng viên có thể chọn mức trừ điểm ở thanh công cụ bên dưới và nhấn <strong>Áp dụng trừ điểm ngay</strong> để trừ điểm trực tiếp vào kết quả bài thi của các sinh viên trùng bài.
+                    </div>
                   </div>
                 </>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60">
-              <div className="flex items-center gap-2">
-                <label htmlFor="dup-threshold" className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {t('lc.dup.threshold_label')}
-                </label>
-                <select
-                  id="dup-threshold"
-                  value={duplicateThreshold}
-                  onChange={(e) => setDuplicateThreshold(Number(e.target.value))}
-                  className="text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 px-2 py-1.5 cursor-pointer"
-                >
-                  {[60, 70, 80, 90, 100].map(v => <option key={v} value={v}>{v}%</option>)}
-                </select>
+            {/* Modal Footer with Penalty Policy Configuration & One-Click Apply */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0e121a]">
+              {/* Penalty Controls replacing the threshold buttons */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1.5">
+                    <ShieldAlert size={15} className="text-rose-500" />
+                    Mức trừ điểm:
+                  </span>
+                  <select
+                    value={duplicatePenaltyType}
+                    onChange={(e) => setDuplicatePenaltyType(e.target.value as any)}
+                    className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                  >
+                    <option value="FLAT_POINTS">Trừ điểm cố định (-X điểm)</option>
+                    <option value="PERCENT">Trừ theo % (-X%)</option>
+                    <option value="ZERO_SCORE">Trừ về 0 điểm (Hủy bài)</option>
+                    <option value="NONE">Không trừ điểm</option>
+                  </select>
+
+                  {(duplicatePenaltyType === 'FLAT_POINTS' || duplicatePenaltyType === 'PERCENT') && (
+                    <div className="relative flex items-center shrink-0">
+                      <input
+                        type="number"
+                        step={duplicatePenaltyType === 'PERCENT' ? '5' : '0.5'}
+                        min="0"
+                        max={duplicatePenaltyType === 'PERCENT' ? '100' : '10'}
+                        value={duplicatePenaltyValue}
+                        onChange={(e) => setDuplicatePenaltyValue(Number(e.target.value))}
+                        className="w-20 pl-2.5 pr-6 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 text-center shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                      />
+                      <span className="absolute right-2 text-[10px] font-bold text-slate-400 pointer-events-none">
+                        {duplicatePenaltyType === 'PERCENT' ? '%' : 'đ'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleCheckDuplicates}
-                  disabled={isCheckingDuplicates}
-                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors disabled:opacity-50 cursor-pointer"
+                  onClick={() => handleApplyDuplicatePenalty()}
+                  disabled={isApplyingPenalty || !duplicateReport || duplicateReport.clusters.length === 0}
+                  className="px-4 py-2 text-xs font-extrabold rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white transition-all shadow-md shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
                 >
-                  {isCheckingDuplicates ? t('lc.dup.checking') : t('lc.dup.recheck')}
+                  {isApplyingPenalty ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Đang áp dụng...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Flame size={14} className="fill-white" />
+                      <span>Áp dụng trừ điểm ngay</span>
+                    </>
+                  )}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowDuplicateModal(false)}
-                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-sm font-bold transition-all cursor-pointer"
-              >
-                {t('lc.dup.close') || 'Close'}
-              </button>
+
+              {/* Close Button */}
+              <div className="flex items-center justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDuplicateModal(false)}
+                  className="px-6 py-2 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  {t('lc.dup.close') || 'Đóng'}
+                </button>
+              </div>
             </div>
           </div>
         </div>,

@@ -13,6 +13,7 @@ import { BulkPublishGradesUseCase } from '../application/use-cases/bulk-publish-
 import { GetAiHintUseCase } from '../application/use-cases/get-ai-hint.use-case.js'
 import { ReopenSubmissionUseCase } from '../application/use-cases/reopen-submission.use-case.js'
 import { DetectDuplicateSubmissionsUseCase } from '../application/use-cases/detect-duplicate-submissions.use-case.js'
+import { ApplyDuplicatePenaltyUseCase } from '../application/use-cases/apply-duplicate-penalty.use-case.js'
 import { ListSubmissionsQueryDto, ReopenSubmissionRequestDto } from '../application/dtos/submission.dto.js'
 import type { ILogger } from '../../../shared/application/ports/logger.interface.js'
 
@@ -166,6 +167,13 @@ export class SubmissionsController extends BaseController {
         const useCase = new DetectDuplicateSubmissionsUseCase()
         const result = await useCase.execute({ assignmentId, user: req.user!, threshold })
         this.ok(res, result, 'Kiểm tra trùng bài thành công')
+    }
+
+    async applyDuplicatePenalty(req: Request, res: Response): Promise<void> {
+        this.logger.debug(`Received request to apply duplicate penalty for assignment: ${req.body.assignmentId}`)
+        const useCase = new ApplyDuplicatePenaltyUseCase()
+        const result = await useCase.execute({ dto: req.body, user: req.user! })
+        this.ok(res, result, 'Đã áp dụng trừ điểm bài trùng lặp thành công')
     }
 
     async reopen(req: Request, res: Response): Promise<void> {

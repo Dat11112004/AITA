@@ -828,6 +828,27 @@ export const gradingApi = {
         }>
       }>
     }>(`/submissions/duplicates?assignmentId=${encodeURIComponent(assignmentId)}${threshold !== undefined ? `&threshold=${threshold}` : ''}`),
+  applyDuplicatePenalty: (data: {
+    assignmentId: string
+    submissionIds: string[]
+    penaltyType: 'NONE' | 'FLAT_POINTS' | 'PERCENT' | 'ZERO_SCORE'
+    penaltyValue: number
+    reason?: string
+  }) =>
+    request<{
+      success: boolean
+      updatedCount: number
+      updatedSubmissions: Array<{
+        id: string
+        studentName: string | null
+        oldScore: number | null
+        newScore: number
+        deductedPoints: number
+      }>
+    }>('/submissions/apply-duplicate-penalty', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   updateSubmissionResult: (id: string, data: any) => request<any>('/grading/submissions/' + id + '/result', {
     method: 'PUT',
     body: JSON.stringify(data),

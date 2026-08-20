@@ -130,7 +130,7 @@ export default function AssignmentUploadPage() {
     const [content, setContent] = useState('');
     const [rubric, setRubric] = useState<any>(null);
     const [blueprint, setBlueprint] = useState<any>(null);
-    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', category: '', dueDate: '' });
+    const [metadata, setMetadata] = useState<any>({ title: 'AI Generated Assignment', description: '', projectType: 'backend', subject: '', category: '', dueDate: '', duplicatePenaltyType: 'FLAT_POINTS', duplicatePenaltyValue: 5 });
 
     const [answerKeyFile, setAnswerKeyFile] = useState<File | null>(null);
     const [answerKeyText, setAnswerKeyText] = useState<string>('');
@@ -1202,7 +1202,8 @@ export default function AssignmentUploadPage() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="col-span-1">
+                                                {/* Late Submission Policy */}
+                                                <div className="col-span-2 border-r border-slate-200 dark:border-slate-700/80 pr-6 mt-2 pt-4 border-t">
                                                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                                                         Late submission policy
                                                     </label>
@@ -1220,9 +1221,9 @@ export default function AssignmentUploadPage() {
                                                                 : 'bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
                                                                 }`}
                                                         >
-                                                            <option value="NONE">{t('lc.up.no_late_penalty')}</option>
+                                                            <option value="NONE">{t('lc.up.no_late_penalty') || 'No late penalty'}</option>
                                                             <option value="DAILY_POINTS">Deduct points by day (-X pts/24h)</option>
-                                                            <option value="FLAT_POINTS">{t('lc.up.flat_deduction')}</option>
+                                                            <option value="FLAT_POINTS">{t('lc.up.flat_deduction') || 'Flat deduction'}</option>
                                                         </select>
                                                         {metadata.allowLateSubmission !== false && metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
                                                             <div className="relative flex items-center shrink-0">
@@ -1279,6 +1280,70 @@ export default function AssignmentUploadPage() {
                                                                 </p>
                                                             </div>
                                                         </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Duplicate / Plagiarism Penalty Policy */}
+                                                <div className="col-span-2 mt-2 pt-4 border-t border-slate-200 dark:border-slate-700/80">
+                                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                                            Plagiarism & Duplicate Penalty Policy
+                                                        </label>
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800/60 flex items-center gap-1">
+                                                            Chống gian lận
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={metadata.duplicatePenaltyType || 'FLAT_POINTS'}
+                                                            onChange={(e) => {
+                                                                const newType = e.target.value
+                                                                const defaultVal = newType === 'PERCENT' ? 50 : (newType === 'ZERO_SCORE' ? 0 : 5)
+                                                                setMetadata({
+                                                                    ...metadata,
+                                                                    duplicatePenaltyType: newType,
+                                                                    duplicatePenaltyValue: (metadata.duplicatePenaltyValue !== undefined && metadata.duplicatePenaltyValue !== null) ? metadata.duplicatePenaltyValue : defaultVal
+                                                                })
+                                                            }}
+                                                            className="flex-1 px-3.5 py-2 border rounded-xl text-xs font-semibold shadow-xs focus:outline-none transition-all bg-white dark:bg-[#151821] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer"
+                                                        >
+                                                            <option value="NONE">Không trừ điểm (No penalty)</option>
+                                                            <option value="FLAT_POINTS">Trừ điểm cố định (-X điểm / bài trùng)</option>
+                                                            <option value="PERCENT">Trừ theo phần trăm (-X% điểm)</option>
+                                                            <option value="ZERO_SCORE">Trừ về 0 điểm (Hủy bài làm / Fail)</option>
+                                                        </select>
+
+                                                        {(metadata.duplicatePenaltyType === 'FLAT_POINTS' || metadata.duplicatePenaltyType === 'PERCENT' || !metadata.duplicatePenaltyType) && (
+                                                            <div className="relative flex items-center shrink-0">
+                                                                <input
+                                                                    type="number"
+                                                                    step={metadata.duplicatePenaltyType === 'PERCENT' ? '5' : '0.5'}
+                                                                    min="0"
+                                                                    max={metadata.duplicatePenaltyType === 'PERCENT' ? '100' : '10'}
+                                                                    placeholder="Mức phạt"
+                                                                    value={metadata.duplicatePenaltyValue !== undefined && metadata.duplicatePenaltyValue !== null ? metadata.duplicatePenaltyValue : (metadata.duplicatePenaltyType === 'PERCENT' ? 50 : 5)}
+                                                                    onChange={(e) => setMetadata({ ...metadata, duplicatePenaltyValue: Number(e.target.value) })}
+                                                                    className="w-28 pl-3 pr-7 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-[#151821] text-center text-amber-600 dark:text-amber-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                                                                />
+                                                                <span className="absolute right-2.5 text-[11px] font-bold text-slate-400 pointer-events-none">
+                                                                    {metadata.duplicatePenaltyType === 'PERCENT' ? '%' : 'pts'}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/60">
+                                                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed flex items-center gap-1.5">
+                                                            <span className="font-bold text-amber-700 dark:text-amber-400">Quy định áp dụng:</span>
+                                                            {metadata.duplicatePenaltyType === 'ZERO_SCORE'
+                                                                ? 'Các sinh viên có bài nộp trùng lặp sẽ bị huỷ kết quả và nhận 0 điểm.'
+                                                                : metadata.duplicatePenaltyType === 'PERCENT'
+                                                                    ? `Trừ ${metadata.duplicatePenaltyValue ?? 50}% tổng điểm của các bài nộp trùng lặp khi giảng viên xác nhận.`
+                                                                    : metadata.duplicatePenaltyType === 'NONE'
+                                                                        ? 'Chỉ cảnh báo trùng lặp mà không trừ điểm tự động.'
+                                                                        : `Trừ thẳng ${metadata.duplicatePenaltyValue ?? 5} điểm cho mỗi bài nộp trùng lặp khi giảng viên xác nhận.`
+                                                            }
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
