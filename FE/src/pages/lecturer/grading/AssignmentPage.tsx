@@ -108,7 +108,7 @@ export default function AssignmentPage() {
   const [duplicateError, setDuplicateError] = useState<boolean>(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateThreshold] = useState(80);
-  const [duplicatePenaltyType, setDuplicatePenaltyType] = useState<'NONE' | 'FLAT_POINTS' | 'PERCENT' | 'ZERO_SCORE'>('FLAT_POINTS');
+  const [duplicatePenaltyType, setDuplicatePenaltyType] = useState<'FLAT_POINTS' | 'ZERO_SCORE'>('FLAT_POINTS');
   const [duplicatePenaltyValue, setDuplicatePenaltyValue] = useState<number>(5);
   const [isApplyingPenalty, setIsApplyingPenalty] = useState<boolean>(false);
   const [penaltySuccessMsg, setPenaltySuccessMsg] = useState<string | null>(null);
@@ -2203,25 +2203,23 @@ export default function AssignmentPage() {
                         className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="FLAT_POINTS">{t('lc.dup.opt_flat') || 'Trừ điểm cố định (-X điểm)'}</option>
-                        <option value="PERCENT">{t('lc.dup.opt_percent') || 'Trừ theo % (-X%)'}</option>
                         <option value="ZERO_SCORE">{t('lc.dup.opt_zero') || 'Trừ về 0 điểm (Hủy bài)'}</option>
-                        <option value="NONE">{t('lc.dup.opt_none') || 'Không trừ điểm'}</option>
                       </select>
 
-                      {(duplicatePenaltyType === 'FLAT_POINTS' || duplicatePenaltyType === 'PERCENT') && (
+                      {duplicatePenaltyType === 'FLAT_POINTS' && (
                         <div className="relative flex items-center shrink-0">
                           <input
                             type="number"
                             disabled={isApplyingPenalty || !!isAllPenalized}
-                            step={duplicatePenaltyType === 'PERCENT' ? '5' : '0.5'}
+                            step="0.5"
                             min="0"
-                            max={duplicatePenaltyType === 'PERCENT' ? '100' : '10'}
+                            max="10"
                             value={duplicatePenaltyValue}
                             onChange={(e) => setDuplicatePenaltyValue(Number(e.target.value))}
                             className="w-20 pl-2.5 pr-6 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 text-center shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <span className="absolute right-2 text-[10px] font-bold text-slate-400 pointer-events-none">
-                            {duplicatePenaltyType === 'PERCENT' ? '%' : 'đ'}
+                            đ
                           </span>
                         </div>
                       )}
@@ -2302,9 +2300,7 @@ export default function AssignmentPage() {
                 <span className="font-extrabold text-rose-600 dark:text-rose-400">
                   {duplicatePenaltyType === 'ZERO_SCORE'
                     ? (t('lc.dup.zero_desc') || 'Hủy bài làm (về 0 điểm)')
-                    : duplicatePenaltyType === 'PERCENT'
-                      ? (t('lc.dup.percent_desc', { val: duplicatePenaltyValue }) || `Trừ ${duplicatePenaltyValue}% điểm`)
-                      : (t('lc.dup.flat_desc', { val: duplicatePenaltyValue }) || `Trừ ${duplicatePenaltyValue} điểm`)}
+                    : (t('lc.dup.flat_desc', { val: duplicatePenaltyValue }) || `Trừ ${duplicatePenaltyValue} điểm`)}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
