@@ -2072,7 +2072,6 @@ export default function AssignmentPage() {
                     ) : (
                       <div className="space-y-3">
                         {dupList.map((s) => {
-                          const subDate = s.submittedAt ? new Date(s.submittedAt) : null;
                           const studentName = s.studentName || s.studentId || s.submissionId;
                           const initials = studentName
                             ? studentName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
@@ -2087,23 +2086,11 @@ export default function AssignmentPage() {
                           return (
                             <div
                               key={s.submissionId}
-                              className={`
-                                p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs
-                                ${s.isFirst
-                                  ? 'bg-blue-50/30 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/40 hover:border-blue-300'
-                                  : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300'
-                                }
-                              `}
+                              className="p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300"
                             >
                               {/* Student Info */}
                               <div className="flex items-center gap-3.5 min-w-0">
-                                <div className={`
-                                  w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm
-                                  ${s.isFirst
-                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
-                                    : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                                  }
-                                `}>
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm bg-gradient-to-br from-indigo-500 to-blue-600 text-white">
                                   {initials}
                                 </div>
                                 <div className="min-w-0">
@@ -2120,7 +2107,7 @@ export default function AssignmentPage() {
                                 </div>
                               </div>
 
-                              {/* Right Details: Similarity % + Timestamp + Seq Tag + Penalized Tag */}
+                              {/* Right Details: Similarity % */}
                               <div className="flex items-center gap-3 flex-wrap shrink-0">
                                 {isPenalized && (
                                   <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
@@ -2130,29 +2117,10 @@ export default function AssignmentPage() {
                                 )}
 
                                 {/* Similarity percentage badge */}
-                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-xs">
+                                <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-xs">
                                   <Flame size={13} className="text-rose-500 fill-rose-500" />
                                   <span>{t('lc.dup.similarity_badge', { pct }) || `${pct}% Giống nhau`}</span>
                                 </div>
-
-                                {subDate && (
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                    <Clock size={13} className="text-slate-400 shrink-0" />
-                                    <span>
-                                      {subDate.toLocaleString(i18n.language === 'vi' ? 'vi-VN' : 'en-US')}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {s.isFirst ? (
-                                  <span className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-extrabold border border-blue-200 dark:border-blue-800">
-                                    {t('lc.dup.earliest_sub') || 'Nộp sớm nhất'}
-                                  </span>
-                                ) : (
-                                  <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800">
-                                    {s.diffLabel ? (t('lc.dup.later_sub', { diff: s.diffLabel }) || `Nộp sau (+${s.diffLabel} sau)`) : (t('lc.dup.later_sub_simple') || 'Nộp sau')}
-                                  </span>
-                                )}
                               </div>
                             </div>
                           );
