@@ -78,7 +78,7 @@ export default function AssignmentsListPage() {
   const itemsPerPage = 4;
 
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Soft Delete state
   const [deletingAssignment, setDeletingAssignment] = useState<PublishedAssignment | null>(null);
@@ -175,7 +175,7 @@ export default function AssignmentsListPage() {
       });
       setHardDeletingAssignment(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to permanently delete assignment');
+      alert(err.message || t('lc.al.delete_failed'));
     } finally {
       setIsHardDeleting(false);
     }
@@ -194,7 +194,7 @@ export default function AssignmentsListPage() {
       setAssignments(prev => [...restoredItems, ...prev]);
       setSelectedTrashIds(new Set());
     } catch (err: any) {
-      alert(err.message || 'Failed to restore selected assignments');
+      alert(err.message || t('lc.al.delete_failed'));
     } finally {
       setIsBulkActioning(false);
     }
@@ -212,7 +212,7 @@ export default function AssignmentsListPage() {
       setSelectedTrashIds(new Set());
       setShowBulkHardDeleteModal(false);
     } catch (err: any) {
-      alert(err.message || 'Failed to permanently delete selected assignments');
+      alert(err.message || t('lc.al.delete_failed'));
     } finally {
       setIsBulkActioning(false);
     }
@@ -358,20 +358,20 @@ export default function AssignmentsListPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-5 gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border border-brand-200/50 dark:border-brand-800/50">
+          <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700">
             {viewMode === 'trash' ? (
-              <Trash2 size={28} className="text-rose-500 dark:text-rose-400" strokeWidth={2.5} />
+              <Trash2 size={24} className="text-slate-600 dark:text-slate-400" />
             ) : (
-              <ListTodo size={28} strokeWidth={2.5} />
+              <ListTodo size={24} />
             )}
           </div>
           <div>
             <h1 className="text-2xl font-bold dark:text-white text-slate-900">
-              {viewMode === 'trash' ? 'Assignment Trash Bin' : t('lc.al.title')}
+              {viewMode === 'trash' ? (t('lc.trash.title') || 'Thùng rác bài tập') : t('lc.al.title')}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
               {viewMode === 'trash'
-                ? 'Manage soft-deleted assignments. You can restore them or permanently delete them.'
+                ? (t('lc.trash.subtitle') || 'Quản lý các bài tập đã xóa tạm. Bạn có thể khôi phục hoặc xóa vĩnh viễn.')
                 : t('lc.al.subtitle')}
             </p>
           </div>
@@ -386,13 +386,13 @@ export default function AssignmentsListPage() {
               />
               <button
                 onClick={() => setViewMode('trash')}
-                className="relative flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-800 rounded-xl font-medium transition-all shadow-sm whitespace-nowrap"
-                title="Open Assignment Trash Bin"
+                className="relative flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl font-medium transition-all shadow-xs whitespace-nowrap cursor-pointer"
+                title={t('lc.trash.btn') || 'Thùng rác'}
               >
-                <Trash2 size={18} />
-                <span>Trash Bin</span>
+                <Trash2 size={16} className="text-slate-500" />
+                <span>{t('lc.trash.btn') || 'Thùng rác'}</span>
                 {trashAssignments.length > 0 && (
-                  <span className="px-2 py-0.5 bg-rose-500 text-white text-xs font-bold rounded-full ml-0.5 animate-in zoom-in duration-200">
+                  <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-full ml-0.5">
                     {trashAssignments.length}
                   </span>
                 )}
@@ -400,7 +400,7 @@ export default function AssignmentsListPage() {
 
               <button
                 onClick={() => navigate('/lecturer/grading/assignments/upload')}
-                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap self-end sm:self-auto"
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition-colors shadow-sm whitespace-nowrap self-end sm:self-auto cursor-pointer"
               >
                 <Plus size={18} />
                 {t('lc.al.new_assignment')}
@@ -409,10 +409,10 @@ export default function AssignmentsListPage() {
           ) : (
             <button
               onClick={() => setViewMode('active')}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-semibold transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-semibold transition-colors shadow-xs cursor-pointer"
             >
-              <ArrowLeft size={18} />
-              <span>Back to assignments</span>
+              <ArrowLeft size={16} />
+              <span>{t('lc.trash.back') || 'Quay lại danh sách'}</span>
             </button>
           )}
         </div>
@@ -423,150 +423,140 @@ export default function AssignmentsListPage() {
         <div className="space-y-4">
 
           {/* Trash Toolbar */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3.5 shadow-xs">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={toggleSelectAllTrash}
                 disabled={trashAssignments.length === 0}
-                className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-50"
+                className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-50 cursor-pointer"
               >
                 {selectedTrashIds.size > 0 && selectedTrashIds.size === trashAssignments.length ? (
-                  <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
+                  <CheckSquare size={16} className="text-brand-600 dark:text-brand-400" />
                 ) : (
-                  <Square size={18} className="text-slate-400" />
+                  <Square size={16} className="text-slate-400" />
                 )}
-                <span>Select All ({trashAssignments.length})</span>
+                <span>{t('lc.trash.select_all', { count: trashAssignments.length }) || `Chọn tất cả (${trashAssignments.length})`}</span>
               </button>
 
               {selectedTrashIds.size > 0 && (
-                <span className="text-xs bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 font-bold px-2.5 py-1 rounded-lg border border-brand-200 dark:border-brand-800">
-                  Selected {selectedTrashIds.size}
+                <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-600">
+                  {t('lc.trash.selected', { count: selectedTrashIds.size }) || `Đã chọn ${selectedTrashIds.size}`}
                 </span>
               )}
             </div>
 
             {/* Bulk Actions */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-              <button
-                type="button"
-                disabled={selectedTrashIds.size === 0 || isBulkActioning}
-                onClick={handleBulkRestore}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              >
-                {isBulkActioning ? <RefreshCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                <span>Restore selected ({selectedTrashIds.size})</span>
-              </button>
+            {selectedTrashIds.size > 0 && (
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={isBulkActioning}
+                  onClick={handleBulkRestore}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  {isBulkActioning ? <RefreshCw size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                  <span>{t('lc.trash.restore_selected', { count: selectedTrashIds.size }) || `Khôi phục (${selectedTrashIds.size})`}</span>
+                </button>
 
-              <button
-                type="button"
-                disabled={selectedTrashIds.size === 0 || isBulkActioning}
-                onClick={() => setShowBulkHardDeleteModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-rose-600/20"
-              >
-                <Trash2 size={14} />
-                <span>Permanently delete selected ({selectedTrashIds.size})</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  disabled={isBulkActioning}
+                  onClick={() => setShowBulkHardDeleteModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  <Trash2 size={13} />
+                  <span>{t('lc.trash.delete_selected', { count: selectedTrashIds.size }) || `Xóa vĩnh viễn (${selectedTrashIds.size})`}</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Trash Items List */}
           {filteredTrashAssignments.length === 0 ? (
-            <div className="text-center py-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-              <Trash2 size={48} className="mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-              <h3 className="text-xl font-medium text-slate-700 dark:text-slate-300 mb-2">Trash bin is empty</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">No soft-deleted assignments found in the system.</p>
+            <div className="text-center py-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs">
+              <Trash2 size={40} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">
+                {t('lc.trash.empty_title') || 'Thùng rác trống'}
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs">
+                {t('lc.trash.empty_desc') || 'Không có bài tập nào trong thùng rác.'}
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {filteredTrashAssignments.map(assignment => {
-                const typeInfo = getProjectTypeInfo(assignment.metadata?.projectType);
-                const Icon = typeInfo.icon;
                 const isSelected = selectedTrashIds.has(assignment.id);
                 const deletedDateStr = assignment.deletedAt
-                  ? new Date(assignment.deletedAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                  : 'Unknown';
+                  ? new Date(assignment.deletedAt).toLocaleDateString(i18n.language === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : '—';
 
                 return (
                   <div
                     key={assignment.id}
-                    className={`bg-white dark:bg-slate-800 border ${isSelected ? 'border-brand-500 ring-2 ring-brand-500/20' : 'border-slate-200 dark:border-slate-700'} rounded-2xl p-5 shadow-sm transition-all flex flex-col md:flex-row md:items-center gap-5`}
+                    className={`bg-white dark:bg-slate-800 border ${isSelected ? 'border-brand-500 ring-2 ring-brand-500/20' : 'border-slate-200 dark:border-slate-700'} rounded-2xl p-4 shadow-xs transition-all flex flex-col md:flex-row md:items-center gap-4`}
                   >
                     {/* Checkbox */}
                     <button
                       type="button"
                       onClick={() => toggleTrashSelection(assignment.id)}
-                      className="p-1 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors self-start md:self-center"
+                      className="p-1 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors self-start md:self-center cursor-pointer"
                     >
                       {isSelected ? (
-                        <CheckSquare size={20} className="text-brand-600 dark:text-brand-400" />
+                        <CheckSquare size={18} className="text-brand-600 dark:text-brand-400" />
                       ) : (
-                        <Square size={20} className="text-slate-400" />
+                        <Square size={18} className="text-slate-400" />
                       )}
                     </button>
 
-                    {/* Icon Block */}
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${typeInfo.bg} text-white shadow-sm opacity-80`}>
-                      <Icon size={24} strokeWidth={2} />
+                    {/* Minimal Icon */}
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-600">
+                      <FileText size={18} />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-[15px] font-bold text-slate-800 dark:text-white uppercase truncate" title={assignment.metadata?.title || 'Untitled Assignment'}>
-                          {assignment.metadata?.title || 'Untitled Assignment'}
-                        </h3>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${typeInfo.lightBg} ${typeInfo.color} ${typeInfo.border} border whitespace-nowrap`}>
-                          {typeInfo.tag}
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60">
-                          SOFT DELETED
-                        </span>
-                      </div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate" title={assignment.metadata?.title || 'Untitled'}>
+                        {assignment.metadata?.title || 'Untitled'}
+                      </h3>
 
-                      <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1 mb-2">
-                        {assignment.metadata?.description || 'No description available'}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-400 font-medium">
-                        <div className="flex items-center gap-1 text-rose-500 dark:text-rose-400">
-                          <Trash2 size={13} />
-                          <span>Deleted on: {deletedDateStr}</span>
-                        </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                         {assignment.metadata?.subject && (
-                          <div className="flex items-center gap-1">
-                            <Code size={13} />
-                            <span>Subject: {assignment.metadata.subject}</span>
-                          </div>
+                          <span>
+                            {t('lc.trash.subject', { subject: assignment.metadata.subject }) || `Môn: ${assignment.metadata.subject}`}
+                          </span>
                         )}
+                        <span>
+                          {t('lc.trash.deleted_on', { date: deletedDateStr }) || `Đã xóa: ${deletedDateStr}`}
+                        </span>
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700/50">
+                    <div className="flex items-center gap-2 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700/50 shrink-0">
                       <button
                         type="button"
                         disabled={restoringId === assignment.id}
                         onClick={() => handleRestoreAssignment(assignment)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                        title="Restore to main list"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                        title={t('lc.trash.restore') || 'Khôi phục'}
                       >
                         {restoringId === assignment.id ? (
-                          <RefreshCw size={14} className="animate-spin" />
+                          <RefreshCw size={13} className="animate-spin" />
                         ) : (
-                          <RotateCcw size={14} />
+                          <RotateCcw size={13} />
                         )}
-                        <span>Restore</span>
+                        <span>{t('lc.trash.restore') || 'Khôi phục'}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setHardDeletingAssignment(assignment)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs font-bold transition-all shadow-sm"
-                        title="Permanently delete from database"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        title={t('lc.trash.delete_perm') || 'Xóa vĩnh viễn'}
                       >
-                        <Trash2 size={14} />
-                        <span>Permanently delete</span>
+                        <Trash2 size={13} />
+                        <span>{t('lc.trash.delete_perm') || 'Xóa vĩnh viễn'}</span>
                       </button>
                     </div>
                   </div>
@@ -729,8 +719,8 @@ export default function AssignmentsListPage() {
                         e.stopPropagation();
                         setDeletingAssignment(assignment);
                       }}
-                      className="p-2.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50"
-                      title="Move assignment to Trash bin"
+                      className="p-2.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 cursor-pointer"
+                      title={t('lc.trash.confirm_soft_title') || 'Chuyển vào thùng rác'}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -784,60 +774,64 @@ export default function AssignmentsListPage() {
 
       {/* 1. SOFT DELETE CONFIRMATION MODAL */}
       {deletingAssignment && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
 
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 bg-gradient-to-r from-amber-50/50 to-white dark:from-slate-800 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
-                  <Trash2 size={20} />
+                <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center border border-slate-200 dark:border-slate-600">
+                  <Trash2 size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Move to Trash Bin</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Soft-delete this assignment</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {t('lc.trash.confirm_soft_title') || 'Chuyển vào thùng rác'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t('lc.trash.confirm_soft_subtitle') || 'Bài tập sẽ bị ẩn khỏi danh sách chính'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setDeletingAssignment(null)}
-                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
             <div className="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
               <p>
-                Are you sure you want to move assignment <strong className="text-slate-900 dark:text-white">{deletingAssignment.metadata?.title || 'this item'}</strong> to the Trash bin?
+                {t('lc.trash.confirm_soft_desc', { title: deletingAssignment.metadata?.title || 'this item' }) || `Bạn có chắc chắn muốn chuyển bài tập "${deletingAssignment.metadata?.title || 'this item'}" vào thùng rác?`}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-amber-50/60 dark:bg-amber-950/30 p-3 rounded-xl border border-amber-100 dark:border-amber-900/40">
-                Soft-deleted assignments will be hidden from the Student Portal and main list. You can visit the <strong>Trash bin</strong> to restore this assignment at any time.
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                {t('lc.trash.confirm_soft_hint') || 'Bài tập sẽ bị ẩn khỏi sinh viên. Bạn có thể vào Thùng rác để khôi phục bất cứ lúc nào.'}
               </p>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+            <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeletingAssignment(null)}
                 disabled={isDeleting}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
-                Cancel
+                {t('lc.trash.cancel') || 'Hủy'}
               </button>
               <button
                 type="button"
                 onClick={handleSoftDeleteAssignment}
                 disabled={isDeleting}
-                className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/25 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-black dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isDeleting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 )}
-                <span>{isDeleting ? 'Moving...' : 'Move to Trash'}</span>
+                <span>{isDeleting ? (t('lc.trash.confirm_soft_loading') || 'Đang chuyển...') : (t('lc.trash.confirm_soft_btn') || 'Chuyển vào thùng rác')}</span>
               </button>
             </div>
 
@@ -848,60 +842,64 @@ export default function AssignmentsListPage() {
 
       {/* 2. SINGLE HARD DELETE CONFIRMATION MODAL */}
       {hardDeletingAssignment && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-rose-200/80 dark:border-rose-900/60 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-xl border border-rose-200 dark:border-rose-900/50 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
 
             {/* Header */}
-            <div className="px-6 py-4 border-b border-rose-100 dark:border-rose-900/40 bg-gradient-to-r from-rose-50 to-white dark:from-slate-800 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-rose-100 dark:border-rose-900/40 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20">
-                  <AlertTriangle size={20} />
+                <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-800">
+                  <AlertTriangle size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Permanently Delete Assignment</h3>
-                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Warning: Action cannot be undone</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {t('lc.trash.confirm_hard_title') || 'Xóa vĩnh viễn bài tập'}
+                  </h3>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                    {t('lc.trash.confirm_hard_subtitle') || 'Cảnh báo: Hành động này không thể hoàn tác'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setHardDeletingAssignment(null)}
-                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
             <div className="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
               <p>
-                Are you sure you want to <strong className="text-rose-600 dark:text-rose-400">PERMANENTLY DELETE</strong> assignment <strong className="text-slate-900 dark:text-white">{hardDeletingAssignment.metadata?.title || 'this item'}</strong>?
+                {t('lc.trash.confirm_hard_desc', { title: hardDeletingAssignment.metadata?.title || 'this item' }) || `Bạn có chắc muốn XÓA VĨNH VIỄN bài tập "${hardDeletingAssignment.metadata?.title || 'this item'}"?`}
               </p>
-              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed bg-rose-50 dark:bg-rose-950/50 p-3 rounded-xl border border-rose-200 dark:border-rose-900/60">
-                All assignment data, blueprint, rubric, and student submissions will be <strong>HARD DELETED from the database</strong> permanently and cannot be recovered!
+              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed bg-rose-50/70 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200/80 dark:border-rose-900/50">
+                {t('lc.trash.confirm_hard_hint') || 'Toàn bộ dữ liệu bài tập, tiêu chí rubric và các bài nộp của sinh viên sẽ bị xóa vĩnh viễn khỏi cơ sở dữ liệu.'}
               </p>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+            <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setHardDeletingAssignment(null)}
                 disabled={isHardDeleting}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
-                Cancel
+                {t('lc.trash.cancel') || 'Hủy'}
               </button>
               <button
                 type="button"
                 onClick={handleHardDeleteAssignment}
                 disabled={isHardDeleting}
-                className="flex items-center gap-2 px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-600/25 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isHardDeleting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 )}
-                <span>{isHardDeleting ? 'Deleting...' : 'Permanently delete'}</span>
+                <span>{isHardDeleting ? (t('lc.trash.confirm_hard_loading') || 'Đang xóa...') : (t('lc.trash.confirm_hard_btn') || 'Xóa vĩnh viễn')}</span>
               </button>
             </div>
 
@@ -912,60 +910,64 @@ export default function AssignmentsListPage() {
 
       {/* 3. BULK HARD DELETE CONFIRMATION MODAL */}
       {showBulkHardDeleteModal && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-rose-200/80 dark:border-rose-900/60 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-xl border border-rose-200 dark:border-rose-900/50 overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
 
             {/* Header */}
-            <div className="px-6 py-4 border-b border-rose-100 dark:border-rose-900/40 bg-gradient-to-r from-rose-50 to-white dark:from-slate-800 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-rose-100 dark:border-rose-900/40 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20">
-                  <AlertTriangle size={20} />
+                <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-800">
+                  <AlertTriangle size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Permanently Delete Multiple Assignments</h3>
-                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Warning: Action cannot be undone</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {t('lc.trash.confirm_bulk_title') || 'Xóa vĩnh viễn nhiều bài tập'}
+                  </h3>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                    {t('lc.trash.confirm_hard_subtitle') || 'Cảnh báo: Hành động này không thể hoàn tác'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowBulkHardDeleteModal(false)}
-                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
             <div className="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
               <p>
-                Are you sure you want to <strong className="text-rose-600 dark:text-rose-400">PERMANENTLY DELETE {selectedTrashIds.size} SELECTED ASSIGNMENTS</strong>?
+                {t('lc.trash.confirm_bulk_desc', { count: selectedTrashIds.size }) || `Bạn có chắc muốn XÓA VĨNH VIỄN ${selectedTrashIds.size} BÀI TẬP ĐÃ CHỌN?`}
               </p>
-              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed bg-rose-50 dark:bg-rose-950/50 p-3 rounded-xl border border-rose-200 dark:border-rose-900/60">
-                All data for these {selectedTrashIds.size} assignments and associated submission histories will be <strong>HARD DELETED from the database</strong> permanently!
+              <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed bg-rose-50/70 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200/80 dark:border-rose-900/50">
+                {t('lc.trash.confirm_bulk_hint') || 'Toàn bộ dữ liệu của các bài tập này và lịch sử nộp bài liên quan sẽ bị xóa vĩnh viễn khỏi cơ sở dữ liệu.'}
               </p>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-3">
+            <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowBulkHardDeleteModal(false)}
                 disabled={isBulkActioning}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
-                Cancel
+                {t('lc.trash.cancel') || 'Hủy'}
               </button>
               <button
                 type="button"
                 onClick={handleBulkHardDelete}
                 disabled={isBulkActioning}
-                className="flex items-center gap-2 px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-600/25 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isBulkActioning ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 )}
-                <span>{isBulkActioning ? 'Deleting...' : `Permanently delete ${selectedTrashIds.size} items`}</span>
+                <span>{isBulkActioning ? (t('lc.trash.confirm_hard_loading') || 'Đang xóa...') : (t('lc.trash.delete_selected', { count: selectedTrashIds.size }) || `Xóa vĩnh viễn (${selectedTrashIds.size})`)}</span>
               </button>
             </div>
 
