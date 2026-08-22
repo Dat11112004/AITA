@@ -1204,7 +1204,9 @@ export default function AssignmentUploadPage() {
                                                 </div>
                                                 {/* Late Submission Policy */}
                                                 <div className="col-span-4 mt-2 pt-4 border-t border-slate-200">
-                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{t('lc.up.late_submission_policy') || 'Late submission policy'}</label>
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                                                        {t('lc.up.late_submission_policy') || 'Quy tắc nộp trễ (Late Submission Policy)'}
+                                                    </label>
                                                     <div className="flex items-center gap-2">
                                                         <select
                                                             value={metadata.allowLateSubmission === false ? 'NONE' : (metadata.latePenaltyType || 'NONE')}
@@ -1219,9 +1221,9 @@ export default function AssignmentUploadPage() {
                                                                 : 'bg-white border-slate-200 text-slate-700 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer'
                                                                 }`}
                                                         >
-                                                            <option value="NONE">{t('lc.up.no_late_penalty') || 'No late penalty'}</option>
-                                                            <option value="DAILY_POINTS">{t('lc.up.deduct_by_day') || 'Deduct points by day (-X pts/24h)'}</option>
-                                                            <option value="FLAT_POINTS">{t('lc.up.flat_deduction') || 'Flat deduction'}</option>
+                                                            <option value="NONE">{t('lc.up.no_late_penalty') || 'Không phạt trễ (No late penalty)'}</option>
+                                                            <option value="DAILY_POINTS">{t('lc.up.deduct_by_day') || 'Trừ điểm theo ngày (-X điểm/24h)'}</option>
+                                                            <option value="FLAT_POINTS">{t('lc.up.flat_deduction') || 'Trừ cố định (X điểm)'}</option>
                                                         </select>
                                                         {metadata.allowLateSubmission !== false && metadata.latePenaltyType && metadata.latePenaltyType !== 'NONE' && (
                                                             <div className="relative flex items-center shrink-0">
@@ -1229,7 +1231,7 @@ export default function AssignmentUploadPage() {
                                                                     type="number"
                                                                     step="0.5"
                                                                     min="0"
-                                                                    placeholder={t('lc.up.penalty_placeholder')}
+                                                                    placeholder={t('lc.up.penalty_placeholder') || 'Mức phạt'}
                                                                     value={metadata.latePenaltyValue !== undefined && metadata.latePenaltyValue !== null ? metadata.latePenaltyValue : 2}
                                                                     onChange={(e) => setMetadata({ ...metadata, latePenaltyValue: Number(e.target.value) })}
                                                                     className="w-24 pl-3 pr-7 py-2 border border-slate-200 rounded-lg text-xs font-bold text-center text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
@@ -1259,22 +1261,22 @@ export default function AssignmentUploadPage() {
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 flex-wrap">
                                                                     <span className="text-xs font-bold text-slate-800 group-hover:text-brand-600 transition-colors">
-                                                                        {t('lc.up.allow_late_label') || 'Allow late submissions after deadline (penalty applied)'}
+                                                                        {t('lc.up.allow_late_label') || 'Cho phép nộp bài sau hạn nộp (áp dụng trừ điểm theo chính sách)'}
                                                                     </span>
                                                                     {metadata.allowLateSubmission !== false ? (
                                                                         <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 rounded-md border border-emerald-200">
-                                                                            {t('lc.up.late_allowed_badge') || 'Late submission allowed'}
+                                                                            {t('lc.up.late_allowed_badge') || 'Cho phép nộp trễ'}
                                                                         </span>
                                                                     ) : (
                                                                         <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-600 rounded-md border border-rose-200">
-                                                                            {t('lc.up.late_blocked_badge') || 'Block submissions after deadline'}
+                                                                            {t('lc.up.late_blocked_badge') || 'Chặn nộp sau hạn'}
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                                 <p className="text-[11px] font-medium text-slate-500 mt-1 leading-relaxed">
                                                                     {metadata.allowLateSubmission !== false
-                                                                        ? t('lc.up.late_allowed_note', { n: metadata.latePenaltyValue || 2 })
-                                                                        : t('lc.up.lock_note')}
+                                                                        ? (t('lc.up.late_allowed_note', { n: metadata.latePenaltyValue || 2 }) || `Sinh viên có thể nộp sau hạn (tự động trừ ${metadata.latePenaltyValue || 2} điểm theo chính sách).`)
+                                                                        : (t('lc.up.lock_note') || 'Đến hạn nộp, hệ thống sẽ tự khoá và chặn hoàn toàn việc nộp bài của sinh viên.')}
                                                                 </p>
                                                             </div>
                                                         </label>
