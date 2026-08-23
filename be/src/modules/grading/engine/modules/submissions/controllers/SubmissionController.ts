@@ -1,24 +1,24 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../../../../../database/prisma.js';
-import { BadRequestError } from '../../../shared/errors';
-import { ExecutionSandboxService, SandboxHandle } from '../../../application/sandbox/ExecutionSandboxService';
+import { BadRequestError } from '../../../shared/errors/index.js';
+import { ExecutionSandboxService, SandboxHandle } from '../../../application/sandbox/ExecutionSandboxService.js';
 
-import { PlaywrightExecutor } from '../../../application/execution/PlaywrightExecutor';
-import { RubricEvaluator, EvaluationContext } from '../../../application/evaluator/RubricEvaluator';
-import { globalAssignmentRepository } from '../../../assignment/PublishedAssignmentRepository';
-import { extractZipAsync } from '../../../shared/helpers/unzipHelper';
-import { Submission } from '../../../core/domain/submission/Submission';
-import { SubmissionState } from '../../../core/domain/submission/SubmissionState';
-import { ProjectSourceSnapshot } from '../../../application/evaluator/AICodeReviewEngine';
+import { PlaywrightExecutor } from '../../../application/execution/PlaywrightExecutor.js';
+import { RubricEvaluator, EvaluationContext } from '../../../application/evaluator/RubricEvaluator.js';
+import { globalAssignmentRepository } from '../../../assignment/PublishedAssignmentRepository.js';
+import { extractZipAsync } from '../../../shared/helpers/unzipHelper.js';
+import { Submission } from '../../../core/domain/submission/Submission.js';
+import { SubmissionState } from '../../../core/domain/submission/SubmissionState.js';
+import { ProjectSourceSnapshot } from '../../../application/evaluator/AICodeReviewEngine.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { DocumentExtractor } from '../../../assignment/DocumentExtractor';
-import { globalSubmissionQueue, continuousSubmissionQueue, SubmissionQueue } from '../../../application/queue/SubmissionQueue';
-import { globalJobManager } from '../../../application/queue/SubmissionJobManager';
-import { SubmissionHistoryRepository } from '../../../infrastructure/file-system/SubmissionHistoryRepository';
-import { calculateLatePenalty } from '../../../../submissions/domain/utils/late-penalty-calculator.js';
+import { DocumentExtractor } from '../../../assignment/DocumentExtractor.js';
+import { globalSubmissionQueue, continuousSubmissionQueue, SubmissionQueue } from '../../../application/queue/SubmissionQueue.js';
+import { globalJobManager } from '../../../application/queue/SubmissionJobManager.js';
+import { SubmissionHistoryRepository } from '../../../infrastructure/file-system/SubmissionHistoryRepository.js';
+import { calculateLatePenalty } from '../../../../../submissions/domain/utils/late-penalty-calculator.js';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 export class SubmissionController extends BaseController {
