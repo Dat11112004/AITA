@@ -1127,15 +1127,38 @@ export default function AssignmentPage() {
                         <div className="text-slate-400 font-medium">-</div>
                       ) : (
                         <>
-                          <div className="text-slate-900 dark:text-slate-200 font-medium">{new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
-                          <div className="text-xs text-emerald-600 dark:text-emerald-400">{t('lc.ap.on_time')}</div>
+                          <div className="text-slate-900 dark:text-slate-200 font-medium">
+                            {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          {item.isLate || item.latePenaltyAmount > 0 ? (
+                            <div className="text-xs text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 mt-0.5">
+                              <Clock size={11} className="shrink-0" />
+                              <span>{t('lc.ap.late') || 'Nộp trễ'}</span>
+                              {item.latePenaltyAmount > 0 && (
+                                <span className="font-extrabold text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-950/60 rounded text-rose-700 dark:text-rose-300">
+                                  -{item.latePenaltyAmount}đ
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                              {t('lc.ap.on_time') || '(Đúng hạn)'}
+                            </div>
+                          )}
                         </>
                       )}
                     </td>
                     <td className="py-4 px-4">
                       {item.status === 'Graded' ? (
-                        <div className={classNames("text-lg font-bold", textClass)}>
-                          {Number(item.score).toLocaleString('vi-VN')}
+                        <div>
+                          <div className={classNames("text-lg font-bold", textClass)}>
+                            {Number(item.score).toLocaleString('vi-VN')}
+                          </div>
+                          {item.latePenaltyAmount > 0 && (
+                            <div className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
+                              {item.rawScore}đ - {item.latePenaltyAmount}đ trễ
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-slate-400 font-medium">-</div>
@@ -1286,12 +1309,29 @@ export default function AssignmentPage() {
                           )}
                         </div>
                         {item.status !== 'NotSubmitted' ? (
-                          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            Submitted: {new Date(item.assessedAt).toLocaleDateString()} {new Date(item.assessedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                          <div className="mt-0.5">
+                            <p className="text-[12px] text-slate-500 dark:text-slate-400">
+                              {new Date(item.assessedAt).toLocaleDateString('vi-VN')} {new Date(item.assessedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            {item.isLate || item.latePenaltyAmount > 0 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-0.5">
+                                <Clock size={11} className="shrink-0" />
+                                <span>{t('lc.ap.late') || 'Nộp trễ'}</span>
+                                {item.latePenaltyAmount > 0 && (
+                                  <span className="px-1.5 py-0.2 bg-rose-100 dark:bg-rose-950/60 rounded text-rose-700 dark:text-rose-300 font-extrabold text-[10px]">
+                                    -{item.latePenaltyAmount}đ
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                {t('lc.ap.on_time') || '(Đúng hạn)'}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5">
-                            Not submitted
+                            {t('lc.ap.st.not_submitted') || 'Chưa nộp'}
                           </p>
                         )}
                       </div>
@@ -1309,9 +1349,16 @@ export default function AssignmentPage() {
                       </span>
                     </div>
                     {item.status === 'Graded' ? (
-                      <div className="flex justify-between items-end mb-2 h-[30px]">
-                        <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
-                          {Number(item.score).toLocaleString('vi-VN')}
+                      <div className="flex justify-between items-end mb-2 min-h-[30px]">
+                        <div>
+                          <div className="text-[26px] font-bold text-slate-900 dark:text-white leading-none">
+                            {Number(item.score).toLocaleString('vi-VN')}
+                          </div>
+                          {item.latePenaltyAmount > 0 && (
+                            <div className="text-[10px] text-slate-400 font-medium mt-1">
+                              {item.rawScore}đ - {item.latePenaltyAmount}đ trễ
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (

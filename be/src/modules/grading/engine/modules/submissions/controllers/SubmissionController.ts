@@ -18,6 +18,7 @@ import { DocumentExtractor } from '../../../assignment/DocumentExtractor';
 import { globalSubmissionQueue, continuousSubmissionQueue, SubmissionQueue } from '../../../application/queue/SubmissionQueue';
 import { globalJobManager } from '../../../application/queue/SubmissionJobManager';
 import { SubmissionHistoryRepository } from '../../../infrastructure/file-system/SubmissionHistoryRepository';
+import { calculateLatePenalty } from '../../../../submissions/domain/utils/late-penalty-calculator.js';
 
 import { BaseController } from '../../../../../../shared/presentation/base-controller.js';
 export class SubmissionController extends BaseController {
@@ -1120,6 +1121,8 @@ export class SubmissionController extends BaseController {
                 .filter(Boolean)
                 .map(c => ({ id: c.Id, className: c.ClassName || c.ClassCode, classCode: c.ClassCode }));
 
+            const classDueDateMap = new Map(examClasses.map(ec => [ec.ClassId, ec.DueDate]));
+
             // Fetch all students enrolled in the classes of this assignment
             const allStudentClasses = await prisma.studentClass.findMany({
                 where: {
@@ -1153,9 +1156,26 @@ export class SubmissionController extends BaseController {
                 }
             });
 
+            // Fetch overrides
+            const overrides = await prisma.submissionOverride.findMany({
+                where: {
+                    ExamId: assignmentId,
+                    StudentId: { in: studentIds }
+                }
+            });
+            const overrideMap = new Map(overrides.map(o => [o.StudentId, o]));
+
             const assignment = await prisma.exam.findUnique({
                 where: { Id: assignmentId },
-                select: { Title: true, TotalPoints: true }
+                select: {
+                    Title: true,
+                    TotalPoints: true,
+                    DueDate: true,
+                    LatePenaltyType: true,
+                    LatePenaltyValue: true,
+                    MaxLatePenalty: true,
+                    AllowLateSubmission: true,
+                }
             });
 
             const maxScore = assignment?.TotalPoints ? Number(assignment.TotalPoints) : 10;
@@ -1174,7 +1194,96 @@ export class SubmissionController extends BaseController {
                     }
                 }
 
-                const score = submission?.FinalScore !== null && submission?.FinalScore !== undefined ? Number(submission.FinalScore) : 0;
+                const isGraded = status === 'Graded';
+                const effectiveDueDate = (submission?.ClassId ? classDueDateMap.get(submission.ClassId) : null) || assignment?.DueDate || null;
+                const submittedAt = submission?.SubmittedAt ? new Date(submission.SubmittedAt) : null;
+                const studentOverride = sc.UserId ? overrideMap.get(sc.UserId) : null;
+
+                let rawScore = submission?.RawScore !== null && submission?.RawScore !== undefined
+                    ? Number(submission.RawScore)
+                    : (submission?.FinalScore !== null && submission?.FinalScore !== undefined ? Number(submission.FinalScore) : 0);
+                let latePenaltyAmount = submission?.LatePenaltyAmount !== null && submission?.LatePenaltyAmount !== undefined
+                    ? Number(submission.LatePenaltyAmount)
+                    : 0;
+                let finalScore = submission?.FinalScore !== null && submission?.FinalScore !== undefined
+                    ? Number(submission.FinalScore)
+                    : rawScore;
+
+                let isLate = false;
+                let daysLate = 0;
+                let hoursLate = 0;
+                let lateReason = '';
+
+                if (submittedAt && effectiveDueDate) {
+                    const penaltyCalc = calculateLatePenalty({
+                        rawScore,
+                        submittedAt,
+                        originalDueDate: effectiveDueDate,
+                        override: studentOverride ? {
+                            extendedDueDate: studentOverride.ExtendedDueDate,
+                            penaltyMode: studentOverride.PenaltyMode,
+                            customPenaltyRate: studentOverride.CustomPenaltyRate ? Number(studentOverride.CustomPenaltyRate) : null,
+                            flatPenaltyAmount: studentOverride.FlatPenaltyAmount ? Number(studentOverride.FlatPenaltyAmount) : null,
+                            scoreCap: studentOverride.ScoreCap ? Number(studentOverride.ScoreCap) : null,
+                        } : null,
+                        examPenaltyType: assignment?.LatePenaltyType,
+                        examPenaltyValue: assignment?.LatePenaltyValue ? Number(assignment.LatePenaltyValue) : null,
+                        maxLatePenalty: assignment?.MaxLatePenalty ? Number(assignment.MaxLatePenalty) : null,
+                    });
+
+                    isLate = penaltyCalc.isLate;
+                    daysLate = penaltyCalc.daysLate || 0;
+                    hoursLate = penaltyCalc.hoursLate || 0;
+                    lateReason = penaltyCalc.lateReason || '';
+
+                    // If already graded and late penalty was not yet deducted in DB, apply auto-sync
+                    if (isGraded && penaltyCalc.isLate && penaltyCalc.latePenaltyAmount > 0 && (submission.LatePenaltyAmount === null || Number(submission.LatePenaltyAmount) === 0)) {
+                        latePenaltyAmount = penaltyCalc.latePenaltyAmount;
+                        finalScore = penaltyCalc.finalScore;
+
+                        // Async self-healing update in DB
+                        (async () => {
+                            try {
+                                const dueFormatted = effectiveDueDate ? new Date(effectiveDueDate).toLocaleString('vi-VN') : 'Hạn nộp';
+                                const subFormatted = submittedAt.toLocaleString('vi-VN');
+                                const aiLateNote = `\n\n> ⚠️ **Lưu ý đánh giá từ AI (Trừ điểm nộp trễ / Late Submission Penalty)**:\n> - **Lý do bị trừ điểm / Reason**: Bài làm được nộp sau hạn chót (Hạn nộp / Deadline: **${dueFormatted}** ➔ Nộp lúc / Submitted: **${subFormatted}**). Thời gian nộp muộn: **${penaltyCalc.hoursLate} giờ** (tương đương **${penaltyCalc.daysLate} ngày / chu kỳ 24h**).\n> - **Mức phạt áp dụng / Applied Penalty**: ${penaltyCalc.lateReason || `Trừ ${penaltyCalc.latePenaltyAmount} điểm`} (Điểm gốc bài làm / Original: **${penaltyCalc.rawScore}**đ ➔ Điểm cuối cùng công bố / Final: **${penaltyCalc.finalScore}**đ).\n> - **Quy chế học thuật / Academic Policy**: Sinh viên vui lòng chú ý nộp bài đúng hạn để đảm bảo quyền lợi và bảo toàn trọn vẹn điểm số trong các bài tập tiếp theo.`;
+
+                                let reportJson = submission.ReportData;
+                                if (reportJson) {
+                                    try {
+                                        const rep = JSON.parse(reportJson);
+                                        rep.totalScore = finalScore;
+                                        rep.rawScore = rawScore;
+                                        rep.latePenaltyAmount = latePenaltyAmount;
+                                        rep.isLate = true;
+                                        let currentOverall = rep.overallFeedback || '';
+                                        if (currentOverall.includes('Lưu ý đánh giá từ AI (Trừ điểm nộp trễ') || currentOverall.includes('Late Submission Penalty')) {
+                                            currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý[^\n]*\n(?:> [^\n]*\n?)*/g, aiLateNote.trim());
+                                        } else {
+                                            currentOverall = `${currentOverall}${aiLateNote}`;
+                                        }
+                                        rep.overallFeedback = currentOverall;
+                                        reportJson = JSON.stringify(rep);
+                                    } catch (e) {}
+                                }
+
+                                await prisma.submission.update({
+                                    where: { Id: submission.Id },
+                                    data: {
+                                        RawScore: rawScore,
+                                        LatePenaltyAmount: latePenaltyAmount,
+                                        FinalScore: finalScore,
+                                        ...(reportJson ? { ReportData: reportJson } : {})
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('[getHistory] Auto-sync late penalty error:', e);
+                            }
+                        })();
+                    }
+                }
+
+                const score = finalScore;
                 const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
 
                 return {
@@ -1189,6 +1298,12 @@ export class SubmissionController extends BaseController {
                     className: sc.Class?.ClassName || sc.Class?.ClassCode || 'Chưa phân lớp',
                     classCode: sc.Class?.ClassCode || '',
                     score,
+                    rawScore,
+                    latePenaltyAmount,
+                    isLate,
+                    daysLate,
+                    hoursLate,
+                    lateReason,
                     maxScore,
                     percentage,
                     assessedAt: submission?.SubmittedAt || new Date(0),

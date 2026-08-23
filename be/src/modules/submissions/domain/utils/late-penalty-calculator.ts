@@ -70,18 +70,18 @@ export function calculateLatePenalty({
     latePenaltyAmount = 0;
     lateReason = `Mức điểm tối đa nộp trễ giới hạn ở ${override?.scoreCap} điểm`;
   } else {
-    const penaltyType = examPenaltyType || 'NONE';
-    const penaltyValue = Number(examPenaltyValue || 0);
+    const penaltyType = String(examPenaltyType || 'NONE').toUpperCase();
+    const penaltyValue = Number(examPenaltyValue !== undefined && examPenaltyValue !== null ? examPenaltyValue : (penaltyType === 'DAILY_POINTS' ? 2 : 0));
 
     if (penaltyType === 'DAILY_POINTS') {
-      latePenaltyAmount = daysLate * penaltyValue;
-      lateReason = `Nộp trễ ${daysLate} ngày (Mức phạt hệ thống: -${penaltyValue} điểm/24h)`;
+      latePenaltyAmount = Math.round(daysLate * penaltyValue * 100) / 100;
+      lateReason = `Nộp trễ ${hoursLate} giờ (${daysLate} chu kỳ 24h) - Trừ ${penaltyValue} điểm/24h`;
     } else if (penaltyType === 'DAILY_PERCENT') {
-      latePenaltyAmount = (daysLate * penaltyValue / 100) * rawScore;
-      lateReason = `Nộp trễ ${daysLate} ngày (Mức phạt hệ thống: -${penaltyValue}%/24h)`;
+      latePenaltyAmount = Math.round(((daysLate * penaltyValue / 100) * rawScore) * 100) / 100;
+      lateReason = `Nộp trễ ${hoursLate} giờ (${daysLate} chu kỳ 24h) - Trừ ${penaltyValue}%/24h (-${latePenaltyAmount}đ)`;
     } else if (penaltyType === 'FLAT_POINTS') {
-      latePenaltyAmount = penaltyValue;
-      lateReason = `Nộp trễ (Mức phạt cố định hệ thống: -${penaltyValue} điểm)`;
+      latePenaltyAmount = Math.round(penaltyValue * 100) / 100;
+      lateReason = `Nộp trễ sau hạn chót - Trừ cố định ${penaltyValue} điểm`;
     }
   }
 
@@ -89,7 +89,7 @@ export function calculateLatePenalty({
     latePenaltyAmount = Number(maxLatePenalty);
   }
 
-  let finalScore = Math.max(0, rawScore - latePenaltyAmount);
+  let finalScore = Math.max(0, Math.round((rawScore - latePenaltyAmount) * 100) / 100);
 
   if (penaltyMode === 'SCORE_CAP' && override?.scoreCap !== null && override?.scoreCap !== undefined) {
     finalScore = Math.min(finalScore, Number(override.scoreCap));

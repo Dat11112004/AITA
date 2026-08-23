@@ -1,5 +1,6 @@
 import { prisma } from '../../../../../database/prisma.js';
 import { Prisma } from '@prisma/client';
+import { calculateLatePenalty } from '../../../../submissions/domain/utils/late-penalty-calculator.js';
 
 export interface GradedSubmission {
     id: string;
@@ -87,27 +88,26 @@ export class SubmissionHistoryRepository {
     }
 
     async saveAsync(submission: GradedSubmission): Promise<void> {
-        // Embed metadata into report for safe storage if they are not valid UUIDs
-        const enrichedReport = {
-            ...submission.report,
-            __metadata: {
-                assignmentId: submission.assignmentId,
-                studentId: submission.studentId,
-                title: submission.title,
-            }
-        };
-        const reportJson = JSON.stringify(enrichedReport);
-        
         let validExamId = isValidUUID(submission.assignmentId) ? submission.assignmentId : undefined;
         let validStudentId = isValidUUID(submission.studentId) ? submission.studentId : undefined;
 
-        // Verify that the Exam actually exists to prevent Foreign Key constraint violations
+        let examRecord: any = null;
         if (validExamId) {
-            const examExists = await prisma.exam.findUnique({ where: { Id: validExamId }, select: { Id: true } });
-            if (!examExists) validExamId = undefined;
+            examRecord = await prisma.exam.findUnique({
+                where: { Id: validExamId },
+                select: {
+                    Id: true,
+                    DueDate: true,
+                    LatePenaltyType: true,
+                    LatePenaltyValue: true,
+                    MaxLatePenalty: true,
+                    AllowLateSubmission: true,
+                    Title: true,
+                }
+            });
+            if (!examRecord) validExamId = undefined;
         }
 
-        // Verify that the Student actually exists
         if (validStudentId) {
             const studentExists = await prisma.user.findUnique({ where: { Id: validStudentId }, select: { Id: true } });
             if (!studentExists) validStudentId = undefined;
@@ -115,12 +115,87 @@ export class SubmissionHistoryRepository {
 
         const existing = await prisma.submission.findUnique({ where: { Id: submission.id } });
 
+        let classDueDate: Date | null = null;
+        if (validExamId && existing?.ClassId) {
+            try {
+                const ec = await prisma.examClass.findUnique({
+                    where: { ExamId_ClassId: { ExamId: validExamId, ClassId: existing.ClassId } },
+                    select: { DueDate: true }
+                });
+                if (ec?.DueDate) classDueDate = ec.DueDate;
+            } catch (e) {}
+        }
+
+        let override: any = null;
+        if (validExamId && validStudentId) {
+            try {
+                override = await prisma.submissionOverride.findUnique({
+                    where: { ExamId_StudentId: { ExamId: validExamId, StudentId: validStudentId } }
+                });
+            } catch (e) {}
+        }
+
+        const rawScore = Number(submission.report?.totalScore ?? submission.score ?? 0);
+        const submittedAtDate = existing?.SubmittedAt ? new Date(existing.SubmittedAt) : new Date(submission.assessedAt);
+        const originalDueDate = classDueDate || examRecord?.DueDate || null;
+
+        const penaltyCalc = calculateLatePenalty({
+            rawScore,
+            submittedAt: submittedAtDate,
+            originalDueDate,
+            override: override ? {
+                extendedDueDate: override.ExtendedDueDate,
+                penaltyMode: override.PenaltyMode,
+                customPenaltyRate: override.CustomPenaltyRate ? Number(override.CustomPenaltyRate) : null,
+                flatPenaltyAmount: override.FlatPenaltyAmount ? Number(override.FlatPenaltyAmount) : null,
+                scoreCap: override.ScoreCap ? Number(override.ScoreCap) : null,
+            } : null,
+            examPenaltyType: examRecord?.LatePenaltyType,
+            examPenaltyValue: examRecord?.LatePenaltyValue ? Number(examRecord.LatePenaltyValue) : null,
+            maxLatePenalty: examRecord?.MaxLatePenalty ? Number(examRecord.MaxLatePenalty) : null,
+        });
+
+        // Embed metadata and late penalty into report
+        const enrichedReport: any = {
+            ...submission.report,
+            rawScore: penaltyCalc.rawScore,
+            latePenaltyAmount: penaltyCalc.latePenaltyAmount,
+            totalScore: penaltyCalc.finalScore,
+            isLate: penaltyCalc.isLate,
+            daysLate: penaltyCalc.daysLate,
+            hoursLate: penaltyCalc.hoursLate,
+            lateReason: penaltyCalc.lateReason,
+            __metadata: {
+                assignmentId: submission.assignmentId,
+                studentId: submission.studentId,
+                title: submission.title,
+            }
+        };
+
+        if (penaltyCalc.isLate && penaltyCalc.latePenaltyAmount > 0) {
+            const dueFormatted = originalDueDate ? new Date(originalDueDate).toLocaleString('vi-VN') : 'Hạn nộp';
+            const subFormatted = submittedAtDate.toLocaleString('vi-VN');
+            const aiLateNote = `\n\n> ⚠️ **Lưu ý đánh giá từ AI (Trừ điểm nộp trễ / Late Submission Penalty)**:\n> - **Lý do bị trừ điểm / Reason**: Bài làm được nộp sau hạn chót (Hạn nộp / Deadline: **${dueFormatted}** ➔ Nộp lúc / Submitted: **${subFormatted}**). Thời gian nộp muộn: **${penaltyCalc.hoursLate} giờ** (tương đương **${penaltyCalc.daysLate} ngày / chu kỳ 24h**).\n> - **Mức phạt áp dụng / Applied Penalty**: ${penaltyCalc.lateReason || `Trừ ${penaltyCalc.latePenaltyAmount} điểm`} (Điểm gốc bài làm / Original: **${penaltyCalc.rawScore}**đ ➔ Điểm cuối cùng công bố / Final: **${penaltyCalc.finalScore}**đ).\n> - **Quy chế học thuật / Academic Policy**: Sinh viên vui lòng chú ý nộp bài đúng hạn để đảm bảo quyền lợi và bảo toàn trọn vẹn điểm số trong các bài tập tiếp theo.`;
+
+            let currentOverall = enrichedReport.overallFeedback || '';
+            if (currentOverall.includes('Lưu ý đánh giá từ AI (Trừ điểm nộp trễ') || currentOverall.includes('Late Submission Penalty')) {
+                currentOverall = currentOverall.replace(/> ⚠️ \*\*Lưu ý[^\n]*\n(?:> [^\n]*\n?)*/g, aiLateNote.trim());
+            } else {
+                currentOverall = `${currentOverall}${aiLateNote}`;
+            }
+            enrichedReport.overallFeedback = currentOverall;
+        }
+
+        const reportJson = JSON.stringify(enrichedReport);
+
         if (existing) {
             await prisma.submission.update({
                 where: { Id: submission.id },
                 data: {
                     GradingStatus: 'GRADED',
-                    FinalScore: submission.score,
+                    RawScore: penaltyCalc.rawScore,
+                    LatePenaltyAmount: penaltyCalc.latePenaltyAmount,
+                    FinalScore: penaltyCalc.finalScore,
                     TotalScore: submission.maxScore,
                     GradedAt: new Date(submission.assessedAt),
                     ReportData: reportJson,
@@ -138,11 +213,13 @@ export class SubmissionHistoryRepository {
                     StudentId: validStudentId,
                     AttemptNumber: randomAttempt,
                     GradingStatus: 'GRADED',
-                    FinalScore: submission.score,
+                    RawScore: penaltyCalc.rawScore,
+                    LatePenaltyAmount: penaltyCalc.latePenaltyAmount,
+                    FinalScore: penaltyCalc.finalScore,
                     TotalScore: submission.maxScore,
                     GradedAt: new Date(submission.assessedAt),
                     ReportData: reportJson,
-                    SubmittedAt: new Date(),
+                    SubmittedAt: submittedAtDate,
                 },
             });
         }
