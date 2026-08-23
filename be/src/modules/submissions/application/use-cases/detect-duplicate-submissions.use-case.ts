@@ -22,6 +22,7 @@ export interface DuplicateClusterMember {
   zipFileUrl: string | null
   /** Highest similarity this member reaches against anyone else in its cluster. */
   topSimilarity: number
+  isPenalized: boolean
 }
 
 export interface DuplicatePair {
@@ -72,6 +73,7 @@ interface Candidate {
   zipFileUrl: string | null
   exactHash: string
   prints: Set<number>
+  isPenalized: boolean
 }
 
 export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentId: string; user: AuthUser; threshold?: number }, DetectDuplicatesResult> {
@@ -101,6 +103,8 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
         AttemptNumber: true,
         SubmittedAt: true,
         ZipFileUrl: true,
+        InstructorFeedback: true,
+        ReportData: true,
         User_Submission_StudentIdToUser: {
           select: { FullName: true, StudentCode: true, Email: true },
         },
@@ -127,6 +131,16 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
           emptyCount++
           continue
         }
+
+        const ifb = submission.InstructorFeedback || ''
+        const rd = submission.ReportData || ''
+        const isPenalized = Boolean(
+          ifb.includes('[Trừ điểm trùng lặp') ||
+          ifb.includes('[Plagiarism') ||
+          rd.includes('Trừ điểm trùng lặp') ||
+          rd.includes('Plagiarism Penalty')
+        )
+
         candidates.push({
           submissionId: submission.Id,
           studentId: submission.StudentId,
@@ -140,6 +154,7 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
           zipFileUrl: submission.ZipFileUrl,
           exactHash: analysis.exactHash,
           prints: analysis.prints,
+          isPenalized,
         })
       }
     }
@@ -219,6 +234,7 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
           submittedAt: candidates[idx].submittedAt,
           zipFileUrl: candidates[idx].zipFileUrl,
           topSimilarity: best.get(idx) ?? 0,
+          isPenalized: candidates[idx].isPenalized,
         }))
         .sort((a, b) => (a.submittedAt?.getTime() ?? 0) - (b.submittedAt?.getTime() ?? 0))
 

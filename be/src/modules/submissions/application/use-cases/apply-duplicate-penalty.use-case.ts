@@ -80,6 +80,21 @@ export class ApplyDuplicatePenaltyUseCase implements IUseCase<
     const updatedSubmissions: ApplyDuplicatePenaltyResult['updatedSubmissions'] = []
 
     for (const sub of submissions) {
+      // Check if this submission has already been penalized for duplicate / plagiarism
+      const ifb = sub.InstructorFeedback || ''
+      const rd = sub.ReportData || ''
+      const isAlreadyPenalized = Boolean(
+        ifb.includes('[Trừ điểm trùng lặp') ||
+        ifb.includes('[Plagiarism') ||
+        rd.includes('Trừ điểm trùng lặp') ||
+        rd.includes('Plagiarism Penalty')
+      )
+
+      // Prevent double deduction: If already penalized in previous runs, skip completely
+      if (isAlreadyPenalized) {
+        continue
+      }
+
       // Determine original base score
       const originalScore = sub.RawScore !== null && sub.RawScore !== undefined
         ? Number(sub.RawScore)

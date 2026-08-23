@@ -817,6 +817,7 @@ export const gradingApi = {
           submittedAt: string | null
           zipFileUrl: string | null
           topSimilarity: number
+          isPenalized?: boolean
         }>
         pairs: Array<{
           submissionIdA: string

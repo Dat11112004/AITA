@@ -425,7 +425,17 @@ export default function AssignmentPage() {
       if (!duplicateReport || duplicateReport.clusters.length === 0) return;
       const idSet = new Set<string>();
       duplicateReport.clusters.forEach(c => {
-        c.submissions.forEach(s => idSet.add(s.submissionId));
+        c.submissions.forEach(s => {
+          const isPenalized = s.isPenalized ||
+            appliedDuplicateIds.includes(s.submissionId) ||
+            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
+            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
+            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
+            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism');
+          if (!isPenalized) {
+            idSet.add(s.submissionId);
+          }
+        });
       });
       submissionIds = Array.from(idSet);
     }
@@ -1953,6 +1963,7 @@ export default function AssignmentPage() {
                   topSimilarity: number;
                   isFirst: boolean;
                   diffLabel: string;
+                  isPenalized?: boolean;
                 }> = [];
                 const seenIds = new Set<string>();
 
@@ -1989,6 +2000,12 @@ export default function AssignmentPage() {
                       topSimilarity: s.topSimilarity ?? cluster.maxSimilarity ?? 100,
                       isFirst,
                       diffLabel,
+                      isPenalized: s.isPenalized ||
+                        appliedDuplicateIds.includes(s.submissionId) ||
+                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
+                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
+                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
+                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism'),
                     });
                   });
                 });
@@ -2077,11 +2094,6 @@ export default function AssignmentPage() {
                             ? studentName.split(' ').map((w: string) => w[0]).filter(Boolean).slice(-2).join('').toUpperCase()
                             : 'SV';
                           const pct = s.topSimilarity || 100;
-                          const isPenalized = appliedDuplicateIds.includes(s.submissionId) ||
-                            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
-                            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
-                            history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
-                            history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism');
 
                           return (
                             <div
@@ -2109,13 +2121,6 @@ export default function AssignmentPage() {
 
                               {/* Right Details: Similarity % */}
                               <div className="flex items-center gap-3 flex-wrap shrink-0">
-                                {isPenalized && (
-                                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                                    <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
-                                    {t('lc.dup.penalized_badge') || 'Đã trừ điểm'}
-                                  </span>
-                                )}
-
                                 {/* Similarity percentage badge */}
                                 <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-black shadow-xs">
                                   <Flame size={13} className="text-rose-500 fill-rose-500" />
@@ -2147,6 +2152,7 @@ export default function AssignmentPage() {
             {(() => {
               const isAllPenalized = duplicateReport && duplicateReport.clusters.length > 0 && duplicateReport.clusters.every(c =>
                 c.submissions.every(s =>
+                  s.isPenalized ||
                   appliedDuplicateIds.includes(s.submissionId) ||
                   history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
                   history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
