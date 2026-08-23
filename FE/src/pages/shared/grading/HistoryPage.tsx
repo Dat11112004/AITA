@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gradingApi as api } from '@/lib/api';
 import { Trash2, ArrowLeft, Clock, MoreVertical } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 export default function HistoryPage() {
+  const { t } = useTranslation();
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
   const assignmentIdFilter = searchParams.get('assignmentId');
@@ -32,17 +37,18 @@ export default function HistoryPage() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this graded assignment?")) {
-      try {
-        await api.deleteHistory(id);
-        setHistory(history.filter(x => x.id !== id));
-      } catch (err) {
-        alert("Failed to delete.");
-      }
+  const handleConfirmDelete = async () => {
+    if (!deletingId) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteHistory(deletingId);
+      setHistory(prev => prev.filter(x => x.id !== deletingId));
+    } catch (err) {
+      console.error("Failed to delete history record", err);
+    } finally {
+      setIsDeleting(false);
+      setDeletingId(null);
     }
-    setOpenMenuId(null);
   };
 
   const handleView = (id: string) => {
@@ -130,11 +136,15 @@ export default function HistoryPage() {
                         {openMenuId === item.id && (
                           <div className="absolute right-8 top-10 w-36 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10 overflow-hidden animate-fade-in-up origin-top-right">
                             <button
-                              onClick={(e) => handleDelete(e, item.id)}
-                              className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setDeletingId(item.id);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-colors cursor-pointer"
                             >
                               <Trash2 size={16} />
-                              Delete
+                              {t('common.delete', 'Delete')}
                             </button>
                           </div>
                         )}
@@ -147,9 +157,26 @@ export default function HistoryPage() {
           </table>
         </div>
       )}
+
+      {/* Centered Modal Confirm Delete History Record */}
+      <ConfirmDialog
+        isOpen={!!deletingId}
+        title={t('common.confirm_delete', 'Confirm Delete')}
+        subtitle={t('common.delete_warning', 'Delete grading history record')}
+        message={t('common.delete_history_confirm', 'Are you sure you want to delete this graded assignment history?')}
+        confirmText={t('common.delete', 'Delete')}
+        cancelText={t('notif.cancel', 'Cancel')}
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (!isDeleting) setDeletingId(null);
+        }}
+      />
     </div>
   );
 }
+
 
 
 

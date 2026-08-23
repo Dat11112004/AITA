@@ -17,12 +17,17 @@ type Notification = {
   referenceType?: string
 }
 
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+
 export function StudentNotifications() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'assignment' | 'deadline'>('all')
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
+  const [deletingNotifId, setDeletingNotifId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadData = useCallback((showLoading = true) => {
     if (showLoading) setLoading(true)
@@ -57,25 +62,33 @@ export function StudentNotifications() {
     }
   }
 
-  const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleConfirmDeleteOne = async () => {
+    if (!deletingNotifId) return
+    const id = deletingNotifId
+    setIsDeleting(true)
     setNotifications(prev => prev.filter(n => n.id !== id))
     try {
       await api.deleteNotification(id)
       emitNotificationEvent()
     } catch (err) {
       console.error(err)
+    } finally {
+      setIsDeleting(false)
+      setDeletingNotifId(null)
     }
   }
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Are you sure you want to delete all notifications?')) return
+  const handleConfirmDeleteAll = async () => {
+    setIsDeleting(true)
     setNotifications([])
     try {
       await api.deleteAllNotifications()
       emitNotificationEvent()
     } catch (err) {
       console.error(err)
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteAllModal(false)
     }
   }
 
@@ -144,11 +157,12 @@ export function StudentNotifications() {
           )}
           {notifications.length > 0 && (
             <button
-              onClick={handleDeleteAll}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium text-red-600 dark:text-red-400 shadow-sm"
+              type="button"
+              onClick={() => setShowDeleteAllModal(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium text-red-600 dark:text-red-400 shadow-sm cursor-pointer"
             >
               <Trash2 size={16} />
-              Delete all notifications
+              {t('notif.clear_all', 'Delete all notifications')}
             </button>
           )}
         </div>
@@ -270,7 +284,15 @@ export function StudentNotifications() {
                         <Check size={18} />
                       </button>
                     )}
-                    <button onClick={(e) => handleDeleteOne(n.id, e)} title={t('st.notif.delete')} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeletingNotifId(n.id)
+                      }}
+                      title={t('st.notif.delete')}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg cursor-pointer"
+                    >
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -280,6 +302,38 @@ export function StudentNotifications() {
           </div>
         )}
       </div>
+
+      {/* Centered Modal Confirm Delete All Notifications */}
+      <ConfirmDialog
+        isOpen={showDeleteAllModal}
+        title={t('notif.clear_all_title', 'Delete All Notifications')}
+        subtitle={t('notif.clear_all_subtitle', 'Clear all notifications in your inbox')}
+        message={t('notif.clear_all_confirm', 'Are you sure you want to delete all notifications? This action cannot be undone.')}
+        confirmText={t('notif.confirm_delete_all', 'Confirm delete all')}
+        cancelText={t('notif.cancel', 'Cancel')}
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeleteAll}
+        onCancel={() => {
+          if (!isDeleting) setShowDeleteAllModal(false)
+        }}
+      />
+
+      {/* Centered Modal Confirm Delete Single Notification */}
+      <ConfirmDialog
+        isOpen={!!deletingNotifId}
+        title={t('notif.delete_one_title', 'Delete Notification')}
+        subtitle={t('notif.delete_one_subtitle', 'Delete the selected notification')}
+        message={t('notif.delete_one_confirm', 'Are you sure you want to delete this notification?')}
+        confirmText={t('notif.confirm_delete', 'Delete notification')}
+        cancelText={t('notif.cancel', 'Cancel')}
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeleteOne}
+        onCancel={() => {
+          if (!isDeleting) setDeletingNotifId(null)
+        }}
+      />
     </div>
   )
 }

@@ -4,11 +4,18 @@ import { Bell, Check, Loader2, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { emitNotificationEvent, subscribeNotificationEvents } from '@/lib/notifications'
 
+import { useTranslation } from 'react-i18next'
+import { ConfirmDialog } from './ConfirmDialog'
+
 export function NotificationsDropdown() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
+  const [deletingNotifId, setDeletingNotifId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,25 +64,33 @@ export function NotificationsDropdown() {
     }
   }
 
-  const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleConfirmDeleteOne = async () => {
+    if (!deletingNotifId) return
+    const id = deletingNotifId
+    setIsDeleting(true)
     setNotifications(prev => prev.filter(n => n.id !== id))
     try {
       await api.deleteNotification(id)
       emitNotificationEvent()
     } catch (err) {
       console.error(err)
+    } finally {
+      setIsDeleting(false)
+      setDeletingNotifId(null)
     }
   }
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Are you sure you want to delete all notifications?')) return
+  const handleConfirmDeleteAll = async () => {
+    setIsDeleting(true)
     setNotifications([])
     try {
       await api.deleteAllNotifications()
       emitNotificationEvent()
     } catch (e) {
       console.error(e)
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteAllModal(false)
     }
   }
 
@@ -171,8 +186,12 @@ export function NotificationsDropdown() {
                 <button onClick={handleMarkAllAsRead} className="text-xs text-brand-600 dark:text-brand-400 hover:underline cursor-pointer">Mark all read</button>
               )}
               {notifications.length > 0 && (
-                <button onClick={handleDeleteAll} className="text-xs text-red-500 hover:underline flex items-center gap-1 cursor-pointer">
-                  <Trash2 size={12} /> Clear all
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteAllModal(true)}
+                  className="text-xs text-red-500 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 size={12} /> {t('notif.clear_all', 'Clear all')}
                 </button>
               )}
             </div>
@@ -183,7 +202,7 @@ export function NotificationsDropdown() {
               <div className="flex justify-center p-6 text-brand-500"><Loader2 className="animate-spin" size={24} /></div>
             ) : notifications.length === 0 ? (
               <div className="text-center p-6 text-sm text-slate-500">
-                No notifications yet.
+                {t('notif.no_notifications', 'No notifications yet.')}
               </div>
             ) : (
               <div className="space-y-1">
@@ -203,11 +222,19 @@ export function NotificationsDropdown() {
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {!isRead && (
-                            <button onClick={(e) => handleMarkAsRead(n.id, e)} title="Mark as read" className="text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-brand-100 dark:hover:bg-brand-900 rounded-lg">
+                            <button onClick={(e) => handleMarkAsRead(n.id, e)} title={t('st.notif.mark_read', 'Mark as read')} className="text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-brand-100 dark:hover:bg-brand-900 rounded-lg">
                               <Check size={14} />
                             </button>
                           )}
-                          <button onClick={(e) => handleDeleteOne(n.id, e)} title="Delete notification" className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeletingNotifId(n.id)
+                            }}
+                            title={t('st.notif.delete', 'Delete notification')}
+                            className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
+                          >
                             <Trash2 size={13} />
                           </button>
                         </div>
@@ -220,6 +247,38 @@ export function NotificationsDropdown() {
           </div>
         </div>
       )}
+
+      {/* Centered Modal Confirm Delete All Notifications */}
+      <ConfirmDialog
+        isOpen={showDeleteAllModal}
+        title={t('notif.clear_all_title', 'Delete All Notifications')}
+        subtitle={t('notif.clear_all_subtitle', 'Clear all notifications in your inbox')}
+        message={t('notif.clear_all_confirm', 'Are you sure you want to delete all notifications? This action cannot be undone.')}
+        confirmText={t('notif.confirm_delete_all', 'Confirm delete all')}
+        cancelText={t('notif.cancel', 'Cancel')}
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeleteAll}
+        onCancel={() => {
+          if (!isDeleting) setShowDeleteAllModal(false)
+        }}
+      />
+
+      {/* Centered Modal Confirm Delete Single Notification */}
+      <ConfirmDialog
+        isOpen={!!deletingNotifId}
+        title={t('notif.delete_one_title', 'Delete Notification')}
+        subtitle={t('notif.delete_one_subtitle', 'Delete the selected notification')}
+        message={t('notif.delete_one_confirm', 'Are you sure you want to delete this notification?')}
+        confirmText={t('notif.confirm_delete', 'Delete notification')}
+        cancelText={t('notif.cancel', 'Cancel')}
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDeleteOne}
+        onCancel={() => {
+          if (!isDeleting) setDeletingNotifId(null)
+        }}
+      />
     </div>
   )
 }
