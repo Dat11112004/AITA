@@ -24,8 +24,15 @@ export function NotificationsDropdown() {
   const fetchNotifications = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true)
     try {
-      const data = await api.getNotifications()
-      setNotifications(Array.isArray(data) ? data : [])
+      const data = await api.getNotifications(1, 50)
+      const raw = Array.isArray(data) ? data : (data?.data || [])
+      // Sort strictly by timestamp descending (newest notifications always first on top)
+      const sorted = [...raw].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.CreatedAt || 0).getTime()
+        const timeB = new Date(b.createdAt || b.CreatedAt || 0).getTime()
+        return timeB - timeA
+      })
+      setNotifications(sorted)
     } catch (e) {
       console.error('Lỗi tải thông báo', e)
     } finally {
@@ -101,6 +108,8 @@ export function NotificationsDropdown() {
         navigate(isStudent ? `/student/assignments/${refId}` : `/lecturer/grading/assignments/${refId}`)
       } else if (refType === 'SUBMISSION' || nType === 'FEEDBACK') {
         navigate(isStudent ? `/student/grading/result/${refId}` : `/lecturer/grading/result/${refId}`)
+      } else if (nType === 'GRADE_PUBLISHED' || title.includes('công bố') || title.includes('điểm số')) {
+        navigate(isStudent ? `/student/assignments/${refId}` : `/lecturer/grading/assignments/${refId}`)
       } else {
         navigate(isStudent ? `/student/assignments/${refId}` : `/lecturer/grading/assignments/${refId}`)
       }

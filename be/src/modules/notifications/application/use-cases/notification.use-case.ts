@@ -24,10 +24,10 @@ export class ListUserNotificationsUseCase {
             subjectCode: (n as any).subjectCode ?? null,
             subjectName: (n as any).subjectName ?? null,
             classCode: (n as any).classCode ?? null,
-            createdAt: n.createdAt ? n.createdAt.toISOString() : null,
+            createdAt: n.createdAt ? (typeof n.createdAt === 'string' ? n.createdAt : (n.createdAt as any).toISOString ? (n.createdAt as any).toISOString() : new Date(n.createdAt).toISOString()) : new Date().toISOString(),
             read: (n as any).read ?? (n as any).isRead ?? false,
             isRead: (n as any).isRead ?? (n as any).read ?? false
-        }))
+        })).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     }
 }
 

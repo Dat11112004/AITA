@@ -26,7 +26,13 @@ export function LecturerNotifications() {
     if (showLoading) setLoading(true)
     api.getNotifications(1, 50)
       .then(res => {
-        setNotifications(Array.isArray(res) ? res : (res?.data || []))
+        const raw = Array.isArray(res) ? res : (res?.data || [])
+        const sorted = [...raw].sort((a, b) => {
+          const timeA = new Date(a.createdAt || a.CreatedAt || 0).getTime()
+          const timeB = new Date(b.createdAt || b.CreatedAt || 0).getTime()
+          return timeB - timeA
+        })
+        setNotifications(sorted)
       })
       .catch(err => console.error('Failed to load notifications:', err))
       .finally(() => { if (showLoading) setLoading(false) })
