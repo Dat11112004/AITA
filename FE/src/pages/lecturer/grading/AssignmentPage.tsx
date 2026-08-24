@@ -2253,18 +2253,6 @@ export default function AssignmentPage() {
                                       </span>
                                     )}
                                   </div>
-
-                                  {/* Matched Reference Note */}
-                                  {s.matchedWithNames.length > 0 && (
-                                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
-                                      <AlertTriangle size={12} className="shrink-0 text-amber-500" />
-                                      <span className="truncate">
-                                        {s.hasPenalizedMatch
-                                          ? (t('lc.dup.matched_with', { names: s.matchedWithNames.join(', ') }) || `Trùng khớp mã nguồn với: ${s.matchedWithNames.join(', ')} (Đã trừ điểm trước đó)`)
-                                          : (t('lc.dup.matched_with_pending', { names: s.matchedWithNames.join(', ') }) || `Trùng khớp mã nguồn với: ${s.matchedWithNames.join(', ')}`)}
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
 
