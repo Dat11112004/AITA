@@ -23,6 +23,13 @@ export interface DuplicateClusterMember {
   /** Highest similarity this member reaches against anyone else in its cluster. */
   topSimilarity: number
   isPenalized: boolean
+  matchedWith?: Array<{
+    submissionId: string
+    studentName: string | null
+    studentCode: string | null
+    isPenalized: boolean
+    similarity: number
+  }>
 }
 
 export interface DuplicatePair {
@@ -37,11 +44,15 @@ export interface DuplicatePair {
 
 export interface DuplicateCluster {
   count: number
+  pendingCount: number
+  isResolved: boolean
   /** Highest pair similarity inside the cluster — what the UI leads with. */
   maxSimilarity: number
   /** True when every member of the cluster is a byte-for-byte copy. */
   allIdentical: boolean
   submissions: DuplicateClusterMember[]
+  pendingSubmissions?: DuplicateClusterMember[]
+  penalizedReferenceMembers?: DuplicateClusterMember[]
   pairs: DuplicatePair[]
 }
 
@@ -53,6 +64,8 @@ export interface DetectDuplicatesResult {
   /** Submissions read fine but held no comparable source text (e.g. an archive of images). */
   emptyCount: number
   threshold: number
+  pendingCount: number
+  resolvedClustersCount: number
   clusters: DuplicateCluster[]
 }
 
@@ -106,10 +119,39 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
         InstructorFeedback: true,
         ReportData: true,
         User_Submission_StudentIdToUser: {
-          select: { FullName: true, StudentCode: true, Email: true },
+          select: { Id: true, FullName: true, StudentCode: true, Email: true },
         },
       },
     })
+
+    // Fallback user lookup for any submission where direct relation didn't populate FullName/StudentCode
+    const missingStudentIds = Array.from(
+      new Set(
+        submissions
+          .filter(s => (!s.User_Submission_StudentIdToUser?.FullName || !s.User_Submission_StudentIdToUser?.StudentCode) && s.StudentId)
+          .map(s => s.StudentId!)
+      )
+    )
+
+    const fallbackUsers = missingStudentIds.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            OR: [
+              { Id: { in: missingStudentIds } },
+              { StudentCode: { in: missingStudentIds } },
+              { Email: { in: missingStudentIds } },
+            ]
+          },
+          select: { Id: true, FullName: true, StudentCode: true, Email: true }
+        })
+      : []
+
+    const userLookupMap = new Map<string, { Id: string; FullName: string | null; StudentCode: string | null; Email: string | null }>()
+    for (const u of fallbackUsers) {
+      if (u.Id) userLookupMap.set(u.Id, u)
+      if (u.StudentCode) userLookupMap.set(u.StudentCode, u)
+      if (u.Email) userLookupMap.set(u.Email, u)
+    }
 
     const candidates: Candidate[] = []
     const failedSubmissionIds: string[] = []
@@ -141,14 +183,37 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
           rd.includes('Plagiarism Penalty')
         )
 
+        let studentName =
+          submission.User_Submission_StudentIdToUser?.FullName ||
+          submission.User_Submission_StudentIdToUser?.Email ||
+          null
+        let studentCode = submission.User_Submission_StudentIdToUser?.StudentCode || null
+
+        // Try lookup in fallback user map
+        if ((!studentName || !studentCode) && submission.StudentId) {
+          const fallback = userLookupMap.get(submission.StudentId)
+          if (fallback) {
+            studentName = studentName || fallback.FullName || fallback.Email || null
+            studentCode = studentCode || fallback.StudentCode || null
+          }
+        }
+
+        // Try parsing ReportData metadata
+        if (!studentName || !studentCode) {
+          if (submission.ReportData) {
+            try {
+              const parsed = typeof submission.ReportData === 'string' ? JSON.parse(submission.ReportData) : submission.ReportData
+              studentName = studentName || parsed.studentName || parsed.__metadata?.studentName || parsed.student?.name || null
+              studentCode = studentCode || parsed.studentCode || parsed.__metadata?.studentCode || parsed.studentId || parsed.student?.code || null
+            } catch (e) {}
+          }
+        }
+
         candidates.push({
           submissionId: submission.Id,
           studentId: submission.StudentId,
-          studentName:
-            submission.User_Submission_StudentIdToUser?.FullName ||
-            submission.User_Submission_StudentIdToUser?.Email ||
-            null,
-          studentCode: submission.User_Submission_StudentIdToUser?.StudentCode || null,
+          studentName,
+          studentCode,
           attemptNumber: submission.AttemptNumber,
           submittedAt: submission.SubmittedAt,
           zipFileUrl: submission.ZipFileUrl,
@@ -160,6 +225,8 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
     }
 
     const clusters = this.buildClusters(candidates, minSimilarity)
+    const pendingCount = clusters.reduce((sum, c) => sum + (c.pendingCount || 0), 0)
+    const resolvedClustersCount = clusters.filter(c => c.isResolved).length
 
     return {
       assignmentId,
@@ -168,14 +235,16 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
       failedSubmissionIds,
       emptyCount,
       threshold: minSimilarity,
+      pendingCount,
+      resolvedClustersCount,
       clusters,
     }
   }
 
   /**
    * Compare every pair once, keep the ones at or above the threshold, then merge
-   * overlapping pairs into clusters so three students sharing one source show up as
-   * a single group rather than three separate findings.
+   * overlapping pairs into clusters so multiple students sharing one source show up as
+   * a single group rather than separate disconnected pairs.
    */
   private buildClusters(candidates: Candidate[], minSimilarity: number): DuplicateCluster[] {
     const parent = candidates.map((_, idx) => idx)
@@ -225,17 +294,34 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
       }
 
       const members: DuplicateClusterMember[] = [...bucket.members]
-        .map(idx => ({
-          submissionId: candidates[idx].submissionId,
-          studentId: candidates[idx].studentId,
-          studentName: candidates[idx].studentName,
-          studentCode: candidates[idx].studentCode,
-          attemptNumber: candidates[idx].attemptNumber,
-          submittedAt: candidates[idx].submittedAt,
-          zipFileUrl: candidates[idx].zipFileUrl,
-          topSimilarity: best.get(idx) ?? 0,
-          isPenalized: candidates[idx].isPenalized,
-        }))
+        .map(idx => {
+          const matchedWith = bucket.pairs
+            .filter(p => p.a === idx || p.b === idx)
+            .map(p => {
+              const otherIdx = p.a === idx ? p.b : p.a
+              return {
+                submissionId: candidates[otherIdx].submissionId,
+                studentName: candidates[otherIdx].studentName,
+                studentCode: candidates[otherIdx].studentCode,
+                isPenalized: candidates[otherIdx].isPenalized,
+                similarity: p.similarity,
+              }
+            })
+            .sort((a, b) => b.similarity - a.similarity)
+
+          return {
+            submissionId: candidates[idx].submissionId,
+            studentId: candidates[idx].studentId,
+            studentName: candidates[idx].studentName,
+            studentCode: candidates[idx].studentCode,
+            attemptNumber: candidates[idx].attemptNumber,
+            submittedAt: candidates[idx].submittedAt,
+            zipFileUrl: candidates[idx].zipFileUrl,
+            topSimilarity: best.get(idx) ?? 0,
+            isPenalized: candidates[idx].isPenalized,
+            matchedWith,
+          }
+        })
         .sort((a, b) => (a.submittedAt?.getTime() ?? 0) - (b.submittedAt?.getTime() ?? 0))
 
       const pairs: DuplicatePair[] = bucket.pairs
@@ -249,16 +335,31 @@ export class DetectDuplicateSubmissionsUseCase implements IUseCase<{ assignmentI
         }))
         .sort((a, b) => b.similarity - a.similarity)
 
+      const pendingSubmissions = members.filter(m => !m.isPenalized)
+      const penalizedReferenceMembers = members.filter(m => m.isPenalized)
+      const pendingCount = pendingSubmissions.length
+      const isResolved = pendingCount === 0
+
       clusters.push({
         count: members.length,
+        pendingCount,
+        isResolved,
         maxSimilarity: pairs.length ? pairs[0].similarity : 0,
         allIdentical: pairs.every(p => p.identical),
         submissions: members,
+        pendingSubmissions,
+        penalizedReferenceMembers,
         pairs,
       })
     }
 
-    return clusters.sort((a, b) => b.maxSimilarity - a.maxSimilarity || b.count - a.count)
+    // Sort active (unresolved) clusters first, then by max similarity
+    return clusters.sort((a, b) => {
+      if (a.isResolved !== b.isResolved) {
+        return a.isResolved ? 1 : -1
+      }
+      return b.maxSimilarity - a.maxSimilarity || b.count - a.count
+    })
   }
 
   /** Hash of the stored bytes plus structural fingerprints. Null when the file cannot be read. */

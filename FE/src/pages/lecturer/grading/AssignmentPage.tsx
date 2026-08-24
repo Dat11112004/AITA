@@ -464,6 +464,13 @@ export default function AssignmentPage() {
       setPenaltySuccessMsg(t('lc.dup.apply_success', { count: res.updatedCount }) || `Đã áp dụng trừ điểm thành công cho ${res.updatedCount} bài nộp!`);
       await fetchHistoryData(false);
       await fetchAssignmentData();
+
+      // Refresh duplicate report immediately with updated state
+      try {
+        const freshReport = await api.detectDuplicateSubmissions(id, duplicateThreshold);
+        setDuplicateReport(freshReport);
+      } catch (e) {}
+
       setTimeout(() => setPenaltySuccessMsg(null), 6000);
     } catch (err: any) {
       alert(err.response?.data?.error || err.message || 'Áp dụng trừ điểm thất bại. Vui lòng thử lại.');
@@ -2001,6 +2008,21 @@ export default function AssignmentPage() {
                   <span>{t('lc.dup.error') || 'Kiểm tra trùng lặp thất bại. Vui lòng thử lại sau.'}</span>
                 </div>
               ) : duplicateReport && (() => {
+                const isSubmissionPenalized = (sId: string, isPenFlag?: boolean) => {
+                  if (isPenFlag) return true;
+                  if (appliedDuplicateIds.includes(sId)) return true;
+                  const hItem = history.find((item: any) => item.id === sId || item.submissionId === sId);
+                  if (!hItem) return false;
+                  const ifb = hItem.instructorFeedback || '';
+                  const fb = hItem.feedback || '';
+                  return (
+                    ifb.includes('[Trừ điểm trùng lặp') ||
+                    ifb.includes('[Plagiarism') ||
+                    fb.includes('[Trừ điểm trùng lặp') ||
+                    fb.includes('[Plagiarism')
+                  );
+                };
+
                 const dupList: Array<{
                   submissionId: string;
                   studentName: string | null;
@@ -2010,54 +2032,83 @@ export default function AssignmentPage() {
                   topSimilarity: number;
                   isFirst: boolean;
                   diffLabel: string;
-                  isPenalized?: boolean;
+                  isPenalized: boolean;
+                  matchedWithNames: string[];
+                  hasPenalizedMatch: boolean;
                 }> = [];
                 const seenIds = new Set<string>();
 
                 duplicateReport.clusters.forEach((cluster) => {
-                  const firstSubTime = cluster.submissions[0]?.submittedAt ? new Date(cluster.submissions[0].submittedAt).getTime() : 0;
-                  cluster.submissions.forEach((s, sIdx) => {
+                  const clusterPenalizedMembers = cluster.submissions.filter(s => isSubmissionPenalized(s.submissionId, s.isPenalized));
+                  const clusterPendingMembers = cluster.submissions.filter(s => !isSubmissionPenalized(s.submissionId, s.isPenalized));
+
+                  const penalizedNames = clusterPenalizedMembers.map(pm => {
+                    const matchedSt = history.find((h: any) =>
+                      h.id === pm.submissionId ||
+                      h.submissionId === pm.submissionId ||
+                      h.studentId === pm.studentId ||
+                      (pm.studentCode && (h.studentCode === pm.studentCode || h.studentId === pm.studentCode)) ||
+                      (pm.studentName && h.studentName === pm.studentName)
+                    );
+                    const name = pm.studentName || (matchedSt ? (matchedSt.studentName || matchedSt.name) : null) || (pm.studentCode ? `Sinh viên (${pm.studentCode})` : (pm.studentId || pm.submissionId));
+                    const code = pm.studentCode || (matchedSt ? (matchedSt.studentCode || matchedSt.code) : null);
+                    return code ? `${name} (${code})` : name;
+                  }).filter(Boolean) as string[];
+
+                  const pendingNames = clusterPendingMembers.map(pm => {
+                    const matchedSt = history.find((h: any) =>
+                      h.id === pm.submissionId ||
+                      h.submissionId === pm.submissionId ||
+                      h.studentId === pm.studentId ||
+                      (pm.studentCode && (h.studentCode === pm.studentCode || h.studentId === pm.studentCode)) ||
+                      (pm.studentName && h.studentName === pm.studentName)
+                    );
+                    const name = pm.studentName || (matchedSt ? (matchedSt.studentName || matchedSt.name) : null) || (pm.studentCode ? `Sinh viên (${pm.studentCode})` : (pm.studentId || pm.submissionId));
+                    const code = pm.studentCode || (matchedSt ? (matchedSt.studentCode || matchedSt.code) : null);
+                    return code ? `${name} (${code})` : name;
+                  }).filter(Boolean) as string[];
+
+                  // Only show pending (unpenalized) submissions in dupList!
+                  clusterPendingMembers.forEach((s) => {
                     if (seenIds.has(s.submissionId)) return;
                     seenIds.add(s.submissionId);
 
-                    const subDate = s.submittedAt ? new Date(s.submittedAt) : null;
-                    const isFirst = sIdx === 0;
-                    let diffLabel = '';
-                    if (!isFirst && subDate && firstSubTime > 0) {
-                      const diffSec = Math.floor((subDate.getTime() - firstSubTime) / 1000);
-                      if (diffSec >= 0) {
-                        const diffMin = Math.floor(diffSec / 60);
-                        const remSec = diffSec % 60;
-                        if (diffMin < 60) {
-                          diffLabel = `${diffMin}m ${remSec > 0 ? `${remSec}s` : ''}`;
-                        } else {
-                          const diffHours = Math.floor(diffMin / 60);
-                          const remMin = diffMin % 60;
-                          diffLabel = `${diffHours}h ${remMin > 0 ? `${remMin}m` : ''}`;
-                        }
-                      }
-                    }
+                    const matchedStudent = history.find((h: any) =>
+                      h.id === s.submissionId ||
+                      h.submissionId === s.submissionId ||
+                      h.studentId === s.studentId ||
+                      (s.studentCode && (h.studentCode === s.studentCode || h.studentId === s.studentCode)) ||
+                      (s.studentName && h.studentName === s.studentName)
+                    );
+
+                    const studentName = s.studentName || (matchedStudent ? (matchedStudent.studentName || matchedStudent.name) : null) || (s.studentCode ? `Sinh viên (${s.studentCode})` : (s.studentId || s.submissionId));
+                    const studentCode = s.studentCode || (matchedStudent ? (matchedStudent.studentCode || matchedStudent.code) : null);
+
+                    const hasPenalizedMatch = penalizedNames.length > 0;
+                    const otherPendingNames = pendingNames.filter(n => !n.includes(studentCode || studentName || '___'));
+                    const displayMatchedNames = hasPenalizedMatch ? penalizedNames : otherPendingNames;
 
                     dupList.push({
                       submissionId: s.submissionId,
-                      studentName: s.studentName,
+                      studentName,
                       studentId: s.studentId,
-                      studentCode: s.studentCode,
-                      submittedAt: s.submittedAt,
+                      studentCode,
+                      submittedAt: s.submittedAt ? String(s.submittedAt) : null,
                       topSimilarity: s.topSimilarity ?? cluster.maxSimilarity ?? 100,
-                      isFirst,
-                      diffLabel,
-                      isPenalized: s.isPenalized ||
-                        appliedDuplicateIds.includes(s.submissionId) ||
-                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
-                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
-                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
-                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism'),
+                      isFirst: false,
+                      diffLabel: '',
+                      isPenalized: false,
+                      matchedWithNames: displayMatchedNames,
+                      hasPenalizedMatch,
                     });
                   });
                 });
 
-                const maxSimilarity = duplicateReport.clusters.reduce((max, c) => Math.max(max, c.maxSimilarity || 0), 0) || 100;
+                const maxSimilarity = dupList.length > 0
+                  ? dupList.reduce((max, s) => Math.max(max, s.topSimilarity || 0), 0)
+                  : 0;
+
+                const resolvedCount = (duplicateReport as any).resolvedClustersCount || duplicateReport.clusters.filter((c: any) => c.isResolved).length;
 
                 return (
                   <>
@@ -2130,7 +2181,9 @@ export default function AssignmentPage() {
                           {t('lc.dup.none') || 'Không phát hiện bài nộp nào bị trùng lặp!'}
                         </p>
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 max-w-md mx-auto">
-                          {t('lc.dup.none_desc', { threshold: duplicateThreshold }) || 'Tất cả các bài làm đã nộp đều có nội dung tệp mã nguồn độc lập và khác biệt.'}
+                          {resolvedCount > 0 || duplicateReport.clusters.length > 0
+                            ? (t('lc.dup.all_penalized_desc') || 'Tất cả các bài nộp trùng lặp trước đó đã được áp dụng trừ điểm. Không có vi phạm mới.')
+                            : (t('lc.dup.none_desc', { threshold: duplicateThreshold }) || 'Tất cả các bài làm đã nộp đều có nội dung tệp mã nguồn độc lập và khác biệt.')}
                         </p>
                       </div>
                     ) : (
@@ -2163,6 +2216,18 @@ export default function AssignmentPage() {
                                       </span>
                                     )}
                                   </div>
+
+                                  {/* Matched Reference Note */}
+                                  {s.matchedWithNames.length > 0 && (
+                                    <div className="mt-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+                                      <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+                                      <span className="truncate">
+                                        {s.hasPenalizedMatch
+                                          ? (t('lc.dup.matched_with', { names: s.matchedWithNames.join(', ') }) || `Trùng khớp mã nguồn với: ${s.matchedWithNames.join(', ')} (Đã trừ điểm trước đó)`)
+                                          : (t('lc.dup.matched_with_pending', { names: s.matchedWithNames.join(', ') }) || `Trùng khớp mã nguồn với: ${s.matchedWithNames.join(', ')}`)}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -2197,16 +2262,19 @@ export default function AssignmentPage() {
 
             {/* Modal Footer with Penalty Policy Configuration & One-Click Apply */}
             {(() => {
-              const isAllPenalized = duplicateReport && duplicateReport.clusters.length > 0 && duplicateReport.clusters.every(c =>
-                c.submissions.every(s =>
-                  s.isPenalized ||
-                  appliedDuplicateIds.includes(s.submissionId) ||
-                  history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
-                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
-                  history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
-                  history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism')
-                )
-              );
+              const pendingCount = duplicateReport
+                ? duplicateReport.clusters.reduce((sum, c) => {
+                    return sum + c.submissions.filter(s => {
+                      const isPen = s.isPenalized ||
+                        appliedDuplicateIds.includes(s.submissionId) ||
+                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Trừ điểm trùng lặp') ||
+                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Trừ điểm trùng lặp') ||
+                        history.find((item: any) => item.id === s.submissionId)?.instructorFeedback?.includes('[Plagiarism') ||
+                        history.find((item: any) => item.id === s.submissionId)?.feedback?.includes('[Plagiarism');
+                      return !isPen;
+                    }).length;
+                  }, 0)
+                : 0;
 
               return (
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-[#0e121a]">
@@ -2218,7 +2286,7 @@ export default function AssignmentPage() {
                         {t('lc.dup.penalty_label') || 'Mức trừ điểm:'}
                       </span>
                       <select
-                        disabled={isApplyingPenalty || !!isAllPenalized}
+                        disabled={isApplyingPenalty || pendingCount === 0}
                         value={duplicatePenaltyType}
                         onChange={(e) => setDuplicatePenaltyType(e.target.value as any)}
                         className="text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2231,7 +2299,7 @@ export default function AssignmentPage() {
                         <div className="relative flex items-center shrink-0">
                           <input
                             type="number"
-                            disabled={isApplyingPenalty || !!isAllPenalized}
+                            disabled={isApplyingPenalty || pendingCount === 0}
                             step="0.5"
                             min="0"
                             max="10"
@@ -2249,10 +2317,10 @@ export default function AssignmentPage() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPenaltyModal(true)}
-                      disabled={isApplyingPenalty || !!isAllPenalized || !duplicateReport || duplicateReport.clusters.length === 0}
+                      disabled={isApplyingPenalty || pendingCount === 0}
                       className={`
                         px-4 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-md
-                        ${isAllPenalized
+                        ${pendingCount === 0
                           ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700 shadow-none'
                           : 'bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-rose-600/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                         }
@@ -2263,7 +2331,7 @@ export default function AssignmentPage() {
                           <Loader2 size={14} className="animate-spin" />
                           <span>{t('lc.dup.applying') || 'Đang áp dụng...'}</span>
                         </>
-                      ) : isAllPenalized ? (
+                      ) : pendingCount === 0 ? (
                         <>
                           <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                           <span>{t('lc.dup.already_applied') || 'Đã áp dụng trừ điểm (1 lần duy nhất)'}</span>
@@ -2271,7 +2339,7 @@ export default function AssignmentPage() {
                       ) : (
                         <>
                           <Flame size={14} className="fill-white" />
-                          <span>{t('lc.dup.apply_btn') || 'Áp dụng trừ điểm ngay'}</span>
+                          <span>{t('lc.dup.apply_btn_count', { count: pendingCount }) || `Áp dụng trừ điểm ngay (${pendingCount} bài nộp)`}</span>
                         </>
                       )}
                     </button>

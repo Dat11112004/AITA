@@ -804,8 +804,12 @@ export const gradingApi = {
       failedSubmissionIds: string[]
       emptyCount: number
       threshold: number
+      pendingCount?: number
+      resolvedClustersCount?: number
       clusters: Array<{
         count: number
+        pendingCount?: number
+        isResolved?: boolean
         maxSimilarity: number
         allIdentical: boolean
         submissions: Array<{
@@ -818,6 +822,13 @@ export const gradingApi = {
           zipFileUrl: string | null
           topSimilarity: number
           isPenalized?: boolean
+          matchedWith?: Array<{
+            submissionId: string
+            studentName: string | null
+            studentCode: string | null
+            isPenalized: boolean
+            similarity: number
+          }>
         }>
         pairs: Array<{
           submissionIdA: string
