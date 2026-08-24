@@ -488,15 +488,12 @@ export class AssignmentController extends BaseController {
                     StartDate: true,
                     DueDate: true,
                     GradingStrategy: true,
-                    _count: {
-                        select: { Submission: true }
-                    },
                     ExamClass: {
                         select: {
                             Class: {
                                 select: {
-                                    _count: {
-                                        select: { StudentClass: true }
+                                    StudentClass: {
+                                        select: { UserId: true }
                                     }
                                 }
                             }
@@ -505,19 +502,44 @@ export class AssignmentController extends BaseController {
                 }
             });
 
+            // Fetch all latest submissions for these exams
+            const submissions = await prisma.submission.findMany({
+                where: {
+                    ExamId: { in: examIds },
+                    IsLatest: true
+                },
+                select: {
+                    ExamId: true,
+                    StudentId: true
+                }
+            });
+
             // Build a map for quick lookup
             const statsMap = new Map();
             exams.forEach(exam => {
-                let totalStudents = 0;
+                const enrolledStudentIds = new Set<string>();
                 exam.ExamClass.forEach(ec => {
-                    totalStudents += ec.Class?._count?.StudentClass || 0;
+                    ec.Class?.StudentClass?.forEach(sc => {
+                        if (sc.UserId) enrolledStudentIds.add(sc.UserId);
+                    });
                 });
+
+                const totalStudents = enrolledStudentIds.size;
+                const examSubmissions = submissions.filter(s => s.ExamId === exam.Id);
+                const submittedStudentIds = new Set<string>();
+                examSubmissions.forEach(s => {
+                    if (s.StudentId && (enrolledStudentIds.size === 0 || enrolledStudentIds.has(s.StudentId))) {
+                        submittedStudentIds.add(s.StudentId);
+                    }
+                });
+
+                const submittedCount = submittedStudentIds.size;
 
                 statsMap.set(exam.Id, {
                     createdAt: exam.StartDate,
                     dueDate: exam.DueDate,
                     gradingStrategy: (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE',
-                    submitted: exam._count.Submission || 0,
+                    submitted: submittedCount,
                     totalStudents: totalStudents
                 });
             });
@@ -568,19 +590,16 @@ export class AssignmentController extends BaseController {
                         LatePenaltyType: true,
                         LatePenaltyValue: true,
                         MaxLatePenalty: true,
+                        AiGeneratedContent: true,
                         ExamClass: {
                             select: {
                                 Class: {
                                     select: {
-                                        _count: { select: { StudentClass: true } }
+                                        StudentClass: {
+                                            select: { UserId: true }
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        Submission: {
-                            select: {
-                                TotalScore: true,
-                                GradingStatus: true
                             }
                         }
                     }
@@ -596,27 +615,50 @@ export class AssignmentController extends BaseController {
                     notSubmittedPercentage: 0,
                     gradingPercentage: 0,
                     createdAt: new Date(),
-                    dueDate: null as any
+                    dueDate: null as any,
+                    gradingStrategy: 'CONTINUOUS_QUEUE'
                 };
 
                 if (exam) {
-                    let totalStudents = 0;
+                    const enrolledStudentIds = new Set<string>();
                     exam.ExamClass.forEach(ec => {
-                        totalStudents += ec.Class?._count?.StudentClass || 0;
+                        ec.Class?.StudentClass?.forEach(sc => {
+                            if (sc.UserId) enrolledStudentIds.add(sc.UserId);
+                        });
                     });
 
-                    const submittedCount = exam.Submission.length;
+                    const totalStudents = enrolledStudentIds.size;
+
+                    const latestSubmissions = await prisma.submission.findMany({
+                        where: {
+                            ExamId: id,
+                            IsLatest: true,
+                            ...(enrolledStudentIds.size > 0 ? { StudentId: { in: Array.from(enrolledStudentIds) } } : {})
+                        },
+                        select: {
+                            StudentId: true,
+                            TotalScore: true,
+                            FinalScore: true,
+                            GradingStatus: true
+                        }
+                    });
+
+                    const submittedStudentIds = new Set(latestSubmissions.map(s => s.StudentId).filter(Boolean));
+                    const submittedCount = submittedStudentIds.size;
                     const notSubmittedCount = Math.max(0, totalStudents - submittedCount);
 
-                    // Only 'Processing' is considered "Đang chấm" (grading).
-                    // 'Pending' means it was uploaded but hasn't started grading yet (Đã nộp).
-                    const gradingCount = exam.Submission.filter(s => s.GradingStatus === 'Processing').length;
+                    const gradingCount = latestSubmissions.filter(s => s.GradingStatus === 'Processing').length;
 
-                    // Average score is calculated for 'Graded' submissions
-                    const gradedSubmissions = exam.Submission.filter(s => s.GradingStatus === 'Graded' && s.TotalScore !== null);
+                    const gradedSubmissions = latestSubmissions.filter(s =>
+                        (s.GradingStatus === 'Graded' || s.GradingStatus === 'GRADED') &&
+                        (s.FinalScore !== null || s.TotalScore !== null)
+                    );
                     let averageScore = 0;
                     if (gradedSubmissions.length > 0) {
-                        const totalScore = gradedSubmissions.reduce((sum, s) => sum + Number(s.TotalScore || 0), 0);
+                        const totalScore = gradedSubmissions.reduce((sum, s) => {
+                            const scoreVal = s.FinalScore !== null && s.FinalScore !== undefined ? Number(s.FinalScore) : Number(s.TotalScore || 0);
+                            return sum + scoreVal;
+                        }, 0);
                         averageScore = totalScore / gradedSubmissions.length;
                     }
 
@@ -625,10 +667,10 @@ export class AssignmentController extends BaseController {
                         submitted: submittedCount,
                         notSubmitted: notSubmittedCount,
                         grading: gradingCount,
-                        averageScore: Number(averageScore.toFixed(2)),
+                        averageScore: Number(averageScore.toFixed(1)),
                         submittedPercentage: totalStudents > 0 ? Number(((submittedCount / totalStudents) * 100).toFixed(1)) : 0,
                         notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmittedCount / totalStudents) * 100).toFixed(1)) : 0,
-                        gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0, // Grading percentage usually relative to submitted
+                        gradingPercentage: submittedCount > 0 ? Number(((gradingCount / submittedCount) * 100).toFixed(1)) : 0,
                         createdAt: exam.StartDate as any,
                         dueDate: exam.DueDate as any,
                         gradingStrategy: (exam as any).GradingStrategy || 'CONTINUOUS_QUEUE'

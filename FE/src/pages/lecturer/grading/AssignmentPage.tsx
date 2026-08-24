@@ -893,7 +893,7 @@ export default function AssignmentPage() {
       </div>
 
       {(() => {
-        const stats = (assignment as any).stats || {
+        let stats = (assignment as any)?.stats || {
           totalStudents: 0,
           submitted: 0,
           notSubmitted: 0,
@@ -903,6 +903,29 @@ export default function AssignmentPage() {
           notSubmittedPercentage: 0,
           gradingPercentage: 0
         };
+
+        if (history && history.length > 0) {
+          const totalStudents = history.length;
+          const submitted = history.filter(h => h.status !== 'NotSubmitted').length;
+          const notSubmitted = history.filter(h => h.status === 'NotSubmitted').length;
+          const grading = history.filter(h => h.status === 'Grading').length;
+          const gradedList = history.filter(h => h.status === 'Graded' && h.score !== null && h.score !== undefined && !isNaN(Number(h.score)));
+          const totalScore = gradedList.reduce((sum, h) => sum + Number(h.score), 0);
+          const averageScore = gradedList.length > 0 ? Number((totalScore / gradedList.length).toFixed(1)) : 0;
+
+          stats = {
+            totalStudents,
+            submitted,
+            notSubmitted,
+            grading,
+            averageScore,
+            submittedPercentage: totalStudents > 0 ? Number(((submitted / totalStudents) * 100).toFixed(1)) : 0,
+            notSubmittedPercentage: totalStudents > 0 ? Number(((notSubmitted / totalStudents) * 100).toFixed(1)) : 0,
+            gradingPercentage: submitted > 0 ? Number(((grading / submitted) * 100).toFixed(1)) : 0,
+            dueDate: (assignment as any)?.stats?.dueDate,
+            createdAt: (assignment as any)?.stats?.createdAt
+          };
+        }
 
         return (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
