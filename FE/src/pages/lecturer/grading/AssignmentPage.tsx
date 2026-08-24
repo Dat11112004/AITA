@@ -2046,6 +2046,26 @@ export default function AssignmentPage() {
                   );
                 };
 
+                const getStudentLabel = (member: { submissionId: string; studentId: string | null; studentName: string | null; studentCode: string | null }) => {
+                  const matchedSt = history.find((h: any) =>
+                    h.id === member.submissionId ||
+                    h.submissionId === member.submissionId ||
+                    (member.studentId && (h.studentId === member.studentId || h.id === member.studentId)) ||
+                    (member.studentCode && (h.studentCode === member.studentCode || h.studentId === member.studentCode)) ||
+                    (member.studentName && (h.studentName === member.studentName || h.name === member.studentName))
+                  );
+
+                  const name = (matchedSt ? (matchedSt.studentName || matchedSt.name) : null) || member.studentName || null;
+                  const code = (matchedSt ? (matchedSt.studentCode || matchedSt.code) : null) || member.studentCode || null;
+
+                  if (name && code) {
+                    return name.includes(code) ? name : `${name} (${code})`;
+                  }
+                  if (name) return name;
+                  if (code) return `Sinh viên (${code})`;
+                  return null;
+                };
+
                 const dupList: Array<{
                   submissionId: string;
                   studentName: string | null;
@@ -2065,31 +2085,25 @@ export default function AssignmentPage() {
                   const clusterPenalizedMembers = cluster.submissions.filter(s => isSubmissionPenalized(s.submissionId, s.isPenalized));
                   const clusterPendingMembers = cluster.submissions.filter(s => !isSubmissionPenalized(s.submissionId, s.isPenalized));
 
-                  const penalizedNames = clusterPenalizedMembers.map(pm => {
-                    const matchedSt = history.find((h: any) =>
-                      h.id === pm.submissionId ||
-                      h.submissionId === pm.submissionId ||
-                      h.studentId === pm.studentId ||
-                      (pm.studentCode && (h.studentCode === pm.studentCode || h.studentId === pm.studentCode)) ||
-                      (pm.studentName && h.studentName === pm.studentName)
-                    );
-                    const name = pm.studentName || (matchedSt ? (matchedSt.studentName || matchedSt.name) : null) || (pm.studentCode ? `Sinh viên (${pm.studentCode})` : (pm.studentId || pm.submissionId));
-                    const code = pm.studentCode || (matchedSt ? (matchedSt.studentCode || matchedSt.code) : null);
-                    return code ? `${name} (${code})` : name;
-                  }).filter(Boolean) as string[];
+                  const seenPenalized = new Set<string>();
+                  const penalizedNames: string[] = [];
+                  clusterPenalizedMembers.forEach(pm => {
+                    const label = getStudentLabel(pm);
+                    if (label && !seenPenalized.has(label)) {
+                      seenPenalized.add(label);
+                      penalizedNames.push(label);
+                    }
+                  });
 
-                  const pendingNames = clusterPendingMembers.map(pm => {
-                    const matchedSt = history.find((h: any) =>
-                      h.id === pm.submissionId ||
-                      h.submissionId === pm.submissionId ||
-                      h.studentId === pm.studentId ||
-                      (pm.studentCode && (h.studentCode === pm.studentCode || h.studentId === pm.studentCode)) ||
-                      (pm.studentName && h.studentName === pm.studentName)
-                    );
-                    const name = pm.studentName || (matchedSt ? (matchedSt.studentName || matchedSt.name) : null) || (pm.studentCode ? `Sinh viên (${pm.studentCode})` : (pm.studentId || pm.submissionId));
-                    const code = pm.studentCode || (matchedSt ? (matchedSt.studentCode || matchedSt.code) : null);
-                    return code ? `${name} (${code})` : name;
-                  }).filter(Boolean) as string[];
+                  const seenPending = new Set<string>();
+                  const pendingNames: string[] = [];
+                  clusterPendingMembers.forEach(pm => {
+                    const label = getStudentLabel(pm);
+                    if (label && !seenPending.has(label)) {
+                      seenPending.add(label);
+                      pendingNames.push(label);
+                    }
+                  });
 
                   // Only show pending (unpenalized) submissions in dupList!
                   clusterPendingMembers.forEach((s) => {
@@ -2268,16 +2282,62 @@ export default function AssignmentPage() {
                       </div>
                     )}
 
-                    {/* Information note */}
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                      <div className="leading-relaxed">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          {t('lc.dup.mechanism_label') || 'Cơ chế xử lý: '}
-                        </span>
-                        {t('lc.dup.mechanism_text') || 'Hệ thống đối soát mã nguồn và chỉ cho phép áp dụng trừ điểm 1 lần duy nhất cho các bài nộp bị trùng lặp để đảm bảo tính công bằng và tránh trừ điểm nhiều lần.'}
+                    {/* Detailed Reason & Comparison Breakdown Card */}
+                    {dupList.length > 0 ? (
+                      <div className="bg-amber-50/70 dark:bg-amber-950/20 p-4 rounded-2xl border border-amber-200/80 dark:border-amber-900/40 space-y-2.5 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="flex items-center gap-2 font-extrabold text-amber-900 dark:text-amber-200 text-xs uppercase tracking-wider">
+                          <Info size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span>{t('lc.dup.reason_title') || 'Chi tiết lý do & Đối soát trùng khớp mã nguồn:'}</span>
+                        </div>
+
+                        <div className="space-y-1.5 pl-6 text-slate-700 dark:text-slate-300">
+                          {dupList.map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 leading-relaxed">
+                              <span className="text-amber-500 font-bold">•</span>
+                              <div>
+                                <span className="font-bold text-slate-900 dark:text-slate-100">
+                                  {item.studentName} {item.studentCode ? `(${item.studentCode})` : ''}
+                                </span>
+                                : {item.matchedWithNames.length > 0 ? (
+                                  <>
+                                    {' '}{t('lc.dup.reason_matches_prefix') || 'Phát hiện mã nguồn trùng khớp'}{' '}
+                                    <strong className="text-rose-600 dark:text-rose-400 font-black">{item.topSimilarity}%</strong>{' '}
+                                    {t('lc.dup.reason_matches_with') || 'với bài làm của'}{' '}
+                                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                                      {item.matchedWithNames.join(', ')}
+                                    </span>
+                                    {item.hasPenalizedMatch && (
+                                      <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-300 dark:border-emerald-800">
+                                        {t('lc.dup.reason_status_penalized') || 'Đã trừ điểm trước đó'}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  ` ${t('lc.dup.reason_cluster_member') || 'Phát hiện mã nguồn trùng khớp với các bài nộp trong cùng bài tập.'}`
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/30 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pl-6">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {t('lc.dup.mechanism_label') || 'Cơ chế xử lý: '}
+                          </span>
+                          {t('lc.dup.reason_mechanism_note', { count: dupList.length }) || `Khi bấm "Áp dụng trừ điểm ngay", hệ thống chỉ áp dụng mức phạt đối với ${dupList.length} bài nộp vi phạm mới này và bảo lưu kết quả của các bài nộp đã xử lý trước đó để đảm bảo tính công bằng.`}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-500 dark:text-slate-400">
+                        <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                        <div className="leading-relaxed">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {t('lc.dup.mechanism_label') || 'Cơ chế xử lý: '}
+                          </span>
+                          {t('lc.dup.mechanism_text') || 'Hệ thống đối soát mã nguồn và chỉ cho phép áp dụng trừ điểm 1 lần duy nhất cho các bài nộp bị trùng lặp để đảm bảo tính công bằng và tránh trừ điểm nhiều lần.'}
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
