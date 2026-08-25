@@ -155,12 +155,12 @@ async function main() {
     { code: 'PRO192', name: 'Object-Oriented Programming', desc: 'Object-oriented programming using Java: classes, encapsulation, inheritance, polymorphism, interfaces, exception handling, and collections.', semester: 2, syllabus: PRO192_SYLLABUS },
     { code: 'CSD201', name: 'Data Structures and Algorithms', desc: 'Core data structures & algorithms: linked lists, stacks, queues, trees, BSTs, heaps, hash tables, graphs, and Big-O complexity analysis.', semester: 3, syllabus: CSD201_SYLLABUS },
     { code: 'DBI202', name: 'Introduction to Database Systems', desc: 'Relational database design & management: ERD modeling, Normalization, primary/foreign keys, constraints, and SQL (DDL, DML, DCL).', semester: 3, syllabus: DBI202_SYLLABUS },
-    { code: 'PRJ301', name: 'Java Web Application Development', desc: 'Java Web Application development using Servlets, JSP, MVC architecture, JDBC, Sessions, Filters, and database integration.', semester: 4, syllabus: PRJ301_SYLLABUS },
-    { code: 'PRN212', name: 'C# Programming and .NET', desc: 'C# and .NET application development: LINQ, Entity Framework Core, ASP.NET Core Web API, JWT authentication, and SQL Server.', semester: 5, syllabus: PRN212_SYLLABUS },
-    { code: 'SWP391', name: 'Software Development Project', desc: 'Team-based software project: applying agile development, requirement analysis, design, testing, Git version control, and final delivery.', semester: 5, syllabus: SWP391_SYLLABUS },
+    { code: 'SWP391', name: 'Software Development Project', desc: 'Team-based software project: applying agile development, requirement analysis, design, testing, Git version control, and final delivery.', semester: 4, syllabus: SWP391_SYLLABUS },
+    { code: 'PRJ301', name: 'Java Web Application Development', desc: 'Java Web Application development using Servlets, JSP, MVC architecture, JDBC, Sessions, Filters, and database integration.', semester: 3, syllabus: PRJ301_SYLLABUS },
+    { code: 'PRM392', name: 'Mobile Programming', desc: 'Android mobile application development: Activities, Fragments, Room database, REST APIs, Firebase integration, and Material Design UI.', semester: 5, syllabus: PRM392_SYLLABUS },
+    { code: 'PRN212', name: 'C# Programming and .NET', desc: 'C# and .NET application development: LINQ, Entity Framework Core, ASP.NET Core Web API, JWT authentication, and SQL Server.', semester: 6, syllabus: PRN212_SYLLABUS },
     { code: 'WDP301', name: 'Web Application Development', desc: 'Modern web application development using HTML5, CSS3, JavaScript, responsive layouts, REST APIs, and frontend-backend integration.', semester: 6, syllabus: WDP301_SYLLABUS },
-    { code: 'PRM392', name: 'Mobile Programming', desc: 'Android mobile application development: Activities, Fragments, Room database, REST APIs, Firebase integration, and Material Design UI.', semester: 8, syllabus: PRM392_SYLLABUS },
-    { code: 'SWD392', name: 'Software Architecture and Design', desc: 'Software architecture and design patterns: UML, GoF patterns, layered architecture, Clean Architecture, SOLID principles, and system scalability.', semester: 8, syllabus: SWD392_SYLLABUS },
+    { code: 'SWD392', name: 'Software Architecture and Design', desc: 'Software architecture and design patterns: UML, GoF patterns, layered architecture, Clean Architecture, SOLID principles, and system scalability.', semester: 7, syllabus: SWD392_SYLLABUS },
   ]
 
   for (const subj of defaultSubjects) {
