@@ -113,30 +113,131 @@ export class PrismaUserRepository implements IUserRepository {
 
   async delete(id: string): Promise<void> {
     await this.withDeadlockRetry(() =>
-      this.client.$transaction([
-        // Nullify optional foreign keys to avoid P2003 constraint failures
-        this.client.exam.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
-        this.client.promptTemplate.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
-        this.client.notification.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } }),
-        this.client.gradingSession.updateMany({ where: { TriggeredBy: id }, data: { TriggeredBy: null } }),
-        this.client.examGenerationHistory.updateMany({ where: { GeneratedBy: id }, data: { GeneratedBy: null } }),
-        this.client.importBatch.updateMany({ where: { ImportedBy: id }, data: { ImportedBy: null } }),
-        this.client.submission.updateMany({ where: { ReviewedBy: id }, data: { ReviewedBy: null } }),
-        this.client.submission.updateMany({ where: { StudentId: id }, data: { StudentId: null } }),
-        this.client.appeal.updateMany({ where: { StudentId: id }, data: { StudentId: null } }),
+      this.client.$transaction(async (tx: any) => {
+        // ── Step 1: Cascade-delete all submissions owned by this student ──
+        // Setting StudentId to null violates the unique constraint
+        // (StudentId, ExamId, ClassId, AttemptNumber) when multiple deleted
+        // users shared the same exam/class/attempt combo. Deleting the
+        // submissions (and their full subtree) avoids the conflict entirely.
+        const studentSubmissions = await tx.submission.findMany({
+          where: { StudentId: id },
+          select: { Id: true },
+        })
+        const subIds = studentSubmissions.map((s: any) => s.Id)
 
-        // Delete dependent records
-        this.client.userRole.deleteMany({ where: { UserId: id } }),
-        this.client.studentClass.deleteMany({ where: { UserId: id } }),
-        this.client.instructorClass.deleteMany({ where: { UserId: id } }),
-        this.client.refreshToken.deleteMany({ where: { UserId: id } }),
-        this.client.oAuthIdentity.deleteMany({ where: { UserId: id } }),
-        this.client.auditLog.deleteMany({ where: { UserId: id } }),
-        this.client.aiUsageLog.deleteMany({ where: { UserId: id } }),
-        this.client.notificationRecipient.deleteMany({ where: { UserId: id } }),
-        this.client.user.delete({ where: { Id: id } })
-      ])
+        if (subIds.length > 0) {
+          await this.cascadeDeleteSubmissions(tx, subIds)
+        }
+
+        // ── Step 2: Nullify optional FKs (none of these hit unique constraints) ──
+        await tx.exam.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } })
+        await tx.promptTemplate.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } })
+        await tx.notification.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } })
+        await tx.gradingSession.updateMany({ where: { TriggeredBy: id }, data: { TriggeredBy: null } })
+        await tx.examGenerationHistory.updateMany({ where: { GeneratedBy: id }, data: { GeneratedBy: null } })
+        await tx.importBatch.updateMany({ where: { ImportedBy: id }, data: { ImportedBy: null } })
+        await tx.submission.updateMany({ where: { ReviewedBy: id }, data: { ReviewedBy: null } })
+        await tx.appeal.updateMany({ where: { StudentId: id }, data: { StudentId: null } })
+        await tx.submissionOverride.updateMany({ where: { CreatedBy: id }, data: { CreatedBy: null } })
+
+        // ── Step 3: Delete direct user-dependent records ──
+        await tx.userRole.deleteMany({ where: { UserId: id } })
+        await tx.studentClass.deleteMany({ where: { UserId: id } })
+        await tx.instructorClass.deleteMany({ where: { UserId: id } })
+        await tx.refreshToken.deleteMany({ where: { UserId: id } })
+        await tx.oAuthIdentity.deleteMany({ where: { UserId: id } })
+        await tx.auditLog.deleteMany({ where: { UserId: id } })
+        await tx.aiUsageLog.deleteMany({ where: { UserId: id } })
+        await tx.notificationRecipient.deleteMany({ where: { UserId: id } })
+
+        // ── Step 4: Delete the user ──
+        await tx.user.delete({ where: { Id: id } })
+      })
     )
+  }
+
+  /**
+   * Cascade-delete submissions and all their deeply-nested children.
+   *
+   * SQL Server has `onDelete: NoAction` on every FK in this subtree,
+   * so we walk the dependency graph bottom-up:
+   *
+   *   CriterionScore / Evidence  →  RuleScore  →  ExecutionResult
+   *   JobDependency  →  GradingJob  →  GradingSession
+   *   BuildArtifact / SandboxExecution  →  GradingSession
+   *   AiUsageLog / Appeal / SubmissionArtifact  →  Submission
+   */
+  private async cascadeDeleteSubmissions(tx: any, submissionIds: string[]): Promise<void> {
+    // ── Grading sessions & their full subtrees ──
+    const sessions = await tx.gradingSession.findMany({
+      where: { SubmissionId: { in: submissionIds } },
+      select: { Id: true },
+    })
+    const sessionIds = sessions.map((s: any) => s.Id)
+
+    if (sessionIds.length > 0) {
+      const jobs = await tx.gradingJob.findMany({
+        where: { GradingSessionId: { in: sessionIds } },
+        select: { Id: true },
+      })
+      const jobIds = jobs.map((j: any) => j.Id)
+
+      if (jobIds.length > 0) {
+        // ExecutionResults spawned by grading jobs
+        const jobExecResults = await tx.executionResult.findMany({
+          where: { GradingJobId: { in: jobIds } },
+          select: { Id: true },
+        })
+        if (jobExecResults.length > 0) {
+          await this.deleteRuleScoreTree(tx, jobExecResults.map((e: any) => e.Id))
+        }
+        await tx.executionResult.deleteMany({ where: { GradingJobId: { in: jobIds } } })
+
+        await tx.jobDependency.deleteMany({
+          where: { OR: [{ JobId: { in: jobIds } }, { DependsOnJobId: { in: jobIds } }] },
+        })
+        await tx.gradingJob.deleteMany({ where: { Id: { in: jobIds } } })
+      }
+
+      await tx.buildArtifact.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
+      await tx.sandboxExecution.deleteMany({ where: { GradingSessionId: { in: sessionIds } } })
+      await tx.gradingSession.deleteMany({ where: { Id: { in: sessionIds } } })
+    }
+
+    // ── Execution results linked directly to submissions ──
+    const directExecResults = await tx.executionResult.findMany({
+      where: { SubmissionId: { in: submissionIds } },
+      select: { Id: true },
+    })
+    if (directExecResults.length > 0) {
+      await this.deleteRuleScoreTree(tx, directExecResults.map((e: any) => e.Id))
+      await tx.executionResult.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+    }
+
+    // ── Direct children of submissions ──
+    await tx.aiUsageLog.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+    await tx.appeal.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+    await tx.submissionArtifact.deleteMany({ where: { SubmissionId: { in: submissionIds } } })
+
+    // ── Submissions themselves ──
+    await tx.submission.deleteMany({ where: { Id: { in: submissionIds } } })
+  }
+
+  /**
+   * Delete RuleScore rows (and their CriterionScore / Evidence leaves)
+   * that belong to the given ExecutionResult IDs.
+   */
+  private async deleteRuleScoreTree(tx: any, executionResultIds: string[]): Promise<void> {
+    const ruleScores = await tx.ruleScore.findMany({
+      where: { ExecutionResultId: { in: executionResultIds } },
+      select: { Id: true },
+    })
+    const rsIds = ruleScores.map((r: any) => r.Id)
+    if (rsIds.length > 0) {
+      await tx.criterionScore.deleteMany({ where: { RuleScoreId: { in: rsIds } } })
+      await tx.evidence.deleteMany({ where: { RuleScoreId: { in: rsIds } } })
+      await tx.ruleScore.deleteMany({ where: { Id: { in: rsIds } } })
+    }
   }
 
   /**

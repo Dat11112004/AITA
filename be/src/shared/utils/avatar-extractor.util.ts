@@ -115,29 +115,43 @@ export async function resolveCloudinaryAvatarUrl(url: string | null | undefined)
     const collectionMatch = cleanUrl.match(/collection\.cloudinary\.com\/([^/]+)\/([a-zA-Z0-9_-]+)/i);
     if (collectionMatch) {
         const [, cloudName, collectionId] = collectionMatch;
-        try {
-            const apiUrl = `https://console.cloudinary.com/console/api/v1/collections/public/${cloudName}/${collectionId}`;
-            const res = await fetch(apiUrl, {
-                headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-                signal: AbortSignal.timeout(6000)
-            });
-            if (res.ok) {
-                const data: any = await res.json();
-                const asset = data.assets?.[0];
-                if (asset) {
-                    const directUrl = asset.delivery_urls?.original ||
-                                     asset.delivery_urls?.preview ||
-                                     asset.delivery_urls?.thumbnail ||
-                                     (asset.public_id ? `https://res.cloudinary.com/${cloudName}/image/upload/${asset.public_id}.${asset.format || 'jpg'}` : null);
-                    if (directUrl) {
-                        return directUrl;
+        const candidateEndpoints = [
+            `https://console.cloudinary.com/console/api/v1/collections/public/${cloudName}/${collectionId}/search`,
+            `https://console.cloudinary.com/console/api/v1/collections/public/${cloudName}/${collectionId}/collection_info`,
+            `https://console.cloudinary.com/console/api/v1/collections/public/${cloudName}/${collectionId}`
+        ];
+
+        for (const apiUrl of candidateEndpoints) {
+            try {
+                const res = await fetch(apiUrl, {
+                    headers: {
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': `https://collection.cloudinary.com/${cloudName}/${collectionId}`
+                    },
+                    signal: AbortSignal.timeout(6000)
+                });
+                if (res.ok) {
+                    const data: any = await res.json();
+                    const asset = data.assets?.[0] || data.resources?.[0] || data;
+                    if (asset) {
+                        const directUrl = asset.delivery_urls?.original ||
+                                         asset.delivery_urls?.preview ||
+                                         asset.delivery_urls?.thumbnail ||
+                                         asset.secure_url ||
+                                         asset.url ||
+                                         (asset.public_id ? `https://res.cloudinary.com/${cloudName}/image/upload/${asset.public_id}.${asset.format || 'jpg'}` : null);
+                        if (directUrl) {
+                            return directUrl;
+                        }
                     }
                 }
+            } catch {
+                // Continue to next candidate endpoint
             }
-        } catch (err) {
-            console.warn(`[Avatar Resolver] Không thể giải mã collection link ${cleanUrl}:`, err);
         }
     }
 
     return cleanUrl;
 }
+
