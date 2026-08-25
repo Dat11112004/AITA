@@ -385,9 +385,8 @@ export class AssignmentController extends BaseController {
             const totalPoints = rubric?.rules ? rubric.rules.reduce((sum: number, r: any) => sum + (Number(r.weight) || 0), 0) : 10;
             if (rubric?.rules && Array.isArray(rubric.rules) && rubric.rules.length > 0) {
                 if (Math.abs(totalPoints - 10) > 0.01) {
-                    return res.status(400).json({
-                        error: `Tổng điểm của các tiêu chí Rubric phải bằng chính xác 10.0 điểm. Hiện tại: ${totalPoints.toFixed(2)} điểm.`
-                    });
+                    const msg = `Tổng điểm của các tiêu chí Rubric phải bằng chính xác 10.0 điểm. Hiện tại: ${totalPoints.toFixed(2)} điểm.`;
+                    return res.status(400).json({ success: false, statusCode: 400, Message: msg, error: msg });
                 }
             }
 
@@ -465,7 +464,9 @@ export class AssignmentController extends BaseController {
             this.created(res, publishedAssignment, 'Assignment published successfully');
         } catch (error: any) {
             console.error("Publish Error:", error);
-            res.status(500).json({ error: error.message || "Error publishing assignment" });
+            const statusCode = error.statusCode || 500;
+            const message = error.message || "Error publishing assignment";
+            res.status(statusCode).json({ success: false, statusCode, Message: message, error: message });
         }
     };
 

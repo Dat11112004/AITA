@@ -488,19 +488,40 @@ export class ImportStudentsExcelUseCase {
                             })
 
                             if (targetSubj) {
-                                const semSubj = await (prisma as any).semesterSubject.findFirst({
-                                    where: {
-                                        SubjectId: targetSubj.Id,
-                                        SemesterId: { in: Array.from(targetSemesterIds) }
-                                    }
-                                })
+                                let targetSemId: string | undefined = undefined;
 
-                                if (semSubj) {
+                                if (targetSubj.Semester !== null && targetSubj.Semester !== undefined) {
+                                    const expectedCode = `Kỳ ${targetSubj.Semester}`;
+                                    const matchedSem = targetSemesters.find(s => s.Code === expectedCode || s.Code === `Semester ${targetSubj.Semester}` || s.Code?.match(/\d+/)?.[0] === String(targetSubj.Semester));
+                                    if (matchedSem) {
+                                        targetSemId = matchedSem.Id;
+                                    }
+                                }
+
+                                if (!targetSemId) {
+                                    const semSubj = await (prisma as any).semesterSubject.findFirst({
+                                        where: {
+                                            SubjectId: targetSubj.Id,
+                                            SemesterId: { in: Array.from(targetSemesterIds) }
+                                        }
+                                    })
+                                    targetSemId = semSubj?.SemesterId;
+                                }
+
+                                if (targetSemId) {
+                                    await (prisma as any).semesterSubject.create({
+                                        data: {
+                                            SemesterId: targetSemId,
+                                            SubjectId: targetSubj.Id
+                                        },
+                                        skipDuplicates: true
+                                    }).catch(() => {})
+
                                     cls = await prisma.class.create({
                                         data: {
                                             ClassCode: pe.ClassCode,
                                             SubjectId: targetSubj.Id,
-                                            SemesterId: semSubj.SemesterId,
+                                            SemesterId: targetSemId,
                                             Status: 'Active'
                                         }
                                     })
@@ -550,28 +571,45 @@ export class ImportStudentsExcelUseCase {
                             // Bước 3: Nếu khai báo (Format 1) mà không có lớp trên hệ thống, tự động đi kiếm kì nào chứa môn đó để tạo.
                             // Chỉ tìm trong các kỳ thuộc MÙA đang import — không có fallback sang mùa khác,
                             // vì tạo lớp trong mùa khác sẽ làm sai số lớp của cả hai mùa.
-                            const semSubj = await (prisma as any).semesterSubject.findFirst({
+                            let semSubj = await (prisma as any).semesterSubject.findFirst({
                                 where: {
                                     SubjectId: retakeSubj.Id,
                                     SemesterId: { in: Array.from(targetSemesterIds) }
                                 }
                             })
 
-                            if (!semSubj) {
+                            let targetSemId = semSubj?.SemesterId;
+                            if (!targetSemId && retakeSubj.Semester !== null && retakeSubj.Semester !== undefined) {
+                                const expectedCode = `Kỳ ${retakeSubj.Semester}`;
+                                const matchedSem = targetSemesters.find(s => s.Code === expectedCode || s.Code === `Semester ${retakeSubj.Semester}` || s.Code?.match(/\d+/)?.[0] === String(retakeSubj.Semester));
+                                if (matchedSem) {
+                                    targetSemId = matchedSem.Id;
+                                }
+                            }
+
+                            if (!targetSemId) {
                                 console.warn(`[Import][Retake] Mùa '${detectedSeasonInfo.formatted}' không có kỳ nào chứa môn '${pe.SubjectCode}' — bỏ qua`)
                                 continue
                             }
+
+                            await (prisma as any).semesterSubject.create({
+                                data: {
+                                    SemesterId: targetSemId,
+                                    SubjectId: retakeSubj.Id
+                                },
+                                skipDuplicates: true
+                            }).catch(() => {})
 
                             cls = await prisma.class.create({
                                 data: {
                                     ClassCode: retakeClassCode,
                                     SubjectId: retakeSubj.Id,
-                                    SemesterId: semSubj.SemesterId,
+                                    SemesterId: targetSemId,
                                     Status: 'Active'
                                 }
                             })
                             classesToEnroll.push(cls.Id)
-                            console.log(`[Import][Retake] Auto-created class '${retakeClassCode}' cho môn nợ '${pe.SubjectCode}' trong kỳ ${semSubj.SemesterId}`)
+                            console.log(`[Import][Retake] Auto-created class '${retakeClassCode}' cho môn nợ '${pe.SubjectCode}' trong kỳ ${targetSemId}`)
                         } else {
                             // Format 2 không tìm thấy thì bỏ qua
                             console.warn(`[Import][Retake-Auto] Không tìm thấy class cho môn '${pe.SubjectCode}' với classCode '${classCode}' — bỏ qua`)

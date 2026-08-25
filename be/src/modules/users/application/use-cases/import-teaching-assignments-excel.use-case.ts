@@ -224,6 +224,14 @@ export class ImportTeachingAssignmentsExcelUseCase {
                                 throw new Error(`Môn '${subjectCode}' không được mở trong kỳ '${detectedSeasonInfo.formatted}'`)
                             }
 
+                            await (prisma as any).semesterSubject.create({
+                                data: {
+                                    SemesterId: targetSemId,
+                                    SubjectId: targetSubj.Id
+                                },
+                                skipDuplicates: true
+                            }).catch(() => {})
+
                             cls = await prisma.class.create({
                                 data: {
                                     ClassCode: classCode,

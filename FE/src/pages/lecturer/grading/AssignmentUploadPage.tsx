@@ -481,7 +481,7 @@ export default function AssignmentUploadPage() {
             aiGenerationStore.reset();
             navigate(`/lecturer/grading/assignments/${assignment.id}`);
         } catch (err: any) {
-            setError(err.response?.data?.error || err.message || t('lc.up.publish_failed'));
+            setError(err.message || t('lc.up.publish_failed'));
         } finally {
             setIsLoading(false);
         }

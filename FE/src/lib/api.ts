@@ -75,7 +75,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
               fetch(`${BASE}${path}`, { ...options, headers: retryHeaders })
                 .then(r => r.json())
                 .then(j => {
-                  if (!j.success && j.statusCode >= 400) reject(new ApiError(j.Message || j.error?.message || 'API error', j.statusCode, j.error?.code))
+                  if (!j.success && j.statusCode >= 400) {
+                    const retryErr = typeof j.error === 'string' ? j.error : j.error?.message;
+                    reject(new ApiError(j.Message || j.message || retryErr || 'API error', j.statusCode, typeof j.error === 'object' ? j.error?.code : undefined))
+                  }
                   else resolve(j.Data !== undefined ? j.Data : j.data)
                 })
                 .catch(reject)
@@ -129,11 +132,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok || json.success === false || json.statusCode >= 400) {
-    let msg = json.Message || json.message || json.error?.message || res.statusText || 'API error';
+    // Extract error message: handle both `{ error: "string" }` and `{ error: { message: "..." } }` formats
+    const errorField = json.error;
+    const errorMsg = typeof errorField === 'string' ? errorField : errorField?.message;
+    const errorCode = typeof errorField === 'object' ? errorField?.code : undefined;
+    let msg = json.Message || json.message || errorMsg || res.statusText || 'API error';
     if (res.status === 429 || json.statusCode === 429 || String(msg).includes('429') || String(msg).includes('no body')) {
       msg = 'Hệ thống AI đang vượt giới hạn lượt gọi (Rate Limit 429). Vui lòng thử lại sau 5–10 giây.';
     }
-    throw new ApiError(msg, json.statusCode || res.status, json.error?.code)
+    throw new ApiError(msg, json.statusCode || res.status, errorCode)
   }
   if (json.Data !== undefined) return json.Data as T;
   if (json.data !== undefined) return json.data as T;
