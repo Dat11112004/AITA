@@ -1,6 +1,7 @@
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { seedTestAccounts } from './database/dev-seed.js'
+import { syncClassSemesters } from './database/sync-class-semesters.js'
 
 const app = createApp()
 
@@ -9,6 +10,11 @@ if (env.NODE_ENV === 'development') {
   seedTestAccounts()
     .then(() => console.log('🌱 Dev seed: test accounts ready (admin/lecturer/student @fpt.edu.vn)'))
     .catch((err) => console.warn('⚠️ Dev seed skipped:', err instanceof Error ? err.message : err))
+} else {
+  // In production, always ensure subject semester alignments are synced
+  syncClassSemesters()
+    .then(() => console.log('✅ Subject semesters synchronized successfully.'))
+    .catch((err) => console.warn('⚠️ Subject semester sync skipped:', err instanceof Error ? err.message : err))
 }
 
 // Trigger dev server restart and syncClassSemesters run

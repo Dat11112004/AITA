@@ -39,15 +39,16 @@ export async function syncClassSemesters(): Promise<void> {
     })
 
     for (const cls of allClasses) {
-      if (!cls.Subject || !cls.Semester) continue
+      if (!cls.Subject || !cls.Semester || !cls.Semester.Code) continue
 
       const targetSemNumber = cls.Subject.Semester
       if (targetSemNumber === null || targetSemNumber === undefined) continue
 
-      const currentSemCode = cls.Semester.Code // e.g. "Kỳ 5"
+      const currentSemCode = cls.Semester.Code || '' // e.g. "Kỳ 5"
       const expectedSemCode = `Kỳ ${targetSemNumber}` // e.g. "Kỳ 3"
+      const isNumberedSem = /^Kỳ\s*\d+/i.test(currentSemCode) || /^Semester\s*\d+/i.test(currentSemCode)
 
-      if (currentSemCode !== expectedSemCode) {
+      if (isNumberedSem && currentSemCode !== expectedSemCode) {
         const season = cls.Semester.Season
 
         // Find or create matching Semester record in the same Season with expectedSemCode
