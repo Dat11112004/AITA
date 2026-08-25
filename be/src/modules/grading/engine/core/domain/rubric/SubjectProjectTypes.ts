@@ -39,6 +39,7 @@ export const SUBJECT_PROJECT_TYPES: Record<string, SubjectProjectTypePolicy> = {
 
     // Android
     PRM392: { allowed: ['mobile', 'backend'], fallback: 'mobile' },
+    PRM393: { allowed: ['mobile', 'backend'], fallback: 'mobile' },
 
     // Team projects can be any shape
     SWP391: { allowed: ['fullstack', 'backend', 'frontend', 'mobile'], fallback: 'fullstack' },

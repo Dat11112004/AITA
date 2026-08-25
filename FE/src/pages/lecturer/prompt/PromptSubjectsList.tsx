@@ -9,6 +9,7 @@ const ENGLISH_SUBJECT_DESCRIPTIONS: Record<string, string> = {
   DBI202: 'Relational database design and management: ERD modeling, Normalization, primary/foreign keys, SQL constraints, and query optimization.',
   PRJ301: 'Java Web Application development using Servlet, JSP, JSTL, MVC architecture, JDBC, Session, Cookie, and Filter handling.',
   PRM392: 'Android Mobile Programming using Java/Kotlin: Activity, Fragment, Intent, RecyclerView, Room Database, and REST API integration.',
+  PRM393: 'Android Mobile Programming using Java/Kotlin: Activity, Fragment, Intent, RecyclerView, Room Database, and REST API integration.',
 }
 
 export function PromptSubjectsList() {
