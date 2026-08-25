@@ -5,12 +5,13 @@ const SUBJECT_SEMESTER_MAPPING: Record<string, number> = {
   PRO192: 2,
   CSD201: 3,
   DBI202: 3,
-  PRJ301: 3, // Java Web Application Development is Semester 3 in FPT curriculum
-  SWP391: 4,
-  PRM392: 5,
+  PRJ301: 4,
   PRN212: 5,
+  SWP391: 5,
   WDP301: 6,
-  SWD392: 7,
+  PRM392: 8,
+  PRM393: 8,
+  SWD392: 8,
 }
 
 export async function syncClassSemesters(): Promise<void> {
