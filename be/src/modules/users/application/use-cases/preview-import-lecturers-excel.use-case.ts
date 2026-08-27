@@ -80,10 +80,21 @@ export class PreviewImportLecturersExcelUseCase {
         }
 
         const sheet = workbook.Sheets[sheetName]
-        const rows: ImportLecturerRow[] = xlsx.utils.sheet_to_json(sheet)
+        const rows: ImportLecturerRow[] = xlsx.utils.sheet_to_json(sheet, { blankrows: true })
+
+        // Loại bỏ các dòng trống ở cuối file Excel
+        while (rows.length > 0) {
+            const lastRow = rows[rows.length - 1]
+            const isEmpty = Object.values(lastRow).every(v => v === undefined || v === null || String(v).trim() === '')
+            if (isEmpty) {
+                rows.pop()
+            } else {
+                break
+            }
+        }
 
         if (rows.length === 0) {
-            throw new AppError('INVALID_FILE', 'File Excel rỗng', 400)
+            throw new AppError('INVALID_FILE', 'File Excel rỗng hoặc toàn bộ các dòng đều trống', 400)
         }
 
         const previewRows = []
@@ -92,6 +103,23 @@ export class PreviewImportLecturersExcelUseCase {
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i]
             const rowIndex = i + 2
+
+            const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+            if (isRowEmpty) {
+                hasErrors = true
+                previewRows.push({
+                    index: rowIndex,
+                    code: '',
+                    fullName: '',
+                    email: '',
+                    subjects: '',
+                    classes: '',
+                    avatar: '',
+                    isValid: false,
+                    errors: ['Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)']
+                })
+                continue
+            }
 
             const code = getField(row, 'code')
             const fullName = getField(row, 'fullName')
@@ -103,7 +131,7 @@ export class PreviewImportLecturersExcelUseCase {
 
             const errors: string[] = []
 
-            if (!code) errors.push('Thiếu mã giảng viên')
+            if (!code) errors.push('Thiếu mã giảng viên (MSSV/GV)')
             if (!fullName) errors.push('Thiếu họ và tên')
             if (!email) errors.push('Thiếu email')
             if (!subjectsStr) errors.push('Thiếu môn dạy')

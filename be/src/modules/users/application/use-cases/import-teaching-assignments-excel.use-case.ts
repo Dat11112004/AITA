@@ -94,7 +94,22 @@ export class ImportTeachingAssignmentsExcelUseCase {
             }
 
             const sheet = workbook.Sheets[sheetName]
-            const rows: ImportAssignmentRow[] = xlsx.utils.sheet_to_json(sheet)
+            const rows: ImportAssignmentRow[] = xlsx.utils.sheet_to_json(sheet, { blankrows: true })
+
+            // Loại bỏ các dòng trống ở cuối file Excel
+            while (rows.length > 0) {
+                const lastRow = rows[rows.length - 1]
+                const isEmpty = Object.values(lastRow).every(v => v === undefined || v === null || String(v).trim() === '')
+                if (isEmpty) {
+                    rows.pop()
+                } else {
+                    break
+                }
+            }
+
+            if (rows.length === 0) {
+                throw new AppError('INVALID_FILE', 'File Excel không có dữ liệu hoặc toàn bộ các dòng đều trống', 400)
+            }
 
             await prisma.importBatch.update({
                 where: { Id: batch.Id },
@@ -116,15 +131,15 @@ export class ImportTeachingAssignmentsExcelUseCase {
                 const row = rows[i]
 
                 try {
+                    const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+                    if (isRowEmpty) {
+                        throw new Error('Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)')
+                    }
+
                     let lecturerCode = getField(row, 'lecturerCode')
                     let lecturerName = getField(row, 'lecturerName')
                     let subjectCode = getField(row, 'subjectCode')
                     const classCodeStr = getField(row, 'classCode')
-
-                    // Bỏ qua các dòng trống hoàn toàn (thường xuất hiện ở cuối file excel)
-                    if (!lecturerCode && !subjectCode && !classCodeStr) {
-                        continue
-                    }
 
                     // Fill down logic: Nhớ Mã GV và Môn cho các dòng bị gộp (merged) hoặc để trống bên dưới
                     if (lecturerCode) {

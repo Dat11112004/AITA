@@ -828,9 +828,13 @@ export function AdminUsers() {
       const res = await api.importStudentsExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
+        let msg = `Không thể import toàn bộ dữ liệu (Thành công: ${res.successCount}, Lỗi: ${res.errorCount}):`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nFirst error detail: ${res.errors[0]}`
+          const detailList = res.errors.slice(0, 5).map((e: string) => `• ${e}`).join('\n')
+          msg += `\n${detailList}`
+          if (res.errors.length > 5) {
+            msg += `\n... và còn ${res.errors.length - 5} dòng lỗi khác.`
+          }
         }
         setError(msg)
       } else {
@@ -862,9 +866,13 @@ export function AdminUsers() {
       const res = await api.importLecturersExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
+        let msg = `Không thể import toàn bộ dữ liệu (Thành công: ${res.successCount}, Lỗi: ${res.errorCount}):`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nFirst error detail: ${res.errors[0]}`
+          const detailList = res.errors.slice(0, 5).map((e: string) => `• ${e}`).join('\n')
+          msg += `\n${detailList}`
+          if (res.errors.length > 5) {
+            msg += `\n... và còn ${res.errors.length - 5} dòng lỗi khác.`
+          }
         }
         setError(msg)
       } else {
@@ -896,9 +904,13 @@ export function AdminUsers() {
       const res = await api.importTeachingAssignmentsExcel(formData)
 
       if (res.errorCount > 0) {
-        let msg = `Unable to import\nSuccess: ${res.successCount}\nErrors: ${res.errorCount}.`
+        let msg = `Không thể import toàn bộ dữ liệu (Thành công: ${res.successCount}, Lỗi: ${res.errorCount}):`
         if (res.errors && res.errors.length > 0) {
-          msg += `\nFirst error detail: ${res.errors[0]}`
+          const detailList = res.errors.slice(0, 5).map((e: string) => `• ${e}`).join('\n')
+          msg += `\n${detailList}`
+          if (res.errors.length > 5) {
+            msg += `\n... và còn ${res.errors.length - 5} dòng lỗi khác.`
+          }
         }
         setError(msg)
       } else {

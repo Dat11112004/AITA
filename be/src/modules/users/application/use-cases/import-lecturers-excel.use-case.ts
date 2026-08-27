@@ -135,7 +135,22 @@ export class ImportLecturersExcelUseCase {
             }
 
             const sheet = workbook.Sheets[sheetName]
-            const rows: ImportLecturerRow[] = xlsx.utils.sheet_to_json(sheet)
+            const rows: ImportLecturerRow[] = xlsx.utils.sheet_to_json(sheet, { blankrows: true })
+
+            // Loại bỏ các dòng trống ở cuối file Excel
+            while (rows.length > 0) {
+                const lastRow = rows[rows.length - 1]
+                const isEmpty = Object.values(lastRow).every(v => v === undefined || v === null || String(v).trim() === '')
+                if (isEmpty) {
+                    rows.pop()
+                } else {
+                    break
+                }
+            }
+
+            if (rows.length === 0) {
+                throw new AppError('INVALID_FILE', 'File Excel không có dữ liệu hoặc toàn bộ các dòng đều trống', 400)
+            }
 
             await prisma.importBatch.update({
                 where: { Id: batch.Id },
@@ -156,6 +171,11 @@ export class ImportLecturersExcelUseCase {
                 const rowIndex = i + 2
 
                 try {
+                    const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+                    if (isRowEmpty) {
+                        throw new Error('Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)')
+                    }
+
                     const code = getField(row, 'code')
                     const fullName = getField(row, 'fullName')
                     const email = getField(row, 'email')
@@ -163,7 +183,11 @@ export class ImportLecturersExcelUseCase {
                     const avatarUrlRaw = getField(row, 'avatar') || ''
 
                     if (!code || !fullName || !email) {
-                        throw new Error('Thiếu thông tin bắt buộc (Mã GV, Họ và tên, Email)')
+                        const missing = []
+                        if (!code) missing.push('Mã GV')
+                        if (!fullName) missing.push('Họ và tên')
+                        if (!email) missing.push('Email')
+                        throw new Error(`Thiếu thông tin bắt buộc (${missing.join(', ')})`)
                     }
 
                     // Check duplicate User

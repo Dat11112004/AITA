@@ -143,7 +143,22 @@ export class ImportStudentsExcelUseCase {
             }
 
             const sheet = workbook.Sheets[sheetName]
-            const rows: ImportStudentRow[] = xlsx.utils.sheet_to_json(sheet)
+            const rows: ImportStudentRow[] = xlsx.utils.sheet_to_json(sheet, { blankrows: true })
+
+            // Loại bỏ các dòng trống ở cuối file Excel
+            while (rows.length > 0) {
+                const lastRow = rows[rows.length - 1]
+                const isEmpty = Object.values(lastRow).every(v => v === undefined || v === null || String(v).trim() === '')
+                if (isEmpty) {
+                    rows.pop()
+                } else {
+                    break
+                }
+            }
+
+            if (rows.length === 0) {
+                throw new AppError('INVALID_FILE', 'File Excel không có dữ liệu hoặc toàn bộ các dòng đều trống', 400)
+            }
 
             await prisma.importBatch.update({
                 where: { Id: batch.Id },
@@ -164,6 +179,11 @@ export class ImportStudentsExcelUseCase {
                 const rowIndex = i + 2 // +2 because 0-index and header row
 
                 try {
+                    const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+                    if (isRowEmpty) {
+                        throw new Error('Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)')
+                    }
+
                     const mssv = getField(row, 'mssv')
                     const fullName = getField(row, 'fullName')
                     const email = getField(row, 'email')
@@ -178,7 +198,13 @@ export class ImportStudentsExcelUseCase {
                     const avatarUrlRaw = getField(row, 'avatar') || ''
 
                     if (!mssv || !fullName || !email || !semesterCode || !classCode) {
-                        throw new Error('Thiếu thông tin bắt buộc (MSSV, Họ và tên, Email, Kỳ học, Lớp học)')
+                        const missing = []
+                        if (!mssv) missing.push('MSSV')
+                        if (!fullName) missing.push('Họ và tên')
+                        if (!email) missing.push('Email')
+                        if (!semesterCode) missing.push('Kỳ học')
+                        if (!classCode) missing.push('Lớp học')
+                        throw new Error(`Thiếu thông tin bắt buộc (${missing.join(', ')})`)
                     }
 
                     // Fuzzy-match semesterCode against ONLY the target season's semesters
