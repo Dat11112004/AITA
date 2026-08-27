@@ -125,6 +125,81 @@ export class ImportTeachingAssignmentsExcelUseCase {
             let currentSubjectCode: string | undefined = undefined
             
             const lecturerCache = new Map<string, any>()
+            // ══════════════════════════════════════════════════════════════════
+            // GIAI ĐOẠN 1: PRE-VALIDATION TOÀN BỘ FILE (ALL-OR-NOTHING BUSINESS RULE)
+            // Bắt buộc tất cả các hàng phải được điền đầy đủ, không để trống bất kỳ dòng nào.
+            // Nếu có lỗi -> Chặn hoàn toàn, KHÔNG ghi vào DB, KHÔNG gửi email!
+            // ══════════════════════════════════════════════════════════════════
+            const validationErrors: Array<{ row: number; message: string }> = []
+            let checkLecturerCode: string | undefined = undefined
+            let checkSubjectCode: string | undefined = undefined
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i]
+                const rowIndex = i + 2
+
+                const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+                if (isRowEmpty) {
+                    validationErrors.push({
+                        row: rowIndex,
+                        message: 'Hàng này đang để trống hoàn toàn. Vui lòng điền thông tin hoặc xóa dòng trống này.'
+                    })
+                    continue
+                }
+
+                let lecturerCode = getField(row, 'lecturerCode')
+                let subjectCode = getField(row, 'subjectCode')
+                const classCodeStr = getField(row, 'classCode')
+
+                if (lecturerCode) {
+                    checkLecturerCode = lecturerCode
+                    checkSubjectCode = undefined
+                } else {
+                    lecturerCode = checkLecturerCode
+                }
+
+                if (subjectCode) {
+                    checkSubjectCode = subjectCode
+                } else {
+                    subjectCode = checkSubjectCode
+                }
+
+                const missing: string[] = []
+                if (!lecturerCode) missing.push('Mã GV')
+                if (!subjectCode) missing.push('Mã môn học')
+                if (!classCodeStr) missing.push('Mã lớp học')
+
+                if (missing.length > 0) {
+                    validationErrors.push({
+                        row: rowIndex,
+                        message: `Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`
+                    })
+                }
+            }
+
+            if (validationErrors.length > 0) {
+                await prisma.importBatch.update({
+                    where: { Id: batch.Id },
+                    data: {
+                        Status: 'FAILED',
+                        ErrorCount: validationErrors.length,
+                        ErrorDetails: `Bắt buộc chỉnh sửa lại file Excel trước khi import. Có ${validationErrors.length} dòng bị để trống hoặc không hợp lệ.`
+                    }
+                })
+
+                const sampleList = validationErrors.slice(0, 10).map(e => `• Dòng ${e.row}: ${e.message}`).join('\n')
+                const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
+
+                throw new AppError(
+                    'VALIDATION_FAILED',
+                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\nHệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Chừng nào sửa xong toàn bộ các hàng thì hệ thống mới cho phép import và gửi thông báo.\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
+                    400
+                )
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // GIAI ĐOẠN 2: THỰC HIỆN IMPORT VÀO DB VÀ GỬI EMAIL (KHI 100% HỢP LỆ)
+            // ══════════════════════════════════════════════════════════════════
             const missingLecturers = new Set<string>()
 
             for (let i = 0; i < rows.length; i++) {

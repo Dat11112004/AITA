@@ -166,6 +166,71 @@ export class ImportLecturersExcelUseCase {
             const processedClasses: Array<{ subjectCode: string; classCode: string; userId: string }> = []
             const targetSemesterIds = new Set(targetSemesters.map(s => s.Id))
 
+            // ══════════════════════════════════════════════════════════════════
+            // GIAI ĐOẠN 1: PRE-VALIDATION TOÀN BỘ FILE (ALL-OR-NOTHING BUSINESS RULE)
+            // Bắt buộc tất cả các hàng phải được điền đầy đủ, không để trống bất kỳ dòng nào.
+            // Nếu có lỗi -> Chặn hoàn toàn, KHÔNG ghi vào DB, KHÔNG gửi email!
+            // ══════════════════════════════════════════════════════════════════
+            const validationErrors: Array<{ row: number; message: string }> = []
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i]
+                const rowIndex = i + 2
+
+                const isRowEmpty = Object.values(row).every(v => v === undefined || v === null || String(v).trim() === '')
+                if (isRowEmpty) {
+                    validationErrors.push({
+                        row: rowIndex,
+                        message: 'Hàng này đang để trống hoàn toàn. Vui lòng điền thông tin hoặc xóa dòng trống này.'
+                    })
+                    continue
+                }
+
+                const code = getField(row, 'code')
+                const fullName = getField(row, 'fullName')
+                const email = getField(row, 'email')
+
+                const missing: string[] = []
+                if (!code) missing.push('Mã GV (hoặc MSSV/GV)')
+                if (!fullName) missing.push('Họ và tên')
+                if (!email) missing.push('Email')
+
+                if (missing.length > 0) {
+                    validationErrors.push({
+                        row: rowIndex,
+                        message: `Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`
+                    })
+                } else if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    validationErrors.push({
+                        row: rowIndex,
+                        message: `Email '${email}' không đúng định dạng.`
+                    })
+                }
+            }
+
+            if (validationErrors.length > 0) {
+                const sampleList = validationErrors.slice(0, 10).map(e => `• Dòng ${e.row}: ${e.message}`).join('\n')
+                const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
+
+                await prisma.importBatch.update({
+                    where: { Id: batch.Id },
+                    data: {
+                        Status: 'FAILED',
+                        ErrorCount: validationErrors.length,
+                        ErrorDetails: `Bắt buộc chỉnh sửa lại file Excel trước khi import:\n${sampleList}${extraMsg}`
+                    }
+                })
+
+                throw new AppError(
+                    'VALIDATION_FAILED',
+                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\nHệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Chừng nào sửa xong toàn bộ các hàng thì hệ thống mới cho phép import và gửi thông báo.\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
+                    400
+                )
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // GIAI ĐOẠN 2: THỰC HIỆN IMPORT VÀO DB VÀ GỬI EMAIL (KHI 100% HỢP LỆ)
+            // ══════════════════════════════════════════════════════════════════
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i]
                 const rowIndex = i + 2
