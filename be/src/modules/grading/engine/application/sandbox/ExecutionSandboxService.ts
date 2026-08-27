@@ -139,19 +139,25 @@ export class ExecutionSandboxService {
             console.log(`[Sandbox] Custom image ${dockerImage} already exists.`);
           } catch (err: any) {
             if (err.statusCode === 404) {
-              console.log(`[Sandbox] Custom image ${dockerImage} not found. Building it dynamically (first time only)...`);
-              const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
-              const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
-              await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
+              console.log(`[Sandbox] Custom image ${dockerImage} not found. Attempting dynamic build with fallback...`);
+              let built = false;
               try {
-                execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit' });
+                const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
+                const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
+                await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
+                execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit', timeout: 120000 });
                 console.log(`[Sandbox] Successfully built ${dockerImage}.`);
+                built = true;
+                await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
               } catch (buildErr) {
-                console.error(`[Sandbox] Failed to build custom image ${dockerImage}:`, buildErr);
-                throw buildErr;
+                console.warn(`[Sandbox] Could not build custom image ${dockerImage} (${buildErr}), falling back to ${baseDotnetImage}`);
+              }
+              if (!built) {
+                dockerImage = baseDotnetImage;
               }
             } else {
-              throw err;
+              console.warn(`[Sandbox] Docker error inspecting ${dockerImage}, falling back to ${baseDotnetImage}:`, err?.message || err);
+              dockerImage = baseDotnetImage;
             }
           }
 
@@ -564,9 +570,16 @@ export NODE_ENV=development
         isReady: true,
         dbWarnings
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[Sandbox] Failed to start sandbox:`, error);
-      throw error;
+      return {
+        containerId: null,
+        baseUrl: null,
+        projectType,
+        runtimeStack: runtimeStack || "unknown",
+        isReady: false,
+        crashLogs: `Sandbox could not be started: ${error?.message || String(error)}`
+      };
     }
   }
 

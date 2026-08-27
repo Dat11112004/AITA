@@ -645,7 +645,19 @@ export class SubmissionController extends BaseController {
                 const evaluationPromise = (async () => {
                     checkCancelled();
                     globalJobManager.updateProgress(submissionId, 5, 'Initialize the dot environment (Sandbox)...');
-                    sandboxHandle = await this.sandboxService.startAsync(extractDir, publishedAssignment.metadata.projectType as any);
+                    try {
+                        sandboxHandle = await this.sandboxService.startAsync(extractDir, publishedAssignment.metadata?.projectType as any);
+                    } catch (sandboxErr: any) {
+                        console.error(`[SubmissionController] Sandbox start error:`, sandboxErr);
+                        sandboxHandle = {
+                            containerId: null,
+                            baseUrl: null,
+                            projectType: (publishedAssignment.metadata?.projectType as any) || 'unknown',
+                            runtimeStack: 'unknown' as any,
+                            isReady: false,
+                            crashLogs: sandboxErr?.message || String(sandboxErr)
+                        };
+                    }
 
                     if (sandboxHandle.isReady && sandboxHandle.baseUrl) {
                         checkCancelled();
@@ -712,6 +724,9 @@ export class SubmissionController extends BaseController {
                         extractedDocument: extractedDoc,
                         submissionPath: extractDir,
                         crashLogs: sandboxHandle.isReady === false ? sandboxHandle.crashLogs : undefined,
+                        subjectCode: publishedAssignment.metadata?.subjectCode || publishedAssignment.subjectCode || (publishedAssignment as any).SubjectCode,
+                        assignmentTitle: publishedAssignment.metadata?.title || (publishedAssignment as any).title,
+                        projectType: sandboxHandle.projectType || publishedAssignment.metadata?.projectType
                     };
 
                     return await this.evaluator.evaluateAsync(
@@ -1264,7 +1279,7 @@ export class SubmissionController extends BaseController {
                                         }
                                         rep.overallFeedback = currentOverall;
                                         reportJson = JSON.stringify(rep);
-                                    } catch (e) {}
+                                    } catch (e) { }
                                 }
 
                                 await prisma.submission.update({

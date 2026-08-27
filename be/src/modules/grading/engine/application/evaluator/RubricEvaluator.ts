@@ -14,6 +14,7 @@ import { UniversalStaticAnalyzer } from './UniversalStaticAnalyzer';
 import { AiTextAnalysisEngine } from './AiTextAnalysisEngine';
 import { ExtractedDocument } from '../../assignment/DocumentExtractor';
 import { globalJobManager } from '../queue/SubmissionJobManager';
+import { normaliseSubjectCode } from '../../core/domain/rubric/SubjectProjectTypes';
 
 export interface EvaluationContext {
     sandbox: SandboxHandle;
@@ -25,6 +26,9 @@ export interface EvaluationContext {
     extractedDocument?: ExtractedDocument;
     crashLogs?: string;
     submissionId?: string;
+    subjectCode?: string;
+    assignmentTitle?: string;
+    projectType?: string;
 }
 
 interface RuleScore {
@@ -350,6 +354,12 @@ export class RubricEvaluator {
 
     private async evaluateRuleAsync(rule: RubricRule, context: EvaluationContext, sharedVariables: Record<string, any> = {}): Promise<RuleScore> {
         const formatScore = (s: number) => parseFloat(s.toFixed(3));
+        const normSubj = normaliseSubjectCode(context.subjectCode);
+        const isStrictMobile = (normSubj && normSubj.startsWith('PRM'))
+            || context.sandbox?.projectType === 'mobile'
+            || context.sourceSnapshot?.projectType === 'mobile'
+            || (context.assignmentTitle && /\bprm\d+/i.test(context.assignmentTitle))
+            || (context.sourceSnapshot?.files?.some(f => f.relativePath.endsWith('.dart') || f.relativePath.includes('AndroidManifest.xml') || f.relativePath.includes('pubspec.yaml')) && !context.sourceSnapshot?.files?.some(f => f.relativePath.endsWith('.csproj') || f.relativePath.endsWith('.sln')));
         try {
             switch (rule.scoringStrategy as string) {
                 case "AIVision": {
@@ -482,20 +492,13 @@ export class RubricEvaluator {
                         }
                     }
 
-                    // Detect mobile project (PRM, Android, Flutter, iOS)
-                    const isMobile = context.sourceSnapshot?.projectType === 'mobile'
-                        || context.sourceSnapshot?.files?.some(f => f.relativePath.endsWith('.dart') || f.relativePath.endsWith('.kt') || f.relativePath.endsWith('.java') || f.relativePath.includes('AndroidManifest.xml') || f.relativePath.includes('pubspec.yaml'))
-                        || ruleText.includes('flutter')
-                        || ruleText.includes('android')
-                        || ruleText.includes('prm');
-
                     // Determine if this is a HYBRID requirement (UI + Logic) based on LLM classification OR keyword fallback OR Mobile project
                     const logicKeywords = ["logic", "offline", "storage", "debounce", "state", "sqlite", "hive", "sharedpreferences", "api", "integration", "network", "fetch", "ajax"];
-                    const isHybrid = (rule as any).isHybrid === true || isMobile || logicKeywords.some(kw => ruleText.includes(kw));
+                    const isHybrid = (rule as any).isHybrid === true || isStrictMobile || logicKeywords.some(kw => ruleText.includes(kw));
 
                     if (imageBuffers.length === 0) {
-                        if (isHybrid) {
-                            console.log(`[RubricEvaluator] No screenshot for Hybrid AIVision rule '${rule.title}'. Strict PRM check: UI is missing -> 0 points.`);
+                        if (isStrictMobile && isHybrid) {
+                            console.log(`[RubricEvaluator] No screenshot for Hybrid AIVision rule '${rule.title}' in PRM Mobile project. Strict PRM check: UI is missing -> 0 points.`);
                             let codeResult: any = null;
                             if (context.sourceSnapshot) {
                                 try {
@@ -524,7 +527,7 @@ export class RubricEvaluator {
                                 }
                             };
                         } else {
-                            console.log(`[RubricEvaluator] No screenshot for non-hybrid AIVision rule '${rule.title}'. Falling back to 100% AICodeReview.`);
+                            console.log(`[RubricEvaluator] No screenshot for AIVision rule '${rule.title}'. Falling back to 100% AICodeReview.`);
                             return this.evaluateRuleAsync({ ...rule, scoringStrategy: "AICodeReview" }, context, sharedVariables);
                         }
                     }
@@ -618,31 +621,48 @@ export class RubricEvaluator {
                             codePct: codePct
                         };
 
-                        // STRICT PRM HYBRID RULE:
-                        // Bắt buộc phải có cả hình ảnh UI và Mã nguồn logic.
-                        // Thiếu 1 trong 2 (hoặc 1 trong 2 = 0) -> Cho 0 điểm luôn!
-                        if (visionPct <= 0 || codePct <= 0) {
-                            finalScore = 0;
-                            finalPassed = false;
+                        if (isStrictMobile) {
+                            // STRICT PRM HYBRID RULE (Mobile only):
+                            // Bắt buộc phải có cả hình ảnh UI và Mã nguồn logic.
+                            // Thiếu 1 trong 2 (hoặc 1 trong 2 = 0) -> Cho 0 điểm luôn!
+                            if (visionPct <= 0 || codePct <= 0) {
+                                finalScore = 0;
+                                finalPassed = false;
 
-                            let missingReason = "";
-                            if (visionPct <= 0 && codePct <= 0) {
-                                missingReason = "Không tìm thấy cả hình ảnh giao diện UI và mã nguồn triển khai đạt yêu cầu.";
-                            } else if (visionPct <= 0) {
-                                missingReason = "Thiếu hình ảnh minh chứng giao diện UI (hoặc UI không đạt yêu cầu). Sinh viên có mã nguồn nhưng không có ảnh UI đạt chuẩn.";
+                                let missingReason = "";
+                                if (visionPct <= 0 && codePct <= 0) {
+                                    missingReason = "Không tìm thấy cả hình ảnh giao diện UI và mã nguồn triển khai đạt yêu cầu.";
+                                } else if (visionPct <= 0) {
+                                    missingReason = "Thiếu hình ảnh minh chứng giao diện UI (hoặc UI không đạt yêu cầu). Sinh viên có mã nguồn nhưng không có ảnh UI đạt chuẩn.";
+                                } else {
+                                    missingReason = "Thiếu mã nguồn (Code) triển khai logic tương ứng (hoặc mã nguồn không đạt yêu cầu). Sinh viên có ảnh UI nhưng không có mã nguồn đạt chuẩn.";
+                                }
+
+                                finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: 0/${formatScore(rule.weight * 0.5)}, Điểm Code: 0/${formatScore(rule.weight * 0.5)}. Tổng điểm: 0/${rule.weight}.\n\n❌ Không đạt (0 điểm): ${missingReason} Theo quy định môn PRM (Mobile), tiêu chí Hybrid bắt buộc phải có đầy đủ cả hình ảnh UI và mã nguồn; thiếu 1 trong 2 thành phần sẽ nhận 0 điểm.\n\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Không có minh chứng UI'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Không có mã nguồn'}`;
                             } else {
-                                missingReason = "Thiếu mã nguồn (Code) triển khai logic tương ứng (hoặc mã nguồn không đạt yêu cầu). Sinh viên có ảnh UI nhưng không có mã nguồn đạt chuẩn.";
+                                // CẢ HAI ĐỀU CÓ (> 0)
+                                const visionScore = visionPct * (rule.weight * 0.5);
+                                const codeScore = codePct * (rule.weight * 0.5);
+                                finalScore = Math.round((visionScore + codeScore) * 100) / 100;
+                                finalPassed = finalScore >= (rule.weight * 0.7); // 70% threshold for mobile hybrid
+
+                                finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: ${formatScore(visionScore)}/${formatScore(rule.weight * 0.5)}, Điểm Code: ${formatScore(codeScore)}/${formatScore(rule.weight * 0.5)}. Tổng điểm: ${formatScore(finalScore)}/${rule.weight}.\n\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Giao diện đạt yêu cầu'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Mã nguồn đạt yêu cầu'}`;
+                            }
+                        } else {
+                            // Standard Hybrid for Web (PRN212, PRJ301, WDP301...) and other courses:
+                            // Smart Compensation: UI states (Loading, Debounce, Empty, Error) are hard to capture in static screenshots.
+                            // If student provided main UI (visionPct > 0) but Code Review shows complete logic, compensate UI score.
+                            if (visionPct > 0 && codePct > visionPct) {
+                                console.log(`[RubricEvaluator] Smart Compensation triggered: Code (${codePct}) > UI (${visionPct}). Compensating UI score.`);
+                                visionPct = codePct;
                             }
 
-                            finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: 0/${formatScore(rule.weight * 0.5)}, Điểm Code: 0/${formatScore(rule.weight * 0.5)}. Tổng điểm: 0/${rule.weight}.\n\n❌ Không đạt (0 điểm): ${missingReason} Theo quy định môn PRM (Mobile), tiêu chí Hybrid bắt buộc phải có đầy đủ cả hình ảnh UI và mã nguồn; thiếu 1 trong 2 thành phần sẽ nhận 0 điểm.\n\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Không có minh chứng UI'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Không có mã nguồn'}`;
-                        } else {
-                            // CẢ HAI ĐỀU CÓ (> 0)
                             const visionScore = visionPct * (rule.weight * 0.5);
                             const codeScore = codePct * (rule.weight * 0.5);
                             finalScore = Math.round((visionScore + codeScore) * 100) / 100;
-                            finalPassed = finalScore >= (rule.weight * 0.7); // 70% threshold for hybrid
+                            finalPassed = finalScore >= (rule.weight * 0.5);
 
-                            finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: ${formatScore(visionScore)}/${formatScore(rule.weight * 0.5)}, Điểm Code: ${formatScore(codeScore)}/${formatScore(rule.weight * 0.5)}. Tổng điểm: ${formatScore(finalScore)}/${rule.weight}.\n\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Giao diện đạt yêu cầu'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Mã nguồn đạt yêu cầu'}`;
+                            finalReason = `Phân tích Hybrid (50% UI, 50% Code). Điểm UI: ${formatScore(visionScore)}/${formatScore(rule.weight * 0.5)}, Điểm Code: ${formatScore(codeScore)}/${formatScore(rule.weight * 0.5)}. Tổng điểm: ${formatScore(finalScore)}/${rule.weight}.\n\n- Nhận xét UI: ${visionOutput?.aiResult?.explanation || 'Không có minh chứng UI'}\n- Nhận xét Code: ${codeResult?.reasoning || 'Không có mã nguồn'}`;
                         }
                     } else {
                         // 100% Vision
@@ -984,26 +1004,35 @@ export class RubricEvaluator {
                             codePct: codePct
                         };
 
-                        // STRICT HYBRID REQUIREMENT:
-                        // Thiếu 1 trong 2 (hoặc 1 trong 2 = 0) -> Cho 0 điểm luôn!
-                        if (textPct <= 0 || codePct <= 0) {
-                            finalScore = 0;
-                            finalPassed = false;
-                            let missingReason = "";
-                            if (textPct <= 0 && codePct <= 0) {
-                                missingReason = "Không tìm thấy cả lý thuyết và mã nguồn đạt yêu cầu.";
-                            } else if (textPct <= 0) {
-                                missingReason = "Thiếu phần phân tích lý thuyết / báo cáo (hoặc lý thuyết không đạt yêu cầu). Sinh viên có mã nguồn nhưng không có lý thuyết.";
+                        if (isStrictMobile) {
+                            // STRICT HYBRID REQUIREMENT (PRM Mobile only):
+                            // Thiếu 1 trong 2 (hoặc 1 trong 2 = 0) -> Cho 0 điểm luôn!
+                            if (textPct <= 0 || codePct <= 0) {
+                                finalScore = 0;
+                                finalPassed = false;
+                                let missingReason = "";
+                                if (textPct <= 0 && codePct <= 0) {
+                                    missingReason = "Không tìm thấy cả lý thuyết và mã nguồn đạt yêu cầu.";
+                                } else if (textPct <= 0) {
+                                    missingReason = "Thiếu phần phân tích lý thuyết / báo cáo (hoặc lý thuyết không đạt yêu cầu). Sinh viên có mã nguồn nhưng không có lý thuyết.";
+                                } else {
+                                    missingReason = "Thiếu mã nguồn (Code) triển khai logic (hoặc mã nguồn không đạt yêu cầu). Sinh viên có lý thuyết nhưng không có mã nguồn.";
+                                }
+                                finalReason = `Phân tích Hybrid (50% Lý thuyết, 50% Mã nguồn). Tổng điểm: 0/${rule.weight}.\n\n❌ Không đạt (0 điểm): ${missingReason} Theo quy định môn PRM (Mobile), tiêu chí Hybrid bắt buộc phải có đầy đủ cả hai phần; thiếu 1 trong 2 sẽ nhận 0 điểm.\n\n- Lý thuyết: ${textResult ? textResult.reasoning : 'Không có dữ liệu'}\n\n- Mã nguồn: ${codeResult ? codeResult.reasoning : 'Không có dữ liệu'}`;
                             } else {
-                                missingReason = "Thiếu mã nguồn (Code) triển khai logic (hoặc mã nguồn không đạt yêu cầu). Sinh viên có lý thuyết nhưng không có mã nguồn.";
+                                const textScore = textPct * (rule.weight * 0.5);
+                                const codeScore = codePct * (rule.weight * 0.5);
+                                finalScore = Math.round((textScore + codeScore) * 100) / 100;
+                                finalPassed = finalScore >= (rule.weight * 0.5);
+                                finalReason = `Phân tích Hybrid (50% Lý thuyết, 50% Mã nguồn). Tổng điểm: ${finalScore}/${rule.weight}.\n\n- Lý thuyết: ${textResult ? textResult.reasoning : 'Không có dữ liệu'}\n\n- Mã nguồn: ${codeResult ? codeResult.reasoning : 'Không có dữ liệu'}`;
                             }
-                            finalReason = `Phân tích Hybrid (50% Lý thuyết, 50% Mã nguồn). Tổng điểm: 0/${rule.weight}.\n\n❌ Không đạt (0 điểm): ${missingReason} Tiêu chí Hybrid bắt buộc phải có đầy đủ cả hai phần; thiếu 1 trong 2 sẽ nhận 0 điểm.\n\n- Lý thuyết: ${textResult ? textResult.reasoning : 'Không có dữ liệu'}\n\n- Mã nguồn: ${codeResult ? codeResult.reasoning : 'Không có dữ liệu'}`;
                         } else {
+                            // Standard Proportional Hybrid for Web and other courses:
                             const textScore = textPct * (rule.weight * 0.5);
                             const codeScore = codePct * (rule.weight * 0.5);
                             finalScore = Math.round((textScore + codeScore) * 100) / 100;
                             finalPassed = finalScore >= (rule.weight * 0.5);
-                            finalReason = `Phân tích Hybrid (50% Lý thuyết, 50% Mã nguồn). Tổng điểm: ${finalScore}/${rule.weight}.\n\n- Lý thuyết: ${textResult ? textResult.reasoning : 'Không có dữ liệu'}\n\n- Mã nguồn: ${codeResult ? codeResult.reasoning : 'Không có dữ liệu'}`;
+                            finalReason = `Phân tích Hybrid (50% Lý thuyết, 50% Mã nguồn). Điểm Lý thuyết: ${formatScore(textScore)}/${formatScore(rule.weight * 0.5)}, Điểm Mã nguồn: ${formatScore(codeScore)}/${formatScore(rule.weight * 0.5)}. Tổng điểm: ${formatScore(finalScore)}/${rule.weight}.\n\n- Lý thuyết: ${textResult ? textResult.reasoning : 'Không có dữ liệu'}\n\n- Mã nguồn: ${codeResult ? codeResult.reasoning : 'Không có dữ liệu'}`;
                         }
                     } else {
                         // 100% Text
