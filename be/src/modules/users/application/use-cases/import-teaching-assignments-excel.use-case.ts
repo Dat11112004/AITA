@@ -125,13 +125,46 @@ export class ImportTeachingAssignmentsExcelUseCase {
             let currentSubjectCode: string | undefined = undefined
             
             const lecturerCache = new Map<string, any>()
+            // Map kiểm tra xung đột phân công từ database trong mùa hiện tại
+            const dbAssignments = await prisma.instructorClass.findMany({
+                where: {
+                    Class: {
+                        SemesterId: { in: Array.from(targetSemesterIds) }
+                    }
+                },
+                include: {
+                    User: { select: { LecturerCode: true, FullName: true, Id: true } },
+                    Class: {
+                        include: {
+                            Subject: { select: { SubjectCode: true } }
+                        }
+                    }
+                }
+            })
+
+            const dbAssignmentMap = new Map<string, { lecturerCode: string; lecturerName: string }>()
+            for (const a of dbAssignments) {
+                const sCode = a.Class?.Subject?.SubjectCode?.trim().toUpperCase()
+                const cCode = a.Class?.ClassCode?.trim().toUpperCase()
+                if (sCode && cCode && a.User?.LecturerCode) {
+                    dbAssignmentMap.set(`${sCode}__${cCode}`, {
+                        lecturerCode: a.User.LecturerCode.trim().toUpperCase(),
+                        lecturerName: a.User.FullName || ''
+                    })
+                }
+            }
+
+            const fileAssignmentMap = new Map<string, { lecturerCode: string; lecturerName: string; row: number }>()
+
             // ══════════════════════════════════════════════════════════════════
             // GIAI ĐOẠN 1: PRE-VALIDATION TOÀN BỘ FILE (ALL-OR-NOTHING BUSINESS RULE)
             // Bắt buộc tất cả các hàng phải được điền đầy đủ, không để trống bất kỳ dòng nào.
+            // Phát hiện xung đột phân công (2 giảng viên cùng dạy chung lớp và chung môn).
             // Nếu có lỗi -> Chặn hoàn toàn, KHÔNG ghi vào DB, KHÔNG gửi email!
             // ══════════════════════════════════════════════════════════════════
             const validationErrors: Array<{ row: number; message: string }> = []
             let checkLecturerCode: string | undefined = undefined
+            let checkLecturerName: string | undefined = undefined
             let checkSubjectCode: string | undefined = undefined
 
             for (let i = 0; i < rows.length; i++) {
@@ -148,14 +181,17 @@ export class ImportTeachingAssignmentsExcelUseCase {
                 }
 
                 let lecturerCode = getField(row, 'lecturerCode')
+                let lecturerName = getField(row, 'lecturerName')
                 let subjectCode = getField(row, 'subjectCode')
                 const classCodeStr = getField(row, 'classCode')
 
                 if (lecturerCode) {
                     checkLecturerCode = lecturerCode
+                    checkLecturerName = lecturerName || checkLecturerName || lecturerCode
                     checkSubjectCode = undefined
                 } else {
                     lecturerCode = checkLecturerCode
+                    lecturerName = checkLecturerName
                 }
 
                 if (subjectCode) {
@@ -174,25 +210,77 @@ export class ImportTeachingAssignmentsExcelUseCase {
                         row: rowIndex,
                         message: `Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`
                     })
+                } else if (lecturerCode && subjectCode && classCodeStr) {
+                    const classes = classCodeStr.split(/[,;]|\s+và\s+|\n|\s+/).map(s => s.trim()).filter(Boolean)
+                    const normSubj = subjectCode.trim().toUpperCase()
+                    const normLecturerCode = lecturerCode.trim().toUpperCase()
+                    const displayLecturerName = lecturerName || lecturerCode
+
+                    for (const c of classes) {
+                        const normClass = c.toUpperCase()
+                        const key = `${normSubj}__${normClass}`
+
+                        const prevInFile = fileAssignmentMap.get(key)
+                        if (prevInFile) {
+                            if (prevInFile.lecturerCode === normLecturerCode) {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng lặp phân công: Giảng viên '${displayLecturerName}' (Mã: ${lecturerCode}) đã được phân công môn '${subjectCode}' lớp '${c}' ở dòng ${prevInFile.row}.`
+                                })
+                            } else {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Xung đột phân công: Môn '${subjectCode}' của lớp '${c}' đã được phân công cho giảng viên '${prevInFile.lecturerName}' (Mã: ${prevInFile.lecturerCode}) ở dòng ${prevInFile.row}. Giảng viên '${displayLecturerName}' (Mã: ${lecturerCode}) không thể cùng phụ trách lớp môn này vì quy chế đào tạo quy định mỗi lớp học phần chỉ do một giảng viên phụ trách.`
+                                })
+                            }
+                        } else {
+                            fileAssignmentMap.set(key, {
+                                lecturerCode: normLecturerCode,
+                                lecturerName: displayLecturerName,
+                                row: rowIndex
+                            })
+                        }
+
+                        const existingInDb = dbAssignmentMap.get(key)
+                        if (existingInDb && existingInDb.lecturerCode !== normLecturerCode) {
+                            validationErrors.push({
+                                row: rowIndex,
+                                message: `Xung đột phân công: Môn '${subjectCode}' của lớp '${c}' hiện đã được phân công cho giảng viên '${existingInDb.lecturerName}' (Mã: ${existingInDb.lecturerCode}) trên hệ thống trong kỳ ${detectedSeasonInfo.formatted}. Giảng viên '${displayLecturerName}' (Mã: ${lecturerCode}) không thể cùng phụ trách lớp này.`
+                            })
+                        }
+                    }
                 }
             }
 
             if (validationErrors.length > 0) {
+                const sampleList = validationErrors.slice(0, 10).map(e => `• Dòng ${e.row}: ${e.message}`).join('\n')
+                const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
+
+                const hasConflict = validationErrors.some(e => e.message.includes('Xung đột'))
+                const hasDuplicate = validationErrors.some(e => e.message.includes('Trùng lặp'))
+                const hasEmptyOrMissing = validationErrors.some(e => e.message.includes('để trống'))
+
+                let summaryHeader = ''
+                if (hasConflict && !hasEmptyOrMissing && !hasDuplicate) {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng bị XUNG ĐỘT PHÂN CÔNG GIẢNG DẠY (2 giảng viên cùng được phân công chung lớp và chung môn). Quy chế đào tạo quy định mỗi lớp học phần trong kỳ chỉ do duy nhất 1 giảng viên phụ trách. Vui lòng kiểm tra và phân công lại.`
+                } else if (hasEmptyOrMissing && !hasConflict && !hasDuplicate) {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu bắt buộc (Mã GV, Môn, Lớp). Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ dữ liệu theo từng hàng trước khi import.`
+                } else {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có dữ liệu không hợp lệ (xung đột phân công chung lớp chung môn, trùng lặp hoặc để trống). Quy chuẩn hệ thống yêu cầu mỗi lớp học phần chỉ do 1 giảng viên đảm nhiệm và không được để trống ô dữ liệu.`
+                }
+
                 await prisma.importBatch.update({
                     where: { Id: batch.Id },
                     data: {
                         Status: 'FAILED',
                         ErrorCount: validationErrors.length,
-                        ErrorDetails: `Bắt buộc chỉnh sửa lại file Excel trước khi import. Có ${validationErrors.length} dòng bị để trống hoặc không hợp lệ.`
+                        ErrorDetails: `Bắt buộc chỉnh sửa lại file Excel trước khi import:\n${sampleList}${extraMsg}`
                     }
                 })
 
-                const sampleList = validationErrors.slice(0, 10).map(e => `• Dòng ${e.row}: ${e.message}`).join('\n')
-                const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
-
                 throw new AppError(
                     'VALIDATION_FAILED',
-                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\nHệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Chừng nào sửa xong toàn bộ các hàng thì hệ thống mới cho phép import và gửi thông báo.\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
+                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\n${summaryHeader}\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
                     400
                 )
             }

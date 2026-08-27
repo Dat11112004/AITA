@@ -89,8 +89,23 @@ export class PreviewImportStudentsExcelUseCase {
         }
 
         if (rows.length === 0) {
-            throw new AppError('INVALID_FILE', 'File Excel rỗng hoặc toàn bộ các dòng đều trống', 400)
+            throw new AppError('INVALID_FILE', 'File Excel rỗng: File không chứa dữ liệu sinh viên hoặc toàn bộ các dòng đều bị bỏ trống. Vui lòng kiểm tra lại file trước khi import.', 400)
         }
+
+        const existingUsers = await prisma.user.findMany({
+            select: { StudentCode: true, LecturerCode: true, FullName: true, Email: true }
+        })
+
+        const dbStudentCodeMap = new Map<string, { fullName: string; email?: string }>()
+        const dbEmailMap = new Map<string, { fullName: string; studentCode?: string }>()
+
+        for (const u of existingUsers) {
+            if (u.StudentCode) dbStudentCodeMap.set(u.StudentCode.trim().toUpperCase(), { fullName: u.FullName || '', email: u.Email || '' })
+            if (u.Email) dbEmailMap.set(u.Email.trim().toLowerCase(), { fullName: u.FullName || '', studentCode: u.StudentCode || u.LecturerCode || '' })
+        }
+
+        const fileStudentCodeMap = new Map<string, { row: number; fullName: string }>()
+        const fileEmailMap = new Map<string, { row: number; fullName: string }>()
 
         const previewRows = []
         let hasErrors = false
@@ -114,7 +129,7 @@ export class PreviewImportStudentsExcelUseCase {
                     className: '',
                     avatar: '',
                     isValid: false,
-                    errors: ['Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)']
+                    errors: ['Hàng này đang để trống hoàn toàn. Vui lòng điền thông tin hoặc xóa dòng trống này.']
                 })
                 continue
             }
@@ -131,18 +146,65 @@ export class PreviewImportStudentsExcelUseCase {
 
             const errors: string[] = []
 
-            if (!mssv) errors.push('Thiếu MSSV')
-            if (!fullName) errors.push('Thiếu Họ và tên')
-            if (!email) {
-                errors.push('Thiếu Email')
-            } else {
-                const emailValidation = await validateRealEmail(email)
-                if (!emailValidation.isValid) {
-                    errors.push(`Email không hợp lệ (${emailValidation.reason})`)
+            const missing: string[] = []
+            if (!mssv) missing.push('MSSV (hoặc MSSV/GV)')
+            if (!fullName) missing.push('Họ và tên')
+            if (!email) missing.push('Email')
+            if (!semesterCode) missing.push('Kỳ học')
+            if (!classCode) missing.push('Lớp học')
+
+            if (missing.length > 0) {
+                errors.push(`Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`)
+            }
+
+            // Kiểm tra trùng lặp mã sinh viên (MSSV) và họ tên
+            if (mssv) {
+                const normMssv = mssv.trim().toUpperCase()
+                const normFullName = (fullName || '').trim().toLowerCase()
+                const prevInFile = fileStudentCodeMap.get(normMssv)
+
+                if (prevInFile) {
+                    if (normFullName && prevInFile.fullName.trim().toLowerCase() === normFullName) {
+                        errors.push(`Trùng lặp: Sinh viên '${fullName}' (MSSV: ${mssv}) bị trùng lặp với dòng ${prevInFile.row}`)
+                    } else {
+                        errors.push(`Trùng mã: MSSV '${mssv}' bị trùng với sinh viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}`)
+                    }
+                } else {
+                    fileStudentCodeMap.set(normMssv, { row: rowIndex, fullName: fullName || '' })
+                }
+
+                const existingInDb = dbStudentCodeMap.get(normMssv)
+                if (existingInDb) {
+                    if (normFullName && existingInDb.fullName.trim().toLowerCase() === normFullName) {
+                        // Sinh viên đã tồn tại trong hệ thống (cùng tên, cùng mã)
+                    } else {
+                        errors.push(`Trùng mã: MSSV '${mssv}' đã được cấp cho sinh viên '${existingInDb.fullName}' trong hệ thống`)
+                    }
                 }
             }
-            if (!semesterCode) errors.push('Thiếu Kỳ học')
-            if (!classCode) errors.push('Thiếu Lớp học')
+
+            // Kiểm tra trùng lặp email
+            if (email) {
+                const normEmail = email.trim().toLowerCase()
+                if (normEmail) {
+                    const prevInFile = fileEmailMap.get(normEmail)
+                    if (prevInFile) {
+                        errors.push(`Trùng Email: Email '${email}' bị trùng với sinh viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}`)
+                    } else {
+                        fileEmailMap.set(normEmail, { row: rowIndex, fullName: fullName || '' })
+                    }
+
+                    const existingInDb = dbEmailMap.get(normEmail)
+                    if (existingInDb && mssv && existingInDb.studentCode && existingInDb.studentCode.toUpperCase() !== mssv.trim().toUpperCase()) {
+                        errors.push(`Trùng Email: Email '${email}' đã được đăng ký cho tài khoản '${existingInDb.fullName}' trong hệ thống`)
+                    }
+                }
+
+                const emailValidation = await validateRealEmail(email)
+                if (!emailValidation.isValid) {
+                    errors.push(`Email không hợp lệ hoặc không có thật (${emailValidation.reason})`)
+                }
+            }
 
             let resolvedSemesterCode = semesterCode
             // Validate semester exists within the detected season only

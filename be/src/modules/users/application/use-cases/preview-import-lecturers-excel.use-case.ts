@@ -95,8 +95,57 @@ export class PreviewImportLecturersExcelUseCase {
         }
 
         if (rows.length === 0) {
-            throw new AppError('INVALID_FILE', 'File Excel rỗng hoặc toàn bộ các dòng đều trống', 400)
+            throw new AppError('INVALID_FILE', 'File Excel rỗng: File không chứa dữ liệu giảng viên hoặc toàn bộ các dòng đều bị bỏ trống. Vui lòng kiểm tra lại file trước khi import.', 400)
         }
+
+        const targetSemesterIds = targetSemesters.map(s => s.Id)
+
+        // Maps kiểm tra trùng lặp tài khoản
+        const existingUsers = await prisma.user.findMany({
+            select: { LecturerCode: true, StudentCode: true, FullName: true, Email: true }
+        })
+
+        const dbLecturerCodeMap = new Map<string, { fullName: string; email?: string }>()
+        const dbEmailMap = new Map<string, { fullName: string; code?: string }>()
+
+        for (const u of existingUsers) {
+            if (u.LecturerCode) dbLecturerCodeMap.set(u.LecturerCode.trim().toUpperCase(), { fullName: u.FullName || '', email: u.Email || '' })
+            if (u.Email) dbEmailMap.set(u.Email.trim().toLowerCase(), { fullName: u.FullName || '', code: u.LecturerCode || u.StudentCode || '' })
+        }
+
+        const fileLecturerCodeMap = new Map<string, { row: number; fullName: string }>()
+        const fileEmailMap = new Map<string, { row: number; fullName: string }>()
+
+        // Maps kiểm tra xung đột phân công (Chung môn & Chung lớp)
+        const dbAssignments = await prisma.instructorClass.findMany({
+            where: {
+                Class: {
+                    SemesterId: { in: targetSemesterIds }
+                }
+            },
+            include: {
+                User: { select: { LecturerCode: true, FullName: true, Id: true } },
+                Class: {
+                    include: {
+                        Subject: { select: { SubjectCode: true } }
+                    }
+                }
+            }
+        })
+
+        const dbTeachingMap = new Map<string, { lecturerCode: string; lecturerName: string }>()
+        for (const a of dbAssignments) {
+            const sCode = a.Class?.Subject?.SubjectCode?.trim().toUpperCase()
+            const cCode = a.Class?.ClassCode?.trim().toUpperCase()
+            if (sCode && cCode && a.User?.LecturerCode) {
+                dbTeachingMap.set(`${sCode}__${cCode}`, {
+                    lecturerCode: a.User.LecturerCode.trim().toUpperCase(),
+                    lecturerName: a.User.FullName || ''
+                })
+            }
+        }
+
+        const fileTeachingMap = new Map<string, { lecturerCode: string; lecturerName: string; row: number }>()
 
         const previewRows = []
         let hasErrors = false
@@ -117,7 +166,7 @@ export class PreviewImportLecturersExcelUseCase {
                     classes: '',
                     avatar: '',
                     isValid: false,
-                    errors: ['Dòng trống không có dữ liệu (Vui lòng xóa dòng trống hoặc điền đầy đủ thông tin)']
+                    errors: ['Hàng này đang để trống hoàn toàn. Vui lòng điền thông tin hoặc xóa dòng trống này.']
                 })
                 continue
             }
@@ -134,23 +183,98 @@ export class PreviewImportLecturersExcelUseCase {
 
             if (!code) errors.push('Thiếu mã giảng viên (MSSV/GV)')
             if (!fullName) errors.push('Thiếu họ và tên')
-            if (!email) {
-                errors.push('Thiếu email')
-            } else {
-                const emailValidation = await validateRealEmail(email)
-                if (!emailValidation.isValid) {
-                    errors.push(`Email không hợp lệ (${emailValidation.reason})`)
-                }
-            }
+            if (!email) errors.push('Thiếu email')
             if (!subjectsStr) errors.push('Thiếu môn dạy')
             if (!classesStr) errors.push('Thiếu lớp dạy')
 
-            // Validate matching pairs
+            // Kiểm tra trùng lặp mã giảng viên
+            if (code) {
+                const normCode = code.trim().toUpperCase()
+                const normFullName = (fullName || '').trim().toLowerCase()
+                const prevInFile = fileLecturerCodeMap.get(normCode)
+
+                if (prevInFile) {
+                    if (normFullName && prevInFile.fullName.trim().toLowerCase() === normFullName) {
+                        errors.push(`Trùng lặp: Giảng viên '${fullName}' (Mã: ${code}) bị trùng lặp với dòng ${prevInFile.row}`)
+                    } else {
+                        errors.push(`Trùng mã: Mã '${code}' bị trùng với giảng viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}`)
+                    }
+                } else {
+                    fileLecturerCodeMap.set(normCode, { row: rowIndex, fullName: fullName || '' })
+                }
+
+                const existingInDb = dbLecturerCodeMap.get(normCode)
+                if (existingInDb) {
+                    if (normFullName && existingInDb.fullName.trim().toLowerCase() === normFullName) {
+                        // Đã có trong DB cùng mã và tên
+                    } else {
+                        errors.push(`Trùng mã: Mã '${code}' đã được cấp cho giảng viên '${existingInDb.fullName}' trong hệ thống`)
+                    }
+                }
+            }
+
+            // Kiểm tra trùng lặp email
+            if (email) {
+                const normEmail = email.trim().toLowerCase()
+                if (normEmail) {
+                    const prevInFile = fileEmailMap.get(normEmail)
+                    if (prevInFile) {
+                        errors.push(`Trùng Email: Email '${email}' bị trùng với giảng viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}`)
+                    } else {
+                        fileEmailMap.set(normEmail, { row: rowIndex, fullName: fullName || '' })
+                    }
+
+                    const existingInDb = dbEmailMap.get(normEmail)
+                    if (existingInDb && code && existingInDb.code && existingInDb.code.toUpperCase() !== code.trim().toUpperCase()) {
+                        errors.push(`Trùng Email: Email '${email}' đã được đăng ký cho tài khoản '${existingInDb.fullName}' trong hệ thống`)
+                    }
+                }
+
+                const emailValidation = await validateRealEmail(email)
+                if (!emailValidation.isValid) {
+                    errors.push(`Email không hợp lệ hoặc không có thật (${emailValidation.reason})`)
+                }
+            }
+
+            // Validate matching pairs và kiểm tra xung đột phân công chung lớp chung môn
             const subjects = subjectsStr.split(/[,;]|\s+và\s+|\n|\s+/).map(s => s.trim()).filter(Boolean)
             const classes = classesStr.split(/[,;]|\s+và\s+|\n|\s+/).map(s => s.trim()).filter(Boolean)
 
             if (subjects.length > 0 && classes.length === 0) {
                 errors.push('Có môn dạy nhưng không có lớp dạy nào')
+            }
+
+            if (code && subjects.length > 0 && classes.length > 0) {
+                const normCode = code.trim().toUpperCase()
+                const displayLecturerName = fullName || code
+
+                for (const s of subjects) {
+                    const normS = s.toUpperCase()
+                    for (const c of classes) {
+                        const normC = c.toUpperCase()
+                        const key = `${normS}__${normC}`
+
+                        const prevAssigned = fileTeachingMap.get(key)
+                        if (prevAssigned) {
+                            if (prevAssigned.lecturerCode === normCode) {
+                                errors.push(`Trùng lặp: Giảng viên đã được phân công môn '${s}' lớp '${c}' ở dòng ${prevAssigned.row}`)
+                            } else {
+                                errors.push(`Xung đột phân công: Môn '${s}' của lớp '${c}' đã được phân công cho giảng viên '${prevAssigned.lecturerName}' (Mã: ${prevAssigned.lecturerCode}) ở dòng ${prevAssigned.row}`)
+                            }
+                        } else {
+                            fileTeachingMap.set(key, {
+                                lecturerCode: normCode,
+                                lecturerName: displayLecturerName,
+                                row: rowIndex
+                            })
+                        }
+
+                        const existingInDb = dbTeachingMap.get(key)
+                        if (existingInDb && existingInDb.lecturerCode !== normCode) {
+                            errors.push(`Xung đột phân công: Môn '${s}' của lớp '${c}' hiện đã được phân công cho giảng viên '${existingInDb.lecturerName}' (Mã: ${existingInDb.lecturerCode}) trên hệ thống`)
+                        }
+                    }
+                }
             }
 
             if (errors.length > 0) hasErrors = true

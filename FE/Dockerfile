@@ -2,10 +2,8 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
-
 COPY . .
+RUN npm install
 RUN npx vite build
 
 FROM nginx:alpine AS runner

@@ -158,7 +158,7 @@ export class ImportStudentsExcelUseCase {
             }
 
             if (rows.length === 0) {
-                throw new AppError('INVALID_FILE', 'File Excel không có dữ liệu hoặc toàn bộ các dòng đều trống', 400)
+                throw new AppError('INVALID_FILE', 'File Excel rỗng: File không chứa dữ liệu sinh viên hoặc toàn bộ các dòng đều bị bỏ trống. Vui lòng kiểm tra lại file trước khi import.', 400)
             }
 
             await prisma.importBatch.update({
@@ -173,6 +173,22 @@ export class ImportStudentsExcelUseCase {
 
             // Tracking for sync
             const processedClasses: Array<{ semesterCode?: string; classCode: string; subjectCode?: string; userId: string; isRetake?: boolean }> = []
+
+            // Map kiểm tra trùng lặp với cơ sở dữ liệu
+            const existingDbUsers = await prisma.user.findMany({
+                select: { StudentCode: true, LecturerCode: true, FullName: true, Email: true }
+            })
+
+            const dbStudentCodeMap = new Map<string, { fullName: string; email?: string }>()
+            const dbEmailMap = new Map<string, { fullName: string; studentCode?: string }>()
+
+            for (const u of existingDbUsers) {
+                if (u.StudentCode) dbStudentCodeMap.set(u.StudentCode.trim().toUpperCase(), { fullName: u.FullName || '', email: u.Email || '' })
+                if (u.Email) dbEmailMap.set(u.Email.trim().toLowerCase(), { fullName: u.FullName || '', studentCode: u.StudentCode || u.LecturerCode || '' })
+            }
+
+            const fileStudentCodeMap = new Map<string, { row: number; fullName: string }>()
+            const fileEmailMap = new Map<string, { row: number; fullName: string }>()
 
             // ══════════════════════════════════════════════════════════════════
             // GIAI ĐOẠN 1: PRE-VALIDATION TOÀN BỘ FILE (ALL-OR-NOTHING BUSINESS RULE)
@@ -213,7 +229,64 @@ export class ImportStudentsExcelUseCase {
                         message: `Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`
                     })
                 } else {
+                    // Kiểm tra trùng lặp mã sinh viên (MSSV) và họ tên
+                    if (mssv) {
+                        const normMssv = mssv.trim().toUpperCase()
+                        const normFullName = (fullName || '').trim().toLowerCase()
+                        const prevInFile = fileStudentCodeMap.get(normMssv)
+
+                        if (prevInFile) {
+                            if (normFullName && prevInFile.fullName.trim().toLowerCase() === normFullName) {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng lặp: Sinh viên '${fullName}' (MSSV: ${mssv}) bị trùng lặp với dòng ${prevInFile.row}.`
+                                })
+                            } else {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng mã: MSSV '${mssv}' bị trùng với sinh viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}.`
+                                })
+                            }
+                        } else {
+                            fileStudentCodeMap.set(normMssv, { row: rowIndex, fullName: fullName || '' })
+                        }
+
+                        const existingInDb = dbStudentCodeMap.get(normMssv)
+                        if (existingInDb) {
+                            if (normFullName && existingInDb.fullName.trim().toLowerCase() === normFullName) {
+                                // Sinh viên đã có trong hệ thống
+                            } else {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng mã: MSSV '${mssv}' đã được cấp cho sinh viên '${existingInDb.fullName}' trong hệ thống.`
+                                })
+                            }
+                        }
+                    }
+
+                    // Kiểm tra trùng lặp email
                     if (email) {
+                        const normEmail = email.trim().toLowerCase()
+                        if (normEmail) {
+                            const prevInFile = fileEmailMap.get(normEmail)
+                            if (prevInFile) {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng Email: Email '${email}' bị trùng với sinh viên '${prevInFile.fullName}' ở dòng ${prevInFile.row}.`
+                                })
+                            } else {
+                                fileEmailMap.set(normEmail, { row: rowIndex, fullName: fullName || '' })
+                            }
+
+                            const existingInDb = dbEmailMap.get(normEmail)
+                            if (existingInDb && mssv && existingInDb.studentCode && existingInDb.studentCode.toUpperCase() !== mssv.trim().toUpperCase()) {
+                                validationErrors.push({
+                                    row: rowIndex,
+                                    message: `Trùng Email: Email '${email}' đã được đăng ký cho tài khoản '${existingInDb.fullName}' trong hệ thống.`
+                                })
+                            }
+                        }
+
                         const emailValidation = await validateRealEmail(email)
                         if (!emailValidation.isValid) {
                             validationErrors.push({
@@ -250,15 +323,18 @@ export class ImportStudentsExcelUseCase {
                 const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
 
                 const hasEmptyOrMissing = validationErrors.some(e => e.message.includes('để trống') || e.message.includes('Thiếu'))
-                const hasInvalidEmail = validationErrors.some(e => e.message.includes('Email'))
+                const hasDuplicate = validationErrors.some(e => e.message.includes('Trùng'))
+                const hasInvalidEmail = validationErrors.some(e => e.message.includes('email thật') || e.message.includes('không hợp lệ'))
 
                 let summaryHeader = ''
-                if (hasInvalidEmail && !hasEmptyOrMissing) {
+                if (hasDuplicate && !hasEmptyOrMissing && !hasInvalidEmail) {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng bị trùng lặp dữ liệu (trùng tên và mã, trùng mã hoặc trùng email). Quy định doanh nghiệp yêu cầu thông tin định danh của mỗi tài khoản phải là duy nhất. Vui lòng kiểm tra và chỉnh sửa lại file Excel trước khi import.`
+                } else if (hasInvalidEmail && !hasEmptyOrMissing && !hasDuplicate) {
                     summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có Email không hợp lệ (email ảo, không tồn tại hoặc đã bị vô hiệu hóa trên máy chủ thư). Quy định doanh nghiệp yêu cầu tất cả email phải là email thật và đang hoạt động để gửi thông báo tài khoản. Vui lòng kiểm tra và sửa lại email đúng.`
-                } else if (hasEmptyOrMissing && !hasInvalidEmail) {
+                } else if (hasEmptyOrMissing && !hasInvalidEmail && !hasDuplicate) {
                     summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu bắt buộc. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Vui lòng kiểm tra và điền đầy đủ thông tin hoặc xóa dòng trống.`
                 } else {
-                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có dữ liệu không hợp lệ (bị để trống hoặc email không tồn tại). Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ và chính xác theo từng hàng trước khi import.`
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có dữ liệu không hợp lệ (bị để trống, trùng lặp thông tin hoặc email không tồn tại). Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ và chính xác theo từng hàng trước khi import.`
                 }
 
                 await prisma.importBatch.update({
