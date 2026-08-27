@@ -96,8 +96,9 @@ export interface RuleEvidence {
   extractedImages?: any[];
   hybridBreakdown?: {
     codePct: number;
-    probePct: number;
+    probePct?: number;
     visionPct?: number;
+    textPct?: number;
   };
   sqlTestCases?: any[];
 }

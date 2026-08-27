@@ -39,7 +39,9 @@ export interface RuleEvidence {
     ioTestCases?: IoTestCaseEvidence[];
     hybridBreakdown?: {
         codePct: number;
-        probePct: number;
+        probePct?: number;
+        visionPct?: number;
+        textPct?: number;
     };
     extractedImages?: { label: string; contentType: string; base64: string }[];
     studentText?: string;

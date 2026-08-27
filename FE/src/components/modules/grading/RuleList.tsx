@@ -237,18 +237,20 @@ export default function RuleList({ title, rules, isStudent = false, onUpdateRule
                           <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Code Review Score</span>
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-brand-500" style={{ width: `${Math.round(rule.evidence.hybridBreakdown.codePct * 100)}%` }}></div>
+                              <div className="h-full bg-brand-500" style={{ width: `${Math.round((rule.evidence.hybridBreakdown.codePct ?? 0) * 100)}%` }}></div>
                             </div>
-                            <span className="text-sm font-bold text-brand-600 dark:text-brand-400">{Math.round(rule.evidence.hybridBreakdown.codePct * 100)}%</span>
+                            <span className="text-sm font-bold text-brand-600 dark:text-brand-400">{Math.round((rule.evidence.hybridBreakdown.codePct ?? 0) * 100)}%</span>
                           </div>
                         </div>
                         <div className="flex-1">
-                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">UI / Func Score</span>
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2">
+                            {rule.evidence.hybridBreakdown.textPct !== undefined ? 'Theory / Report Score' : 'UI / Func Score'}
+                          </span>
                           <div className="flex items-center gap-3">
                             <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-emerald-500" style={{ width: `${Math.round((rule.evidence.hybridBreakdown.visionPct ?? rule.evidence.hybridBreakdown.probePct ?? 0) * 100)}%` }}></div>
+                              <div className="h-full bg-emerald-500" style={{ width: `${Math.round((rule.evidence.hybridBreakdown.visionPct ?? rule.evidence.hybridBreakdown.textPct ?? rule.evidence.hybridBreakdown.probePct ?? 0) * 100)}%` }}></div>
                             </div>
-                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{Math.round((rule.evidence.hybridBreakdown.visionPct ?? rule.evidence.hybridBreakdown.probePct ?? 0) * 100)}%</span>
+                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{Math.round((rule.evidence.hybridBreakdown.visionPct ?? rule.evidence.hybridBreakdown.textPct ?? rule.evidence.hybridBreakdown.probePct ?? 0) * 100)}%</span>
                           </div>
                         </div>
                       </div>
