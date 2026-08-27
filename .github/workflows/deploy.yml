@@ -37,14 +37,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: 22
+          timeout: 30m
+          command_timeout: 30m
           # Without this the action keeps going after a failed command and
           # still reports success - that is how a dead `git pull` shipped a
           # stale build under a green check.
           script_stop: true
           script: |
             cd /www/wwwroot/AITA/AITA-main
-            docker system prune -af --volumes || true
-            docker builder prune -af || true
             docker compose build backend
             docker compose build frontend
             docker rm -f aita-backend aita-frontend 2>/dev/null || true
@@ -77,3 +77,4 @@ jobs:
             # deliberately avoided here: it rewrites subject descriptions and
             # syllabi that lecturers edit in the app.
             docker exec -e SEED_SCOPE=accounts -e NODE_OPTIONS="--max-old-space-size=256" -i aita-backend npx tsx prisma/seed.ts || true
+            docker image prune -f || true
