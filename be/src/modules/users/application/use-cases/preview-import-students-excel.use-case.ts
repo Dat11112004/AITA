@@ -3,6 +3,7 @@ import * as xlsx from 'xlsx'
 import { AppError } from '../../../../shared/application/app.error.js'
 import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '../../../../shared/utils/season-detector.util.js'
 import { getAvatarFromRow, normalizeExcelHeader, resolveCloudinaryAvatarUrl } from '../../../../shared/utils/avatar-extractor.util.js'
+import { validateRealEmail } from '../../../../shared/utils/email-validator.util.js'
 
 const prisma = new PrismaClient()
 
@@ -132,7 +133,14 @@ export class PreviewImportStudentsExcelUseCase {
 
             if (!mssv) errors.push('Thiếu MSSV')
             if (!fullName) errors.push('Thiếu Họ và tên')
-            if (!email) errors.push('Thiếu Email')
+            if (!email) {
+                errors.push('Thiếu Email')
+            } else {
+                const emailValidation = await validateRealEmail(email)
+                if (!emailValidation.isValid) {
+                    errors.push(`Email không hợp lệ (${emailValidation.reason})`)
+                }
+            }
             if (!semesterCode) errors.push('Thiếu Kỳ học')
             if (!classCode) errors.push('Thiếu Lớp học')
 

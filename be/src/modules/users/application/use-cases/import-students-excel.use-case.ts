@@ -8,6 +8,7 @@ import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '..
 import { IEmailService } from '../../../../shared/application/email.service.interface.js'
 import { AppError } from '../../../../shared/application/app.error.js'
 import { getAvatarFromRow, normalizeExcelHeader, resolveCloudinaryAvatarUrl } from '../../../../shared/utils/avatar-extractor.util.js'
+import { validateRealEmail } from '../../../../shared/utils/email-validator.util.js'
 
 type ImportStudentRow = Record<string, unknown>
 
@@ -212,11 +213,14 @@ export class ImportStudentsExcelUseCase {
                         message: `Chỗ này đang để trống: ${missing.join(', ')}. Bắt buộc phải điền đầy đủ dữ liệu theo hàng.`
                     })
                 } else {
-                    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                        validationErrors.push({
-                            row: rowIndex,
-                            message: `Email '${email}' không đúng định dạng.`
-                        })
+                    if (email) {
+                        const emailValidation = await validateRealEmail(email)
+                        if (!emailValidation.isValid) {
+                            validationErrors.push({
+                                row: rowIndex,
+                                message: `Email '${email}' không hợp lệ hoặc không phải email thật (${emailValidation.reason}). Vui lòng nhập email thật.`
+                            })
+                        }
                     }
 
                     if (semesterCode) {
@@ -245,6 +249,18 @@ export class ImportStudentsExcelUseCase {
                 const sampleList = validationErrors.slice(0, 10).map(e => `• Dòng ${e.row}: ${e.message}`).join('\n')
                 const extraMsg = validationErrors.length > 10 ? `\n... và còn ${validationErrors.length - 10} dòng lỗi khác.` : ''
 
+                const hasEmptyOrMissing = validationErrors.some(e => e.message.includes('để trống') || e.message.includes('Thiếu'))
+                const hasInvalidEmail = validationErrors.some(e => e.message.includes('Email'))
+
+                let summaryHeader = ''
+                if (hasInvalidEmail && !hasEmptyOrMissing) {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có Email không hợp lệ (email ảo, không tồn tại hoặc đã bị vô hiệu hóa trên máy chủ thư). Quy định doanh nghiệp yêu cầu tất cả email phải là email thật và đang hoạt động để gửi thông báo tài khoản. Vui lòng kiểm tra và sửa lại email đúng.`
+                } else if (hasEmptyOrMissing && !hasInvalidEmail) {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu bắt buộc. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Vui lòng kiểm tra và điền đầy đủ thông tin hoặc xóa dòng trống.`
+                } else {
+                    summaryHeader = `Hệ thống phát hiện ${validationErrors.length} dòng có dữ liệu không hợp lệ (bị để trống hoặc email không tồn tại). Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ và chính xác theo từng hàng trước khi import.`
+                }
+
                 await prisma.importBatch.update({
                     where: { Id: batch.Id },
                     data: {
@@ -256,7 +272,7 @@ export class ImportStudentsExcelUseCase {
 
                 throw new AppError(
                     'VALIDATION_FAILED',
-                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\nHệ thống phát hiện ${validationErrors.length} dòng bị để trống hoặc thiếu dữ liệu. Quy định doanh nghiệp yêu cầu file Excel phải được điền đầy đủ theo từng hàng, không được để trống dòng hoặc ô dữ liệu bắt buộc. Chừng nào sửa xong toàn bộ các hàng thì hệ thống mới cho phép import và gửi thông báo.\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
+                    `BẮT BUỘC CHỈNH SỬA LẠI FILE EXCEL TRƯỚC KHI IMPORT!\n\n${summaryHeader}\n\nChi tiết các dòng cần chỉnh sửa:\n${sampleList}${extraMsg}`,
                     400
                 )
             }
@@ -631,7 +647,7 @@ export class ImportStudentsExcelUseCase {
                                             SubjectId: targetSubj.Id
                                         },
                                         skipDuplicates: true
-                                    }).catch(() => {})
+                                    }).catch(() => { })
 
                                     cls = await prisma.class.create({
                                         data: {
@@ -714,7 +730,7 @@ export class ImportStudentsExcelUseCase {
                                     SubjectId: retakeSubj.Id
                                 },
                                 skipDuplicates: true
-                            }).catch(() => {})
+                            }).catch(() => { })
 
                             cls = await prisma.class.create({
                                 data: {

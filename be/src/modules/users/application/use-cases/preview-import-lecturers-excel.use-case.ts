@@ -3,6 +3,7 @@ import * as xlsx from 'xlsx'
 import { AppError } from '../../../../shared/application/app.error.js'
 import { detectSeasonFromFilename, SeasonDetectorError, matchesSeason } from '../../../../shared/utils/season-detector.util.js'
 import { getAvatarFromRow, normalizeExcelHeader, resolveCloudinaryAvatarUrl } from '../../../../shared/utils/avatar-extractor.util.js'
+import { validateRealEmail } from '../../../../shared/utils/email-validator.util.js'
 
 const prisma = new PrismaClient()
 
@@ -133,7 +134,14 @@ export class PreviewImportLecturersExcelUseCase {
 
             if (!code) errors.push('Thiếu mã giảng viên (MSSV/GV)')
             if (!fullName) errors.push('Thiếu họ và tên')
-            if (!email) errors.push('Thiếu email')
+            if (!email) {
+                errors.push('Thiếu email')
+            } else {
+                const emailValidation = await validateRealEmail(email)
+                if (!emailValidation.isValid) {
+                    errors.push(`Email không hợp lệ (${emailValidation.reason})`)
+                }
+            }
             if (!subjectsStr) errors.push('Thiếu môn dạy')
             if (!classesStr) errors.push('Thiếu lớp dạy')
 
@@ -142,7 +150,7 @@ export class PreviewImportLecturersExcelUseCase {
             const classes = classesStr.split(/[,;]|\s+và\s+|\n|\s+/).map(s => s.trim()).filter(Boolean)
 
             if (subjects.length > 0 && classes.length === 0) {
-                 errors.push('Có môn dạy nhưng không có lớp dạy nào')
+                errors.push('Có môn dạy nhưng không có lớp dạy nào')
             }
 
             if (errors.length > 0) hasErrors = true
