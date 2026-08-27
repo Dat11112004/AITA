@@ -138,27 +138,16 @@ export class ExecutionSandboxService {
             await this.docker.getImage(dockerImage).inspect();
             console.log(`[Sandbox] Custom image ${dockerImage} already exists.`);
           } catch (err: any) {
-            if (err.statusCode === 404) {
-              console.log(`[Sandbox] Custom image ${dockerImage} not found. Attempting dynamic build with fallback...`);
-              let built = false;
-              try {
-                const dockerfileContent = `FROM ${baseDotnetImage}\nRUN apt-get update && apt-get install -y curl && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs`;
-                const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aita-docker-'));
-                await fs.writeFile(path.join(tmpDir, 'Dockerfile'), dockerfileContent);
-                execSync(`docker build -t ${dockerImage} .`, { cwd: tmpDir, stdio: 'inherit', timeout: 120000 });
-                console.log(`[Sandbox] Successfully built ${dockerImage}.`);
-                built = true;
-                await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
-              } catch (buildErr) {
-                console.warn(`[Sandbox] Could not build custom image ${dockerImage} (${buildErr}), falling back to ${baseDotnetImage}`);
-              }
-              if (!built) {
-                dockerImage = baseDotnetImage;
-              }
-            } else {
-              console.warn(`[Sandbox] Docker error inspecting ${dockerImage}, falling back to ${baseDotnetImage}:`, err?.message || err);
-              dockerImage = baseDotnetImage;
-            }
+            console.log(`[Sandbox] Custom image ${dockerImage} not found or Docker error:`, err?.message || err);
+            console.log(`[Sandbox] Bypassing dynamic docker build during live request to prevent freezing SSE stream. Falling back to Source Snapshot & AICodeReview.`);
+            return {
+              containerId: null,
+              baseUrl: null,
+              projectType,
+              runtimeStack,
+              isReady: false,
+              crashLogs: `Custom image ${dockerImage} not available on host. Bypassing sandbox execution.`
+            };
           }
 
           let fsSetupScript = `cp -a /app /sandbox\n`;
