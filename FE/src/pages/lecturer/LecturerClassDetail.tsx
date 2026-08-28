@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, gradingApi, type ClassRow, type AssignmentRow, type SubmissionRow } from '@/lib/api'
 import { formatSemesterCode } from '@/utils/semester'
-import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send, Trash2, Clock, Pencil } from 'lucide-react'
+import { ArrowLeft, Megaphone, Users, GraduationCap, LayoutGrid, Send, Trash2, Clock, Pencil, Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { DataTable } from '@/components/ui/DataTable'
 import { useAssignmentListener } from '@/lib/events'
+import * as XLSX from 'xlsx'
 
 export function LecturerClassDetail() {
   const { id } = useParams()
@@ -48,7 +49,11 @@ export function LecturerClassDetail() {
         api.getClassAnnouncements(id).catch((err) => { console.error('[LecturerClassDetail] Failed to load announcements:', err); return [] as any[] })
       ])
 
-      const assignmentList = assignmentsData || []
+      const assignmentList = (assignmentsData || []).filter((a: any) => {
+        const isDel = Boolean(a.isDeleted || a.IsDeleted)
+        const statusLower = String(a.status || a.Status || '').toLowerCase()
+        return !isDel && statusLower !== 'deleted'
+      })
       setAssignments(assignmentList)
       setAnnouncements(Array.isArray(announcementsData) ? announcementsData : [])
 
@@ -173,6 +178,67 @@ export function LecturerClassDetail() {
       if (es) es.close()
     }
   }, [id])
+
+  const handleExportExcel = () => {
+    if (!students || students.length === 0) return
+
+    const headers = [
+      'STT',
+      'Mã sinh viên',
+      'Họ và tên',
+      'Email',
+      ...assignments.map(a => {
+        const displayTitle = a.title ? a.title.replace(/^[A-Z0-9]{3,8}\s*-\s*/i, '') : 'Assignment'
+        const pts = a.maxScore ? ` (${a.maxScore} pts)` : ''
+        return `${displayTitle}${pts}`
+      }),
+      t('lc.cd.col.average') || 'Average'
+    ]
+
+    const rows = students.map((st: any, idx: number) => {
+      const studentCode = st.studentId || st.code || st.studentCode || ''
+      const studentName = st.name || st.fullName || ''
+      const studentEmail = st.email || ''
+
+      const marks = assignments.map(a => {
+        const score = st.scores?.[a.id]
+        if (score === undefined || score === null) return ''
+        return Number(score)
+      })
+
+      const validMarks = marks.filter((v): v is number => typeof v === 'number' && !isNaN(v))
+      const avg = validMarks.length > 0
+        ? Number((validMarks.reduce((s, v) => s + v, 0) / validMarks.length).toFixed(1))
+        : ''
+
+      return [
+        idx + 1,
+        studentCode,
+        studentName,
+        studentEmail,
+        ...marks,
+        avg
+      ]
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 30 },
+      ...assignments.map(() => ({ wch: 35 })),
+      { wch: 16 }
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'BangDiem')
+
+    const cleanClassCode = cls?.classCode ? cls.classCode.replace(/[^a-zA-Z0-9_-]/g, '_') : 'Class'
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const fileName = `Bang_Diem_${cleanClassCode}_${dateStr}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
 
   const handlePostAnnouncement = async () => {
     if (!announcement.trim() || !id || isPosting) return
@@ -531,7 +597,15 @@ export function LecturerClassDetail() {
                 <h2 className="text-2xl font-black text-brand-800 dark:text-brand-400 flex items-center gap-2">
                   <GraduationCap size={24} /> {t('lc.cd.gradebook')}
                 </h2>
-                <Button size="sm" variant="outline" className="bg-white border-slate-200 font-bold hover:bg-slate-50">{t('lc.cd.export_excel')}</Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportExcel}
+                  className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                >
+                  <Download size={16} />
+                  {t('lc.cd.export_excel')}
+                </Button>
               </div>
               <div className="p-2 overflow-x-auto">
                 {/* Columns come from the class's real assignments. The old fixed
