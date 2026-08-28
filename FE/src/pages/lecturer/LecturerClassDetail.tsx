@@ -234,7 +234,8 @@ export function LecturerClassDetail() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'BangDiem')
 
-    const cleanClassCode = cls?.classCode ? cls.classCode.replace(/[^a-zA-Z0-9_-]/g, '_') : 'Class'
+    const rawClassCode = cls?.code || (cls as any)?.classCode || 'Class'
+    const cleanClassCode = rawClassCode.replace(/[^a-zA-Z0-9_-]/g, '_')
     const dateStr = new Date().toISOString().slice(0, 10)
     const fileName = `Bang_Diem_${cleanClassCode}_${dateStr}.xlsx`
     XLSX.writeFile(wb, fileName)
