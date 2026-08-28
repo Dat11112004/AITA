@@ -644,9 +644,13 @@ export class SubmissionController extends BaseController {
 
                 const evaluationPromise = (async () => {
                     checkCancelled();
-                    globalJobManager.updateProgress(submissionId, 5, 'Initialize the dot environment (Sandbox)...');
+                    globalJobManager.updateProgress(submissionId, 5, 'Initialize the execution environment (Sandbox)...');
                     try {
-                        sandboxHandle = await this.sandboxService.startAsync(extractDir, publishedAssignment.metadata?.projectType as any);
+                        const startSandboxPromise = this.sandboxService.startAsync(extractDir, publishedAssignment.metadata?.projectType as any);
+                        const startTimeoutPromise = new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error('Sandbox initialization timed out (60s). Proceeding to source analysis.')), 60000)
+                        );
+                        sandboxHandle = await Promise.race([startSandboxPromise, startTimeoutPromise]);
                     } catch (sandboxErr: any) {
                         console.error(`[SubmissionController] Sandbox start error:`, sandboxErr);
                         sandboxHandle = {
@@ -870,9 +874,17 @@ export class SubmissionController extends BaseController {
             res.write(`data: ${JSON.stringify({ error: 'Job not found' })}\n\n`);
         }
 
+        // SSE Keep-Alive heartbeat (every 15s) to prevent Cloudflare/Nginx idle timeouts
+        const keepAliveInterval = setInterval(() => {
+            try {
+                res.write(`: keep-alive\n\n`);
+            } catch (e) { }
+        }, 15000);
+
         const onUpdate = (updatedJob: any) => {
             res.write(`data: ${JSON.stringify(updatedJob)}\n\n`);
             if (updatedJob.state === 'completed' || updatedJob.state === 'failed') {
+                clearInterval(keepAliveInterval);
                 res.end();
                 globalJobManager.removeListener(`update:${id}`, onUpdate);
             }
@@ -881,6 +893,7 @@ export class SubmissionController extends BaseController {
         globalJobManager.on(`update:${id}`, onUpdate);
 
         req.on('close', () => {
+            clearInterval(keepAliveInterval);
             globalJobManager.removeListener(`update:${id}`, onUpdate);
         });
     };

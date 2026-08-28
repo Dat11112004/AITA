@@ -50,7 +50,7 @@ export class ExecutionSandboxService {
     const runtimeStack = await this.detectRuntimeStack(submissionPath);
     console.log(`[Sandbox] ProjectType: ${projectType}, RuntimeStack: ${runtimeStack}`);
 
-    if (!this.isServerRuntime(runtimeStack)) {
+    if (!this.isServerRuntime(runtimeStack) || projectType === "desktop" || runtimeStack === "dotnet_desktop") {
       return { containerId: null, baseUrl: null, projectType, runtimeStack, isReady: false };
     }
 
@@ -467,7 +467,7 @@ export NODE_ENV=development
       } catch (err: any) {
         if (err.statusCode === 404) {
           console.log(`[Sandbox] Image ${dockerImage} not found locally. Pulling from registry (this may take a few minutes)...`);
-          await new Promise((resolve, reject) => {
+          const pullPromise = new Promise((resolve, reject) => {
             this.docker.pull(dockerImage, (pullErr: any, stream: any) => {
               if (pullErr) return reject(pullErr);
               this.docker.modem.followProgress(stream, onFinished, onProgress);
@@ -480,6 +480,10 @@ export NODE_ENV=development
               }
             });
           });
+          const pullTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Docker pull timeout (45s) exceeded for ${dockerImage}`)), 45000)
+          );
+          await Promise.race([pullPromise, pullTimeout]);
         } else {
           throw err;
         }
@@ -953,15 +957,33 @@ try {
       if (await this.findFile(submissionPath, 'go.mod')) return "golang";
       if (await this.findFile(submissionPath, 'composer.json') || await this.findFile(submissionPath, 'index.php')) return "php";
 
-      const csprojFile = hasCsproj;
-      if (csprojFile) {
-        const csprojContent = await fs.readFile(csprojFile, 'utf-8');
-        if (csprojContent.includes("Microsoft.NET.Sdk.Web")) return "aspnet";
-        if (csprojContent.includes("Microsoft.AspNetCore.Components")) return "blazor";
-        if (csprojContent.includes("Microsoft.NET.Sdk.WindowsDesktop")) return "dotnet_desktop";
-        if (csprojContent.includes("Microsoft.Maui")) return "dotnet_desktop"; // Close enough for runtime stack purposes
+      const allCsprojs = await this.findAllFiles(submissionPath, '.csproj');
+      if (allCsprojs.length > 0) {
+        let hasWeb = false;
+        let hasBlazor = false;
+        let hasDesktop = false;
+        for (const cp of allCsprojs) {
+          try {
+            const csprojContent = await fs.readFile(cp, 'utf-8');
+            if (csprojContent.includes("Microsoft.NET.Sdk.Web")) hasWeb = true;
+            if (csprojContent.includes("Microsoft.AspNetCore.Components")) hasBlazor = true;
+            if (
+              csprojContent.includes("<UseWPF>true</UseWPF>") ||
+              csprojContent.includes("<UseWindowsForms>true</UseWindowsForms>") ||
+              csprojContent.includes("-windows") ||
+              csprojContent.includes("Microsoft.NET.Sdk.WindowsDesktop") ||
+              csprojContent.includes("Microsoft.Maui")
+            ) {
+              hasDesktop = true;
+            }
+          } catch (e) { }
+        }
+        if (hasDesktop && !hasWeb) return "dotnet_desktop";
+        if (hasWeb) return "aspnet";
+        if (hasBlazor) return "blazor";
+        if (hasDesktop) return "dotnet_desktop";
+        return "dotnet_console";
       }
-      return "dotnet_console";
     } catch (e) {
       console.error(`[Sandbox] Runtime stack detection failed:`, e);
       return "unknown";
