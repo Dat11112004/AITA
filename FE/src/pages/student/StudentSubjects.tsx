@@ -67,9 +67,10 @@ export function StudentSubjects() {
       if (alive) {
         setSubjects(subjectsRes || [])
 
-        // Map real submission data into assignments
+        // Filter out deleted assignments & map real submission data into assignments
+        const activeAssignmentsRes = (assignmentsRes || []).filter((a: any) => !a.isDeleted && !a.IsDeleted && (a.status || '').toLowerCase() !== 'deleted')
         const submissionsMap = new Map((submissionsRes || []).map((s: any) => [s.assignmentId, s]))
-        const mergedAssignments = (assignmentsRes || []).map(a => {
+        const mergedAssignments = activeAssignmentsRes.map(a => {
           const sub = submissionsMap.get(a.id)
           if (sub) {
             const isPublished = sub.reviewStatus === 'PUBLISHED' || sub.isPublished === true

@@ -54,7 +54,7 @@ export function StudentOverview() {
   }));
 
   const upcomingTasks = (dashboardData?.upcomingAssignments || []).filter((a: any) => {
-    if (a.isSubmitted || a.status === 'Submitted' || a.status === 'Graded' || a.submitted) return false;
+    if (a.isDeleted || (a.status || '').toLowerCase() === 'deleted' || a.isSubmitted || a.status === 'Submitted' || a.status === 'Graded' || a.submitted) return false;
     if (!selectedSemester) return true;
     const taskSemLabel = (a.semesterLabel || a.semesterSeason || a.semesterCode || '').toUpperCase().replace(/\s+/g, '');
     const taskSemId = a.semesterId;

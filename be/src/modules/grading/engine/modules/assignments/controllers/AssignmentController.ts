@@ -943,6 +943,7 @@ export class AssignmentController extends BaseController {
                     where: { Id: id },
                     data: {
                         IsDeleted: true,
+                        Status: 'Deleted',
                         DeletedAt: new Date()
                     }
                 });
@@ -978,6 +979,7 @@ export class AssignmentController extends BaseController {
                     where: { Id: id },
                     data: {
                         IsDeleted: false,
+                        Status: 'Published',
                         DeletedAt: null
                     }
                 });
@@ -993,22 +995,56 @@ export class AssignmentController extends BaseController {
         }
     };
 
+    private async safelyDeleteExamSql(examId: string): Promise<void> {
+        try {
+            await prisma.submissionOverride.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await prisma.examAttachment.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await prisma.examClass.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await (prisma as any).aiUsageLog?.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await (prisma as any).examGenerationHistory?.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+
+            const subs = await prisma.submission.findMany({ where: { ExamId: examId }, select: { Id: true } }).catch(() => []);
+            const subIds = subs.map(s => s.Id);
+            if (subIds.length > 0) {
+                await prisma.criterionScore.deleteMany({ where: { RuleScore: { ExecutionResult: { SubmissionId: { in: subIds } } } } }).catch(() => {});
+                await prisma.evidence.deleteMany({ where: { RuleScore: { ExecutionResult: { SubmissionId: { in: subIds } } } } }).catch(() => {});
+                await prisma.ruleScore.deleteMany({ where: { ExecutionResult: { SubmissionId: { in: subIds } } } }).catch(() => {});
+                await prisma.executionResult.deleteMany({ where: { SubmissionId: { in: subIds } } }).catch(() => {});
+                await (prisma as any).buildArtifact?.deleteMany({ where: { GradingSession: { SubmissionId: { in: subIds } } } }).catch(() => {});
+                await prisma.gradingSession.deleteMany({ where: { SubmissionId: { in: subIds } } }).catch(() => {});
+                await prisma.submission.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            }
+
+            const sections = await prisma.examSection.findMany({ where: { ExamId: examId }, select: { Id: true } }).catch(() => []);
+            const sectionIds = sections.map(s => s.Id);
+            if (sectionIds.length > 0) {
+                const rules = await prisma.rubricRule.findMany({ where: { SectionId: { in: sectionIds } }, select: { Id: true } }).catch(() => []);
+                const ruleIds = rules.map(r => r.Id);
+                if (ruleIds.length > 0) {
+                    await prisma.rubricCriterion.deleteMany({ where: { RubricRuleId: { in: ruleIds } } }).catch(() => {});
+                    await prisma.rubricRule.deleteMany({ where: { SectionId: { in: sectionIds } } }).catch(() => {});
+                }
+                await prisma.examSection.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            }
+
+            await prisma.testCase.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await prisma.sampleCode.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+            await prisma.referenceArtifact.deleteMany({ where: { ExamId: examId } }).catch(() => {});
+
+            await prisma.exam.delete({ where: { Id: examId } });
+        } catch (e) {
+            console.warn(`[AssignmentController] Soft-deleting SQL exam ${examId} instead of hard delete:`, e);
+            await prisma.exam.update({
+                where: { Id: examId },
+                data: { IsDeleted: true, Status: 'Deleted', DeletedAt: new Date() }
+            }).catch(() => {});
+        }
+    }
+
     hardDelete = async (req: Request, res: Response): Promise<void> => {
         try {
             const id = req.params.id;
-
-            // 1. Delete Core SQL records
-            try {
-                await prisma.submissionOverride.deleteMany({ where: { ExamId: id } });
-                await prisma.examClass.deleteMany({ where: { ExamId: id } });
-                await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
-                await prisma.submission.deleteMany({ where: { ExamId: id } });
-                await prisma.exam.delete({ where: { Id: id } });
-            } catch (e) {
-                console.warn(`[AssignmentController] Failed to clean up core exam records for hard delete ${id}:`, e);
-            }
-
-            // 2. Hard delete from Document DB
+            await this.safelyDeleteExamSql(id);
             await this.assignmentRepository.deleteAsync(id);
             this.ok(res, null, 'Assignment permanently deleted');
         } catch (error) {
@@ -1024,15 +1060,7 @@ export class AssignmentController extends BaseController {
             }
 
             for (const id of ids) {
-                try {
-                    await prisma.submissionOverride.deleteMany({ where: { ExamId: id } });
-                    await prisma.examClass.deleteMany({ where: { ExamId: id } });
-                    await prisma.examAttachment.deleteMany({ where: { ExamId: id } });
-                    await prisma.submission.deleteMany({ where: { ExamId: id } });
-                    await prisma.exam.delete({ where: { Id: id } });
-                } catch (e) {
-                    console.warn(`[AssignmentController] Failed to clean up core exam records for bulk hard delete ${id}:`, e);
-                }
+                await this.safelyDeleteExamSql(id);
                 await this.assignmentRepository.deleteAsync(id);
             }
 
@@ -1055,6 +1083,7 @@ export class AssignmentController extends BaseController {
                         where: { Id: id },
                         data: {
                             IsDeleted: false,
+                            Status: 'Published',
                             DeletedAt: null
                         }
                     });

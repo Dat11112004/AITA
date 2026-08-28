@@ -79,6 +79,9 @@ export class ExamMapper {
     }
     (exam as any).GradingStrategy = raw.GradingStrategy || 'CONTINUOUS_QUEUE';
     (exam as any).gradingStrategy = raw.GradingStrategy || 'CONTINUOUS_QUEUE';
+    (exam as any).isDeleted = Boolean(raw.IsDeleted);
+    (exam as any).IsDeleted = Boolean(raw.IsDeleted);
+    (exam as any).deletedAt = raw.DeletedAt || null;
 
     return exam
   }
